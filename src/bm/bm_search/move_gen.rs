@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
 
-//TODO: don't allocate on the heap when it is not needed
+//TODO: Do not allocate a Vec each time a Move Generator is created
 
 const COUNTER_MOVE_BONUS: u32 = 0;
 const C_HIST_FACTOR: i32 = 0;
