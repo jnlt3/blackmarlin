@@ -1,0 +1,40 @@
+[package]
+name = "blackmarlin"
+version = "0.1.0"
+authors = ["doruk <dsekercioglu2003@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+
+
+[dependencies]
+chess = "3.2.0"
+text_io = "0.1.8"
+jemallocator = "0.3.2"
+rand = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "1.0.64"
+
+[features]
+standard = ["best_hist", "advanced_move_gen", "all_move"]
+all = ["all_hist", "advanced_move_gen", "all_move"]
+
+advanced_move_gen = [] # more advanced move generation
+
+all_hist = ["hist", "c_hist", "cm_hist", "cm_table"]
+best_hist = ["hist", "cm_hist"]
+hist = []                                            # history heuristic
+c_hist = []                                          # capture history
+cm_hist = []                                         # counter move history
+cm_table = []                                        # counter move table
+
+all_move = ["pv", "killer", "threat"]
+pv = []                               # use pv in move generation
+killer = []                           # use killer moves in move generation
+threat = []                           # use threat moves from null move search in move generation
