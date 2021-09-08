@@ -4,7 +4,7 @@ use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
-use crate::bm::bm_search::move_gen::{PvMoveGen};
+use crate::bm::bm_search::move_gen::PvMoveGen;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
 use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
@@ -257,11 +257,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         } else {
             let do_fp = !Search::IS_PV && is_quiet && do_f_prune;
 
-            if (is_quiet
-                && SEARCH_PARAMS.do_lmp(depth)
-                && index > SEARCH_PARAMS.get_lmp_move_cnt(depth))
-                || (do_fp && eval.unwrap() + SEARCH_PARAMS.get_fp().threshold(depth) < alpha)
-            {
+            if do_fp && eval.unwrap() + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {
                 continue;
             }
             position.make_move(make_move);

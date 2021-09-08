@@ -4,6 +4,8 @@ use std::sync::Mutex;
 
 const PIECE_COUNT: usize = 12;
 
+//TODO: Single mutex will likely slow down when multiple threads are used
+
 #[derive(Debug)]
 pub struct CounterMoveTable {
     table: Mutex<[[Option<ChessMove>; 64]; PIECE_COUNT]>,

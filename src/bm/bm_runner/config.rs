@@ -176,12 +176,12 @@ impl GuiInfo for XBoardInfo {
         } else {
             eval.raw()
         };
-
-        print!("{} {} {} {}", depth, cecp_score, elapsed, node_cnt);
+        let mut buffer = String::new();
+        buffer += &format!("{} {} {} {}", depth, cecp_score, elapsed, node_cnt);
         for make_move in pv {
-            print!(" {}", make_move);
+            buffer += &format!(" {}", make_move);
         }
-        println!();
+        println!("{}", buffer);
     }
 }
 
@@ -201,13 +201,14 @@ impl GuiInfo for CliInfo {
         node_cnt: u32,
         pv: &[ChessMove],
     ) {
-        print!(
+        let mut buffer = String::new();
+        buffer += &format!(
             "depth: {} score: {:?} time: {:?} nodes: {}",
             depth, eval, elapsed, node_cnt
         );
         for make_move in pv {
-            print!(" {}", make_move);
+            buffer += &format!(" {}", make_move);
         }
-        println!();
+        println!("{}", buffer);
     }
 }

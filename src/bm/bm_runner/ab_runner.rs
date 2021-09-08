@@ -42,9 +42,6 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     lmr_pv: LMR_PV,
     lmr_depth: LMR_DEPTH,
     do_lmr: DO_LMR,
-    lmp_depth: LMP_DEPTH,
-    lmp_move_cnt: Reduction::new(LMP_MOVE_CNT_BASE, LMP_MOVE_CNT_FACTOR, LMP_MOVE_CNT_DIVISOR),
-    do_lmp: DO_LMP,
     q_search_depth: QUIESCENCE_SEARCH_DEPTH,
     delta_margin: DELTA_MARGIN,
     do_dp: DO_DELTA_PRUNE,
@@ -68,9 +65,6 @@ pub struct SearchParams {
     lmr_pv: u32,
     lmr_depth: u32,
     do_lmr: bool,
-    lmp_depth: u32,
-    lmp_move_cnt: Reduction,
-    do_lmp: bool,
     q_search_depth: u32,
     delta_margin: i32,
     do_dp: bool,
@@ -151,16 +145,6 @@ impl SearchParams {
     #[inline]
     pub const fn get_lmr_pv(&self) -> u32 {
         self.lmr_pv
-    }
-
-    #[inline]
-    pub const fn get_lmp_move_cnt(&self, depth_left: u32) -> usize {
-        self.lmp_move_cnt.reduction(depth_left) as usize
-    }
-
-    #[inline]
-    pub const fn do_lmp(&self, depth: u32) -> bool {
-        self.do_lmp && depth < self.lmp_depth
     }
 
     #[inline]
