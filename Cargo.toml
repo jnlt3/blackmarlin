@@ -20,13 +20,11 @@ jemallocator = "0.3.2"
 rand = "*"
 
 [features]
-standard = ["best_hist", "advanced_move_gen", "all_move"]
-all = ["all_hist", "advanced_move_gen", "all_move"]
+standard = ["all_hist", "advanced_move_gen", "all_move"]
 
 advanced_move_gen = [] # more advanced move generation
 
 all_hist = ["hist", "c_hist", "cm_hist", "cm_table"]
-best_hist = ["hist", "cm_hist"]
 hist = []                                            # history heuristic
 c_hist = []                                          # capture history
 cm_hist = []                                         # counter move history

@@ -100,24 +100,50 @@ impl std::ops::Shr<Depth> for Evaluation {
     }
 }
 
-impl std::ops::Add<i32> for Evaluation {
-    type Output = Self;
+macro_rules! impl_i32_ops {
+    ($($trait:ident, $fn:ident, $op:ident;)*) => {
+        $(
+            impl std::ops::$trait<i32> for Evaluation {
+                type Output = Self;
 
-    fn add(self, rhs: i32) -> Self::Output {
-        Evaluation {
-            score: self.score.saturating_add(rhs),
-        }
-    }
+                fn $fn(self, rhs: i32) -> Self::Output {
+                    Evaluation {
+                        score: self.score.$op(rhs)
+                    }
+                }
+            }
+        )*
+    };
 }
 
-impl std::ops::Sub<i32> for Evaluation {
-    type Output = Self;
+macro_rules! impl_eval_ops {
+    ($($trait:ident, $fn:ident, $op:ident;)*) => {
+        $(
+            impl std::ops::$trait<Evaluation> for Evaluation {
+                type Output = Self;
 
-    fn sub(self, rhs: i32) -> Self::Output {
-        Evaluation {
-            score: self.score.saturating_sub(rhs),
-        }
-    }
+                fn $fn(self, rhs: Evaluation) -> Self::Output {
+                    Evaluation {
+                        score: self.score.$op(rhs.score)
+                    }
+                }
+            }
+        )*
+    };
+}
+
+impl_i32_ops! {
+    Add, add, add;
+    Sub, sub, sub;
+    Mul, mul, mul;
+    Div, div, div;
+}
+
+impl_eval_ops! {
+    Add, add, add;
+    Sub, sub, sub;
+    Mul, mul, mul;
+    Div, div, div;
 }
 
 #[test]

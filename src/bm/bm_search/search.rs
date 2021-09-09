@@ -267,7 +267,10 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
 
             if do_lmr {
                 reduction = if !Search::IS_PV {
-                    SEARCH_PARAMS.get_lmr().reduction(depth)
+                    //SEARCH_PARAMS.get_lmr().reduction(depth)
+                    search_options
+                        .get_lmr_lookup()
+                        .get(depth as usize, index - 1)
                 } else {
                     SEARCH_PARAMS.get_lmr_pv()
                 };

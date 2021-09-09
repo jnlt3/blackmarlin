@@ -27,8 +27,6 @@ impl Window {
 
     pub fn set(&mut self, eval: Evaluation) {
         self.center = eval;
-        self.lower_window = self.start;
-        self.upper_window = self.start;
     }
 
     pub fn get(&self) -> (Evaluation, Evaluation) {

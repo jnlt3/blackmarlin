@@ -13,14 +13,15 @@ use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_search::threshold::Threshold;
-use crate::bm::bm_search::window::Window;
 use crate::bm::bm_util::c_hist::CMoveHistoryTable;
 use crate::bm::bm_util::c_move::CounterMoveTable;
 use crate::bm::bm_util::ch_table::CaptureHistoryTable;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
+use crate::bm::bm_util::lookup::LookUp;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
+use crate::bm::bm_util::window::Window;
 
 pub const SEARCH_PARAMS: SearchParams = SearchParams {
     killer_move_cnt: KILLER_MOVE_CNT,
@@ -38,7 +39,6 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     do_nmp: DO_NULL_MOVE_REDUCTION,
     iid: Reduction::new(IID_BASE, IID_FACTOR, IID_DIVISOR),
     do_iid: DO_IID,
-    lmr: Reduction::new(LMR_BASE, LMR_FACTOR, LMR_DIVISOR),
     lmr_pv: LMR_PV,
     lmr_depth: LMR_DEPTH,
     do_lmr: DO_LMR,
@@ -61,7 +61,6 @@ pub struct SearchParams {
     do_nmp: bool,
     iid: Reduction,
     do_iid: bool,
-    lmr: Reduction,
     lmr_pv: u32,
     lmr_depth: u32,
     do_lmr: bool,
@@ -138,11 +137,6 @@ impl SearchParams {
     }
 
     #[inline]
-    pub const fn get_lmr(&self) -> &Reduction {
-        &self.lmr
-    }
-
-    #[inline]
     pub const fn get_lmr_pv(&self) -> u32 {
         self.lmr_pv
     }
@@ -152,6 +146,8 @@ impl SearchParams {
         self.do_lmr && depth > self.lmr_depth
     }
 }
+
+type LmrLookup = LookUp<u32, 32, 64>;
 
 #[derive(Debug, Clone)]
 pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send + Clone> {
@@ -165,6 +161,7 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send + Clone> {
     c_table: Arc<CounterMoveTable>,
     killer_moves: Vec<MoveEntry<KILLER_MOVE_CNT>>,
     threat_moves: Vec<MoveEntry<THREAT_MOVE_CNT>>,
+    lmr_lookup: Arc<LmrLookup>,
     tt_hits: u32,
     tt_misses: u32,
     l1: usize,
@@ -219,6 +216,11 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     }
 
     #[inline]
+    pub fn get_lmr_lookup(&self) -> Arc<LmrLookup> {
+        self.lmr_lookup.clone()
+    }
+
+    #[inline]
     pub fn tt_hits(&mut self) -> &mut u32 {
         &mut self.tt_hits
     }
@@ -264,12 +266,12 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
             'outer: loop {
                 search_options.window.set(search_options.eval);
                 let mut fail_cnt = 0;
+                let (alpha, beta) = if fail_cnt < SEARCH_PARAMS.fail_cnt {
+                    search_options.window.get()
+                } else {
+                    (Evaluation::min(), Evaluation::max())
+                };
                 loop {
-                    let (alpha, beta) = if fail_cnt < SEARCH_PARAMS.fail_cnt {
-                        search_options.window.get()
-                    } else {
-                        (Evaluation::min(), Evaluation::max())
-                    };
                     let (make_move, score) = search::search::<Pv, Eval>(
                         &mut position,
                         &mut search_options,
@@ -363,8 +365,8 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 eval: evaluator.evaluate(&position),
                 evaluator,
                 end_time: Instant::now(),
-                window: Window::new(25, 2, 1, 5),
-                t_table: Arc::new(TranspositionTable::new(2usize.pow(21))),
+                window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
+                t_table: Arc::new(TranspositionTable::new(2_usize.pow(21))),
                 h_table: Arc::new(HistoryTable::new()),
                 ch_table: Arc::new(CaptureHistoryTable::new()),
                 c_hist: Arc::new(CMoveHistoryTable::new()),
@@ -375,6 +377,13 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 tt_misses: 0,
                 l1: 0,
                 l2: 0,
+                lmr_lookup: Arc::new(LookUp::new(|depth, mv| {
+                    if depth == 0 || mv == 0 {
+                        0
+                    } else {
+                        (LMR_BASE + (depth as f32).ln() * (mv as f32).ln() / LMR_DIV) as u32
+                    }
+                })),
             },
             position,
         }

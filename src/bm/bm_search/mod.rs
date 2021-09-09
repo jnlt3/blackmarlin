@@ -4,4 +4,3 @@ pub mod reduction;
 pub mod search;
 pub mod threshold;
 pub mod time;
-pub mod window;
