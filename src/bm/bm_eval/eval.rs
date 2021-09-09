@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 const CHECKMATE: i32 = 64;
 const CHECKMATE_EVAL: i32 = i32::MAX;
 const MAX_EVAL: i32 = CHECKMATE_EVAL - CHECKMATE;
@@ -8,7 +6,7 @@ pub enum Depth {
     Next,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Evaluation {
     score: i32,
 }

@@ -1,2 +1,4 @@
 .gitignore
 target/
+flamegraph.svg
+out/
