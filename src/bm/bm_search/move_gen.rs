@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
 
-//TODO: Do not allocate a Vec each time a Move Generator is created
+//TODO: Do not allocate Vecs each time a Move Generator is created
 
 const COUNTER_MOVE_BONUS: u32 = 0;
 const C_HIST_FACTOR: i32 = 0;
@@ -179,7 +179,9 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             self.move_gen.set_iterator_mask(!EMPTY);
             for make_move in &mut self.move_gen {
                 //Later to be replaced by the actual value for sorting
-                self.quiet_queue.push((make_move, 0));
+                self.quiet_queue.push((make_move, unsafe {
+                    std::mem::MaybeUninit::uninit().assume_init()
+                }));
             }
             self.gen_type = GenType::Killer;
         }

@@ -170,76 +170,75 @@ impl CecpCommand {
             }
             Some(string) => string,
         };
-        if token == "xboard" {
-            CecpCommand::XBoard
-        } else if token == "level" {
-            let mut moves = 0;
-            let mut time_left;
-            let mut increment = 0;
-            if let Some(moves_str) = split.next() {
-                moves = moves_str.parse::<i64>().unwrap_or(0);
+        match token {
+            "xboard" => CecpCommand::XBoard,
+            "level" => {
+                let mut moves = 0;
+                let mut time_left;
+                let mut increment = 0;
+                if let Some(moves_str) = split.next() {
+                    moves = moves_str.parse::<i64>().unwrap_or(0);
+                }
+                time_left = 0;
+                if let Some(time_str) = split.next() {
+                    let time_split = time_str.split(':');
+                    let mut unit = 60;
+                    for time in time_split {
+                        time_left += unit * time.parse::<i64>().unwrap_or(0);
+                        unit /= 60;
+                    }
+                }
+                if let Some(increment_str) = split.next() {
+                    increment = increment_str.parse::<i64>().unwrap_or(0);
+                }
+                CecpCommand::Level(moves, time_left, increment)
             }
-            time_left = 0;
-            if let Some(time_str) = split.next() {
-                let time_split = time_str.split(':');
-                let mut unit = 60;
-                for time in time_split {
-                    time_left += unit * time.parse::<i64>().unwrap_or(0);
-                    unit /= 60;
+            "ping" => {
+                if let Some(number) = split.next() {
+                    CecpCommand::Ping(number.to_string())
+                } else {
+                    CecpCommand::Ping("".to_string())
                 }
             }
-            if let Some(increment_str) = split.next() {
-                increment = increment_str.parse::<i64>().unwrap_or(0);
-            }
-            CecpCommand::Level(moves, time_left, increment)
-        } else if token == "ping" {
-            if let Some(number) = split.next() {
-                CecpCommand::Ping(number.to_string())
-            } else {
-                CecpCommand::Ping("".to_string())
-            }
-        } else if token == "time" {
-            if let Some(seconds) = split.next() {
-                if let Ok(seconds) = seconds.parse::<i64>() {
-                    return CecpCommand::Time(seconds as f32 * 0.01);
+            "time" => {
+                if let Some(seconds) = split.next() {
+                    if let Ok(seconds) = seconds.parse::<i64>() {
+                        return CecpCommand::Time(seconds as f32 * 0.01);
+                    }
                 }
+                CecpCommand::Empty
             }
-            CecpCommand::Empty
-        } else if token == "st" {
-            if let Some(seconds) = split.next() {
-                if let Ok(seconds) = seconds.parse::<f32>() {
-                    return CecpCommand::SetTime(seconds);
+            "st" => {
+                if let Some(seconds) = split.next() {
+                    if let Ok(seconds) = seconds.parse::<f32>() {
+                        return CecpCommand::SetTime(seconds);
+                    }
                 }
+                CecpCommand::Empty
             }
-            CecpCommand::Empty
-        } else if token == "cores" {
-            if let Some(cores) = split.next() {
-                if let Ok(cores) = cores.parse::<u8>() {
-                    return CecpCommand::Cores(cores);
+            "cores" => {
+                if let Some(cores) = split.next() {
+                    if let Ok(cores) = cores.parse::<u8>() {
+                        return CecpCommand::Cores(cores);
+                    }
                 }
+                CecpCommand::Empty
             }
-            CecpCommand::Empty
-        } else if token == "setboard" {
-            let mut fen = "".to_string();
-            for token in split {
-                fen.push_str(token);
-                fen.push(' ');
+            "setboard" => {
+                let mut fen = "".to_string();
+                for token in split {
+                    fen.push_str(token);
+                    fen.push(' ');
+                }
+                CecpCommand::SetBoard(chess::Board::from_str(&fen).unwrap())
             }
-            CecpCommand::SetBoard(chess::Board::from_str(&fen).unwrap())
-        } else if token == "new" {
-            CecpCommand::New
-        } else if token == "force" {
-            CecpCommand::Force
-        } else if token == "go" {
-            CecpCommand::Go
-        } else if token == "quit" {
-            CecpCommand::Quit
-        } else if token == "eval" {
-            CecpCommand::Eval
-        } else if token == "bench" {
-            CecpCommand::Bench
-        } else {
-            CecpCommand::Empty
+            "new" => CecpCommand::New,
+            "force" => CecpCommand::Force,
+            "go" => CecpCommand::Go,
+            "quit" => CecpCommand::Quit,
+            "eval" => CecpCommand::Eval,
+            "bench" => CecpCommand::Bench,
+            _ => CecpCommand::Empty,
         }
     }
 }
