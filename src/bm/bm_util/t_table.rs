@@ -54,9 +54,11 @@ impl Analysis {
 
 const ENTRIES_PER_LOCK: usize = 64;
 
+type EntryGroup = [Option<(u64, Analysis)>; ENTRIES_PER_LOCK];
+
 #[derive(Debug)]
 pub struct TranspositionTable {
-    table: Vec<Mutex<[Option<(u64, Analysis)>; ENTRIES_PER_LOCK]>>,
+    table: Vec<Mutex<EntryGroup>>,
     mask: usize,
 }
 
