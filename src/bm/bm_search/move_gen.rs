@@ -15,8 +15,8 @@ use super::move_entry::MoveEntryIterator;
 
 //TODO: Do not allocate Vecs each time a Move Generator is created
 
-const COUNTER_MOVE_BONUS: u32 = 0;
-const C_HIST_FACTOR: i32 = 0;
+const COUNTER_MOVE_BONUS: u32 = 4096;
+const C_HIST_FACTOR: i32 = 1;
 const C_HIST_DIVISOR: i32 = 8;
 const CH_TABLE_FACTOR: i32 = 1;
 const CH_TABLE_DIVISOR: i32 = 8;
@@ -150,7 +150,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                     &mut self.capture_queue
                 };
 
-                #[cfg(feature = "cm_table")]
+                #[cfg(feature = "cmh_table")]
                 {
                     let history_gain = self.ch_table.get(
                         self.board.side_to_move(),
@@ -179,9 +179,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             self.move_gen.set_iterator_mask(!EMPTY);
             for make_move in &mut self.move_gen {
                 //Later to be replaced by the actual value for sorting
-                self.quiet_queue.push((make_move, unsafe {
-                    std::mem::MaybeUninit::uninit().assume_init()
-                }));
+                self.quiet_queue.push((make_move, 0));
             }
             self.gen_type = GenType::Killer;
         }
@@ -224,18 +222,18 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
 
                 #[cfg(feature = "hist")]
                 {
-                    *score =
+                    *score +=
                         self.h_table
                             .get(self.board.side_to_move(), piece, make_move.get_dest());
                 }
 
-                #[cfg(feature = "cm_table")]
+                #[cfg(feature = "c_move")]
                 {
                     if Some(*make_move) == self.counter_move {
                         *score += COUNTER_MOVE_BONUS;
                     }
                 }
-                #[cfg(feature = "cm_hist")]
+                #[cfg(feature = "c_hist")]
                 if let Some(last_move) = &self.prev_move {
                     let counter_move_hist = self.c_hist.get(
                         !self.board.side_to_move(),
