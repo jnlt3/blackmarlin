@@ -74,9 +74,9 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     pv_move: Option<ChessMove>,
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
-    h_table: Arc<HistoryTable>,
-    ch_table: Arc<CaptureHistoryTable>,
-    c_hist: Arc<CMoveHistoryTable>,
+    hist: Arc<HistoryTable>,
+    c_hist: Arc<CaptureHistoryTable>,
+    c_move_hist: Arc<CMoveHistoryTable>,
     counter_move: Option<ChessMove>,
     prev_move: Option<PieceTo>,
     gen_type: GenType,
@@ -112,11 +112,11 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
             pv_move,
             threat_move_entry,
             killer_entry,
-            h_table: options.get_h_table(),
-            ch_table: options.get_ch_table(),
+            hist: options.get_h_table(),
+            c_hist: options.get_ch_table(),
             counter_move,
             prev_move,
-            c_hist: options.get_c_hist(),
+            c_move_hist: options.get_c_hist(),
             board: *board,
             capture_queue: vec![],
             quiet_queue: vec![],
@@ -150,9 +150,9 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                     &mut self.capture_queue
                 };
 
-                #[cfg(feature = "cmh_table")]
+                #[cfg(feature = "c_hist")]
                 {
-                    let history_gain = self.ch_table.get(
+                    let history_gain = self.c_hist.get(
                         self.board.side_to_move(),
                         self.board.piece_on(make_move.get_source()).unwrap(),
                         make_move.get_dest(),
@@ -223,7 +223,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                 #[cfg(feature = "hist")]
                 {
                     *score +=
-                        self.h_table
+                        self.hist
                             .get(self.board.side_to_move(), piece, make_move.get_dest());
                 }
 
@@ -233,9 +233,9 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         *score += COUNTER_MOVE_BONUS;
                     }
                 }
-                #[cfg(feature = "c_hist")]
+                #[cfg(feature = "cmh_table")]
                 if let Some(last_move) = &self.prev_move {
-                    let counter_move_hist = self.c_hist.get(
+                    let counter_move_hist = self.c_move_hist.get(
                         !self.board.side_to_move(),
                         last_move.piece,
                         last_move.to,
