@@ -12,7 +12,7 @@ const fn generate_table(table: [[i32; 8]; 8], piece_value: i32) -> [[i32; 8]; 8]
 }
 
 const fn recursive_gen(
-    table: [[i32; 8]; 8],
+    mut table: [[i32; 8]; 8],
     piece_value: i32,
     x: usize,
     y: usize,
@@ -20,12 +20,11 @@ const fn recursive_gen(
     if y >= 8 {
         return table;
     }
-    let mut new_table = table;
-    new_table[x][y] += piece_value;
+    table[x][y] += piece_value;
     if x < 7 {
-        recursive_gen(new_table, piece_value, x + 1, y)
+        recursive_gen(table, piece_value, x + 1, y)
     } else {
-        recursive_gen(new_table, piece_value, 0, y + 1)
+        recursive_gen(table, piece_value, 0, y + 1)
     }
 }
 
