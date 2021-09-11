@@ -115,22 +115,27 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 return false;
             }
             CecpCommand::Bench => {
+                //TODO: reset back to the old position
                 let mut sum_node_cnt = 0;
+                let mut sum_depth = 0;
                 let mut sum_time = Duration::from_nanos(0);
+
                 for position in POSITIONS {
                     self.bm_runner
                         .set_board(chess::Board::from_str(position).unwrap());
 
                     let start = Instant::now();
-                    let (_, _, _, node_cnt) =
+                    let (_, _, depth, node_cnt) =
                         self.bm_runner.search::<Run, NoInfo>(1.0f32, 1, false);
                     sum_time += start.elapsed();
                     sum_node_cnt += node_cnt;
+                    sum_depth += depth;
                 }
                 println!(
-                    "nps: {:?}, node_cnt: {:?}",
+                    "nps: {}, node_cnt: {}, avg_depth: {}",
                     sum_node_cnt as f32 / sum_time.as_secs_f32(),
                     sum_node_cnt,
+                    sum_depth as f32 / POSITIONS.len() as f32,
                 )
             }
             CecpCommand::Empty => {}

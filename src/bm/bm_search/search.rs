@@ -255,6 +255,10 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             );
             score = search_score << Next;
         } else {
+            if SEARCH_PARAMS.do_lmp(depth) && index > search_options.get_lmp_lookup().get(depth as usize) {
+                break;
+            }
+
             let do_fp = !Search::IS_PV && is_quiet && do_f_prune;
 
             if do_fp && eval.unwrap() + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {

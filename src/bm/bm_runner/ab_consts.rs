@@ -21,8 +21,13 @@ pub const DO_IID: bool = true;
 pub const LMR_BASE: f32 = 0.75;
 pub const LMR_DIV: f32 = 1.25;
 pub const LMR_PV: u32 = 1;
-pub const LMR_DEPTH: u32 = 2;
+pub const LMR_DEPTH: u32 = 0;
 pub const DO_LMR: bool = true;
+
+pub const LMP_DEPTH: u32 = 10;
+pub const LMP_OFFSET: f32 = 2.0;
+pub const LMP_FACTOR: f32 = 0.88;
+pub const DO_LMP: bool = false;
 
 pub const QUIESCENCE_SEARCH_DEPTH: u32 = 30;
 pub const DELTA_MARGIN: i32 = 1000;

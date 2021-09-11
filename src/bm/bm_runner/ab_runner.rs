@@ -18,7 +18,7 @@ use crate::bm::bm_util::c_move::CounterMoveTable;
 use crate::bm::bm_util::ch_table::CaptureHistoryTable;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
-use crate::bm::bm_util::lookup::LookUp;
+use crate::bm::bm_util::lookup::{LookUp, LookUp2d};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
@@ -42,6 +42,8 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     lmr_pv: LMR_PV,
     lmr_depth: LMR_DEPTH,
     do_lmr: DO_LMR,
+    lmp_depth: LMP_DEPTH,
+    do_lmp: DO_LMP,
     q_search_depth: QUIESCENCE_SEARCH_DEPTH,
     delta_margin: DELTA_MARGIN,
     do_dp: DO_DELTA_PRUNE,
@@ -64,6 +66,8 @@ pub struct SearchParams {
     lmr_pv: u32,
     lmr_depth: u32,
     do_lmr: bool,
+    lmp_depth: u32,
+    do_lmp: bool,
     q_search_depth: u32,
     delta_margin: i32,
     do_dp: bool,
@@ -145,9 +149,15 @@ impl SearchParams {
     pub const fn do_lmr(&self, depth: u32) -> bool {
         self.do_lmr && depth > self.lmr_depth
     }
+
+    #[inline]
+    pub const fn do_lmp(&self, depth: u32) -> bool {
+        self.do_lmp && depth < self.lmp_depth
+    }
 }
 
-type LmrLookup = LookUp<u32, 32, 64>;
+type LmrLookup = LookUp2d<u32, 32, 64>;
+type LmpLookup = LookUp<usize, { LMP_DEPTH as usize }>;
 
 #[derive(Debug, Clone)]
 pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send + Clone> {
@@ -162,6 +172,7 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send + Clone> {
     killer_moves: Vec<MoveEntry<KILLER_MOVE_CNT>>,
     threat_moves: Vec<MoveEntry<THREAT_MOVE_CNT>>,
     lmr_lookup: Arc<LmrLookup>,
+    lmp_lookup: Arc<LmpLookup>,
     tt_hits: u32,
     tt_misses: u32,
     l1: usize,
@@ -218,6 +229,11 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     #[inline]
     pub fn get_lmr_lookup(&self) -> Arc<LmrLookup> {
         self.lmr_lookup.clone()
+    }
+
+    #[inline]
+    pub fn get_lmp_lookup(&self) -> Arc<LmpLookup> {
+        self.lmp_lookup.clone()
     }
 
     #[inline]
@@ -377,12 +393,15 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 tt_misses: 0,
                 l1: 0,
                 l2: 0,
-                lmr_lookup: Arc::new(LookUp::new(|depth, mv| {
+                lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
                     if depth == 0 || mv == 0 {
                         0
                     } else {
                         (LMR_BASE + (depth as f32).ln() * (mv as f32).ln() / LMR_DIV) as u32
                     }
+                })),
+                lmp_lookup: Arc::new(LookUp::new(|depth| {
+                    (LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR) as usize
                 })),
             },
             position,
