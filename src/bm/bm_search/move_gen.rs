@@ -8,6 +8,7 @@ use crate::bm::bm_util::c_hist::{CMoveHistoryTable, PieceTo};
 use crate::bm::bm_util::ch_table::CaptureHistoryTable;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
+use arrayvec::ArrayVec;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -15,7 +16,7 @@ use super::move_entry::MoveEntryIterator;
 
 //TODO: Do not allocate Vecs each time a Move Generator is created
 
-const COUNTER_MOVE_BONUS: u32 = 4096;
+const COUNTER_MOVE_BONUS: i32 = 4096;
 const C_HIST_FACTOR: i32 = 1;
 const C_HIST_DIVISOR: i32 = 8;
 const CH_TABLE_FACTOR: i32 = 1;
@@ -29,7 +30,6 @@ enum GenType {
     GenQuiet,
     ThreatMove,
     Killer,
-    CalcQuiet,
     Quiet,
     BadCaptures,
 }
@@ -82,9 +82,8 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     gen_type: GenType,
     board: Board,
 
-    capture_queue: Vec<(ChessMove, i32)>,
-    quiet_queue: Vec<(ChessMove, u32)>,
-    bad_capture_queue: Vec<(ChessMove, i32)>,
+    queue: ArrayVec<(ChessMove, i32), 218>,
+
     eval: PhantomData<Eval>,
 }
 
@@ -118,9 +117,7 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
             prev_move,
             c_move_hist: options.get_c_hist(),
             board: *board,
-            capture_queue: vec![],
-            quiet_queue: vec![],
-            bad_capture_queue: vec![],
+            queue: ArrayVec::new(),
             eval: PhantomData::default(),
         }
     }
@@ -144,11 +141,6 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             self.move_gen.set_iterator_mask(*self.board.combined());
             for make_move in &mut self.move_gen {
                 let mut expected_gain = Eval::see(self.board, make_move);
-                let queue = if expected_gain < 0 {
-                    &mut self.bad_capture_queue
-                } else {
-                    &mut self.capture_queue
-                };
 
                 #[cfg(feature = "c_hist")]
                 {
@@ -162,75 +154,38 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         / CH_TABLE_DIVISOR;
                     expected_gain += history_gain;
                 }
-                let pos = queue
+                let pos = self
+                    .queue
                     .binary_search_by_key(&expected_gain, |(_, score)| *score)
                     .unwrap_or_else(|pos| pos);
-                queue.insert(pos, (make_move, expected_gain));
+                self.queue.insert(pos, (make_move, expected_gain));
             }
             self.gen_type = GenType::Captures;
         }
         if self.gen_type == GenType::Captures {
-            if let Some((make_move, _)) = self.capture_queue.pop() {
+            if let Some((make_move, _)) = self.queue.pop() {
                 return Some(make_move);
             }
             self.gen_type = GenType::GenQuiet;
         }
         if self.gen_type == GenType::GenQuiet {
             self.move_gen.set_iterator_mask(!EMPTY);
+            let partition = self.queue.len();
             for make_move in &mut self.move_gen {
-                //Later to be replaced by the actual value for sorting
-                self.quiet_queue.push((make_move, 0));
-            }
-            self.gen_type = GenType::Killer;
-        }
-        //Assumes Killer Moves won't repeat
-        if self.gen_type == GenType::Killer {
-            #[cfg(feature = "killer")]
-            for make_move in &mut self.killer_entry {
-                if Some(make_move) != self.pv_move {
-                    let position = self
-                        .quiet_queue
-                        .iter()
-                        .position(|(cmp_move, _)| make_move == *cmp_move);
-                    if let Some(position) = position {
-                        self.quiet_queue.remove(position);
-                        return Some(make_move);
-                    }
-                }
-            }
-            self.gen_type = GenType::ThreatMove;
-        }
-        if self.gen_type == GenType::ThreatMove {
-            #[cfg(feature = "threat")]
-            for make_move in &mut self.threat_move_entry {
-                if Some(make_move) != self.pv_move {
-                    let position = self
-                        .quiet_queue
-                        .iter()
-                        .position(|(cmp_move, _)| make_move == *cmp_move);
-                    if let Some(position) = position {
-                        self.quiet_queue.remove(position);
-                        return Some(make_move);
-                    }
-                }
-            }
-            self.gen_type = GenType::CalcQuiet;
-        }
-        if self.gen_type == GenType::CalcQuiet {
-            for (make_move, score) in &mut self.quiet_queue {
                 let piece = self.board.piece_on(make_move.get_source()).unwrap();
-
+                let mut score = 0;
                 #[cfg(feature = "hist")]
                 {
-                    *score += self
+                    score += self
                         .hist
-                        .get(self.board.side_to_move(), piece, make_move.get_dest());
+                        .get(self.board.side_to_move(), piece, make_move.get_dest())
+                        as i32;
                 }
 
                 #[cfg(feature = "c_move")]
                 {
                     if Some(*make_move) == self.counter_move {
-                        *score += COUNTER_MOVE_BONUS;
+                        score += COUNTER_MOVE_BONUS;
                     }
                 }
                 #[cfg(feature = "cmh_table")]
@@ -243,19 +198,54 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         make_move.get_dest(),
                     ) * C_HIST_FACTOR as u32
                         / C_HIST_DIVISOR as u32;
-                    *score += counter_move_hist;
+                    score += counter_move_hist;
+                }
+                let pos = self.queue[partition..]
+                    .binary_search_by_key(&score, |(_, score)| *score)
+                    .unwrap_or_else(|pos| pos);
+                self.queue.insert(partition + pos, (make_move, score));
+            }
+            self.gen_type = GenType::Killer;
+        }
+        //Assumes Killer Moves won't repeat
+        if self.gen_type == GenType::Killer {
+            #[cfg(feature = "killer")]
+            for make_move in &mut self.killer_entry {
+                if Some(make_move) != self.pv_move {
+                    let position = self
+                        .queue
+                        .iter()
+                        .position(|(cmp_move, _)| make_move == *cmp_move);
+                    if let Some(position) = position {
+                        self.queue.remove(position);
+                        return Some(make_move);
+                    }
                 }
             }
-            self.quiet_queue.sort_unstable_by_key(|(_, score)| *score);
-            self.gen_type = GenType::Quiet;
+            self.gen_type = GenType::ThreatMove;
+        }
+        if self.gen_type == GenType::ThreatMove {
+            #[cfg(feature = "threat")]
+            for make_move in &mut self.threat_move_entry {
+                if Some(make_move) != self.pv_move {
+                    let position = self
+                        .queue
+                        .iter()
+                        .position(|(cmp_move, _)| make_move == *cmp_move);
+                    if let Some(position) = position {
+                        self.queue.remove(position);
+                        return Some(make_move);
+                    }
+                }
+            }
         }
         if self.gen_type == GenType::Quiet {
-            if let Some((make_move, _)) = self.quiet_queue.pop() {
+            if let Some((make_move, _)) = self.queue.pop() {
                 return Some(make_move);
             }
             self.gen_type = GenType::BadCaptures;
         }
-        if let Some((make_move, _)) = self.bad_capture_queue.pop() {
+        if let Some((make_move, _)) = self.queue.pop() {
             return Some(make_move);
         }
         None

@@ -158,7 +158,6 @@ impl Evaluator for BasicEval {
         let board = position.board();
 
         let turn = position.turn();
-        let mut phase = TOTAL_PHASE;
 
         let pawns = *board.pieces(Piece::Pawn);
         let knights = *board.pieces(Piece::Knight);
@@ -167,12 +166,13 @@ impl Evaluator for BasicEval {
         let queens = *board.pieces(Piece::Queen);
         let kings = *board.pieces(Piece::King);
 
-        phase = phase.saturating_sub(pawns.popcnt() * PAWN_PHASE);
-        phase = phase.saturating_sub(knights.popcnt() * KNIGHT_PHASE);
-        phase = phase.saturating_sub(bishops.popcnt() * BISHOP_PHASE);
-        phase = phase.saturating_sub(rooks.popcnt() * ROOK_PHASE);
-        phase = phase.saturating_sub(queens.popcnt() * QUEEN_PHASE);
-        let phase = phase as i32;
+        let phase = TOTAL_PHASE.saturating_sub(
+            pawns.popcnt() * PAWN_PHASE
+                + knights.popcnt() * KNIGHT_PHASE
+                + bishops.popcnt() * BISHOP_PHASE
+                + rooks.popcnt() * ROOK_PHASE
+                + queens.popcnt() * QUEEN_PHASE,
+        ) as i32;
 
         let white = *board.color_combined(Color::White);
         let black = *board.color_combined(Color::Black);
