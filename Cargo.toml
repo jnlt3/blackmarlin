@@ -17,6 +17,7 @@ opt-level = 3
 chess = "3.2.0"
 text_io = "0.1.8"
 jemallocator = "0.3.2"
+arrayvec = "*"
 rand = "*"
 
 [features]

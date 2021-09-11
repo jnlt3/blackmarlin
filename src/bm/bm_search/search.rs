@@ -57,7 +57,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     mut beta: Evaluation,
     nodes: &mut u32,
 ) -> (Option<ChessMove>, Evaluation) {
-    if ply != 0 && (search_options.time_up() || position.three_fold_repetition()) {
+    if ply != 0 && search_options.time_up() {
         return (None, Evaluation::new(0));
     }
     if ply >= target_ply {
@@ -74,7 +74,12 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             ),
         );
     }
+    let tt_entry = search_options.get_t_table().get(position);
     *nodes += 1;
+
+    if position.three_fold_repetition() {
+        return (None, Evaluation::new(0));
+    }
 
     let mut best_move = None;
 
@@ -85,7 +90,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
 
     let depth = target_ply - ply;
 
-    if let Some(entry) = search_options.get_t_table().get(position) {
+    if let Some(entry) = tt_entry {
         *search_options.tt_hits() += 1;
         best_move = Some(entry.table_move());
         if !Search::IS_PV && ply + entry.depth() >= target_ply {
@@ -255,7 +260,9 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             );
             score = search_score << Next;
         } else {
-            if SEARCH_PARAMS.do_lmp(depth) && index > search_options.get_lmp_lookup().get(depth as usize) {
+            if SEARCH_PARAMS.do_lmp(depth)
+                && index > search_options.get_lmp_lookup().get(depth as usize)
+            {
                 break;
             }
 
@@ -271,7 +278,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
 
             if do_lmr {
                 reduction = if !Search::IS_PV {
-                    //SEARCH_PARAMS.get_lmr().reduction(depth)
                     search_options
                         .get_lmr_lookup()
                         .get(depth as usize, index - 1)
@@ -406,6 +412,10 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
     nodes: &mut u32,
 ) -> Evaluation {
     *nodes += 1;
+
+    if position.three_fold_repetition() {
+        return Evaluation::new(0);
+    }
     if ply >= target_ply {
         return search_options.eval().evaluate(position);
     }

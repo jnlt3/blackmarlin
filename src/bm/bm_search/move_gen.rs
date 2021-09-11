@@ -222,9 +222,9 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
 
                 #[cfg(feature = "hist")]
                 {
-                    *score +=
-                        self.hist
-                            .get(self.board.side_to_move(), piece, make_move.get_dest());
+                    *score += self
+                        .hist
+                        .get(self.board.side_to_move(), piece, make_move.get_dest());
                 }
 
                 #[cfg(feature = "c_move")]

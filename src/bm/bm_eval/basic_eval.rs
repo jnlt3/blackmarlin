@@ -256,8 +256,8 @@ impl Evaluator for BasicEval {
         let w_king = board.king_square(Color::White);
         let b_king = board.king_square(Color::Black);
 
-        let mut w_attack_cnt = 0usize;
-        let mut b_attack_cnt = 0usize;
+        let mut w_attack_cnt = 0_usize;
+        let mut b_attack_cnt = 0_usize;
 
         let mut w_attack = 0;
         let mut b_attack = 0;
