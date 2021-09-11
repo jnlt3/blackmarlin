@@ -31,7 +31,6 @@ enum GenType {
     ThreatMove,
     Killer,
     Quiet,
-    BadCaptures,
 }
 
 pub struct PvMoveGen {
@@ -238,15 +237,74 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                     }
                 }
             }
+            self.gen_type = GenType::Quiet;
         }
         if self.gen_type == GenType::Quiet {
             if let Some((make_move, _)) = self.queue.pop() {
                 return Some(make_move);
             }
-            self.gen_type = GenType::BadCaptures;
         }
-        if let Some((make_move, _)) = self.queue.pop() {
-            return Some(make_move);
+        None
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum QSearchGenType {
+    CalcCaptures,
+    Captures,
+    Quiet,
+}
+
+pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
+    move_gen: MoveGen,
+    board: Board,
+    gen_type: QSearchGenType,
+    queue: ArrayVec<(ChessMove, i32), 218>,
+
+    eval: PhantomData<Eval>,
+}
+
+impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
+    pub fn new(board: &Board) -> Self {
+        Self {
+            board: *board,
+            move_gen: MoveGen::new_legal(board),
+            gen_type: QSearchGenType::CalcCaptures,
+            queue: ArrayVec::new(),
+            eval: Default::default(),
+        }
+    }
+}
+
+impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
+    type Item = ChessMove;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.gen_type == QSearchGenType::CalcCaptures {
+            self.move_gen.set_iterator_mask(*self.board.combined());
+            for make_move in &mut self.move_gen {
+                let expected_gain = Eval::see(self.board, make_move);
+                if !SEE_PRUNE || expected_gain >= 0 {
+                    let pos = self
+                        .queue
+                        .binary_search_by_key(&expected_gain, |(_, score)| *score)
+                        .unwrap_or_else(|pos| pos);
+                    self.queue.insert(pos, (make_move, expected_gain));
+                }
+            }
+            self.gen_type = QSearchGenType::Captures;
+        }
+        if self.gen_type == QSearchGenType::Captures {
+            if let Some((make_move, _)) = self.queue.pop() {
+                return Some(make_move);
+            }
+            self.move_gen.set_iterator_mask(!*self.board.combined());
+            self.gen_type = QSearchGenType::Quiet;
+        }
+        if self.gen_type == QSearchGenType::Quiet {
+            if let Some(make_move) = self.move_gen.next() {
+                return Some(make_move);
+            }
         }
         None
     }

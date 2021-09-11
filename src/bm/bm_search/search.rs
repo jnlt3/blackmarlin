@@ -12,7 +12,7 @@ use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::c_hist::PieceTo;
 use crate::bm::bm_util::evaluator::Evaluator;
 
-use super::move_gen::OrderedMoveGen;
+use super::move_gen::{OrderedMoveGen, QuiescenceSearchMoveGen};
 
 pub trait SearchType {
     const DO_NULL_MOVE: bool;
@@ -438,12 +438,19 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
         }
     }
 
+    #[cfg(not(feature = "q_search_move_ord"))]
     let move_gen = MoveGen::new_legal(&board);
+    #[cfg(feature = "q_search_move_ord")]
+    let move_gen = QuiescenceSearchMoveGen::<Eval, { SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
-        let do_see_prune = SEARCH_PARAMS.do_see_prune() && is_capture && !in_check;
-        if do_see_prune && Eval::see(board, make_move) < 0 {
-            continue;
+
+        #[cfg(not(feature = "q_search_move_ord"))]
+        {
+            let do_see_prune = SEARCH_PARAMS.do_see_prune() && is_capture && !in_check;
+            if do_see_prune && Eval::see(board, make_move) < 0 {
+                continue;
+            }
         }
         position.make_move(make_move);
         let gives_check = *board.checkers() != EMPTY;

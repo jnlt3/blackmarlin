@@ -22,9 +22,11 @@ rand = "*"
 
 [features]
 standard = ["best_hist", "advanced_move_gen", "all_move"]
-all = ["all_hist", "advanced_move_gen", "all_move"]
+experimental = ["best_hist", "advanced_move_gen", "q_search_move_ord", "all_move"]
+all = ["all_hist", "advanced_move_gen", "q_search_move_ord", "all_move"]
 
 advanced_move_gen = [] # more advanced move generation
+q_search_move_ord = [] # use move ordering in quiescence search
 
 all_hist = ["hist", "c_hist", "c_move", "cmh_table"]
 best_hist = ["hist"]
