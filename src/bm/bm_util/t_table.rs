@@ -56,14 +56,14 @@ type Entry = Option<(u64, Analysis)>;
 
 #[derive(Debug)]
 pub struct TranspositionTable {
-    table: Mutex<Vec<Entry>>,
+    table: Mutex<Box<[Entry]>>,
     mask: usize,
 }
 
 impl TranspositionTable {
     pub fn new(size: usize) -> Self {
         let size = size.next_power_of_two();
-        let table = Mutex::new(vec![None; size]);
+        let table = Mutex::new(vec![None; size].into_boxed_slice());
         Self {
             table,
             mask: size - 1,
