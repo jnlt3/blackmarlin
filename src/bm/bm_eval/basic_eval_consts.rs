@@ -8,10 +8,10 @@ pub const TOTAL_PHASE: u32 =
     PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2;
 
 const fn generate_table(table: [[i32; 8]; 8], piece_value: i32) -> [[i32; 8]; 8] {
-    recursive_gen(table, piece_value, 0, 0)
+    recursive_add(table, piece_value, 0, 0)
 }
 
-const fn recursive_gen(
+const fn recursive_add(
     mut table: [[i32; 8]; 8],
     piece_value: i32,
     x: usize,
@@ -22,9 +22,9 @@ const fn recursive_gen(
     }
     table[x][y] += piece_value;
     if x < 7 {
-        recursive_gen(table, piece_value, x + 1, y)
+        recursive_add(table, piece_value, x + 1, y)
     } else {
-        recursive_gen(table, piece_value, 0, y + 1)
+        recursive_add(table, piece_value, 0, y + 1)
     }
 }
 
