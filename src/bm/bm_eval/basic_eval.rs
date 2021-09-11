@@ -192,26 +192,6 @@ impl Evaluator for BasicEval {
         let black_king = kings & black;
 
         let phase = phase as i32;
-        let pawn_phased_score = Self::direct(PAWN, phase);
-        let knight_phased_score = Self::direct(KNIGHT, phase);
-        let bishop_phased_score = Self::direct(BISHOP, phase);
-        let rook_phased_score = Self::direct(ROOK, phase);
-        let queen_phased_score = Self::direct(QUEEN, phase);
-
-        //Material
-        let white_material = white_pawns.popcnt() as i32 * pawn_phased_score
-            + white_knights.popcnt() as i32 * knight_phased_score
-            + white_bishops.popcnt() as i32 * bishop_phased_score
-            + white_rooks.popcnt() as i32 * rook_phased_score
-            + white_queens.popcnt() as i32 * queen_phased_score;
-
-        let black_material = black_pawns.popcnt() as i32 * pawn_phased_score
-            + black_knights.popcnt() as i32 * knight_phased_score
-            + black_bishops.popcnt() as i32 * bishop_phased_score
-            + black_rooks.popcnt() as i32 * rook_phased_score
-            + black_queens.popcnt() as i32 * queen_phased_score;
-
-        let material_score = white_material - black_material;
 
         //PSQT
         let white_psqt_score =
@@ -336,7 +316,7 @@ impl Evaluator for BasicEval {
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
-        let score = turn * (material_score + psqt_score + attack_score + pawn_score) + TEMPO;
+        let score = turn * (psqt_score + attack_score + pawn_score) + TEMPO;
         Evaluation::new(score)
     }
 
@@ -361,11 +341,11 @@ impl BasicEval {
         let mut b_passed = 0;
         for pawn in white_pawns {
             let ahead = self.w_ahead[pawn.to_index()];
-            w_passed += 1u32.saturating_sub((ahead & black_pawns).popcnt());
+            w_passed += 1_u32.saturating_sub((ahead & black_pawns).popcnt());
         }
         for pawn in black_pawns {
             let ahead = self.b_ahead[pawn.to_index()];
-            b_passed += 1u32.saturating_sub((ahead & white_pawns).popcnt());
+            b_passed += 1_u32.saturating_sub((ahead & white_pawns).popcnt());
         }
 
         let mut w_doubled = 0;
@@ -414,11 +394,7 @@ impl BasicEval {
         for square in board {
             let rank = square.get_rank().to_index();
             let file = square.get_file().to_index();
-            psqt_score += Self::score(
-                1,
-                TaperedEval(table0[rank][file], table1[rank][file]),
-                phase,
-            );
+            psqt_score += Self::direct(TaperedEval(table0[rank][file], table1[rank][file]), phase);
         }
         psqt_score
     }

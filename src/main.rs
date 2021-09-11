@@ -13,8 +13,6 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 type Runner = AbRunner<BasicEval>;
 
 fn main() {
-    //bm_nn::testing::train();
-
     let mut cecp_adapter = CecpAdapter::<BasicEval, Runner>::new();
     while cecp_adapter.input(read!("{}\n")) {}
 }
