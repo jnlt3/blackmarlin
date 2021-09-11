@@ -184,7 +184,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
 
                 #[cfg(feature = "c_move")]
                 {
-                    if Some(*make_move) == self.counter_move {
+                    if Some(make_move) == self.counter_move {
                         score += COUNTER_MOVE_BONUS;
                     }
                 }
@@ -198,7 +198,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         make_move.get_dest(),
                     ) * C_HIST_FACTOR as u32
                         / C_HIST_DIVISOR as u32;
-                    score += counter_move_hist;
+                    score += counter_move_hist as i32;
                 }
                 let pos = self.queue[partition..]
                     .binary_search_by_key(&score, |(_, score)| *score)
