@@ -11,50 +11,6 @@ const fn generate_table(table: [[i32; 8]; 8], piece_value: i32) -> [[i32; 8]; 8]
     recursive_gen(table, piece_value, 0, 0)
 }
 
-/*
-1 16 0 27 g1f3
-2 20 0 72 g1f3 g8f6
-3 15 0 344 g1f3 g8f6 d2d4
-4 20 0 807 g1f3 g8f6 d2d4 d7d5
-5 13 0 1880 g1f3 g8f6 d2d4 d7d5 b1c3
-6 20 0 3613 g1f3 g8f6 d2d4 d7d5 b1c3 b8c6
-7 11 0 9526 b1c3 g8f6 e2e4 b8c6 g1f3 e7e5 f3e5
-8 20 0 15922 b1c3 g8f6 e2e4 b8c6 g1f3 e7e5 f1d3 f8d6
-9 21 0 29227 b1c3 g8f6 e2e4 e7e6 g1f3 d7d5 f1d3 d5e4 c3e4
-10 17 1 61456 e2e4 g8f6 b1c3 d7d5 e4d5 f6d5 c3d5 d8d5 d2d4 c8f5
-11 20 3 108102 e2e4 g8f6 e4e5 f6e4 b1c3 d7d5 e5d6 e4d6 c3d5 b8c6 g1f3
-12 19 5 203152 e2e4 b8c6 b1c3 g8f6 g1f3 d7d5 e4d5 f6d5 c3d5 d8d5 d2d4 c8f5
-13 13 9 332786 e2e4 b8c6 b1c3 g8f6 g1f3 d7d5 e4e5 f6e4 f1d3 c8f5 c3d5 d8d5 d3e4
-14 20 13 487287 e2e4 b8c6 b1c3 g8f6 g1f3 e7e5 f1d3 f8d6 e1g1 e8g8 h2h3 a7a6 a2a3 h7h6
-15 20 19 691467 e2e4 b8c6 b1c3 g8f6 g1f3 e7e5 f1d3 f8d6 e1g1 e8g8 c3d5 f6d5 e4d5 c6d4 f3d4
-16 17 34 1244115 e2e4 e7e5 g1f3 g8f6 f3e5 d7d6 e5f3 f6e4 b1c3 d6d5 f1d3 c8f5 c3e4
-17 19 65 2351131 e2e4
-18 21 96 3450612 e2e4
-19 21 154 5460286 e2e4 e7e5 g1f3 g8f6 b1c3 b8c6 d2d4 e5d4 f3d4 f8b4 c1g5 e8g8 d4f5 b4c3 b2c3 d7d5 d1d5 f6d5 g5d8
-20 15 264 9326047 d2d4 g8f6 g1f3 d7d5 e2e3 b8c6 b1c3 c8e6 f1d3 g7g6 e1g1 f8g7 c3d5 f6d5 d3g6 h7g6
-21 14 398 14132526 d2d4 g8f6 g1f3
-1 16 0 27 g1f3
-2 20 0 72 g1f3 g8f6
-3 15 0 344 g1f3 g8f6 d2d4
-4 20 0 807 g1f3 g8f6 d2d4 d7d5
-5 13 0 1880 g1f3 g8f6 d2d4 d7d5 b1c3
-6 20 0 3613 g1f3 g8f6 d2d4 d7d5 b1c3 b8c6
-7 11 0 9527 b1c3 g8f6 e2e4 b8c6 g1f3 e7e5 f3e5
-8 20 1 15923 b1c3 g8f6 e2e4 b8c6 g1f3 e7e5 f1d3 f8d6
-9 19 2 35227 e2e4 g8f6 b1c3 e7e6 g1f3 d7d5 f1d3 d5e4 c3e4
-10 18 4 70499 d2d4 d7d5 g1f3 g8f6 b1c3 b8c6 c1e3 c8g4 c3d5 f6d5
-11 13 6 121592 b1c3 d7d5 e2e4 g8f6 e4d5
-12 15 9 209650 b1c3 d7d5 g1f3 d5d4 c3b5 b8c6 e2e4 g8f6 f1d3 e7e5 e1g1 f6e4
-13 13 13 358054 e2e4 g8f6 b1c3 b8c6 f1d3 d7d5 e4d5 f6d5 d3h7 h8h7 a2a3
-14 18 20 603885 e2e4 b8c6 d2d4 e7e5 g1f3 e5d4 f3d4 g8f6 d4c6 b7c6 c1g5 d7d5 g5f6 d8f6
-15 20 35 1116308 e2e4 e7e5 b1c3 b8c6 g1f3 g8f6 f1d3 f8d6 c3b5 e8g8 b5d6 c7d6 e1g1 d6d5 e4d5
-16 20 49 1610684 d2d4 d7d5 g1f3 g8f6 e2e3 b8c6 f1d3 c6b4 e1g1 b4d3 c2d3 c8f5 d1a4 c7c6 a4c6 b7c6
-17 24 83 2793145 e2e4 e7e5 b1c3 b8c6 g1f3 g8f6 d2d4 e5d4 f3d4 c6d4 d1d4 c7c5 d4e5 f8e7 f1c4 e8g8 e1g1
-18 21 108 3648381 e2e4 e7e5 b1c3 b8c6 g1f3 g8f6 d2d4 e5d4 f3d4 f8b4 d4c6 b7c6 f1d3 e8g8 e1g1 d7d5 e4d5 c6d5
-19 15 153 5214780 e2e4 e7e5 b1c3 b8c6 g1f3 g8f6 d2d4 e5d4 f3d4 f8b4 d4c6 b7c6 d1d4 b4c3 b2c3 e8g8 f1c4 f6e4
-20 18 212 7188830 e2e4 e7e5 b1c3 b8c6 g1f3 g8f6 d2d4 e5d4 f3d4 f8b4 d4c6 b7c6 d1d4 b4c3 d4c3 e8g8 f1d3 f8e8 c3f6 g7f6
-21 15 309 10468584 e2e4 e7e5
-*/
 const fn recursive_gen(
     table: [[i32; 8]; 8],
     piece_value: i32,
