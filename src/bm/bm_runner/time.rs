@@ -158,9 +158,9 @@ impl TimeManager for ConstTime {
 
 const EXPECTED_MOVES: u32 = 80;
 const MIN_MOVES: u32 = 25;
-const NORMAL_STD_DEV: u32 = 20;
+const NORMAL_STD_DEV: u32 = 10;
 const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
-const POWER: f64 = 0.6;
+const POWER: f64 = 0.5;
 
 #[derive(Debug)]
 pub struct MainTimeManager {
@@ -196,30 +196,34 @@ impl TimeManager for MainTimeManager {
 
         let mut sum_eval = 0;
         let mut sum_weights = 1;
-        evals.iter().rev().for_each(|&(eval, weight)| {
-            sum_eval += eval;
-            sum_weights += weight;
-        });
-        let mean = sum_eval / (sum_weights as i32);
-        let variance = evals
-            .iter()
-            .map(|&(eval, weight)| weight as u64 * ((eval - mean).abs() as u64).pow(2))
-            .sum::<u64>()
-            / sum_weights as u64;
-        let std_dev = (variance as f64).sqrt();
+        if evals.len() > 1 {
+            evals.iter().rev().for_each(|&(eval, weight)| {
+                sum_eval += eval * weight as i32;
+                sum_weights += weight;
+            });
+            let mean = sum_eval / (sum_weights as i32);
+            let variance = evals
+                .iter()
+                .map(|&(eval, weight)| weight as u64 * ((eval - mean).abs() as u64).pow(2))
+                .sum::<u64>()
+                / sum_weights as u64;
+            let std_dev = (variance as f64).sqrt();
 
-        let time_f64 = self.normal_duration.load(Ordering::SeqCst) as f64;
-        let new_time = time_f64 * (std_dev * FACTOR).powf(POWER);
-        self.target_duration
-            .store(new_time as u32, Ordering::SeqCst);
-        self.target_duration
-            .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
+            let time_f64 = self.normal_duration.load(Ordering::SeqCst) as f64;
+            let new_time = time_f64 * (std_dev * FACTOR).powf(POWER);
+            self.target_duration
+                .store(new_time as u32, Ordering::SeqCst);
+            self.target_duration
+                .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
+        }
     }
 
     fn initiate(&self, time_left: Duration) {
         let percentage_time =
             time_left.as_millis() as u32 / self.expected_moves.load(Ordering::SeqCst);
         self.normal_duration
+            .store(percentage_time, Ordering::SeqCst);
+        self.target_duration
             .store(percentage_time, Ordering::SeqCst);
         self.max_duration
             .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
