@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use chess::{Board, ChessMove};
@@ -6,6 +7,9 @@ use chess::{Board, ChessMove};
 use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
 use crate::bm::bm_runner::runner::Runner;
+use crate::bm::bm_runner::time::{
+    CompoundTimeManager, ConstDepth, ConstTime, PercentTime, Percentage, TimeManager,
+};
 use crate::bm::bm_util::evaluator::Evaluator;
 use std::marker::PhantomData;
 
@@ -37,25 +41,56 @@ const POSITIONS: &[&str] = &[
     "8/1p2k3/4rp2/p2R3Q/2q2B2/6P1/5P1P/6K1 b - - 14 73",
 ];
 
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum TimeManagerType {
+    ConstDepth,
+    ConstTime,
+    Normal,
+}
+
 pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> {
     eval_type: PhantomData<Eval>,
     bm_runner: R,
 
+    current_time_manager: TimeManagerType,
+    time_manager: Arc<CompoundTimeManager>,
+    const_depth: Arc<ConstDepth>,
+    const_time: Arc<ConstTime>,
+    percent_time: Arc<PercentTime>,
+
     time_left: f32,
-    set_time: Option<f32>,
 
     threads: u8,
 }
 
 impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval, R> {
     pub fn new() -> Self {
-        let bm_runner = R::new(Board::default());
+        let const_depth: Arc<ConstDepth> = Arc::new(ConstDepth::new(8));
+        let const_time: Arc<ConstTime> = Arc::new(ConstTime::new(Duration::from_secs(0)));
+        let percent_time: Arc<PercentTime> = Arc::new(PercentTime::new(
+            Percentage::new(1, 10),
+            Duration::from_secs(10),
+        ));
+        let mut managers: Vec<Arc<dyn TimeManager>> = vec![];
+        managers.push(const_depth.clone());
+        managers.push(const_time.clone());
+        managers.push(percent_time.clone());
+        let time_manager = Arc::new(CompoundTimeManager::new(
+            managers.into_boxed_slice(),
+            TimeManagerType::Normal as usize,
+        ));
+        let bm_runner = R::new(Board::default(), time_manager.clone());
         Self {
             eval_type: PhantomData::default(),
             bm_runner,
-            time_left: 0f32,
-            set_time: None,
+            time_left: 0_f32,
             threads: 1,
+            current_time_manager: TimeManagerType::Normal,
+            const_depth,
+            const_time,
+            percent_time,
+            time_manager,
         }
     }
 
@@ -81,27 +116,27 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             }
             CecpCommand::Level(_, time_left, _) => {
                 self.time_left = time_left as f32;
+                self.current_time_manager = TimeManagerType::Normal;
+                self.time_manager.set_mode(TimeManagerType::Normal as usize);
             }
             CecpCommand::Time(time_left) => {
                 self.time_left = time_left;
             }
             CecpCommand::SetTime(time) => {
-                self.set_time = Some(time);
+                self.current_time_manager = TimeManagerType::ConstTime;
+                self.time_manager
+                    .set_mode(TimeManagerType::ConstTime as usize);
+                self.const_time.set_duration(Duration::from_secs_f32(time));
             }
             CecpCommand::Go => {
-                let exact_time = if self.set_time.is_some() {
-                    let exact_time = self.set_time.unwrap();
-                    self.set_time = None;
-                    exact_time
-                } else {
-                    //TODO: proper time management
-                    f32::min(self.time_left * 0.02, 10f32)
-                };
-                let (make_move, _, _, _) =
-                    self.bm_runner
-                        .search::<Run, XBoardInfo>(exact_time, self.threads, false);
+                self.time_manager
+                    .initiate(Duration::from_secs_f32(self.time_left));
+                let (make_move, _, _, _) = self
+                    .bm_runner
+                    .search::<Run, XBoardInfo>(self.threads, false);
                 self.bm_runner.make_move(make_move);
                 println!("move {}", make_move);
+                self.time_manager.clear();
             }
             CecpCommand::New => self.bm_runner.set_board(chess::Board::default()),
             CecpCommand::Eval => {
@@ -120,17 +155,23 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 let mut sum_depth = 0;
                 let mut sum_time = Duration::from_nanos(0);
 
+                let prev = self.current_time_manager;
+                self.current_time_manager = TimeManagerType::ConstDepth;
+                self.time_manager
+                    .set_mode(TimeManagerType::ConstDepth as usize);
+                self.const_depth.set_depth(8);
                 for position in POSITIONS {
                     self.bm_runner
                         .set_board(chess::Board::from_str(position).unwrap());
 
                     let start = Instant::now();
-                    let (_, _, depth, node_cnt) =
-                        self.bm_runner.search::<Run, NoInfo>(1.0f32, 1, false);
+                    let (_, _, depth, node_cnt) = self.bm_runner.search::<Run, NoInfo>(1, false);
                     sum_time += start.elapsed();
+                    self.const_depth.clear();
                     sum_node_cnt += node_cnt;
                     sum_depth += depth;
                 }
+                self.current_time_manager = prev;
                 println!(
                     "nps: {}, node_cnt: {}, avg_depth: {}",
                     sum_node_cnt as f32 / sum_time.as_secs_f32(),

@@ -1,14 +1,18 @@
+use std::rc::Rc;
+use std::sync::Arc;
+
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, SearchMode};
 use crate::bm::bm_util::evaluator::Evaluator;
 use chess::{Board, ChessMove};
 
+use super::time::TimeManager;
+
 pub trait Runner<Eval: 'static + Evaluator + Clone + Send> {
-    fn new(board: Board) -> Self;
+    fn new(board: Board, time_manager: Arc<dyn TimeManager>) -> Self;
 
     fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
-        search_time: f32,
         threads: u8,
         verbose: bool,
     ) -> (ChessMove, Evaluation, u32, u32);

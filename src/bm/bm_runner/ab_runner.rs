@@ -23,6 +23,8 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
 
+use super::time::{PercentTime, Percentage, TimeManager};
+
 pub const SEARCH_PARAMS: SearchParams = SearchParams {
     killer_move_cnt: KILLER_MOVE_CNT,
     threat_move_cnt: THREAT_MOVE_CNT,
@@ -160,9 +162,10 @@ type LmrLookup = LookUp2d<u32, 32, 64>;
 type LmpLookup = LookUp<usize, { LMP_DEPTH as usize }>;
 
 #[derive(Debug, Clone)]
-pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send + Clone> {
+pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
     evaluator: Eval,
-    end_time: Instant,
+    search_start: Instant,
+    time_manager: Arc<dyn TimeManager>,
     window: Window,
     t_table: Arc<TranspositionTable>,
     h_table: Arc<HistoryTable>,
@@ -182,8 +185,8 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send + Clone> {
 
 impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     #[inline]
-    pub fn time_up(&self) -> bool {
-        Instant::now() >= self.end_time
+    pub fn abort(&self) -> bool {
+        self.time_manager.abort(self.search_start.elapsed())
     }
 
     #[inline]
@@ -265,6 +268,7 @@ pub struct AbRunner<Eval: 'static + Evaluator + Clone + Send> {
 impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
+        thread: u8,
         verbose: bool,
         incr: u32,
     ) -> JoinHandle<(Option<ChessMove>, Evaluation, u32, u32)> {
@@ -297,7 +301,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                         beta,
                         &mut nodes,
                     );
-                    if depth > 1 && Instant::now() > search_options.end_time {
+                    if depth > 1 && search_options.abort() {
                         break 'outer;
                     }
                     if fail_cnt >= SEARCH_PARAMS.fail_cnt
@@ -361,6 +365,14 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                     break;
                 }
                 depth += incr;
+                //As far as time manager is concerned Option<ChessMove> is no different than ChessMove however None == None doesn't apply
+                search_options.time_manager.deepen(
+                    thread,
+                    depth,
+                    search_options.eval,
+                    best_move.unwrap(),
+                    search_options.search_start.elapsed(),
+                )
             }
             if let Some(evaluation) = eval {
                 debugger.complete();
@@ -373,14 +385,13 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
 }
 
 impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
-    fn new(board: Board) -> Self {
+    fn new(board: Board, time_manager: Arc<dyn TimeManager>) -> Self {
         let position = Position::new(board);
         let mut evaluator = Eval::new();
         Self {
             search_options: SearchOptions {
-                eval: evaluator.evaluate(&position),
-                evaluator,
-                end_time: Instant::now(),
+                search_start: Instant::now(),
+                time_manager,
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 t_table: Arc::new(TranspositionTable::new(2_usize.pow(21))),
                 h_table: Arc::new(HistoryTable::new()),
@@ -389,10 +400,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 c_table: Arc::new(CounterMoveTable::new()),
                 killer_moves: Vec::new(),
                 threat_moves: Vec::new(),
-                tt_hits: 0,
-                tt_misses: 0,
-                l1: 0,
-                l2: 0,
                 lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
                     if depth == 0 || mv == 0 {
                         0
@@ -403,6 +410,12 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 lmp_lookup: Arc::new(LookUp::new(|depth| {
                     (LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR) as usize
                 })),
+                tt_hits: 0,
+                tt_misses: 0,
+                l1: 0,
+                l2: 0,
+                eval: evaluator.evaluate(&position),
+                evaluator,
             },
             position,
         }
@@ -410,18 +423,16 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
 
     fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
-        search_time: f32,
         threads: u8,
         verbose: bool,
     ) -> (ChessMove, Evaluation, u32, u32) {
         let mut node_count = 0;
-        let start_time = Instant::now();
-        self.search_options.end_time = start_time + Duration::from_secs_f32(search_time);
+        self.search_options.search_start = Instant::now();
         let mut join_handlers = vec![];
 
         //TODO: Research the effects of different depths
         for i in 0..threads {
-            join_handlers.push(self.launch_searcher::<SM, Info>(verbose, (i % 2 + 1) as u32));
+            join_handlers.push(self.launch_searcher::<SM, Info>(i, verbose, (i % 2 + 1) as u32));
         }
         let mut final_move = None;
         let mut final_eval = None;
@@ -455,7 +466,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
             println!(
                 "{} nodes calculated in {:?}",
                 node_count,
-                start_time.elapsed()
+                self.search_options.search_start.elapsed()
             );
         }
         (

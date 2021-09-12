@@ -57,7 +57,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     mut beta: Evaluation,
     nodes: &mut u32,
 ) -> (Option<ChessMove>, Evaluation) {
-    if ply != 0 && search_options.time_up() {
+    if ply != 0 && search_options.abort() {
         return (None, Evaluation::new(0));
     }
     if ply >= target_ply {
@@ -336,7 +336,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         if score > alpha {
             if score >= beta {
                 *search_options.l1() += index;
-                if ply != 0 && search_options.time_up() {
+                if ply != 0 && search_options.abort() {
                     return (None, Evaluation::new(0));
                 }
                 if !is_capture {
@@ -383,7 +383,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             (None, Evaluation::new_checkmate(-1))
         };
     }
-    if ply != 0 && search_options.time_up() {
+    if ply != 0 && search_options.abort() {
         return (None, Evaluation::new(0));
     }
     let highest_score = highest_score.unwrap();
