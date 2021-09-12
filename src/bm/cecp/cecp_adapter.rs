@@ -57,7 +57,7 @@ pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>
     time_manager: Arc<CompoundTimeManager>,
     const_depth: Arc<ConstDepth>,
     const_time: Arc<ConstTime>,
-    percent_time: Arc<PercentTime>,
+    normal_time: Arc<PercentTime>,
 
     time_left: f32,
 
@@ -89,7 +89,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             current_time_manager: TimeManagerType::Normal,
             const_depth,
             const_time,
-            percent_time,
+            normal_time: percent_time,
             time_manager,
         }
     }

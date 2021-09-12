@@ -23,7 +23,7 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
 
-use super::time::{PercentTime, Percentage, TimeManager};
+use super::time::TimeManager;
 
 pub const SEARCH_PARAMS: SearchParams = SearchParams {
     killer_move_cnt: KILLER_MOVE_CNT,
