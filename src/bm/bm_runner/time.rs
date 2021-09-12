@@ -214,8 +214,6 @@ impl TimeManager for MainTimeManager {
             .store(new_time as u32, Ordering::SeqCst);
         self.target_duration
             .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
-
-        println!("hmmm {:?} {}", self.target_duration, std_dev);
     }
 
     fn initiate(&self, time_left: Duration) {
