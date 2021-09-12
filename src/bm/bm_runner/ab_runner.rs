@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use chess::{Board, ChessMove};
 

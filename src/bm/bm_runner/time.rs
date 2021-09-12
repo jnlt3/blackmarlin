@@ -1,8 +1,8 @@
 use crate::bm::bm_eval::eval::Evaluation;
 use chess::ChessMove;
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub trait TimeManager: Debug + Send + Sync {
@@ -156,6 +156,89 @@ impl TimeManager for ConstTime {
     }
 }
 
+const EXPECTED_MOVES: u32 = 80;
+const MIN_MOVES: u32 = 25;
+const NORMAL_STD_DEV: u32 = 20;
+const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
+const POWER: f64 = 0.6;
+
+#[derive(Debug)]
+pub struct MainTimeManager {
+    expected_moves: AtomicU32,
+    evals: Mutex<Vec<(i32, u32)>>,
+    moves: Mutex<Vec<(ChessMove, u32)>>,
+    normal_duration: AtomicU32,
+    max_duration: AtomicU32,
+    target_duration: AtomicU32,
+}
+
+impl MainTimeManager {
+    pub fn new() -> Self {
+        Self {
+            expected_moves: AtomicU32::new(EXPECTED_MOVES),
+            evals: Mutex::new(vec![]),
+            moves: Mutex::new(vec![]),
+            normal_duration: AtomicU32::new(0),
+            max_duration: AtomicU32::new(0),
+            target_duration: AtomicU32::new(0),
+        }
+    }
+}
+
+impl TimeManager for MainTimeManager {
+    fn deepen(&self, _: u8, depth: u32, eval: Evaluation, mv: ChessMove, _: Duration) {
+        let weight = depth * depth;
+
+        let mut evals = self.evals.lock().unwrap();
+        let mut moves = self.moves.lock().unwrap();
+        evals.push((eval.raw(), weight));
+        moves.push((mv, weight));
+
+        let mut sum_eval = 0;
+        let mut sum_weights = 1;
+        evals.iter().rev().for_each(|&(eval, weight)| {
+            sum_eval += eval;
+            sum_weights += weight;
+        });
+        let mean = sum_eval / (sum_weights as i32);
+        let variance = evals
+            .iter()
+            .map(|&(eval, weight)| weight as u64 * ((eval - mean).abs() as u64).pow(2))
+            .sum::<u64>()
+            / sum_weights as u64;
+        let std_dev = (variance as f64).sqrt();
+
+        let time_f64 = self.normal_duration.load(Ordering::SeqCst) as f64;
+        let new_time = time_f64 * (std_dev * FACTOR).powf(POWER);
+        self.target_duration
+            .store(new_time as u32, Ordering::SeqCst);
+        self.target_duration
+            .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
+
+        println!("hmmm {:?} {}", self.target_duration, std_dev);
+    }
+
+    fn initiate(&self, time_left: Duration) {
+        let percentage_time =
+            time_left.as_millis() as u32 / self.expected_moves.load(Ordering::SeqCst);
+        self.normal_duration
+            .store(percentage_time, Ordering::SeqCst);
+        self.max_duration
+            .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
+    }
+
+    fn abort(&self, delta_time: Duration) -> bool {
+        self.target_duration.load(Ordering::SeqCst) < delta_time.as_millis() as u32
+    }
+
+    fn clear(&self) {
+        self.evals.lock().unwrap().clear();
+        self.moves.lock().unwrap().clear();
+        self.expected_moves.fetch_sub(1, Ordering::SeqCst);
+        self.expected_moves.fetch_max(MIN_MOVES, Ordering::SeqCst);
+    }
+}
+
 #[derive(Debug)]
 pub struct CompoundTimeManager {
     managers: Box<[Arc<dyn TimeManager>]>,
@@ -197,6 +280,6 @@ impl TimeManager for CompoundTimeManager {
     }
 
     fn clear(&self) {
-        self.managers[self.mode.load(Ordering::SeqCst)].clear();
+        self.managers.iter().for_each(|manager| manager.clear());
     }
 }

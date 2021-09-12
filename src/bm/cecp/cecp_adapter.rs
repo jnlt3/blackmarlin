@@ -8,7 +8,8 @@ use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
 use crate::bm::bm_runner::runner::Runner;
 use crate::bm::bm_runner::time::{
-    CompoundTimeManager, ConstDepth, ConstTime, PercentTime, Percentage, TimeManager,
+    CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, PercentTime, Percentage,
+    TimeManager,
 };
 use crate::bm::bm_util::evaluator::Evaluator;
 use std::marker::PhantomData;
@@ -57,7 +58,6 @@ pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>
     time_manager: Arc<CompoundTimeManager>,
     const_depth: Arc<ConstDepth>,
     const_time: Arc<ConstTime>,
-    normal_time: Arc<PercentTime>,
 
     time_left: f32,
 
@@ -66,16 +66,10 @@ pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>
 
 impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval, R> {
     pub fn new() -> Self {
-        let const_depth: Arc<ConstDepth> = Arc::new(ConstDepth::new(8));
-        let const_time: Arc<ConstTime> = Arc::new(ConstTime::new(Duration::from_secs(0)));
-        let percent_time: Arc<PercentTime> = Arc::new(PercentTime::new(
-            Percentage::new(1, 10),
-            Duration::from_secs(10),
-        ));
-        let mut managers: Vec<Arc<dyn TimeManager>> = vec![];
-        managers.push(const_depth.clone());
-        managers.push(const_time.clone());
-        managers.push(percent_time.clone());
+        let const_depth = Arc::new(ConstDepth::new(8));
+        let const_time = Arc::new(ConstTime::new(Duration::from_secs(0)));
+        let main_time = Arc::new(MainTimeManager::new());
+        let managers: Vec<Arc<dyn TimeManager>> = vec![const_depth.clone(), const_time.clone(), main_time];
         let time_manager = Arc::new(CompoundTimeManager::new(
             managers.into_boxed_slice(),
             TimeManagerType::Normal as usize,
@@ -89,7 +83,6 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             current_time_manager: TimeManagerType::Normal,
             const_depth,
             const_time,
-            normal_time: percent_time,
             time_manager,
         }
     }
