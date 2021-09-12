@@ -7,25 +7,19 @@ pub const QUEEN_PHASE: u32 = 4;
 pub const TOTAL_PHASE: u32 =
     PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2;
 
-const fn generate_table(table: [[i32; 8]; 8], piece_value: i32) -> [[i32; 8]; 8] {
-    recursive_add(table, piece_value, 0, 0)
-}
-
-const fn recursive_add(
-    mut table: [[i32; 8]; 8],
-    piece_value: i32,
-    x: usize,
-    y: usize,
-) -> [[i32; 8]; 8] {
-    if y >= 8 {
-        return table;
+const fn generate_table(mut table: [[i32; 8]; 8], piece_value: i32) -> [[i32; 8]; 8] {
+    let mut x = 0;
+    let mut y = 0;
+    while y < 8 {
+        table[x][y] += piece_value;
+        if x < 7 {
+            x += 1;
+        } else {
+            x = 0;
+            y += 1;
+        }
     }
-    table[x][y] += piece_value;
-    if x < 7 {
-        recursive_add(table, piece_value, x + 1, y)
-    } else {
-        recursive_add(table, piece_value, 0, y + 1)
-    }
+    table
 }
 
 pub const PAWN: TaperedEval = TaperedEval(82, 94);
