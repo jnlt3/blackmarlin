@@ -14,11 +14,9 @@ use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
 
-//TODO: Do not allocate Vecs each time a Move Generator is created
-
-const COUNTER_MOVE_BONUS: i32 = 4096;
+const COUNTER_MOVE_SCORE: i32 = i32::MAX;
 const C_HIST_FACTOR: i32 = 1;
-const C_HIST_DIVISOR: i32 = 8;
+const C_HIST_DIVISOR: i32 = 400;
 const CH_TABLE_FACTOR: i32 = 1;
 const CH_TABLE_DIVISOR: i32 = 8;
 
@@ -149,8 +147,8 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         make_move.get_dest(),
                         self.board.piece_on(make_move.get_dest()).unwrap(),
                     ) as i32
-                        * CH_TABLE_FACTOR
-                        / CH_TABLE_DIVISOR;
+                        * C_HIST_FACTOR
+                        / C_HIST_DIVISOR;
                     expected_gain += history_gain;
                 }
                 let pos = self
@@ -172,7 +170,15 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             let partition = self.queue.len();
             for make_move in &mut self.move_gen {
                 let piece = self.board.piece_on(make_move.get_source()).unwrap();
+                #[cfg(feature = "c_move")]
+                {
+                    if Some(make_move) == self.counter_move {
+                        self.queue.push((make_move, COUNTER_MOVE_SCORE));
+                        continue;
+                    }
+                }
                 let mut score = 0;
+                //TODO: use block labels when stabilized
                 #[cfg(feature = "hist")]
                 {
                     score += self
@@ -181,12 +187,6 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         as i32;
                 }
 
-                #[cfg(feature = "c_move")]
-                {
-                    if Some(make_move) == self.counter_move {
-                        score += COUNTER_MOVE_BONUS;
-                    }
-                }
                 #[cfg(feature = "cmh_table")]
                 if let Some(last_move) = &self.prev_move {
                     let counter_move_hist = self.c_move_hist.get(

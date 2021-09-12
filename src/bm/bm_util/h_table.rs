@@ -1,9 +1,7 @@
 use chess::{Color, Piece, Square};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-
 const PIECE_COUNT: usize = 12;
-const MAX: u32 = 32768;
 
 #[derive(Debug)]
 pub struct HistoryTable {
@@ -31,23 +29,30 @@ impl HistoryTable {
         color_offset + piece_index
     }
 
-    pub fn get(&self, color: Color, piece: Piece, to: Square) -> u32 {
-        let piece_index = Self::piece_index(color, piece);
-        let sqr_index = to.to_index();
-        self.table[piece_index][sqr_index].load(Ordering::Relaxed)
+    fn from_index(color: Color, from: Square) -> usize {
+        let color_offset = match color {
+            Color::White => 0,
+            Color::Black => 64,
+        };
+        from.to_index() + color_offset
     }
 
-    pub fn add(&self, color: Color, piece: Piece, to: Square, amt: u32) {
+    pub fn get(&self, color: Color, piece: Piece, to: Square) -> u32 {
         let piece_index = Self::piece_index(color, piece);
-        let sqr_index = to.to_index();
-        self.table[piece_index][sqr_index].fetch_add(amt, Ordering::Relaxed);
-        self.table[piece_index][sqr_index].fetch_min(MAX, Ordering::Relaxed);
+        let to_index = to.to_index();
+        self.table[piece_index][to_index].load(Ordering::SeqCst)
+    }
+
+    pub fn cutoff(&self, color: Color, piece: Piece, to: Square, amt: u32) {
+        let piece_index = Self::piece_index(color, piece);
+        let to_index = to.to_index();
+        self.table[piece_index][to_index].fetch_add(amt, Ordering::SeqCst);
     }
 
     pub fn for_all<F: Fn(u32) -> u32>(&self, func: F) {
         for piece_table in self.table.iter() {
             for sq in piece_table {
-                sq.store(func(sq.load(Ordering::Relaxed)), Ordering::Relaxed)
+                sq.store(func(sq.load(Ordering::SeqCst)), Ordering::SeqCst)
             }
         }
     }

@@ -334,6 +334,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             best_move = Some(make_move);
         }
         if score > alpha {
+            let history_table = search_options.get_h_table();
             if score >= beta {
                 *search_options.l1() += index;
                 if ply != 0 && search_options.abort() {
@@ -342,9 +343,8 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
                 if !is_capture {
                     let killer_table = search_options.get_k_table();
                     killer_table[ply as usize].push(make_move);
-                    let history_table = search_options.get_h_table();
                     let moved_piece = board.piece_on(make_move.get_source()).unwrap();
-                    history_table.add(color, moved_piece, make_move.get_dest(), depth * depth);
+                    history_table.cutoff(color, moved_piece, make_move.get_dest(), depth * depth);
                     if let Some(piece_to) = piece_to {
                         let c_hist = search_options.get_c_hist();
                         c_hist.add(
@@ -353,7 +353,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
                             piece_to.to,
                             moved_piece,
                             make_move.get_dest(),
-                            depth * depth,
+                            depth,
                         );
 
                         let c_table = search_options.get_c_table();
@@ -366,7 +366,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
                         board.piece_on(make_move.get_source()).unwrap(),
                         make_move.get_dest(),
                         board.piece_on(make_move.get_dest()).unwrap(),
-                        depth * depth,
+                        depth,
                     );
                 }
                 let analysis = Analysis::new(depth, LowerBound(score), make_move);

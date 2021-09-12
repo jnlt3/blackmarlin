@@ -8,8 +8,7 @@ use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
 use crate::bm::bm_runner::runner::Runner;
 use crate::bm::bm_runner::time::{
-    CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, PercentTime, Percentage,
-    TimeManager,
+    CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, TimeManager,
 };
 use crate::bm::bm_util::evaluator::Evaluator;
 use std::marker::PhantomData;
@@ -69,7 +68,8 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
         let const_depth = Arc::new(ConstDepth::new(8));
         let const_time = Arc::new(ConstTime::new(Duration::from_secs(0)));
         let main_time = Arc::new(MainTimeManager::new());
-        let managers: Vec<Arc<dyn TimeManager>> = vec![const_depth.clone(), const_time.clone(), main_time];
+        let managers: Vec<Arc<dyn TimeManager>> =
+            vec![const_depth.clone(), const_time.clone(), main_time];
         let time_manager = Arc::new(CompoundTimeManager::new(
             managers.into_boxed_slice(),
             TimeManagerType::Normal as usize,

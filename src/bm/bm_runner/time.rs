@@ -28,55 +28,6 @@ pub struct Percentage {
     denominator: u32,
 }
 
-impl Percentage {
-    pub const fn new(numerator: u32, denominator: u32) -> Self {
-        Self {
-            numerator,
-            denominator,
-        }
-    }
-
-    pub fn get(&self, duration: u32) -> u32 {
-        duration * self.numerator / self.denominator
-    }
-}
-
-#[derive(Debug)]
-pub struct PercentTime {
-    target_duration: AtomicU32,
-    max_duration: AtomicU32,
-    percentage: Percentage,
-}
-
-impl PercentTime {
-    pub fn new(percentage: Percentage, max_duration: Duration) -> Self {
-        Self {
-            target_duration: AtomicU32::new(0),
-            percentage,
-            max_duration: AtomicU32::new(max_duration.as_millis() as u32),
-        }
-    }
-}
-
-impl TimeManager for PercentTime {
-    fn deepen(&self, _: u8, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
-
-    fn initiate(&self, time_left: Duration) {
-        self.target_duration.store(
-            self.percentage
-                .get(time_left.as_millis() as u32)
-                .min(self.max_duration.load(Ordering::SeqCst)),
-            Ordering::SeqCst,
-        );
-    }
-
-    fn abort(&self, delta_time: Duration) -> bool {
-        delta_time.as_millis() as u32 > self.target_duration.load(Ordering::SeqCst)
-    }
-
-    fn clear(&self) {}
-}
-
 #[derive(Debug)]
 pub struct ConstDepth {
     current_depth: AtomicU32,
