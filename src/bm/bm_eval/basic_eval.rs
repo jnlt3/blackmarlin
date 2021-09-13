@@ -4,8 +4,6 @@ use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, Square, ALL_FILES, ALL_SQUARES, EMPTY};
 
-use std::sync::Arc;
-
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
     Piece::Knight,
@@ -15,7 +13,6 @@ const PIECES: [Piece; 6] = [
     Piece::King,
 ];
 
-//TODO: Do this at compile time using const fn
 #[derive(Debug, Clone)]
 pub struct BasicEvalData {
     w_king_attacks: [BitBoard; 64],
@@ -24,53 +21,76 @@ pub struct BasicEvalData {
     b_ahead: [BitBoard; 64],
 }
 
-#[derive(Debug, Clone)]
-pub struct BasicEval {
-    data: Arc<BasicEvalData>,
+pub const fn get_basic_eval_data() -> BasicEvalData {
+    let mut data = BasicEvalData {
+        w_king_attacks: [BitBoard(0); 64],
+        b_king_attacks: [BitBoard(0); 64],
+        w_ahead: [BitBoard(0); 64],
+        b_ahead: [BitBoard(0); 64],
+    };
+
+    let mut king_file = 0_u8;
+    let mut king_rank = 0_u8;
+
+    while king_file < 8 {
+        while king_rank < 8 {
+            let king = (king_rank << 3 ^ king_file) as usize;
+            king_rank += 1;
+
+            let mut sq_file = 0_u8;
+            let mut sq_rank = 0_u8;
+            {
+                let mut w_king_attacks = 0_u64;
+                let mut b_king_attacks = 0_u64;
+                let mut w_ahead = 0_u64;
+                let mut b_ahead = 0_u64;
+                let king_file = king_file as i32;
+                let king_rank = king_rank as i32;
+                while sq_file < 8 {
+                    while sq_rank < 8 {
+                        let sq = sq_rank << 3 ^ sq_file;
+                        {
+                            let file = sq_file as i32;
+                            let rank = sq_rank as i32;
+                            let rank_diff = rank - king_rank;
+                            if (file - king_file).abs() <= 1 && rank_diff >= -1 && rank_diff <= 2 {
+                                w_king_attacks |= 1 << sq as u64;
+                            }
+                            if (file - king_file).abs() <= 1 && rank_diff > 0 {
+                                w_ahead |= 1 << sq as u64;
+                            }
+                            let rank_diff = king_rank - rank;
+                            if (file - king_file).abs() <= 1 && rank_diff >= -1 && rank_diff <= 2 {
+                                b_king_attacks |= 1 << sq as u64;
+                            }
+                            if (file - king_file).abs() <= 1 && rank_diff > 0 {
+                                b_ahead |= 1 << sq as u64;
+                            }
+                        }
+
+                        sq_rank += 1;
+                    }
+                    sq_file += 1;
+                }
+                data.w_king_attacks[king] = BitBoard(w_king_attacks);
+                data.w_ahead[king] = BitBoard(w_ahead);
+                data.b_king_attacks[king] = BitBoard(b_king_attacks);
+                data.b_ahead[king] = BitBoard(b_ahead);
+            }
+        }
+        king_file += 1;
+    }
+    data
 }
+
+const DATA: BasicEvalData = get_basic_eval_data();
+
+#[derive(Debug, Clone)]
+pub struct BasicEval;
 
 impl Evaluator for BasicEval {
     fn new() -> Self {
-        let mut w_king_attacks = [EMPTY; 64];
-        let mut b_king_attacks = [EMPTY; 64];
-        let mut w_ahead = [EMPTY; 64];
-        let mut b_ahead = [EMPTY; 64];
-        for king in !EMPTY {
-            let king_file = king.get_file().to_index() as i32;
-            let king_rank = king.get_rank().to_index() as i32;
-            let w_king_bb = &mut w_king_attacks[king.to_index()];
-            let b_king_bb = &mut b_king_attacks[king.to_index()];
-
-            let w_ahead_bb = &mut w_ahead[king.to_index()];
-            let b_ahead_bb = &mut b_ahead[king.to_index()];
-
-            for sq in !EMPTY {
-                let file = sq.get_file().to_index() as i32;
-                let rank = sq.get_rank().to_index() as i32;
-                let rank_diff = rank - king_rank;
-                if (file - king_file).abs() <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                    *w_king_bb |= BitBoard::from_square(sq);
-                }
-                if (file - king_file).abs() <= 1 && rank_diff > 0 {
-                    *w_ahead_bb |= BitBoard::from_square(sq);
-                }
-                let rank_diff = king_rank - rank;
-                if (file - king_file).abs() <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                    *b_king_bb |= BitBoard::from_square(sq);
-                }
-                if (file - king_file).abs() <= 1 && rank_diff > 0 {
-                    *b_ahead_bb |= BitBoard::from_square(sq);
-                }
-            }
-        }
-        Self {
-            data: Arc::new(BasicEvalData {
-                w_king_attacks,
-                b_king_attacks,
-                w_ahead,
-                b_ahead,
-            }),
-        }
+        Self
     }
 
     fn see(mut board: Board, mut make_move: ChessMove) -> i32 {
@@ -252,7 +272,7 @@ impl Evaluator for BasicEval {
 
         for knight in white_knights {
             let attacks = chess::get_knight_moves(knight);
-            let table = self.data.b_king_attacks[b_king.to_index()];
+            let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
             w_attack += Self::score(king_attacks.popcnt() as i32, KNIGHT_ATTACK, phase);
@@ -260,7 +280,7 @@ impl Evaluator for BasicEval {
         for bishop in white_bishops {
             let blockers = blockers & !white_bishops & !white_queens;
             let attacks = chess::get_bishop_moves(bishop, blockers);
-            let table = self.data.b_king_attacks[b_king.to_index()];
+            let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
             w_attack += Self::score(king_attacks.popcnt() as i32, BISHOP_ATTACK, phase);
@@ -268,7 +288,7 @@ impl Evaluator for BasicEval {
         for rook in white_rooks {
             let blockers = blockers & !white_rooks & !white_queens;
             let attacks = chess::get_rook_moves(rook, blockers);
-            let table = self.data.b_king_attacks[b_king.to_index()];
+            let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
             w_attack += Self::score(king_attacks.popcnt() as i32, ROOK_ATTACK, phase);
@@ -277,14 +297,14 @@ impl Evaluator for BasicEval {
             let blockers = blockers & !white_rooks & !white_bishops & !white_queens;
             let attacks =
                 chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
-            let table = self.data.b_king_attacks[b_king.to_index()];
+            let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
             w_attack += Self::score(king_attacks.popcnt() as i32, QUEEN_ATTACK, phase);
         }
         for knight in black_knights {
             let attacks = chess::get_knight_moves(knight);
-            let table = self.data.w_king_attacks[w_king.to_index()];
+            let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
             b_attack += Self::score(king_attacks.popcnt() as i32, KNIGHT_ATTACK, phase);
@@ -292,7 +312,7 @@ impl Evaluator for BasicEval {
         for bishop in black_bishops {
             let blockers = blockers & !black_queens & !black_bishops;
             let attacks = chess::get_bishop_moves(bishop, blockers);
-            let table = self.data.w_king_attacks[w_king.to_index()];
+            let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
             b_attack += Self::score(king_attacks.popcnt() as i32, BISHOP_ATTACK, phase);
@@ -300,7 +320,7 @@ impl Evaluator for BasicEval {
         for rook in black_rooks {
             let blockers = blockers & !black_queens & !black_rooks;
             let attacks = chess::get_rook_moves(rook, blockers);
-            let table = self.data.w_king_attacks[w_king.to_index()];
+            let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
             b_attack += Self::score(king_attacks.popcnt() as i32, ROOK_ATTACK, phase);
@@ -309,7 +329,7 @@ impl Evaluator for BasicEval {
             let blockers = blockers & !black_bishops & !black_rooks & !black_queens;
             let attacks =
                 chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
-            let table = self.data.w_king_attacks[w_king.to_index()];
+            let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
             b_attack += Self::score(king_attacks.popcnt() as i32, QUEEN_ATTACK, phase);
@@ -348,11 +368,11 @@ impl BasicEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
-            let ahead = self.data.w_ahead[pawn.to_index()];
+            let ahead = DATA.w_ahead[pawn.to_index()];
             w_passed += 1_u32.saturating_sub((ahead & black_pawns).popcnt());
         }
         for pawn in black_pawns {
-            let ahead = self.data.b_ahead[pawn.to_index()];
+            let ahead = DATA.b_ahead[pawn.to_index()];
             b_passed += 1_u32.saturating_sub((ahead & white_pawns).popcnt());
         }
 
