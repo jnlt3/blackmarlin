@@ -111,13 +111,12 @@ const EXPECTED_MOVES: u32 = 80;
 const MIN_MOVES: u32 = 25;
 const NORMAL_STD_DEV: u32 = 10;
 const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
-const POWER: f64 = 0.5;
+const POWER: f64 = 1.0;
 
 #[derive(Debug)]
 pub struct MainTimeManager {
     expected_moves: AtomicU32,
     evals: Mutex<Vec<(i32, u32)>>,
-    moves: Mutex<Vec<(ChessMove, u32)>>,
     normal_duration: AtomicU32,
     max_duration: AtomicU32,
     target_duration: AtomicU32,
@@ -128,7 +127,6 @@ impl MainTimeManager {
         Self {
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
             evals: Mutex::new(vec![]),
-            moves: Mutex::new(vec![]),
             normal_duration: AtomicU32::new(0),
             max_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
@@ -141,24 +139,20 @@ impl TimeManager for MainTimeManager {
         let weight = depth * depth;
 
         let mut evals = self.evals.lock().unwrap();
-        let mut moves = self.moves.lock().unwrap();
         evals.push((eval.raw(), weight));
-        moves.push((mv, weight));
 
-        let mut sum_eval = 0;
-        let mut sum_weights = 1;
-        if evals.len() > 1 {
-            evals.iter().rev().for_each(|&(eval, weight)| {
-                sum_eval += eval * weight as i32;
+        let mut sum_weights = 0;
+        if depth > 4 {
+            evals.iter().rev().for_each(|&(_, weight)| {
                 sum_weights += weight;
             });
-            let mean = sum_eval / (sum_weights as i32);
-            let variance = evals
+            let optimal_eval = evals.last().unwrap().0;
+            let eval_variance = evals
                 .iter()
-                .map(|&(eval, weight)| weight as u64 * ((eval - mean).abs() as u64).pow(2))
+                .map(|&(eval, weight)| weight as u64 * ((eval - optimal_eval).abs() as u64).pow(2))
                 .sum::<u64>()
                 / sum_weights as u64;
-            let std_dev = (variance as f64).sqrt();
+            let std_dev = (eval_variance as f64).sqrt();
 
             let time_f64 = self.normal_duration.load(Ordering::SeqCst) as f64;
             let new_time = time_f64 * (std_dev * FACTOR).powf(POWER);
@@ -166,6 +160,7 @@ impl TimeManager for MainTimeManager {
                 .store(new_time as u32, Ordering::SeqCst);
             self.target_duration
                 .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
+            println!("test: {:?}", self.target_duration)
         }
     }
 
@@ -176,8 +171,13 @@ impl TimeManager for MainTimeManager {
             .store(percentage_time, Ordering::SeqCst);
         self.target_duration
             .store(percentage_time, Ordering::SeqCst);
-        self.max_duration
-            .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
+        if time_left.as_millis() < 2000 {
+            self.max_duration
+                .store(time_left.as_millis() as u32 / 10, Ordering::SeqCst)
+        } else {
+            self.max_duration
+                .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
+        }
     }
 
     fn abort(&self, delta_time: Duration) -> bool {
@@ -186,7 +186,6 @@ impl TimeManager for MainTimeManager {
 
     fn clear(&self) {
         self.evals.lock().unwrap().clear();
-        self.moves.lock().unwrap().clear();
         self.expected_moves.fetch_sub(1, Ordering::SeqCst);
         self.expected_moves.fetch_max(MIN_MOVES, Ordering::SeqCst);
     }
