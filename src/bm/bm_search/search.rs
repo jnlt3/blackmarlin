@@ -277,7 +277,8 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             let do_lmr = SEARCH_PARAMS.do_lmr(depth) && is_quiet;
 
             if do_lmr {
-                let lmr_reduce = search_options
+                let lmr_reduce = 
+                search_options
                     .get_lmr_lookup()
                     .get(depth as usize, index - 1);
                 reduction = if !Search::IS_PV {

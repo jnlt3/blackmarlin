@@ -135,18 +135,17 @@ impl MainTimeManager {
 }
 
 impl TimeManager for MainTimeManager {
-    fn deepen(&self, _: u8, depth: u32, eval: Evaluation, mv: ChessMove, _: Duration) {
+    fn deepen(&self, _: u8, depth: u32, eval: Evaluation, _: ChessMove, _: Duration) {
         let weight = depth * depth;
 
         let mut evals = self.evals.lock().unwrap();
-        evals.push((eval.raw(), weight));
 
         let mut sum_weights = 0;
         if depth > 4 {
-            evals.iter().rev().for_each(|&(_, weight)| {
+            evals.iter().for_each(|&(_, weight)| {
                 sum_weights += weight;
             });
-            let optimal_eval = evals.last().unwrap().0;
+            let optimal_eval = eval.raw();
             let eval_variance = evals
                 .iter()
                 .map(|&(eval, weight)| weight as u64 * ((eval - optimal_eval).abs() as u64).pow(2))
@@ -161,6 +160,7 @@ impl TimeManager for MainTimeManager {
             self.target_duration
                 .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
         }
+        evals.push((eval.raw(), weight));
     }
 
     fn initiate(&self, time_left: Duration) {
