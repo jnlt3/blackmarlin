@@ -35,13 +35,7 @@ impl Position {
 
     #[inline]
     pub fn prev_move(&self) -> Option<ChessMove> {
-        if self.moves.is_empty() {
-            None
-        } else if let Some(prev_move) = self.moves.last() {
-            *prev_move
-        } else {
-            None
-        }
+        self.moves.last().copied().unwrap_or(None)
     }
 
     #[inline]
