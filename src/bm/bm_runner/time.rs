@@ -113,6 +113,10 @@ const NORMAL_STD_DEV: u32 = 10;
 const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
 const POWER: f64 = 1.0;
 
+const PANIC_TIME: u32 = 10000;
+const PANIC_MUL: u32 = 1;
+const PANIC_DIV: u32 = 5;
+
 #[derive(Debug)]
 pub struct MainTimeManager {
     expected_moves: AtomicU32,
@@ -154,7 +158,7 @@ impl TimeManager for MainTimeManager {
             let std_dev = (eval_variance as f64).sqrt();
 
             let time_f64 = self.normal_duration.load(Ordering::SeqCst) as f64;
-            let new_time = time_f64 * (std_dev * FACTOR).powf(POWER);
+            let new_time = time_f64 * (std_dev * FACTOR).powf(POWER).max(1.0);
             self.target_duration
                 .store(new_time as u32, Ordering::SeqCst);
             self.target_duration
@@ -164,8 +168,11 @@ impl TimeManager for MainTimeManager {
     }
 
     fn initiate(&self, time_left: Duration) {
-        let percentage_time =
-            time_left.as_millis() as u32 / self.expected_moves.load(Ordering::SeqCst);
+        let time_left_millis = time_left.as_millis() as u32;
+        let time_left_for_panic = time_left_millis
+            .saturating_sub(PANIC_TIME)
+            .max(time_left_millis * (PANIC_DIV - PANIC_MUL) / PANIC_DIV);
+        let percentage_time = time_left_for_panic / self.expected_moves.load(Ordering::SeqCst);
         self.normal_duration
             .store(percentage_time, Ordering::SeqCst);
         self.target_duration
