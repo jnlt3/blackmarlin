@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, Square, ALL_FILES, ALL_SQUARES, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -13,7 +13,7 @@ const PIECES: [Piece; 6] = [
     Piece::King,
 ];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BasicEvalData {
     w_king_attacks: [BitBoard; 64],
     b_king_attacks: [BitBoard; 64],
@@ -29,56 +29,59 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
         b_ahead: [BitBoard(0); 64],
     };
 
-    let mut king_file = 0_u8;
     let mut king_rank = 0_u8;
+    while king_rank < 8 {
+        let mut king_file = 0_u8;
+        while king_file < 8 {
+            let king = (king_rank * 8 + king_file) as usize;
 
-    while king_file < 8 {
-        while king_rank < 8 {
-            let king = (king_rank << 3 ^ king_file) as usize;
-            king_rank += 1;
-
-            let mut sq_file = 0_u8;
-            let mut sq_rank = 0_u8;
+            let mut w_king_attacks = 0_u64;
+            let mut b_king_attacks = 0_u64;
+            let mut w_ahead = 0_u64;
+            let mut b_ahead = 0_u64;
             {
-                let mut w_king_attacks = 0_u64;
-                let mut b_king_attacks = 0_u64;
-                let mut w_ahead = 0_u64;
-                let mut b_ahead = 0_u64;
-                let king_file = king_file as i32;
                 let king_rank = king_rank as i32;
-                while sq_file < 8 {
-                    while sq_rank < 8 {
-                        let sq = sq_rank << 3 ^ sq_file;
+                let king_file = king_file as i32;
+                let mut rank = 0_u8;
+                while rank < 8 {
+                    let mut file = 0_u8;
+                    while file < 8 {
+                        let sq = rank * 8 + file;
                         {
-                            let file = sq_file as i32;
-                            let rank = sq_rank as i32;
+                            let file = file as i32;
+                            let rank = rank as i32;
+
+                            let file_diff = (file - king_file).abs();
                             let rank_diff = rank - king_rank;
-                            if (file - king_file).abs() <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                                w_king_attacks |= 1 << sq as u64;
+
+                            let bitboard = 1_u64 << sq;
+                            if file_diff <= 1 && rank_diff >= -1 && rank_diff <= 2 {
+                                w_king_attacks |= bitboard;
                             }
-                            if (file - king_file).abs() <= 1 && rank_diff > 0 {
-                                w_ahead |= 1 << sq as u64;
+                            if file_diff <= 1 && rank_diff > 0 {
+                                w_ahead |= bitboard;
                             }
                             let rank_diff = king_rank - rank;
-                            if (file - king_file).abs() <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                                b_king_attacks |= 1 << sq as u64;
+                            if file_diff <= 1 && rank_diff >= -1 && rank_diff <= 2 {
+                                b_king_attacks |= bitboard;
                             }
-                            if (file - king_file).abs() <= 1 && rank_diff > 0 {
-                                b_ahead |= 1 << sq as u64;
+                            if file_diff <= 1 && rank_diff > 0 {
+                                b_ahead |= bitboard
                             }
                         }
-
-                        sq_rank += 1;
+                        file += 1;
                     }
-                    sq_file += 1;
+                    rank += 1;
                 }
-                data.w_king_attacks[king] = BitBoard(w_king_attacks);
-                data.w_ahead[king] = BitBoard(w_ahead);
-                data.b_king_attacks[king] = BitBoard(b_king_attacks);
-                data.b_ahead[king] = BitBoard(b_ahead);
             }
+            data.w_king_attacks[king] = BitBoard(w_king_attacks);
+            data.w_ahead[king] = BitBoard(w_ahead);
+            data.b_king_attacks[king] = BitBoard(b_king_attacks);
+            data.b_ahead[king] = BitBoard(b_ahead);
+
+            king_file += 1;
         }
-        king_file += 1;
+        king_rank += 1;
     }
     data
 }
