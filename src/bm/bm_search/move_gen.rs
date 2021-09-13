@@ -195,8 +195,8 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         last_move.to,
                         self.board.piece_on(make_move.get_source()).unwrap(),
                         make_move.get_dest(),
-                    ) * C_HIST_FACTOR as u32
-                        / C_HIST_DIVISOR as u32;
+                    ) * CH_TABLE_FACTOR as u32
+                        / CH_TABLE_DIVISOR as u32;
                     score += counter_move_hist as i32;
                 }
                 let pos = self.queue[partition..]

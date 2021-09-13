@@ -1,7 +1,7 @@
 use crate::bm::bm_eval::eval::Evaluation;
 use chess::ChessMove;
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

@@ -1,5 +1,3 @@
-use std::mem;
-
 #[derive(Copy, Clone, Debug)]
 pub struct LookUp<T: Copy + Default, const DEPTH: usize> {
     table: [T; DEPTH],

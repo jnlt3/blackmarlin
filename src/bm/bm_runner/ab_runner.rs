@@ -485,6 +485,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
         self.search_options.h_table.for_all(|_| 0);
         self.search_options.c_hist.for_all(|_| 0);
         self.search_options.ch_table.for_all(|_| 0);
+        self.search_options.c_table.clear();
         self.search_options.t_table.clean();
         self.position = Position::new(board);
         self.search_options.eval().clear_cache();

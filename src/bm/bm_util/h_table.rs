@@ -29,14 +29,6 @@ impl HistoryTable {
         color_offset + piece_index
     }
 
-    fn from_index(color: Color, from: Square) -> usize {
-        let color_offset = match color {
-            Color::White => 0,
-            Color::Black => 64,
-        };
-        from.to_index() + color_offset
-    }
-
     pub fn get(&self, color: Color, piece: Piece, to: Square) -> u32 {
         let piece_index = Self::piece_index(color, piece);
         let to_index = to.to_index();
