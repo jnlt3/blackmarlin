@@ -268,18 +268,20 @@ pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
     board: Board,
     gen_type: QSearchGenType,
     queue: ArrayVec<(ChessMove, i32), 218>,
+    c_hist: Arc<CaptureHistoryTable>,
 
     eval: PhantomData<Eval>,
 }
 
 #[cfg(feature = "q_search_move_ord")]
 impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
-    pub fn new(board: &Board) -> Self {
+    pub fn new(board: &Board, options: &SearchOptions<Eval>) -> Self {
         Self {
             board: *board,
             move_gen: MoveGen::new_legal(board),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
+            c_hist: options.get_ch_table(),
             eval: Default::default(),
         }
     }
@@ -293,8 +295,20 @@ impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGe
         if self.gen_type == QSearchGenType::CalcCaptures {
             self.move_gen.set_iterator_mask(*self.board.combined());
             for make_move in &mut self.move_gen {
-                let expected_gain = Eval::see(self.board, make_move);
-                if !SEE_PRUNE || expected_gain >= 0 {
+                let mut expected_gain = Eval::see(self.board, make_move);
+                #[cfg(feature = "c_hist")]
+                {
+                    let history_gain = self.c_hist.get(
+                        self.board.side_to_move(),
+                        self.board.piece_on(make_move.get_source()).unwrap(),
+                        make_move.get_dest(),
+                        self.board.piece_on(make_move.get_dest()).unwrap(),
+                    ) as i32
+                        * C_HIST_FACTOR
+                        / C_HIST_DIVISOR;
+                    expected_gain += history_gain;
+                }
+                if !SEE_PRUNE || expected_gain > -1 {
                     let pos = self
                         .queue
                         .binary_search_by_key(&expected_gain, |(_, score)| *score)
@@ -311,11 +325,6 @@ impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGe
             self.move_gen.set_iterator_mask(!*self.board.combined());
             self.gen_type = QSearchGenType::Quiet;
         }
-        if self.gen_type == QSearchGenType::Quiet {
-            if let Some(make_move) = self.move_gen.next() {
-                return Some(make_move);
-            }
-        }
-        None
+        self.move_gen.next()
     }
 }

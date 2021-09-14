@@ -448,7 +448,10 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
     #[cfg(not(feature = "q_search_move_ord"))]
     let move_gen = MoveGen::new_legal(&board);
     #[cfg(feature = "q_search_move_ord")]
-    let move_gen = QuiescenceSearchMoveGen::<Eval, { SEARCH_PARAMS.do_see_prune() }>::new(&board);
+    let move_gen = QuiescenceSearchMoveGen::<Eval, { SEARCH_PARAMS.do_see_prune() }>::new(
+        &board,
+        search_options,
+    );
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
 

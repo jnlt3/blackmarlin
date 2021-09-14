@@ -45,7 +45,7 @@ impl CMoveHistoryTable {
         let sqr_index = to.to_index();
         let c_piece_index = Self::piece_index(color, c_piece);
         let c_sqr_index = c_to.to_index();
-        self.table[piece_index][sqr_index][c_piece_index][c_sqr_index].load(Ordering::Relaxed)
+        self.table[piece_index][sqr_index][c_piece_index][c_sqr_index].load(Ordering::SeqCst)
     }
 
     pub fn add(
@@ -62,8 +62,8 @@ impl CMoveHistoryTable {
         let c_piece_index = Self::piece_index(color, c_piece);
         let c_sqr_index = c_to.to_index();
         let current_value = &self.table[piece_index][sqr_index][c_piece_index][c_sqr_index];
-        current_value.fetch_add(amt, Ordering::Relaxed);
-        current_value.fetch_min(MAX, Ordering::Relaxed);
+        current_value.fetch_add(amt, Ordering::SeqCst);
+        current_value.fetch_min(MAX, Ordering::SeqCst);
     }
 
     pub fn for_all<F: Fn(u32) -> u32>(&self, func: F) {
@@ -71,7 +71,7 @@ impl CMoveHistoryTable {
             for y in x {
                 for z in y {
                     for t in z {
-                        t.store(func(t.load(Ordering::Relaxed)), Ordering::Relaxed);
+                        t.store(func(t.load(Ordering::SeqCst)), Ordering::SeqCst);
                     }
                 }
             }
