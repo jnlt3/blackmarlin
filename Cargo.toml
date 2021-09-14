@@ -17,8 +17,8 @@ opt-level = 3
 chess = "3.2.0"
 text_io = "0.1.8"
 jemallocator = "0.3.2"
-arrayvec = "*"
-rand = "*"
+arrayvec = "0.7.1"
+rand = "0.8.4"
 
 [features]
 standard = ["best_hist", "advanced_move_gen", "all_move"]

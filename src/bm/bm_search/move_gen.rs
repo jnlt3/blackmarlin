@@ -175,6 +175,9 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             self.move_gen.set_iterator_mask(!EMPTY);
             let partition = self.queue.len();
             for make_move in &mut self.move_gen {
+                if Some(make_move) == self.pv_move {
+                    continue;
+                }
                 let piece = self.board.piece_on(make_move.get_source()).unwrap();
                 #[cfg(feature = "c_move")]
                 {
