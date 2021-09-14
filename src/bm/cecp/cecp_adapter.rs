@@ -58,6 +58,8 @@ pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>
     const_depth: Arc<ConstDepth>,
     const_time: Arc<ConstTime>,
 
+    forced: bool,
+
     time_left: f32,
 
     threads: u8,
@@ -80,6 +82,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             bm_runner,
             time_left: 0_f32,
             threads: 1,
+            forced: false,
             current_time_manager: TimeManagerType::Normal,
             const_depth,
             const_time,
@@ -100,6 +103,9 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             }
             CecpCommand::Move(make_move) => {
                 self.bm_runner.make_move(make_move);
+                if !self.forced {
+                    self.go()
+                }
             }
             CecpCommand::Ping(number) => {
                 println!("pong {}", number);
@@ -124,14 +130,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 self.const_time.set_duration(Duration::from_secs_f32(time));
             }
             CecpCommand::Go => {
-                self.time_manager
-                    .initiate(Duration::from_secs_f32(self.time_left));
-                let (make_move, _, _, _) = self
-                    .bm_runner
-                    .search::<Run, XBoardInfo>(self.threads, false);
-                self.bm_runner.make_move(make_move);
-                println!("move {}", make_move);
-                self.time_manager.clear();
+                self.go();
             }
             CecpCommand::New => self.bm_runner.set_board(chess::Board::default()),
             CecpCommand::Eval => {
@@ -140,7 +139,9 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             CecpCommand::Cores(cores) => {
                 self.threads = cores;
             }
-            CecpCommand::Force => {}
+            CecpCommand::Force => {
+                self.forced = true;
+            }
             CecpCommand::Quit => {
                 return false;
             }
@@ -164,8 +165,23 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 self.current_time_manager = prev;
             }
             CecpCommand::Empty => {}
+            CecpCommand::MoveNow => {
+                //TODO:
+            }
         }
         true
+    }
+
+    fn go(&mut self) {
+        self.forced = false;
+        self.time_manager
+            .initiate(Duration::from_secs_f32(self.time_left));
+        let (make_move, _, _, _) = self
+            .bm_runner
+            .search::<Run, XBoardInfo>(self.threads, false);
+        self.bm_runner.make_move(make_move);
+        println!("move {}", make_move);
+        self.time_manager.clear();
     }
 
     fn bench(&mut self) {
@@ -201,6 +217,7 @@ enum CecpCommand {
     Eval,
     Go,
     New,
+    MoveNow,
     Force,
     Quit,
     Bench,
@@ -286,6 +303,7 @@ impl CecpCommand {
             "new" => CecpCommand::New,
             "force" => CecpCommand::Force,
             "go" => CecpCommand::Go,
+            "?" => CecpCommand::MoveNow,
             "quit" => CecpCommand::Quit,
             "eval" => CecpCommand::Eval,
             "bench" => CecpCommand::Bench,
