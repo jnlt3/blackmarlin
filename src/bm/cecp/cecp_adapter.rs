@@ -114,6 +114,8 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             }
             CecpCommand::Time(time_left) => {
                 self.time_left = time_left;
+                self.current_time_manager = TimeManagerType::Normal;
+                self.time_manager.set_mode(TimeManagerType::Normal as usize);
             }
             CecpCommand::SetTime(time) => {
                 self.current_time_manager = TimeManagerType::ConstTime;
