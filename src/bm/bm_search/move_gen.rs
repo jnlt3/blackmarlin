@@ -13,8 +13,6 @@ use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
 
-const COUNTER_MOVE_SCORE: i32 = i32::MAX;
-
 const C_HIST_FACTOR: i32 = 1;
 const C_HIST_DIVISOR: i32 = 400;
 const CH_TABLE_FACTOR: i32 = 1;
@@ -84,6 +82,7 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     board: Board,
 
     queue: ArrayVec<(ChessMove, i32), 218>,
+    mask: [bool; 218],
 
     eval: PhantomData<Eval>,
 }
@@ -120,6 +119,7 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
             c_move_hist: options.get_c_hist(),
             board: *board,
             queue: ArrayVec::new(),
+            mask: [true; 218],
             eval: PhantomData::default(),
         }
     }
@@ -179,12 +179,10 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                 #[cfg(feature = "c_move")]
                 {
                     if Some(make_move) == self.counter_move {
-                        self.queue.push((make_move, COUNTER_MOVE_SCORE));
-                        continue;
+                        return Some(make_move);
                     }
                 }
                 let mut score = 0;
-                //TODO: use block labels when stabilized
                 #[cfg(feature = "hist")]
                 {
                     score += self
@@ -222,7 +220,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         .iter()
                         .position(|(cmp_move, _)| make_move == *cmp_move);
                     if let Some(position) = position {
-                        self.queue.remove(position);
+                        self.mask[position] = false;
                         return Some(make_move);
                     }
                 }
@@ -238,7 +236,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         .iter()
                         .position(|(cmp_move, _)| make_move == *cmp_move);
                     if let Some(position) = position {
-                        self.queue.remove(position);
+                        self.mask[position] = false;
                         return Some(make_move);
                     }
                 }
@@ -246,8 +244,10 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             self.gen_type = GenType::Quiet;
         }
         if self.gen_type == GenType::Quiet {
-            if let Some((make_move, _)) = self.queue.pop() {
-                return Some(make_move);
+            while let Some((make_move, _)) = self.queue.pop() {
+                if self.mask[self.queue.len()] {
+                    return Some(make_move);
+                }
             }
         }
         None
