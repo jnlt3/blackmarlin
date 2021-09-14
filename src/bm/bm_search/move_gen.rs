@@ -1,7 +1,6 @@
 use chess::{Board, ChessMove, MoveGen, EMPTY};
 
 use crate::bm::bm_runner::ab_runner::SearchOptions;
-use crate::bm::bm_search::move_gen::GenType::{PvMove, Quiet};
 
 use crate::bm::bm_util::c_hist::{CMoveHistoryTable, PieceTo};
 
@@ -15,6 +14,7 @@ use std::sync::Arc;
 use super::move_entry::MoveEntryIterator;
 
 const COUNTER_MOVE_SCORE: i32 = i32::MAX;
+
 const C_HIST_FACTOR: i32 = 1;
 const C_HIST_DIVISOR: i32 = 400;
 const CH_TABLE_FACTOR: i32 = 1;
@@ -31,6 +31,7 @@ enum GenType {
     Quiet,
 }
 
+#[cfg(not(feature = "advanced_move_gen"))]
 pub struct PvMoveGen {
     move_gen: MoveGen,
     board: Board,
@@ -38,10 +39,11 @@ pub struct PvMoveGen {
     gen_type: GenType,
 }
 
+#[cfg(not(feature = "advanced_move_gen"))]
 impl PvMoveGen {
     pub fn new(board: &Board, pv_move: Option<ChessMove>) -> Self {
         Self {
-            gen_type: PvMove,
+            gen_type: GenType::PvMove,
             move_gen: MoveGen::new_legal(board),
             board: *board,
             pv_move,
@@ -49,12 +51,13 @@ impl PvMoveGen {
     }
 }
 
+#[cfg(not(feature = "advanced_move_gen"))]
 impl Iterator for PvMoveGen {
     type Item = ChessMove;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.gen_type == PvMove {
-            self.gen_type = Quiet;
+        if self.gen_type == GenType::PvMove {
+            self.gen_type = GenType::Quiet;
             if let Some(pv_move) = self.pv_move {
                 if self.board.legal(pv_move) {
                     self.move_gen.remove_move(pv_move);
@@ -66,6 +69,7 @@ impl Iterator for PvMoveGen {
     }
 }
 
+#[cfg(feature = "advanced_move_gen")]
 pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     move_gen: MoveGen,
     pv_move: Option<ChessMove>,
@@ -84,6 +88,7 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     eval: PhantomData<Eval>,
 }
 
+#[cfg(feature = "advanced_move_gen")]
 impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
     OrderedMoveGen<Eval, T, K>
 {
@@ -120,6 +125,7 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
     }
 }
 
+#[cfg(feature = "advanced_move_gen")]
 impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGen<Eval, K, T> {
     type Item = ChessMove;
 
@@ -248,6 +254,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
     }
 }
 
+#[cfg(feature = "q_search_move_ord")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum QSearchGenType {
     CalcCaptures,
@@ -255,6 +262,7 @@ pub enum QSearchGenType {
     Quiet,
 }
 
+#[cfg(feature = "q_search_move_ord")]
 pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
     move_gen: MoveGen,
     board: Board,
@@ -264,6 +272,7 @@ pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
     eval: PhantomData<Eval>,
 }
 
+#[cfg(feature = "q_search_move_ord")]
 impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
     pub fn new(board: &Board) -> Self {
         Self {
@@ -276,6 +285,7 @@ impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_P
     }
 }
 
+#[cfg(feature = "q_search_move_ord")]
 impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
     type Item = ChessMove;
 

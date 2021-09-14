@@ -1,9 +1,10 @@
-use chess::{ChessMove, MoveGen, Piece, EMPTY};
+use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
+#[cfg(not(feature = "advanced_move_gen"))]
 use crate::bm::bm_search::move_gen::PvMoveGen;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
@@ -12,7 +13,12 @@ use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::c_hist::PieceTo;
 use crate::bm::bm_util::evaluator::Evaluator;
 
-use super::move_gen::{OrderedMoveGen, QuiescenceSearchMoveGen};
+#[cfg(feature = "advanced_move_gen")]
+use super::move_gen::OrderedMoveGen;
+#[cfg(feature = "q_search_move_ord")]
+use super::move_gen::QuiescenceSearchMoveGen;
+#[cfg(not(feature = "q_search_move_ord"))]
+use chess::MoveGen;
 
 pub trait SearchType {
     const DO_NULL_MOVE: bool;
