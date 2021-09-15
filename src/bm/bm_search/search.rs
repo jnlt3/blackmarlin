@@ -193,15 +193,13 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             return (None, eval.unwrap() - f_margin);
         }
     }
-
     {
-        let killer_table = search_options.get_k_table();
-        while killer_table.len() <= ply as usize {
-            killer_table.push(MoveEntry::new());
-        }
         let threat_table = search_options.get_threat_table();
-        while threat_table.len() <= ply as usize + 1 {
+        //This guarantees that killer_table.len() <= ply as usize
+        if threat_table.len() <= ply as usize + 1 {
             threat_table.push(MoveEntry::new());
+            let killer_table = search_options.get_k_table();
+            killer_table.push(MoveEntry::new());
         }
     }
 
