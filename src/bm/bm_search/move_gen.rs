@@ -284,7 +284,7 @@ impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_P
             move_gen: MoveGen::new_legal(board),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
-            c_hist: options.get_ch_table(),
+            c_hist: options.get_ch_table().clone(),
             eval: Default::default(),
         }
     }
