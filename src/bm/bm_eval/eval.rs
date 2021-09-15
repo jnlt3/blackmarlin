@@ -95,7 +95,7 @@ impl std::ops::Shr<Depth> for Evaluation {
             0
         };
         Self {
-            score: self.score.saturating_add(sign).saturating_neg(),
+            score: self.score.saturating_neg().saturating_add(sign),
         }
     }
 }
