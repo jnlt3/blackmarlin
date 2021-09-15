@@ -195,12 +195,10 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     }
 
     {
-        let _count = SEARCH_PARAMS.get_k_move_cnt();
         let killer_table = search_options.get_k_table();
         while killer_table.len() <= ply as usize {
             killer_table.push(MoveEntry::new());
         }
-        let _count = SEARCH_PARAMS.get_threat_move_cnt();
         let threat_table = search_options.get_threat_table();
         while threat_table.len() <= ply as usize + 1 {
             threat_table.push(MoveEntry::new());
