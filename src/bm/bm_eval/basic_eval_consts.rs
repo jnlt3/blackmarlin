@@ -199,7 +199,7 @@ pub const KING_END_TABLE: [[i32; 8]; 8] = generate_table(
 
 pub const ATTACKS: [i32; 8] = [0, 0, 50, 75, 88, 94, 97, 99];
 
-const BASE_ATTACK: u32 = 5;
+const BASE_ATTACK: u32 = 0;
 
 pub const KNIGHT_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK);
 pub const BISHOP_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK);
