@@ -194,12 +194,10 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         }
     }
     {
-        let threat_table = search_options.get_threat_table();
         //This guarantees that killer_table.len() <= ply as usize
-        if threat_table.len() <= ply as usize + 1 {
-            threat_table.push(MoveEntry::new());
-            let killer_table = search_options.get_k_table();
-            killer_table.push(MoveEntry::new());
+        while search_options.get_k_table().len() <= ply as usize {
+            search_options.get_threat_table().push(MoveEntry::new());
+            search_options.get_k_table().push(MoveEntry::new());
         }
     }
 
