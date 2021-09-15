@@ -200,28 +200,28 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     }
 
     #[inline]
-    pub fn get_t_table(&self) -> Arc<TranspositionTable> {
-        self.t_table.clone()
+    pub fn get_t_table(&self) -> &Arc<TranspositionTable> {
+        &self.t_table
     }
 
     #[inline]
-    pub fn get_h_table(&self) -> Arc<HistoryTable> {
-        self.h_table.clone()
+    pub fn get_h_table(&self) -> &Arc<HistoryTable> {
+        &self.h_table
     }
 
     #[inline]
-    pub fn get_ch_table(&self) -> Arc<CaptureHistoryTable> {
-        self.ch_table.clone()
+    pub fn get_ch_table(&self) -> &Arc<CaptureHistoryTable> {
+        &self.ch_table
     }
 
     #[inline]
-    pub fn get_c_hist(&self) -> Arc<CMoveHistoryTable> {
-        self.c_hist.clone()
+    pub fn get_c_hist(&self) -> &Arc<CMoveHistoryTable> {
+        &self.c_hist
     }
 
     #[inline]
-    pub fn get_c_table(&self) -> Arc<CounterMoveTable> {
-        self.c_table.clone()
+    pub fn get_c_table(&self) -> &Arc<CounterMoveTable> {
+        &self.c_table
     }
 
     #[inline]
@@ -230,13 +230,13 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     }
 
     #[inline]
-    pub fn get_lmr_lookup(&self) -> Arc<LmrLookup> {
-        self.lmr_lookup.clone()
+    pub fn get_lmr_lookup(&self) -> &Arc<LmrLookup> {
+        &self.lmr_lookup
     }
 
     #[inline]
-    pub fn get_lmp_lookup(&self) -> Arc<LmpLookup> {
-        self.lmp_lookup.clone()
+    pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
+        &self.lmp_lookup
     }
 
     #[inline]
