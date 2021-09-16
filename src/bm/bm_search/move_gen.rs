@@ -299,7 +299,7 @@ impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGe
             self.move_gen.set_iterator_mask(*self.board.combined());
             for make_move in &mut self.move_gen {
                 let mut expected_gain = Eval::see(self.board, make_move);
-                #[cfg(feature = "c_hist")]
+                #[cfg(feature = "q_c_hist")]
                 {
                     let history_gain = self.c_hist.get(
                         self.board.side_to_move(),

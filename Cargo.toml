@@ -28,9 +28,10 @@ advanced_move_gen = [] # more advanced move generation
 q_search_move_ord = [] # use move ordering in quiescence search
 
 all_hist = ["hist", "c_hist", "c_move", "cmh_table"]
-best_hist = ["hist", "c_hist", "c_move"]
+best_hist = ["hist", "c_hist", "c_move", "q_c_hist"]
 hist = []                                            # history heuristic
 c_hist = []                                          # capture history
+q_c_hist = []                                        # capture history in quiescence search
 c_move = []                                          # counter move
 cmh_table = []                                       # counter move history table
 
