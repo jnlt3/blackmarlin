@@ -284,7 +284,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
                 reduction = if !Search::IS_PV {
                     lmr_reduce
                 } else {
-                    lmr_reduce - SEARCH_PARAMS.get_lmr_pv()
+                    lmr_reduce.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
                 };
             }
 
