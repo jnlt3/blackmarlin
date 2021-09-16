@@ -114,7 +114,7 @@ const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
 const POWER: f64 = 1.0;
 
 const PANIC_TIME: u32 = 10000;
-const PANIC_MUL: u32 = 1;
+const PANIC_MUL: u32 = 4;
 const PANIC_DIV: u32 = 5;
 
 #[derive(Debug)]
@@ -177,13 +177,8 @@ impl TimeManager for MainTimeManager {
             .store(percentage_time, Ordering::SeqCst);
         self.target_duration
             .store(percentage_time, Ordering::SeqCst);
-        if time_left.as_millis() < 2000 {
-            self.max_duration
-                .store(time_left.as_millis() as u32 / 10, Ordering::SeqCst)
-        } else {
-            self.max_duration
-                .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
-        }
+        self.max_duration
+            .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
     }
 
     fn abort(&self, delta_time: Duration) -> bool {
