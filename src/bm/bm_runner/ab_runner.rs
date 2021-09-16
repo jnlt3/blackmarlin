@@ -369,6 +369,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                 search_options.time_manager.deepen(
                     thread,
                     depth,
+                    nodes,
                     search_options.eval,
                     best_move.unwrap(),
                     search_options.search_start.elapsed(),
@@ -512,5 +513,9 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
             self.position.unmake_move();
         }
         moves
+    }
+
+    fn get_board(&self) -> &Board {
+        &self.position.board()
     }
 }

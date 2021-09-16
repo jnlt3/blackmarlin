@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chess::{Board, ChessMove};
+use chess::{Board, ChessMove, MoveGen};
 
 use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
@@ -174,8 +174,11 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
 
     fn go(&mut self) {
         self.forced = false;
-        self.time_manager
-            .initiate(Duration::from_secs_f32(self.time_left));
+        self.time_manager.initiate(
+            Duration::from_secs_f32(self.time_left),
+            //FIXME: Hacky code
+            MoveGen::new_legal(self.bm_runner.get_board()).len(),
+        );
         let (make_move, _, _, _) = self
             .bm_runner
             .search::<Run, XBoardInfo>(self.threads, false);

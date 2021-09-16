@@ -20,6 +20,8 @@ pub trait Runner<Eval: 'static + Evaluator + Clone + Send> {
 
     fn set_board(&mut self, board: Board);
 
+    fn get_board(&self) -> &Board;
+
     fn make_move(&mut self, make_move: ChessMove);
 
     fn pv(&mut self, pv_len: usize) -> Vec<ChessMove>;

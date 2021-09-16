@@ -10,12 +10,13 @@ pub trait TimeManager: Debug + Send + Sync {
         &self,
         thread: u8,
         depth: u32,
+        nodes: u32,
         eval: Evaluation,
         best_move: ChessMove,
         delta_time: Duration,
     );
 
-    fn initiate(&self, time_left: Duration);
+    fn initiate(&self, time_left: Duration, move_cnt: usize);
 
     fn abort(&self, delta_time: Duration) -> bool;
 
@@ -58,12 +59,12 @@ impl ConstDepth {
 }
 
 impl TimeManager for ConstDepth {
-    fn deepen(&self, _: u8, depth: u32, _: Evaluation, _: ChessMove, _: Duration) {
+    fn deepen(&self, _: u8, depth: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {
         self.current_depth.store(depth, Ordering::SeqCst);
         self.update_abort();
     }
 
-    fn initiate(&self, _: Duration) {}
+    fn initiate(&self, _: Duration, move_cnt: usize) {}
 
     fn abort(&self, _: Duration) -> bool {
         self.abort.load(Ordering::SeqCst)
@@ -94,9 +95,9 @@ impl ConstTime {
 }
 
 impl TimeManager for ConstTime {
-    fn deepen(&self, _: u8, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
+    fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
 
-    fn initiate(&self, _: Duration) {}
+    fn initiate(&self, _: Duration, move_cnt: usize) {}
 
     fn abort(&self, delta_time: Duration) -> bool {
         self.target_duration.load(Ordering::SeqCst) < delta_time.as_millis() as u32
@@ -139,7 +140,7 @@ impl MainTimeManager {
 }
 
 impl TimeManager for MainTimeManager {
-    fn deepen(&self, _: u8, depth: u32, eval: Evaluation, _: ChessMove, _: Duration) {
+    fn deepen(&self, _: u8, depth: u32, _: u32, eval: Evaluation, _: ChessMove, _: Duration) {
         let weight = depth * depth;
 
         let mut evals = self.evals.lock().unwrap();
@@ -167,7 +168,10 @@ impl TimeManager for MainTimeManager {
         evals.push((eval.raw(), weight));
     }
 
-    fn initiate(&self, time_left: Duration) {
+    fn initiate(&self, time_left: Duration, move_cnt: usize) {
+        if move_cnt == 0 {
+            self.target_duration.store(0, Ordering::SeqCst);
+        }
         let time_left_millis = time_left.as_millis() as u32;
         let time_left_for_panic = time_left_millis
             .saturating_sub(PANIC_TIME)
@@ -216,16 +220,17 @@ impl TimeManager for CompoundTimeManager {
         &self,
         thread: u8,
         depth: u32,
+        nodes: u32,
         eval: Evaluation,
         best_move: ChessMove,
         delta_time: Duration,
     ) {
         self.managers[self.mode.load(Ordering::SeqCst)]
-            .deepen(thread, depth, eval, best_move, delta_time);
+            .deepen(thread, depth, nodes, eval, best_move, delta_time);
     }
 
-    fn initiate(&self, time_left: Duration) {
-        self.managers[self.mode.load(Ordering::SeqCst)].initiate(time_left);
+    fn initiate(&self, time_left: Duration, move_cnt: usize) {
+        self.managers[self.mode.load(Ordering::SeqCst)].initiate(time_left, move_cnt);
     }
 
     fn abort(&self, delta_time: Duration) -> bool {
