@@ -64,7 +64,7 @@ impl TimeManager for ConstDepth {
         self.update_abort();
     }
 
-    fn initiate(&self, _: Duration, move_cnt: usize) {}
+    fn initiate(&self, _: Duration, _: usize) {}
 
     fn abort(&self, _: Duration) -> bool {
         self.abort.load(Ordering::SeqCst)
@@ -97,7 +97,7 @@ impl ConstTime {
 impl TimeManager for ConstTime {
     fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
 
-    fn initiate(&self, _: Duration, move_cnt: usize) {}
+    fn initiate(&self, _: Duration, _: usize) {}
 
     fn abort(&self, delta_time: Duration) -> bool {
         self.target_duration.load(Ordering::SeqCst) < delta_time.as_millis() as u32
