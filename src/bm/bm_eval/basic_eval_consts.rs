@@ -208,8 +208,8 @@ pub const QUEEN_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK * 4);
 
 pub const TEMPO: i32 = 20;
 
-pub const PASSER: TaperedEval = TaperedEval(15, 30);
-pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
+pub const PASSER: TaperedEval = TaperedEval(0, 0);
+pub const DOUBLED: TaperedEval = TaperedEval(0, 0);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
 //Traits & Impls
