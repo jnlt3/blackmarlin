@@ -146,22 +146,31 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 return false;
             }
             //TODO: reset back to the old position
-            CecpCommand::Bench => {
-                let prev = self.current_time_manager;
-                self.current_time_manager = TimeManagerType::ConstDepth;
-                self.time_manager
-                    .set_mode(TimeManagerType::ConstDepth as usize);
-                self.const_depth.set_depth(8);
-                self.bench();
-                self.current_time_manager = prev;
-            }
             CecpCommand::Perf => {
                 let prev = self.current_time_manager;
                 self.current_time_manager = TimeManagerType::ConstTime;
                 self.time_manager
                     .set_mode(TimeManagerType::ConstTime as usize);
                 self.const_time.set_duration(Duration::from_secs(1));
-                self.bench();
+                let mut sum_node_cnt = 0;
+                let mut sum_time = Duration::from_nanos(0);
+                let mut avg_depth = 0;
+                for position in POSITIONS {
+                    let board = chess::Board::from_str(position).unwrap();
+                    self.bm_runner.set_board(board);
+                    self.time_manager.initiate(Duration::from_secs(1), 0);
+                    let start = Instant::now();
+                    let (_, _, depth, node_cnt) = self.bm_runner.search::<Run, NoInfo>(1, false);
+                    sum_time += start.elapsed();
+                    sum_node_cnt += node_cnt;
+                    avg_depth += depth;
+                }
+                println!(
+                    "nps: {}, node_cnt: {} depth: {}",
+                    sum_node_cnt as f32 / sum_time.as_secs_f32(),
+                    sum_node_cnt,
+                    avg_depth as f32 / POSITIONS.len() as f32,
+                );
                 self.current_time_manager = prev;
             }
             CecpCommand::Empty => {}
@@ -186,26 +195,6 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
         println!("move {}", make_move);
         self.time_manager.clear();
     }
-
-    fn bench(&mut self) {
-        let mut sum_node_cnt = 0;
-        let mut sum_time = Duration::from_nanos(0);
-        for position in POSITIONS {
-            self.bm_runner
-                .set_board(chess::Board::from_str(position).unwrap());
-
-            let start = Instant::now();
-            let (_, _, _, node_cnt) = self.bm_runner.search::<Run, NoInfo>(1, false);
-            sum_time += start.elapsed();
-            self.const_depth.clear();
-            sum_node_cnt += node_cnt;
-        }
-        println!(
-            "nps: {}, node_cnt: {}",
-            sum_node_cnt as f32 / sum_time.as_secs_f32(),
-            sum_node_cnt,
-        )
-    }
 }
 
 enum CecpCommand {
@@ -223,7 +212,6 @@ enum CecpCommand {
     MoveNow,
     Force,
     Quit,
-    Bench,
     Perf,
     Empty,
 }
@@ -309,7 +297,6 @@ impl CecpCommand {
             "?" => CecpCommand::MoveNow,
             "quit" => CecpCommand::Quit,
             "eval" => CecpCommand::Eval,
-            "bench" => CecpCommand::Bench,
             "perf" => CecpCommand::Perf,
             _ => CecpCommand::Empty,
         }
