@@ -260,7 +260,8 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             );
             score = search_score << Next;
         } else {
-            if SEARCH_PARAMS.do_lmp(depth)
+            if !Search::IS_PV
+                && SEARCH_PARAMS.do_lmp(depth)
                 && is_quiet
                 && index > search_options.get_lmp_lookup().get(depth as usize)
             {
