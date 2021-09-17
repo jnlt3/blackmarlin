@@ -388,8 +388,8 @@ impl BasicEval {
             let adj_files = chess::get_adjacent_files(file);
             w_doubled += (file_bb & white_pawns).popcnt().saturating_sub(1);
             b_doubled += (file_bb & black_pawns).popcnt().saturating_sub(1);
-            w_isolated += 1u32.saturating_sub((adj_files & white_pawns).popcnt());
-            b_isolated += 1u32.saturating_sub((adj_files & black_pawns).popcnt());
+            w_isolated += 1_u32.saturating_sub((adj_files & white_pawns).popcnt());
+            b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
         let passed_score = Self::score(w_passed as i32 - b_passed as i32, PASSER, phase);
         let doubled_score = Self::score(w_doubled as i32 - b_doubled as i32, DOUBLED, phase);
