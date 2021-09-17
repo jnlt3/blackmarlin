@@ -133,7 +133,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
 
     if do_null_move && position.null_move() {
         {
-            let _count = SEARCH_PARAMS.get_threat_move_cnt();
             let threat_table = search_options.get_threat_table();
             while threat_table.len() <= ply as usize + 1 {
                 threat_table.push(MoveEntry::new());

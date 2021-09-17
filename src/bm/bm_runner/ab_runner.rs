@@ -149,7 +149,7 @@ impl SearchParams {
 
     #[inline]
     pub const fn do_lmr(&self, depth: u32) -> bool {
-        self.do_lmr && depth > self.lmr_depth
+        self.do_lmr && depth >= self.lmr_depth
     }
 
     #[inline]
