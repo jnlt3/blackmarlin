@@ -8,7 +8,7 @@ pub const F_PRUNE_THRESHOLD_BASE: i32 = 200;
 pub const F_PRUNE_THRESHOLD_FACTOR: i32 = 200;
 pub const DO_F_PRUNE: bool = true;
 
-pub const NULL_MOVE_REDUCTION_BASE: u32 = 1;
+pub const NULL_MOVE_REDUCTION_BASE: u32 = 3;
 pub const NULL_MOVE_REDUCTION_FACTOR: u32 = 1;
 pub const NULL_MOVE_REDUCTION_DIVISOR: u32 = 4;
 pub const DO_NULL_MOVE_REDUCTION: bool = true;
