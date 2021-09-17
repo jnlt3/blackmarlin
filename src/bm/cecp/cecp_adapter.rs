@@ -160,7 +160,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                     self.bm_runner.set_board(board);
                     self.time_manager.initiate(Duration::from_secs(1), 0);
                     let start = Instant::now();
-                    let (_, _, depth, node_cnt) = self.bm_runner.search::<Run, NoInfo>(1, false);
+                    let (_, _, depth, node_cnt) = self.bm_runner.search::<Run, NoInfo>(1);
                     sum_time += start.elapsed();
                     sum_node_cnt += node_cnt;
                     avg_depth += depth;
@@ -188,9 +188,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             //FIXME: Hacky code
             MoveGen::new_legal(self.bm_runner.get_board()).len(),
         );
-        let (make_move, _, _, _) = self
-            .bm_runner
-            .search::<Run, XBoardInfo>(self.threads, false);
+        let (make_move, _, _, _) = self.bm_runner.search::<Run, XBoardInfo>(self.threads);
         self.bm_runner.make_move(make_move);
         println!("move {}", make_move);
         self.time_manager.clear();

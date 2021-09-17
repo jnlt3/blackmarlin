@@ -235,8 +235,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     }
 
     let mut index = 0;
-    *search_options.l2() += 1;
-
     for make_move in move_gen {
         index += 1;
 
@@ -338,7 +336,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         }
         if score > alpha {
             if score >= beta {
-                *search_options.l1() += index;
                 if ply != 0 && search_options.abort() {
                     return (None, Evaluation::new(0));
                 }
@@ -395,7 +392,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     }
     let highest_score = highest_score.unwrap();
 
-    *search_options.l1() += index;
     if let Some(final_move) = &best_move {
         let score = if highest_score > initial_alpha {
             Exact(highest_score)

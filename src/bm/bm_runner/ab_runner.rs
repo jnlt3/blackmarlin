@@ -178,8 +178,6 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
     lmp_lookup: Arc<LmpLookup>,
     tt_hits: u32,
     tt_misses: u32,
-    l1: usize,
-    l2: usize,
     eval: Evaluation,
 }
 
@@ -248,16 +246,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     pub fn tt_misses(&mut self) -> &mut u32 {
         &mut self.tt_misses
     }
-
-    #[inline]
-    pub fn l1(&mut self) -> &mut usize {
-        &mut self.l1
-    }
-
-    #[inline]
-    pub fn l2(&mut self) -> &mut usize {
-        &mut self.l2
-    }
 }
 
 pub struct AbRunner<Eval: 'static + Evaluator + Clone + Send> {
@@ -269,7 +257,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
         thread: u8,
-        verbose: bool,
         incr: u32,
     ) -> JoinHandle<(Option<ChessMove>, Evaluation, u32, u32)> {
         let mut nodes = 0;
@@ -327,22 +314,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                     eval,
                     best_move,
                 ));
-                if verbose {
-                    println!(
-                        "# tt hits/misses {}/{}",
-                        search_options.tt_hits, search_options.tt_misses
-                    );
-                    println!(
-                        "# node_count: {} depth: {} in {:?}",
-                        nodes,
-                        depth,
-                        start_time.elapsed()
-                    );
-                    println!(
-                        "# cutoff factor: {}",
-                        search_options.l1 as f64 / search_options.l2 as f64
-                    );
-                }
                 if let Some(eval) = eval {
                     if let Some(best_move) = best_move {
                         let best_move = best_move;
@@ -413,8 +384,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 })),
                 tt_hits: 0,
                 tt_misses: 0,
-                l1: 0,
-                l2: 0,
                 eval: evaluator.evaluate(&position),
                 evaluator,
             },
@@ -425,7 +394,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
     fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
         threads: u8,
-        verbose: bool,
     ) -> (ChessMove, Evaluation, u32, u32) {
         let mut node_count = 0;
         self.search_options.search_start = Instant::now();
@@ -433,7 +401,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
 
         //TODO: Research the effects of different depths
         for i in 0..threads {
-            join_handlers.push(self.launch_searcher::<SM, Info>(i, verbose, (i % 2 + 1) as u32));
+            join_handlers.push(self.launch_searcher::<SM, Info>(i, (i % 2 + 1) as u32));
         }
         let mut final_move = None;
         let mut final_eval = None;
@@ -455,20 +423,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
             panic!("# All move generation has failed");
         } else if final_eval.is_none() {
             panic!("# All evaluations have failed");
-        }
-
-        //TODO: Make printing thread safe
-        if verbose {
-            let pv = self.pv(10);
-            for make_move in pv {
-                print!("{} -> ", make_move);
-            }
-            println!("{:?}", final_eval.unwrap());
-            println!(
-                "{} nodes calculated in {:?}",
-                node_count,
-                self.search_options.search_start.elapsed()
-            );
         }
         (
             final_move.unwrap(),

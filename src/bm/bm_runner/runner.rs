@@ -13,7 +13,6 @@ pub trait Runner<Eval: 'static + Evaluator + Clone + Send> {
     fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
         threads: u8,
-        verbose: bool,
     ) -> (ChessMove, Evaluation, u32, u32);
 
     fn raw_eval(&mut self) -> Evaluation;
