@@ -1,5 +1,6 @@
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use chess::{Board, ChessMove, MoveGen};
@@ -8,7 +9,7 @@ use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
 use crate::bm::bm_runner::runner::Runner;
 use crate::bm::bm_runner::time::{
-    CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, TimeManager,
+    CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, ManualAbort, TimeManager,
 };
 use crate::bm::bm_util::evaluator::Evaluator;
 use std::marker::PhantomData;
@@ -44,6 +45,7 @@ const POSITIONS: &[&str] = &[
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum TimeManagerType {
+    ManualAbort,
     ConstDepth,
     ConstTime,
     Normal,
@@ -51,12 +53,15 @@ enum TimeManagerType {
 
 pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> {
     eval_type: PhantomData<Eval>,
-    bm_runner: R,
+    bm_runner: Arc<Mutex<R>>,
 
     current_time_manager: TimeManagerType,
     time_manager: Arc<CompoundTimeManager>,
     const_depth: Arc<ConstDepth>,
     const_time: Arc<ConstTime>,
+    manual_abort: Arc<ManualAbort>,
+
+    analysis: Option<JoinHandle<()>>,
 
     forced: bool,
 
@@ -67,16 +72,21 @@ pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>
 
 impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval, R> {
     pub fn new() -> Self {
+        let manual_abort = Arc::new(ManualAbort::new());
         let const_depth = Arc::new(ConstDepth::new(8));
         let const_time = Arc::new(ConstTime::new(Duration::from_secs(0)));
         let main_time = Arc::new(MainTimeManager::new());
-        let managers: Vec<Arc<dyn TimeManager>> =
-            vec![const_depth.clone(), const_time.clone(), main_time];
+        let managers: Vec<Arc<dyn TimeManager>> = vec![
+            manual_abort.clone(),
+            const_depth.clone(),
+            const_time.clone(),
+            main_time,
+        ];
         let time_manager = Arc::new(CompoundTimeManager::new(
             managers.into_boxed_slice(),
             TimeManagerType::Normal as usize,
         ));
-        let bm_runner = R::new(Board::default(), time_manager.clone());
+        let bm_runner = Arc::new(Mutex::new(R::new(Board::default(), time_manager.clone())));
         Self {
             eval_type: PhantomData::default(),
             bm_runner,
@@ -84,6 +94,8 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             threads: 1,
             forced: false,
             current_time_manager: TimeManagerType::Normal,
+            analysis: None,
+            manual_abort,
             const_depth,
             const_time,
             time_manager,
@@ -91,7 +103,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
     }
 
     pub fn features(&self) -> String {
-        "feature ping=1 setboard=1 analyze=0 time=1 smp=1".to_string()
+        "feature ping=1 setboard=1 analyze=1 time=1 smp=1".to_string()
     }
 
     pub fn input(&mut self, input: String) -> bool {
@@ -102,8 +114,12 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 println!("done=1");
             }
             CecpCommand::Move(make_move) => {
-                self.bm_runner.make_move(make_move);
-                if !self.forced {
+                let analyzing = self.is_analyzing();
+                self.exit();
+                self.bm_runner.lock().unwrap().make_move(make_move);
+                if analyzing {
+                    self.analyze();
+                } else if !self.forced {
                     self.go()
                 }
             }
@@ -111,7 +127,12 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 println!("pong {}", number);
             }
             CecpCommand::SetBoard(board) => {
-                self.bm_runner.set_board(board);
+                let analyzing = self.is_analyzing();
+                self.exit();
+                self.bm_runner.lock().unwrap().set_board(board);
+                if analyzing {
+                    self.analyze();
+                }
             }
             CecpCommand::Level(_, time_left, _) => {
                 self.time_left = time_left as f32;
@@ -132,9 +153,20 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             CecpCommand::Go => {
                 self.go();
             }
-            CecpCommand::New => self.bm_runner.set_board(chess::Board::default()),
+            CecpCommand::New => {
+                let analyzing = self.is_analyzing();
+                self.exit();
+                self.bm_runner
+                    .lock()
+                    .unwrap()
+                    .set_board(chess::Board::default());
+                if analyzing {
+                    self.analyze();
+                }
+            }
             CecpCommand::Eval => {
-                println!("eval: {:?}", self.bm_runner.raw_eval());
+                self.exit();
+                println!("eval: {:?}", self.bm_runner.lock().unwrap().raw_eval());
             }
             CecpCommand::Cores(cores) => {
                 self.threads = cores;
@@ -147,6 +179,8 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             }
             //TODO: reset back to the old position
             CecpCommand::Perf => {
+                self.exit();
+                let bm_runner = &mut *self.bm_runner.lock().unwrap();
                 let prev = self.current_time_manager;
                 self.current_time_manager = TimeManagerType::ConstTime;
                 self.time_manager
@@ -157,10 +191,10 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 let mut avg_depth = 0;
                 for position in POSITIONS {
                     let board = chess::Board::from_str(position).unwrap();
-                    self.bm_runner.set_board(board);
+                    bm_runner.set_board(board);
                     self.time_manager.initiate(Duration::from_secs(1), 0);
                     let start = Instant::now();
-                    let (_, _, depth, node_cnt) = self.bm_runner.search::<Run, NoInfo>(1);
+                    let (_, _, depth, node_cnt) = bm_runner.search::<Run, NoInfo>(1);
                     sum_time += start.elapsed();
                     sum_node_cnt += node_cnt;
                     avg_depth += depth;
@@ -173,25 +207,60 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 );
                 self.current_time_manager = prev;
             }
+            CecpCommand::Analyze => {
+                self.analyze();
+            }
+            CecpCommand::Exit => {
+                self.exit();
+            }
             CecpCommand::Empty => {}
             CecpCommand::MoveNow => {
-                //TODO:
+                //TODO
             }
         }
         true
     }
 
     fn go(&mut self) {
+        self.exit();
         self.forced = false;
+        let bm_runner = &mut *self.bm_runner.lock().unwrap();
         self.time_manager.initiate(
             Duration::from_secs_f32(self.time_left),
             //FIXME: Hacky code
-            MoveGen::new_legal(self.bm_runner.get_board()).len(),
+            MoveGen::new_legal(bm_runner.get_board()).len(),
         );
-        let (make_move, _, _, _) = self.bm_runner.search::<Run, XBoardInfo>(self.threads);
-        self.bm_runner.make_move(make_move);
+        let (make_move, _, _, _) = bm_runner.search::<Run, XBoardInfo>(self.threads);
+        bm_runner.make_move(make_move);
         println!("move {}", make_move);
         self.time_manager.clear();
+    }
+
+    fn exit(&mut self) {
+        if let Some(analysis) = self.analysis.take() {
+            self.manual_abort.quick_abort();
+            analysis.join().unwrap();
+        }
+        self.forced = true;
+    }
+
+    fn is_analyzing(&self) -> bool {
+        self.bm_runner.try_lock().is_err()
+    }
+
+    fn analyze(&mut self) {
+        self.current_time_manager = TimeManagerType::ManualAbort;
+        self.time_manager
+            .set_mode(TimeManagerType::ManualAbort as usize);
+        self.time_manager.initiate(
+            Duration::from_secs_f32(self.time_left),
+            //FIXME: Hacky code
+            MoveGen::new_legal(self.bm_runner.lock().unwrap().get_board()).len(),
+        );
+        let bm_runner = self.bm_runner.clone();
+        self.analysis = Some(std::thread::spawn(move || {
+            bm_runner.lock().unwrap().search::<Run, XBoardInfo>(1);
+        }));
     }
 }
 
@@ -208,6 +277,8 @@ enum CecpCommand {
     Go,
     New,
     MoveNow,
+    Analyze,
+    Exit,
     Force,
     Quit,
     Perf,
@@ -291,6 +362,8 @@ impl CecpCommand {
             }
             "new" => CecpCommand::New,
             "force" => CecpCommand::Force,
+            "analyze" => CecpCommand::Analyze,
+            "exit" => CecpCommand::Exit,
             "go" => CecpCommand::Go,
             "?" => CecpCommand::MoveNow,
             "quit" => CecpCommand::Quit,

@@ -3,7 +3,7 @@ use chess::ChessMove;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub trait TimeManager: Debug + Send + Sync {
     fn deepen(
@@ -18,7 +18,7 @@ pub trait TimeManager: Debug + Send + Sync {
 
     fn initiate(&self, time_left: Duration, move_cnt: usize);
 
-    fn abort(&self, delta_time: Duration) -> bool;
+    fn abort(&self) -> bool;
 
     fn clear(&self);
 }
@@ -66,7 +66,7 @@ impl TimeManager for ConstDepth {
 
     fn initiate(&self, _: Duration, _: usize) {}
 
-    fn abort(&self, _: Duration) -> bool {
+    fn abort(&self) -> bool {
         self.abort.load(Ordering::SeqCst)
     }
 
@@ -78,12 +78,14 @@ impl TimeManager for ConstDepth {
 
 #[derive(Debug)]
 pub struct ConstTime {
+    start: Instant,
     target_duration: AtomicU32,
 }
 
 impl ConstTime {
     pub fn new(target_duration: Duration) -> Self {
         Self {
+            start: Instant::now(),
             target_duration: AtomicU32::new(target_duration.as_millis() as u32),
         }
     }
@@ -99,8 +101,8 @@ impl TimeManager for ConstTime {
 
     fn initiate(&self, _: Duration, _: usize) {}
 
-    fn abort(&self, delta_time: Duration) -> bool {
-        self.target_duration.load(Ordering::SeqCst) < delta_time.as_millis() as u32
+    fn abort(&self) -> bool {
+        self.target_duration.load(Ordering::SeqCst) < self.start.elapsed().as_millis() as u32
     }
 
     fn clear(&self) {
@@ -120,6 +122,7 @@ const PANIC_DIV: u32 = 5;
 
 #[derive(Debug)]
 pub struct MainTimeManager {
+    start: Instant,
     expected_moves: AtomicU32,
     evals: Mutex<Vec<(i32, u32)>>,
     normal_duration: AtomicU32,
@@ -130,6 +133,7 @@ pub struct MainTimeManager {
 impl MainTimeManager {
     pub fn new() -> Self {
         Self {
+            start: Instant::now(),
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
             evals: Mutex::new(vec![]),
             normal_duration: AtomicU32::new(0),
@@ -185,8 +189,8 @@ impl TimeManager for MainTimeManager {
             .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
     }
 
-    fn abort(&self, delta_time: Duration) -> bool {
-        self.target_duration.load(Ordering::SeqCst) < delta_time.as_millis() as u32
+    fn abort(&self) -> bool {
+        self.target_duration.load(Ordering::SeqCst) < self.start.elapsed().as_millis() as u32
     }
 
     fn clear(&self) {
@@ -194,6 +198,37 @@ impl TimeManager for MainTimeManager {
         self.expected_moves.fetch_sub(1, Ordering::SeqCst);
         self.expected_moves.fetch_max(MIN_MOVES, Ordering::SeqCst);
     }
+}
+
+#[derive(Debug)]
+pub struct ManualAbort {
+    abort: AtomicBool,
+}
+
+impl ManualAbort {
+    pub fn new() -> Self {
+        Self {
+            abort: AtomicBool::new(false),
+        }
+    }
+
+    pub fn quick_abort(&self) {
+        self.abort.store(true, Ordering::SeqCst);
+    }
+}
+
+impl TimeManager for ManualAbort {
+    fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
+
+    fn initiate(&self, _: Duration, _: usize) {
+        self.abort.store(false, Ordering::SeqCst);
+    }
+
+    fn abort(&self) -> bool {
+        self.abort.load(Ordering::SeqCst)
+    }
+
+    fn clear(&self) {}
 }
 
 #[derive(Debug)]
@@ -233,8 +268,8 @@ impl TimeManager for CompoundTimeManager {
         self.managers[self.mode.load(Ordering::SeqCst)].initiate(time_left, move_cnt);
     }
 
-    fn abort(&self, delta_time: Duration) -> bool {
-        self.managers[self.mode.load(Ordering::SeqCst)].abort(delta_time)
+    fn abort(&self) -> bool {
+        self.managers[self.mode.load(Ordering::SeqCst)].abort()
     }
 
     fn clear(&self) {

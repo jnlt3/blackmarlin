@@ -164,7 +164,6 @@ type LmpLookup = LookUp<usize, { LMP_DEPTH as usize }>;
 #[derive(Debug, Clone)]
 pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
     evaluator: Eval,
-    search_start: Instant,
     time_manager: Arc<dyn TimeManager>,
     window: Window,
     t_table: Arc<TranspositionTable>,
@@ -184,7 +183,7 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
 impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     #[inline]
     pub fn abort(&self) -> bool {
-        self.time_manager.abort(self.search_start.elapsed())
+        self.time_manager.abort()
     }
 
     #[inline]
@@ -255,7 +254,8 @@ pub struct AbRunner<Eval: 'static + Evaluator + Clone + Send> {
 
 impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
-        &mut self,
+        &self,
+        search_start: Instant,
         thread: u8,
         incr: u32,
     ) -> JoinHandle<(Option<ChessMove>, Evaluation, u32, u32)> {
@@ -343,7 +343,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                     nodes,
                     search_options.eval,
                     best_move.unwrap(),
-                    search_options.search_start.elapsed(),
+                    search_start.elapsed(),
                 )
             }
             if let Some(evaluation) = eval {
@@ -362,7 +362,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
         let mut evaluator = Eval::new();
         Self {
             search_options: SearchOptions {
-                search_start: Instant::now(),
                 time_manager,
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 t_table: Arc::new(TranspositionTable::new(2_usize.pow(21))),
@@ -392,16 +391,20 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
     }
 
     fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
-        &mut self,
+        &self,
         threads: u8,
     ) -> (ChessMove, Evaluation, u32, u32) {
         let mut node_count = 0;
-        self.search_options.search_start = Instant::now();
         let mut join_handlers = vec![];
 
+        let search_start = Instant::now();
         //TODO: Research the effects of different depths
         for i in 0..threads {
-            join_handlers.push(self.launch_searcher::<SM, Info>(i, (i % 2 + 1) as u32));
+            join_handlers.push(self.launch_searcher::<SM, Info>(
+                search_start,
+                i,
+                (i % 2 + 1) as u32,
+            ));
         }
         let mut final_move = None;
         let mut final_eval = None;
