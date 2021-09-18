@@ -1,4 +1,4 @@
-use chess::{Board, ChessMove, MoveGen, EMPTY};
+use chess::{Board, ChessMove, MoveGen, Piece, EMPTY};
 
 use crate::bm::bm_runner::ab_runner::SearchOptions;
 
@@ -139,163 +139,169 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
     type Item = ChessMove;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.gen_type == GenType::PvMove {
-            self.gen_type = GenType::CalcCaptures;
-            #[cfg(feature = "pv")]
-            if let Some(pv_move) = self.pv_move {
-                if self.board.legal(pv_move) {
-                    self.move_gen.remove_move(pv_move);
-                    return Some(pv_move);
+        match self.gen_type {
+            GenType::PvMove => {
+                self.gen_type = GenType::CalcCaptures;
+                #[cfg(feature = "pv")]
+                if let Some(pv_move) = self.pv_move {
+                    if self.board.legal(pv_move) {
+                        self.move_gen.remove_move(pv_move);
+                        return Some(pv_move);
+                    }
                 }
+                self.next()
             }
-        }
-        if self.gen_type == GenType::CalcCaptures {
-            self.move_gen.set_iterator_mask(*self.board.combined());
-            for make_move in &mut self.move_gen {
-                let mut expected_gain = Eval::see(self.board, make_move);
+            GenType::CalcCaptures => {
+                self.move_gen.set_iterator_mask(*self.board.combined());
+                for make_move in &mut self.move_gen {
+                    let mut expected_gain = Eval::see(self.board, make_move);
 
-                #[cfg(feature = "c_hist")]
-                {
-                    let history_gain = self.c_hist.get(
-                        self.board.side_to_move(),
-                        self.board.piece_on(make_move.get_source()).unwrap(),
-                        make_move.get_dest(),
-                        self.board.piece_on(make_move.get_dest()).unwrap(),
-                    ) as i32
-                        * C_HIST_FACTOR
-                        / C_HIST_DIVISOR;
-                    expected_gain += history_gain;
-                }
-                let pos = self
-                    .queue
-                    .binary_search_by_key(&expected_gain, |(_, score)| *score)
-                    .unwrap_or_else(|pos| pos);
-                self.queue.insert(pos, (make_move, expected_gain));
-            }
-            self.gen_type = GenType::Captures;
-        }
-        if self.gen_type == GenType::Captures {
-            if let Some((make_move, _)) = self.queue.pop() {
-                return Some(make_move);
-            }
-            self.gen_type = GenType::GenQuiet;
-        }
-        if self.gen_type == GenType::GenQuiet {
-            self.move_gen.set_iterator_mask(!EMPTY);
-            let partition = self.queue.len();
-            let mut last = false;
-            for make_move in &mut self.move_gen {
-                if Some(make_move) == self.pv_move {
-                    continue;
-                }
-                #[cfg(feature = "promo_move_ord")]
-                if let Some(piece) = make_move.get_promotion() {
-                    match piece {
-                        chess::Piece::Queen => {
-                            self.queen_promo.push(make_move);
-                            continue;
-                        }
-                        chess::Piece::Knight => {
-                            self.knight_promo.push(make_move);
-                            continue;
-                        }
-                        _ => {
-                            last = true;
-                        }
-                    };
-                }
-                let piece = self.board.piece_on(make_move.get_source()).unwrap();
-                #[cfg(feature = "c_move")]
-                {
-                    if Some(make_move) == self.counter_move {
-                        return Some(make_move);
+                    #[cfg(feature = "c_hist")]
+                    {
+                        let history_gain = self.c_hist.get(
+                            self.board.side_to_move(),
+                            self.board.piece_on(make_move.get_source()).unwrap(),
+                            make_move.get_dest(),
+                            self.board.piece_on(make_move.get_dest()).unwrap(),
+                        ) as i32
+                            * C_HIST_FACTOR
+                            / C_HIST_DIVISOR;
+                        expected_gain += history_gain;
                     }
-                }
-                let mut score = 0;
-                #[cfg(feature = "hist")]
-                {
-                    score += self
-                        .hist
-                        .get(self.board.side_to_move(), piece, make_move.get_dest())
-                        as i32;
-                }
-
-                #[cfg(feature = "cmh_table")]
-                if let Some(last_move) = &self.prev_move {
-                    let counter_move_hist = self.c_move_hist.get(
-                        !self.board.side_to_move(),
-                        last_move.piece,
-                        last_move.to,
-                        self.board.piece_on(make_move.get_source()).unwrap(),
-                        make_move.get_dest(),
-                    ) * CH_TABLE_FACTOR as u32
-                        / CH_TABLE_DIVISOR as u32;
-                    score += counter_move_hist as i32;
-                }
-                let pos = if last {
-                    0
-                } else {
-                    self.queue[partition..]
-                        .binary_search_by_key(&score, |(_, score)| *score)
-                        .unwrap_or_else(|pos| pos)
-                };
-                self.queue.insert(partition + pos, (make_move, score));
-            }
-            self.gen_type = GenType::Killer;
-        }
-        //Assumes Killer Moves won't repeat
-        if self.gen_type == GenType::Killer {
-            #[cfg(feature = "killer")]
-            for make_move in &mut self.killer_entry {
-                if Some(make_move) != self.pv_move {
-                    let position = self
+                    let pos = self
                         .queue
-                        .iter()
-                        .position(|(cmp_move, _)| make_move == *cmp_move);
-                    if let Some(position) = position {
-                        self.mask[position] = false;
-                        return Some(make_move);
-                    }
+                        .binary_search_by_key(&expected_gain, |(_, score)| *score)
+                        .unwrap_or_else(|pos| pos);
+                    self.queue.insert(pos, (make_move, expected_gain));
                 }
+                self.gen_type = GenType::Captures;
+                self.next()
             }
-            self.gen_type = GenType::QPromotions;
-        }
-        if self.gen_type == GenType::QPromotions {
-            if let Some(make_move) = self.queen_promo.pop() {
-                return Some(make_move);
-            }
-            self.gen_type = GenType::KPromotions;
-        }
-        if self.gen_type == GenType::KPromotions {
-            if let Some(make_move) = self.knight_promo.pop() {
-                return Some(make_move);
-            }
-            self.gen_type = GenType::ThreatMove;
-        }
-        if self.gen_type == GenType::ThreatMove {
-            #[cfg(feature = "threat")]
-            for make_move in &mut self.threat_move_entry {
-                if Some(make_move) != self.pv_move {
-                    let position = self
-                        .queue
-                        .iter()
-                        .position(|(cmp_move, _)| make_move == *cmp_move);
-                    if let Some(position) = position {
-                        self.mask[position] = false;
-                        return Some(make_move);
-                    }
-                }
-            }
-            self.gen_type = GenType::Quiet;
-        }
-        if self.gen_type == GenType::Quiet {
-            while let Some((make_move, _)) = self.queue.pop() {
-                if self.mask[self.queue.len()] {
+            GenType::Captures => {
+                if let Some((make_move, _)) = self.queue.pop() {
                     return Some(make_move);
                 }
+                self.gen_type = GenType::GenQuiet;
+                self.next()
+            }
+            GenType::GenQuiet => {
+                self.move_gen.set_iterator_mask(!EMPTY);
+                let partition = self.queue.len();
+                for make_move in &mut self.move_gen {
+                    if Some(make_move) == self.pv_move {
+                        continue;
+                    }
+                    #[cfg(feature = "promo_move_ord")]
+                    if let Some(piece) = make_move.get_promotion() {
+                        match piece {
+                            chess::Piece::Queen => {
+                                self.queen_promo.push(make_move);
+                                continue;
+                            }
+                            chess::Piece::Knight => {
+                                self.knight_promo.push(make_move);
+                                continue;
+                            }
+                            _ => {
+                                self.queue.insert(partition, (make_move, i32::MIN));
+                                continue;
+                            }
+                        };
+                    }
+                    let piece = self.board.piece_on(make_move.get_source()).unwrap();
+                    #[cfg(feature = "c_move")]
+                    {
+                        if Some(make_move) == self.counter_move {
+                            return Some(make_move);
+                        }
+                    }
+                    let mut score = 0;
+                    #[cfg(feature = "hist")]
+                    {
+                        score +=
+                            self.hist
+                                .get(self.board.side_to_move(), piece, make_move.get_dest())
+                                as i32;
+                    }
+
+                    #[cfg(feature = "cmh_table")]
+                    if let Some(last_move) = &self.prev_move {
+                        let counter_move_hist = self.c_move_hist.get(
+                            !self.board.side_to_move(),
+                            last_move.piece,
+                            last_move.to,
+                            self.board.piece_on(make_move.get_source()).unwrap(),
+                            make_move.get_dest(),
+                        ) * CH_TABLE_FACTOR as u32
+                            / CH_TABLE_DIVISOR as u32;
+                        score += counter_move_hist as i32;
+                    }
+                    let pos = self.queue[partition..]
+                        .binary_search_by_key(&score, |(_, score)| *score)
+                        .unwrap_or_else(|pos| pos);
+                    self.queue.insert(partition + pos, (make_move, score));
+                }
+                self.gen_type = GenType::Killer;
+                self.next()
+            }
+            //Assumes Killer Moves won't repeat
+            GenType::Killer => {
+                #[cfg(feature = "killer")]
+                for make_move in &mut self.killer_entry {
+                    if Some(make_move) != self.pv_move {
+                        let position = self
+                            .queue
+                            .iter()
+                            .position(|(cmp_move, _)| make_move == *cmp_move);
+                        if let Some(position) = position {
+                            self.mask[position] = false;
+                            return Some(make_move);
+                        }
+                    }
+                }
+                self.gen_type = GenType::QPromotions;
+                self.next()
+            }
+            GenType::QPromotions => {
+                if let Some(make_move) = self.queen_promo.pop() {
+                    return Some(make_move);
+                }
+                self.gen_type = GenType::KPromotions;
+                self.next()
+            }
+            GenType::KPromotions => {
+                if let Some(make_move) = self.knight_promo.pop() {
+                    return Some(make_move);
+                }
+                self.gen_type = GenType::ThreatMove;
+                self.next()
+            }
+            GenType::ThreatMove => {
+                #[cfg(feature = "threat")]
+                for make_move in &mut self.threat_move_entry {
+                    if Some(make_move) != self.pv_move {
+                        let position = self
+                            .queue
+                            .iter()
+                            .position(|(cmp_move, _)| make_move == *cmp_move);
+                        if let Some(position) = position {
+                            self.mask[position] = false;
+                            return Some(make_move);
+                        }
+                    }
+                }
+                self.gen_type = GenType::Quiet;
+                self.next()
+            }
+            GenType::Quiet => {
+                while let Some((make_move, _)) = self.queue.pop() {
+                    if self.mask[self.queue.len()] {
+                        return Some(make_move);
+                    }
+                }
+                None
             }
         }
-        None
     }
 }
 
