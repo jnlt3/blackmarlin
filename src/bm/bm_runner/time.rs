@@ -175,7 +175,7 @@ impl TimeManager for MainTimeManager {
         let time_left_millis = time_left.as_millis() as u32;
         let time_left_for_panic = time_left_millis
             .saturating_sub(PANIC_TIME)
-            .max(time_left_millis * (PANIC_DIV - PANIC_MUL) / PANIC_DIV);
+            .min(time_left_millis * (PANIC_DIV - PANIC_MUL) / PANIC_DIV);
         let percentage_time = time_left_for_panic / self.expected_moves.load(Ordering::SeqCst);
         self.normal_duration
             .store(percentage_time, Ordering::SeqCst);
