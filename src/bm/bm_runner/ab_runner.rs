@@ -273,7 +273,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
             'outer: loop {
                 search_options.window.set(search_options.eval);
                 let mut fail_cnt = 0;
-                let (alpha, beta) = if fail_cnt < SEARCH_PARAMS.fail_cnt {
+                let (alpha, beta) = if depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt {
                     search_options.window.get()
                 } else {
                     (Evaluation::min(), Evaluation::max())
