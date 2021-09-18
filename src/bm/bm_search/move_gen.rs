@@ -18,12 +18,17 @@ const C_HIST_DIVISOR: i32 = 400;
 const CH_TABLE_FACTOR: i32 = 1;
 const CH_TABLE_DIVISOR: i32 = 8;
 
+const MAX_MOVES: usize = 218;
+const MAX_PROMO_MOVES: usize = 14;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
     PvMove,
     CalcCaptures,
     Captures,
     GenQuiet,
+    QPromotions,
+    KPromotions,
     ThreatMove,
     Killer,
     Quiet,
@@ -81,8 +86,10 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     gen_type: GenType,
     board: Board,
 
-    queue: ArrayVec<(ChessMove, i32), 218>,
-    mask: [bool; 218],
+    queue: ArrayVec<(ChessMove, i32), MAX_MOVES>,
+    mask: [bool; MAX_MOVES],
+    queen_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
+    knight_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
 
     eval: PhantomData<Eval>,
 }
@@ -119,7 +126,9 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
             c_move_hist: options.get_c_hist().clone(),
             board: *board,
             queue: ArrayVec::new(),
-            mask: [true; 218],
+            queen_promo: ArrayVec::new(),
+            knight_promo: ArrayVec::new(),
+            mask: [true; MAX_MOVES],
             eval: PhantomData::default(),
         }
     }
@@ -178,6 +187,20 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                 if Some(make_move) == self.pv_move {
                     continue;
                 }
+                #[cfg(feature = "promo_move_ord")]
+                if let Some(piece) = make_move.get_promotion() {
+                    match piece {
+                        chess::Piece::Queen => {
+                            self.queen_promo.push(make_move);
+                            continue;
+                        }
+                        chess::Piece::Knight => {
+                            self.knight_promo.push(make_move);
+                            continue;
+                        }
+                        _ => {}
+                    };
+                }
                 let piece = self.board.piece_on(make_move.get_source()).unwrap();
                 #[cfg(feature = "c_move")]
                 {
@@ -227,6 +250,18 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         return Some(make_move);
                     }
                 }
+            }
+            self.gen_type = GenType::QPromotions;
+        }
+        if self.gen_type == GenType::QPromotions {
+            if let Some(make_move) = self.queen_promo.pop() {
+                return Some(make_move);
+            }
+            self.gen_type = GenType::KPromotions;
+        }
+        if self.gen_type == GenType::KPromotions {
+            if let Some(make_move) = self.knight_promo.pop() {
+                return Some(make_move);
             }
             self.gen_type = GenType::ThreatMove;
         }
