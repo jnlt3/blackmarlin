@@ -241,6 +241,20 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         .unwrap_or_else(|pos| pos);
                     self.queue.insert(partition + pos, (make_move, score));
                 }
+                self.gen_type = GenType::QPromotions;
+                self.next()
+            }
+            GenType::QPromotions => {
+                if let Some(make_move) = self.queen_promo.pop() {
+                    return Some(make_move);
+                }
+                self.gen_type = GenType::KPromotions;
+                self.next()
+            }
+            GenType::KPromotions => {
+                if let Some(make_move) = self.knight_promo.pop() {
+                    return Some(make_move);
+                }
                 self.gen_type = GenType::Killer;
                 self.next()
             }
@@ -258,20 +272,6 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                             return Some(make_move);
                         }
                     }
-                }
-                self.gen_type = GenType::QPromotions;
-                self.next()
-            }
-            GenType::QPromotions => {
-                if let Some(make_move) = self.queen_promo.pop() {
-                    return Some(make_move);
-                }
-                self.gen_type = GenType::KPromotions;
-                self.next()
-            }
-            GenType::KPromotions => {
-                if let Some(make_move) = self.knight_promo.pop() {
-                    return Some(make_move);
                 }
                 self.gen_type = GenType::ThreatMove;
                 self.next()
