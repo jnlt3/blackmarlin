@@ -163,6 +163,7 @@ type LmpLookup = LookUp<usize, { LMP_DEPTH as usize }>;
 
 #[derive(Debug, Clone)]
 pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
+    start: Instant,
     evaluator: Eval,
     time_manager: Arc<dyn TimeManager>,
     window: Window,
@@ -183,7 +184,7 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
 impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     #[inline]
     pub fn abort(&self) -> bool {
-        self.time_manager.abort()
+        self.time_manager.abort(self.start)
     }
 
     #[inline]
@@ -262,6 +263,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
         let mut nodes = 0;
 
         let mut search_options = self.search_options.clone();
+        search_options.start = search_start;
         let mut position = self.position.clone();
         let mut debugger = SM::new(self.position.board());
         let gui_info = Info::new();
@@ -384,6 +386,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: evaluator.evaluate(&position),
+                start: Instant::now(),
                 evaluator,
             },
             position,

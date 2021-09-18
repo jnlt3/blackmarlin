@@ -18,7 +18,7 @@ pub trait TimeManager: Debug + Send + Sync {
 
     fn initiate(&self, time_left: Duration, move_cnt: usize);
 
-    fn abort(&self) -> bool;
+    fn abort(&self, start: Instant) -> bool;
 
     fn clear(&self);
 }
@@ -66,7 +66,7 @@ impl TimeManager for ConstDepth {
 
     fn initiate(&self, _: Duration, _: usize) {}
 
-    fn abort(&self) -> bool {
+    fn abort(&self, _: Instant) -> bool {
         self.abort.load(Ordering::SeqCst)
     }
 
@@ -101,8 +101,8 @@ impl TimeManager for ConstTime {
 
     fn initiate(&self, _: Duration, _: usize) {}
 
-    fn abort(&self) -> bool {
-        self.target_duration.load(Ordering::SeqCst) < self.start.elapsed().as_millis() as u32
+    fn abort(&self, start: Instant) -> bool {
+        self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
     }
 
     fn clear(&self) {
@@ -173,7 +173,7 @@ impl TimeManager for MainTimeManager {
     }
 
     fn initiate(&self, time_left: Duration, move_cnt: usize) {
-        if move_cnt == 0 {
+        if move_cnt <= 1 {
             self.target_duration.store(0, Ordering::SeqCst);
         }
         let time_left_millis = time_left.as_millis() as u32;
@@ -189,8 +189,8 @@ impl TimeManager for MainTimeManager {
             .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
     }
 
-    fn abort(&self) -> bool {
-        self.target_duration.load(Ordering::SeqCst) < self.start.elapsed().as_millis() as u32
+    fn abort(&self, start: Instant) -> bool {
+        self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
     }
 
     fn clear(&self) {
@@ -224,7 +224,7 @@ impl TimeManager for ManualAbort {
         self.abort.store(false, Ordering::SeqCst);
     }
 
-    fn abort(&self) -> bool {
+    fn abort(&self, start: Instant) -> bool {
         self.abort.load(Ordering::SeqCst)
     }
 
@@ -268,8 +268,8 @@ impl TimeManager for CompoundTimeManager {
         self.managers[self.mode.load(Ordering::SeqCst)].initiate(time_left, move_cnt);
     }
 
-    fn abort(&self) -> bool {
-        self.managers[self.mode.load(Ordering::SeqCst)].abort()
+    fn abort(&self, start: Instant) -> bool {
+        self.managers[self.mode.load(Ordering::SeqCst)].abort(start)
     }
 
     fn clear(&self) {
