@@ -183,6 +183,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
         if self.gen_type == GenType::GenQuiet {
             self.move_gen.set_iterator_mask(!EMPTY);
             let partition = self.queue.len();
+            let mut last = false;
             for make_move in &mut self.move_gen {
                 if Some(make_move) == self.pv_move {
                     continue;
@@ -198,7 +199,9 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                             self.knight_promo.push(make_move);
                             continue;
                         }
-                        _ => {}
+                        _ => {
+                            last = true;
+                        }
                     };
                 }
                 let piece = self.board.piece_on(make_move.get_source()).unwrap();
@@ -229,9 +232,13 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         / CH_TABLE_DIVISOR as u32;
                     score += counter_move_hist as i32;
                 }
-                let pos = self.queue[partition..]
-                    .binary_search_by_key(&score, |(_, score)| *score)
-                    .unwrap_or_else(|pos| pos);
+                let pos = if last {
+                    0
+                } else {
+                    self.queue[partition..]
+                        .binary_search_by_key(&score, |(_, score)| *score)
+                        .unwrap_or_else(|pos| pos)
+                };
                 self.queue.insert(partition + pos, (make_move, score));
             }
             self.gen_type = GenType::Killer;
