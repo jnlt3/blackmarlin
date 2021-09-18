@@ -193,7 +193,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         }
     }
     {
-        //This guarantees that killer_table.len() <= ply as usize
+        //This guarantees that threat_table.len() <= ply as usize + 1
         while search_options.get_k_table().len() <= ply as usize {
             search_options.get_threat_table().push(MoveEntry::new());
             search_options.get_k_table().push(MoveEntry::new());
