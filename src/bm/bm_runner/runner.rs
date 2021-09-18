@@ -7,11 +7,11 @@ use chess::{Board, ChessMove};
 
 use super::time::TimeManager;
 
-pub trait Runner<Eval: 'static + Evaluator + Clone + Send> {
+pub trait Runner<Eval: 'static + Evaluator + Clone + Send>: 'static + Send {
     fn new(board: Board, time_manager: Arc<dyn TimeManager>) -> Self;
 
     fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
-        &mut self,
+        &self,
         threads: u8,
     ) -> (ChessMove, Evaluation, u32, u32);
 
