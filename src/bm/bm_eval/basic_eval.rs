@@ -30,9 +30,6 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
         let mut king_file = 0_u8;
         while king_file < 8 {
             let king = (king_rank * 8 + king_file) as usize;
-
-            let mut w_king_ring = 0_u64;
-            let mut b_king_ring = 0_u64;
             let mut w_ahead = 0_u64;
             let mut b_ahead = 0_u64;
             {
