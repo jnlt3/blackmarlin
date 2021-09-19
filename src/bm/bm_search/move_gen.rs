@@ -134,6 +134,13 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
     }
 }
 
+/*
+TODO:
+Move ordering via learned pairwise ranking
+Use positional encoding to represent moves
+[from][to][promotion]
+*/
+
 #[cfg(feature = "advanced_move_gen")]
 impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGen<Eval, K, T> {
     type Item = ChessMove;
@@ -194,7 +201,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                     #[cfg(feature = "promo_move_ord")]
                     if let Some(piece) = make_move.get_promotion() {
                         match piece {
-                            chess::Piece::Queen| chess::Piece::Knight => {}
+                            chess::Piece::Queen | chess::Piece::Knight => {}
                             _ => {
                                 self.queue.insert(partition, (make_move, i32::MIN));
                                 continue;
