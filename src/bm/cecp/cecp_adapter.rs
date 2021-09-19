@@ -117,6 +117,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 let analyzing = self.is_analyzing();
                 self.exit();
                 self.bm_runner.lock().unwrap().make_move(make_move);
+                println!("{}", self.forced);
                 if analyzing {
                     self.analyze();
                 } else if !self.forced {
@@ -212,6 +213,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             }
             CecpCommand::Exit => {
                 self.exit();
+                self.forced = true;
             }
             CecpCommand::Empty => {}
             CecpCommand::MoveNow => {
@@ -241,7 +243,6 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             self.manual_abort.quick_abort();
             analysis.join().unwrap();
         }
-        self.forced = true;
     }
 
     fn is_analyzing(&self) -> bool {
