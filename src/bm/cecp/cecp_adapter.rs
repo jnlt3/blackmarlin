@@ -117,7 +117,6 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 let analyzing = self.is_analyzing();
                 self.exit();
                 self.bm_runner.lock().unwrap().make_move(make_move);
-                println!("{}", self.forced);
                 if analyzing {
                     self.analyze();
                 } else if !self.forced {
