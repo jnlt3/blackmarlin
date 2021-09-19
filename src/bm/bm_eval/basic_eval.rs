@@ -28,16 +28,32 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
         king_flank: [BitBoard(0); 8],
     };
 
+
+    let mut king_flank = 0_u64;
+    let mut queen_flank = 0_u64;
     let mut file = 0_u8;
     while file < 8 {
         let mut file_bb = 0u64;
         let mut rank = 0_u8;
         while rank < 8 {
-            file_bb |= 1_u64 << rank * 8 + file;
+            file_bb |= 1_u64 << (rank * 8 + file);
             rank += 1;
         }
-        let flank = file_bb | (file_bb << 1) | (file_bb >> 1);
-        data.king_flank[file as usize] = BitBoard(flank);
+        if file < 4 {
+            king_flank |= file_bb;
+        } else {
+            queen_flank |= file_bb
+        }
+        file += 1;
+    }
+
+    let mut file = 0_u8;
+    while file < 8 {
+        data.king_flank[file as usize] = if file < 4 {
+            BitBoard(king_flank)
+        } else {
+            BitBoard(queen_flank)
+        };
         file += 1;
     }
 
