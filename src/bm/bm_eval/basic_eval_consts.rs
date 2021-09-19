@@ -197,23 +197,15 @@ pub const KING_END_TABLE: [[i32; 8]; 8] = generate_table(
     KING.1,
 );
 
-pub const ATTACKS: [i32; 8] = [0, 0, 50, 75, 88, 94, 97, 99];
-
-const BASE_ATTACK: u32 = 0;
-
-pub const KNIGHT_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK);
-pub const BISHOP_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK);
-pub const ROOK_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK * 2);
-pub const QUEEN_ATTACK: ConstEvalU32 = ConstEvalU32(BASE_ATTACK * 4);
-
 pub const TEMPO: i32 = 20;
 
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
-//Idea from Stockfish eval.cpp
+//Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
+pub const WEAK_AROUND_KING: ConstEvalI32 = ConstEvalI32(70);
 
 //Traits & Impls
 pub trait EvalFactor {

@@ -15,16 +15,16 @@ const PIECES: [Piece; 6] = [
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BasicEvalData {
-    w_king_attacks: [BitBoard; 64],
-    b_king_attacks: [BitBoard; 64],
+    w_king_ring: [BitBoard; 64],
+    b_king_ring: [BitBoard; 64],
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
 }
 
 pub const fn get_basic_eval_data() -> BasicEvalData {
     let mut data = BasicEvalData {
-        w_king_attacks: [BitBoard(0); 64],
-        b_king_attacks: [BitBoard(0); 64],
+        w_king_ring: [BitBoard(0); 64],
+        b_king_ring: [BitBoard(0); 64],
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
     };
@@ -35,8 +35,8 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
         while king_file < 8 {
             let king = (king_rank * 8 + king_file) as usize;
 
-            let mut w_king_attacks = 0_u64;
-            let mut b_king_attacks = 0_u64;
+            let mut w_king_ring = 0_u64;
+            let mut b_king_ring = 0_u64;
             let mut w_ahead = 0_u64;
             let mut b_ahead = 0_u64;
             {
@@ -56,14 +56,14 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
 
                             let bitboard = 1_u64 << sq;
                             if file_diff <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                                w_king_attacks |= bitboard;
+                                w_king_ring |= bitboard;
                             }
                             if file_diff <= 1 && rank_diff > 0 {
                                 w_ahead |= bitboard;
                             }
                             let rank_diff = king_rank - rank;
                             if file_diff <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                                b_king_attacks |= bitboard;
+                                b_king_ring |= bitboard;
                             }
                             if file_diff <= 1 && rank_diff > 0 {
                                 b_ahead |= bitboard
@@ -74,9 +74,9 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
                     rank += 1;
                 }
             }
-            data.w_king_attacks[king] = BitBoard(w_king_attacks);
+            data.w_king_ring[king] = BitBoard(w_king_ring);
             data.w_ahead[king] = BitBoard(w_ahead);
-            data.b_king_attacks[king] = BitBoard(b_king_attacks);
+            data.b_king_ring[king] = BitBoard(b_king_ring);
             data.b_ahead[king] = BitBoard(b_ahead);
 
             king_file += 1;
@@ -264,106 +264,63 @@ impl Evaluator for BasicEval {
         let psqt_score = white_psqt_score - black_psqt_score;
 
         let blockers = *board.combined();
-        let w_king = board.king_square(Color::White);
-        let b_king = board.king_square(Color::Black);
-
-        let mut w_attack_cnt = 0_usize;
-        let mut b_attack_cnt = 0_usize;
-
-        let mut w_attack = 0;
-        let mut b_attack = 0;
 
         let mut white_attacked = EMPTY;
         let mut black_attacked = EMPTY;
 
+        let mut w_pawn_attack = EMPTY;
+        let mut b_pawn_attack = EMPTY;
+
         for pawn in white_pawns {
             let attacks = chess::get_pawn_attacks(pawn, Color::White, black);
             white_attacked |= attacks;
+            w_pawn_attack |= attacks;
         }
         for knight in white_knights {
             let attacks = chess::get_knight_moves(knight);
             white_attacked |= attacks;
-
-            let table = DATA.b_king_attacks[b_king.to_index()];
-            let king_attacks = attacks & table;
-            w_attack_cnt += (king_attacks != EMPTY) as usize;
-            w_attack += Self::score(king_attacks.popcnt() as i32, KNIGHT_ATTACK, phase);
         }
         for bishop in white_bishops {
             let blockers = blockers & !white_bishops & !white_queens;
             let attacks = chess::get_bishop_moves(bishop, blockers);
             white_attacked |= attacks;
-
-            let table = DATA.b_king_attacks[b_king.to_index()];
-            let king_attacks = attacks & table;
-            w_attack_cnt += (king_attacks != EMPTY) as usize;
-            w_attack += Self::score(king_attacks.popcnt() as i32, BISHOP_ATTACK, phase);
         }
         for rook in white_rooks {
             let blockers = blockers & !white_rooks & !white_queens;
             let attacks = chess::get_rook_moves(rook, blockers);
             white_attacked |= attacks;
-
-            let table = DATA.b_king_attacks[b_king.to_index()];
-            let king_attacks = attacks & table;
-            w_attack_cnt += (king_attacks != EMPTY) as usize;
-            w_attack += Self::score(king_attacks.popcnt() as i32, ROOK_ATTACK, phase);
         }
         for queen in white_queens {
             let blockers = blockers & !white_rooks & !white_bishops & !white_queens;
             let attacks =
                 chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
             white_attacked |= attacks;
-
-            let table = DATA.b_king_attacks[b_king.to_index()];
-            let king_attacks = attacks & table;
-            w_attack_cnt += (king_attacks != EMPTY) as usize;
-            w_attack += Self::score(king_attacks.popcnt() as i32, QUEEN_ATTACK, phase);
         }
 
         for pawn in black_pawns {
             let attacks = chess::get_pawn_attacks(pawn, Color::Black, white);
             black_attacked |= attacks;
+            b_pawn_attack |= attacks;
         }
         for knight in black_knights {
             let attacks = chess::get_knight_moves(knight);
             black_attacked |= attacks;
-
-            let table = DATA.w_king_attacks[w_king.to_index()];
-            let king_attacks = attacks & table;
-            b_attack_cnt += (king_attacks != EMPTY) as usize;
-            b_attack += Self::score(king_attacks.popcnt() as i32, KNIGHT_ATTACK, phase);
         }
         for bishop in black_bishops {
             let blockers = blockers & !black_queens & !black_bishops;
             let attacks = chess::get_bishop_moves(bishop, blockers);
             black_attacked |= attacks;
-
-            let table = DATA.w_king_attacks[w_king.to_index()];
-            let king_attacks = attacks & table;
-            b_attack_cnt += (king_attacks != EMPTY) as usize;
-            b_attack += Self::score(king_attacks.popcnt() as i32, BISHOP_ATTACK, phase);
         }
         for rook in black_rooks {
             let blockers = blockers & !black_queens & !black_rooks;
             let attacks = chess::get_rook_moves(rook, blockers);
             black_attacked |= attacks;
-
-            let table = DATA.w_king_attacks[w_king.to_index()];
-            let king_attacks = attacks & table;
-            b_attack_cnt += (king_attacks != EMPTY) as usize;
-            b_attack += Self::score(king_attacks.popcnt() as i32, ROOK_ATTACK, phase);
         }
         for queen in black_queens {
             let blockers = blockers & !black_bishops & !black_rooks & !black_queens;
             let attacks =
                 chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
             black_attacked |= attacks;
-
-            let table = DATA.w_king_attacks[w_king.to_index()];
-            let king_attacks = attacks & table;
-            b_attack_cnt += (king_attacks != EMPTY) as usize;
-            b_attack += Self::score(king_attacks.popcnt() as i32, QUEEN_ATTACK, phase);
         }
 
         let w_safe_squares = !black_attacked | white_attacked;
@@ -387,30 +344,37 @@ impl Evaluator for BasicEval {
         let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
         let b_safe_pawn_threats = (b_pawn_threats & white_non_pawn).popcnt() as i32;
 
+        let w_hanging = white_non_pawn & (b_pawn_attack | (black_attacked & !white_attacked));
+        let b_hanging = black_non_pawn & (w_pawn_attack | (white_attacked & !black_attacked));
+
+        let w_king = board.king_square(Color::White);
+        let b_king = board.king_square(Color::Black);
+
+        let w_king_attack = (DATA.b_king_ring[b_king.to_index()] & b_hanging).popcnt();
+        let b_king_attack = (DATA.w_king_ring[w_king.to_index()] & w_hanging).popcnt();
+
+        let attack_score = Self::score(
+            w_king_attack as i32 - b_king_attack as i32,
+            WEAK_AROUND_KING,
+            phase,
+        );
+
         let safe_pawn_threat_score = Self::score(
             w_safe_pawn_threats - b_safe_pawn_threats,
             THREAT_BY_SAFE_PAWN,
             phase,
         );
 
-        let w_attacker_count = w_attack_cnt.min(ATTACKS.len() - 1);
-        let b_attacker_count = b_attack_cnt.min(ATTACKS.len() - 1);
-
-        let w_attack_score = w_attack as i32 * ATTACKS[w_attacker_count];
-        let b_attack_score = b_attack as i32 * ATTACKS[b_attacker_count];
-        let attack_score = (w_attack_score - b_attack_score) / 100;
-
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
-        let mut white_score = psqt_score + attack_score + pawn_score;
-        
+        let mut white_score = psqt_score + pawn_score;
+
         #[cfg(feature = "new_eval")]
         {
-            white_score += safe_pawn_threat_score;
+            white_score += safe_pawn_threat_score + attack_score;
         }
 
-        let score =
-            turn * white_score + TEMPO;
+        let score = turn * white_score + TEMPO;
         Evaluation::new(score)
     }
 
