@@ -194,14 +194,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                     #[cfg(feature = "promo_move_ord")]
                     if let Some(piece) = make_move.get_promotion() {
                         match piece {
-                            chess::Piece::Queen => {
-                                self.queen_promo.push(make_move);
-                                continue;
-                            }
-                            chess::Piece::Knight => {
-                                self.knight_promo.push(make_move);
-                                continue;
-                            }
+                            chess::Piece::Queen| chess::Piece::Knight => {}
                             _ => {
                                 self.queue.insert(partition, (make_move, i32::MIN));
                                 continue;
