@@ -241,41 +241,19 @@ impl Evaluator for BasicEval {
         let phase = phase as i32;
 
         //PSQT
-        let white_psqt_score =
-            Self::get_white_psqt_score(white_pawns, &PAWN_TABLE, &PAWN_END_TABLE, phase)
-                + Self::get_white_psqt_score(
-                    white_knights,
-                    &KNIGHT_TABLE,
-                    &KNIGHT_END_TABLE,
-                    phase,
-                )
-                + Self::get_white_psqt_score(
-                    white_bishops,
-                    &BISHOP_TABLE,
-                    &BISHOP_END_TABLE,
-                    phase,
-                )
-                + Self::get_white_psqt_score(white_rooks, &ROOK_TABLE, &ROOK_END_TABLE, phase)
-                + Self::get_white_psqt_score(white_queens, &QUEEN_TABLE, &QUEEN_END_TABLE, phase)
-                + Self::get_white_psqt_score(white_king, &KING_TABLE, &KING_END_TABLE, phase);
+        let white_psqt_score = Self::get_white_psqt_score(white_pawns, &PAWN_TABLE)
+            + Self::get_white_psqt_score(white_knights, &KNIGHT_TABLE)
+            + Self::get_white_psqt_score(white_bishops, &BISHOP_TABLE)
+            + Self::get_white_psqt_score(white_rooks, &ROOK_TABLE)
+            + Self::get_white_psqt_score(white_queens, &QUEEN_TABLE)
+            + Self::get_white_psqt_score(white_king, &KING_TABLE);
 
-        let black_psqt_score =
-            Self::get_black_psqt_score(black_pawns, &PAWN_TABLE, &PAWN_END_TABLE, phase)
-                + Self::get_black_psqt_score(
-                    black_knights,
-                    &KNIGHT_TABLE,
-                    &KNIGHT_END_TABLE,
-                    phase,
-                )
-                + Self::get_black_psqt_score(
-                    black_bishops,
-                    &BISHOP_TABLE,
-                    &BISHOP_END_TABLE,
-                    phase,
-                )
-                + Self::get_black_psqt_score(black_rooks, &ROOK_TABLE, &ROOK_END_TABLE, phase)
-                + Self::get_black_psqt_score(black_queens, &QUEEN_TABLE, &QUEEN_END_TABLE, phase)
-                + Self::get_black_psqt_score(black_king, &KING_TABLE, &KING_END_TABLE, phase);
+        let black_psqt_score = Self::get_black_psqt_score(black_pawns, &PAWN_TABLE)
+            + Self::get_black_psqt_score(black_knights, &KNIGHT_TABLE)
+            + Self::get_black_psqt_score(black_bishops, &BISHOP_TABLE)
+            + Self::get_black_psqt_score(black_rooks, &ROOK_TABLE)
+            + Self::get_black_psqt_score(black_queens, &QUEEN_TABLE)
+            + Self::get_black_psqt_score(black_king, &KING_TABLE);
 
         let psqt_score = white_psqt_score - black_psqt_score;
 
@@ -371,31 +349,25 @@ impl Evaluator for BasicEval {
         let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
         let b_safe_pawn_threats = (b_pawn_threats & white_non_pawn).popcnt() as i32;
 
-        let safe_pawn_threat_score = Self::score(
-            w_safe_pawn_threats - b_safe_pawn_threats,
-            THREAT_BY_SAFE_PAWN,
-            phase,
-        );
+        let safe_pawn_threat_score =
+            (w_safe_pawn_threats - b_safe_pawn_threats) * THREAT_BY_SAFE_PAWN;
 
-        let mut pawn_push_threat_score = 0;
+        let mut pawn_push_threat_score = TaperedEval(0, 0);
         #[cfg(feature = "new_eval")]
         {
             let w_pawn_push_threats = (w_pawn_push_threats & black_non_pawn).popcnt() as i32;
             let b_pawn_push_threats = (b_pawn_push_threats & white_non_pawn).popcnt() as i32;
 
-            pawn_push_threat_score += Self::score(
-                w_pawn_push_threats - b_pawn_push_threats,
-                THREAT_BY_PAWN_PUSH,
-                phase,
-            );
+            pawn_push_threat_score +=
+                (w_pawn_push_threats - b_pawn_push_threats) * THREAT_BY_PAWN_PUSH
         }
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
         let white_score = psqt_score + pawn_score + safe_pawn_threat_score + pawn_push_threat_score;
 
-        let score = turn * white_score + TEMPO;
-        Evaluation::new(score)
+        let score = turn * white_score;
+        Evaluation::new(score.convert(phase) + TEMPO)
     }
 
     fn clear_cache(&mut self) {}
@@ -414,7 +386,7 @@ impl BasicEval {
         }
     }
 
-    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard, phase: i32) -> i32 {
+    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard, phase: i32) -> TaperedEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
@@ -438,52 +410,32 @@ impl BasicEval {
             w_isolated += 1_u32.saturating_sub((adj_files & white_pawns).popcnt());
             b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
-        let passed_score = Self::score(w_passed as i32 - b_passed as i32, PASSER, phase);
-        let doubled_score = Self::score(w_doubled as i32 - b_doubled as i32, DOUBLED, phase);
-        let isolated_score = Self::score(w_isolated as i32 - b_isolated as i32, ISOLATED, phase);
+        let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
+        let doubled_score = (w_doubled as i32 - b_doubled as i32) * DOUBLED;
+        let isolated_score = (w_isolated as i32 - b_isolated as i32) * ISOLATED;
 
         passed_score + doubled_score + isolated_score
     }
 
     #[inline]
-    fn get_white_psqt_score(
-        board: BitBoard,
-        table0: &[[i32; 8]; 8],
-        table1: &[[i32; 8]; 8],
-        phase: i32,
-    ) -> i32 {
-        let mut psqt_score = 0;
+    fn get_white_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
+        let mut psqt_score = TaperedEval(0, 0);
         for square in board {
             let rank = 7 - square.get_rank().to_index();
             let file = square.get_file().to_index();
-            psqt_score += Self::direct(TaperedEval(table0[rank][file], table1[rank][file]), phase);
+            psqt_score += table[rank][file];
         }
         psqt_score
     }
 
     #[inline]
-    fn get_black_psqt_score(
-        board: BitBoard,
-        table0: &[[i32; 8]; 8],
-        table1: &[[i32; 8]; 8],
-        phase: i32,
-    ) -> i32 {
-        let mut psqt_score = 0;
+    fn get_black_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
+        let mut psqt_score = TaperedEval(0, 0);
         for square in board {
             let rank = square.get_rank().to_index();
             let file = square.get_file().to_index();
-            psqt_score += Self::direct(TaperedEval(table0[rank][file], table1[rank][file]), phase);
+            psqt_score += table[rank][file]
         }
         psqt_score
-    }
-
-    #[inline]
-    fn score<T: EvalFactor>(score: i32, eval: T, phase: i32) -> i32 {
-        eval.score(score, phase)
-    }
-
-    #[inline]
-    fn direct<T: EvalFactor>(eval: T, phase: i32) -> i32 {
-        eval.one(phase)
     }
 }
