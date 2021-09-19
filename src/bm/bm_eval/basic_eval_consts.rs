@@ -212,6 +212,9 @@ pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
+//Idea from Stockfish eval.cpp
+pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(170, 90);
+
 //Traits & Impls
 pub trait EvalFactor {
     fn score(&self, score: i32, phase: i32) -> i32;

@@ -273,8 +273,17 @@ impl Evaluator for BasicEval {
         let mut w_attack = 0;
         let mut b_attack = 0;
 
+        let mut white_attacked = EMPTY;
+        let mut black_attacked = EMPTY;
+
+        for pawn in white_pawns {
+            let attacks = chess::get_pawn_attacks(pawn, Color::White, black);
+            white_attacked |= attacks;
+        }
         for knight in white_knights {
             let attacks = chess::get_knight_moves(knight);
+            white_attacked |= attacks;
+
             let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
@@ -283,6 +292,8 @@ impl Evaluator for BasicEval {
         for bishop in white_bishops {
             let blockers = blockers & !white_bishops & !white_queens;
             let attacks = chess::get_bishop_moves(bishop, blockers);
+            white_attacked |= attacks;
+
             let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
@@ -291,6 +302,8 @@ impl Evaluator for BasicEval {
         for rook in white_rooks {
             let blockers = blockers & !white_rooks & !white_queens;
             let attacks = chess::get_rook_moves(rook, blockers);
+            white_attacked |= attacks;
+
             let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
@@ -300,13 +313,22 @@ impl Evaluator for BasicEval {
             let blockers = blockers & !white_rooks & !white_bishops & !white_queens;
             let attacks =
                 chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+            white_attacked |= attacks;
+
             let table = DATA.b_king_attacks[b_king.to_index()];
             let king_attacks = attacks & table;
             w_attack_cnt += (king_attacks != EMPTY) as usize;
             w_attack += Self::score(king_attacks.popcnt() as i32, QUEEN_ATTACK, phase);
         }
+
+        for pawn in black_pawns {
+            let attacks = chess::get_pawn_attacks(pawn, Color::Black, white);
+            black_attacked |= attacks;
+        }
         for knight in black_knights {
             let attacks = chess::get_knight_moves(knight);
+            black_attacked |= attacks;
+
             let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
@@ -315,6 +337,8 @@ impl Evaluator for BasicEval {
         for bishop in black_bishops {
             let blockers = blockers & !black_queens & !black_bishops;
             let attacks = chess::get_bishop_moves(bishop, blockers);
+            black_attacked |= attacks;
+
             let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
@@ -323,6 +347,8 @@ impl Evaluator for BasicEval {
         for rook in black_rooks {
             let blockers = blockers & !black_queens & !black_rooks;
             let attacks = chess::get_rook_moves(rook, blockers);
+            black_attacked |= attacks;
+
             let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
@@ -332,11 +358,40 @@ impl Evaluator for BasicEval {
             let blockers = blockers & !black_bishops & !black_rooks & !black_queens;
             let attacks =
                 chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+            black_attacked |= attacks;
+
             let table = DATA.w_king_attacks[w_king.to_index()];
             let king_attacks = attacks & table;
             b_attack_cnt += (king_attacks != EMPTY) as usize;
             b_attack += Self::score(king_attacks.popcnt() as i32, QUEEN_ATTACK, phase);
         }
+
+        let w_safe_squares = !black_attacked | white_attacked;
+        let w_safe_pawns = white_pawns & w_safe_squares;
+
+        let b_safe_squares = !white_attacked | black_attacked;
+        let b_safe_pawns = black_pawns & b_safe_squares;
+
+        let white_non_pawn = white & !white_pawns;
+        let black_non_pawn = black & !black_pawns;
+
+        let mut w_pawn_threats = EMPTY;
+        let mut b_pawn_threats = EMPTY;
+        for pawn in w_safe_pawns {
+            w_pawn_threats |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+        }
+        for pawn in b_safe_pawns {
+            b_pawn_threats |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
+        }
+
+        let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
+        let b_safe_pawn_threats = (b_pawn_threats & white_non_pawn).popcnt() as i32;
+
+        let safe_pawn_threat_score = Self::score(
+            w_safe_pawn_threats - b_safe_pawn_threats,
+            THREAT_BY_SAFE_PAWN,
+            phase,
+        );
 
         let w_attacker_count = w_attack_cnt.min(ATTACKS.len() - 1);
         let b_attacker_count = b_attack_cnt.min(ATTACKS.len() - 1);
@@ -347,7 +402,15 @@ impl Evaluator for BasicEval {
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
-        let score = turn * (psqt_score + attack_score + pawn_score) + TEMPO;
+        let mut white_score = psqt_score + attack_score + pawn_score;
+        
+        #[cfg(feature = "new_eval")]
+        {
+            white_score += safe_pawn_threat_score;
+        }
+
+        let score =
+            turn * white_score + TEMPO;
         Evaluation::new(score)
     }
 
