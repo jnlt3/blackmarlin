@@ -205,7 +205,6 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
-pub const WEAK_AROUND_KING: ConstEvalI32 = ConstEvalI32(70);
 
 //Traits & Impls
 pub trait EvalFactor {

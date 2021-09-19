@@ -15,16 +15,12 @@ const PIECES: [Piece; 6] = [
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BasicEvalData {
-    w_king_ring: [BitBoard; 64],
-    b_king_ring: [BitBoard; 64],
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
 }
 
 pub const fn get_basic_eval_data() -> BasicEvalData {
     let mut data = BasicEvalData {
-        w_king_ring: [BitBoard(0); 64],
-        b_king_ring: [BitBoard(0); 64],
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
     };
@@ -55,16 +51,10 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
                             let rank_diff = rank - king_rank;
 
                             let bitboard = 1_u64 << sq;
-                            if file_diff <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                                w_king_ring |= bitboard;
-                            }
                             if file_diff <= 1 && rank_diff > 0 {
                                 w_ahead |= bitboard;
                             }
                             let rank_diff = king_rank - rank;
-                            if file_diff <= 1 && rank_diff >= -1 && rank_diff <= 2 {
-                                b_king_ring |= bitboard;
-                            }
                             if file_diff <= 1 && rank_diff > 0 {
                                 b_ahead |= bitboard
                             }
@@ -74,9 +64,7 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
                     rank += 1;
                 }
             }
-            data.w_king_ring[king] = BitBoard(w_king_ring);
             data.w_ahead[king] = BitBoard(w_ahead);
-            data.b_king_ring[king] = BitBoard(b_king_ring);
             data.b_ahead[king] = BitBoard(b_ahead);
 
             king_file += 1;
@@ -344,21 +332,6 @@ impl Evaluator for BasicEval {
         let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
         let b_safe_pawn_threats = (b_pawn_threats & white_non_pawn).popcnt() as i32;
 
-        let w_hanging = white_non_pawn & (b_pawn_attack | (black_attacked & !white_attacked));
-        let b_hanging = black_non_pawn & (w_pawn_attack | (white_attacked & !black_attacked));
-
-        let w_king = board.king_square(Color::White);
-        let b_king = board.king_square(Color::Black);
-
-        let w_king_attack = (DATA.b_king_ring[b_king.to_index()] & b_hanging).popcnt();
-        let b_king_attack = (DATA.w_king_ring[w_king.to_index()] & w_hanging).popcnt();
-
-        let attack_score = Self::score(
-            w_king_attack as i32 - b_king_attack as i32,
-            WEAK_AROUND_KING,
-            phase,
-        );
-
         let safe_pawn_threat_score = Self::score(
             w_safe_pawn_threats - b_safe_pawn_threats,
             THREAT_BY_SAFE_PAWN,
@@ -367,12 +340,7 @@ impl Evaluator for BasicEval {
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
-        let mut white_score = psqt_score + pawn_score;
-
-        #[cfg(feature = "new_eval")]
-        {
-            white_score += safe_pawn_threat_score + attack_score;
-        }
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score;
 
         let score = turn * white_score + TEMPO;
         Evaluation::new(score)
