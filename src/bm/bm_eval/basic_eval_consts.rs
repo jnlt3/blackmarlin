@@ -213,7 +213,7 @@ pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
 //Idea from Stockfish eval.cpp
-pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(170, 90);
+pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 
 //Traits & Impls
 pub trait EvalFactor {
