@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, File, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -17,13 +17,29 @@ const PIECES: [Piece; 6] = [
 pub struct BasicEvalData {
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
+
+    king_flank: [BitBoard; 8],
 }
 
 pub const fn get_basic_eval_data() -> BasicEvalData {
     let mut data = BasicEvalData {
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
+        king_flank: [BitBoard(0); 8],
     };
+
+    let mut file = 0_u8;
+    while file < 8 {
+        let mut file_bb = 0u64;
+        let mut rank = 0_u8;
+        while rank < 8 {
+            file_bb |= 1_u64 << rank * 8 + file;
+            rank += 1;
+        }
+        let flank = file_bb | (file_bb << 1) | (file_bb >> 1);
+        data.king_flank[file as usize] = BitBoard(flank);
+        file += 1;
+    }
 
     let mut king_rank = 0_u8;
     while king_rank < 8 {
@@ -335,9 +351,23 @@ impl Evaluator for BasicEval {
             phase,
         );
 
+        let w_k_file = DATA.king_flank[board.king_square(Color::White).get_file() as usize];
+        let b_k_file = DATA.king_flank[board.king_square(Color::Black).get_file() as usize];
+
+        let mut flank_score = 0;
+        #[cfg(feature = "new_eval")]
+        {
+            if w_k_file & white_pawns == EMPTY {
+                flank_score -= Self::direct(PAWNLESS_FLANK, phase);
+            }
+            if b_k_file & black_pawns == EMPTY {
+                flank_score += Self::direct(PAWNLESS_FLANK, phase);
+            }
+        }
+
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + flank_score;
 
         let score = turn * white_score + TEMPO;
         Evaluation::new(score)
