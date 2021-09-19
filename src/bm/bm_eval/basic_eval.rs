@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, File, Piece, ALL_FILES, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -27,7 +27,6 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
         b_ahead: [BitBoard(0); 64],
         king_flank: [BitBoard(0); 8],
     };
-
 
     let mut king_flank = 0_u64;
     let mut queen_flank = 0_u64;
@@ -351,11 +350,22 @@ impl Evaluator for BasicEval {
 
         let mut w_pawn_threats = EMPTY;
         let mut b_pawn_threats = EMPTY;
+
+        let mut w_pawn_push_threats = EMPTY;
+        let mut b_pawn_push_threats = EMPTY;
         for pawn in w_safe_pawns {
             w_pawn_threats |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+            let pushed = chess::get_pawn_quiets(pawn, Color::White, blockers);
+            for pawn in pushed {
+                w_pawn_push_threats |= chess::get_pawn_attacks(pawn, Color::White, black_non_pawn);
+            }
         }
         for pawn in b_safe_pawns {
             b_pawn_threats |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
+            let pushed = chess::get_pawn_quiets(pawn, Color::Black, blockers);
+            for pawn in pushed {
+                b_pawn_push_threats |= chess::get_pawn_attacks(pawn, Color::Black, white_non_pawn);
+            }
         }
 
         let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
@@ -367,23 +377,22 @@ impl Evaluator for BasicEval {
             phase,
         );
 
-        let w_k_file = DATA.king_flank[board.king_square(Color::White).get_file() as usize];
-        let b_k_file = DATA.king_flank[board.king_square(Color::Black).get_file() as usize];
-
-        let mut flank_score = 0;
+        let mut pawn_push_threat_score = 0;
         #[cfg(feature = "new_eval")]
         {
-            if w_k_file & white_pawns == EMPTY {
-                flank_score -= Self::direct(PAWNLESS_FLANK, phase);
-            }
-            if b_k_file & black_pawns == EMPTY {
-                flank_score += Self::direct(PAWNLESS_FLANK, phase);
-            }
+            let w_pawn_push_threats = (w_pawn_push_threats & black_non_pawn).popcnt() as i32;
+            let b_pawn_push_threats = (b_pawn_push_threats & white_non_pawn).popcnt() as i32;
+
+            pawn_push_threat_score += Self::score(
+                w_pawn_push_threats - b_pawn_push_threats,
+                THREAT_BY_PAWN_PUSH,
+                phase,
+            );
         }
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + flank_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + pawn_push_threat_score;
 
         let score = turn * white_score + TEMPO;
         Evaluation::new(score)
