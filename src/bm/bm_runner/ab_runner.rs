@@ -476,6 +476,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
     }
 
     fn get_board(&self) -> &Board {
-        &self.position.board()
+        self.position.board()
     }
 }
