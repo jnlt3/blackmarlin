@@ -357,6 +357,7 @@ impl Evaluator for BasicEval {
                     trapped_piece_score -= TRAPPED_PIECE;
                 }
             }
+            /*
             for rook in white_rooks {
                 let rook_good_moves =
                     chess::get_rook_moves(rook, blockers) & !w_blockers & !b_pawn_attack;
@@ -389,7 +390,7 @@ impl Evaluator for BasicEval {
                 if queen_good_moves == EMPTY {
                     trapped_piece_score -= TRAPPED_PIECE;
                 }
-            }
+            } */
         }
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
