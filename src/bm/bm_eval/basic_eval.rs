@@ -17,44 +17,13 @@ const PIECES: [Piece; 6] = [
 pub struct BasicEvalData {
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
-
-    king_flank: [BitBoard; 8],
 }
 
 pub const fn get_basic_eval_data() -> BasicEvalData {
     let mut data = BasicEvalData {
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
-        king_flank: [BitBoard(0); 8],
     };
-
-    let mut king_flank = 0_u64;
-    let mut queen_flank = 0_u64;
-    let mut file = 0_u8;
-    while file < 8 {
-        let mut file_bb = 0u64;
-        let mut rank = 0_u8;
-        while rank < 8 {
-            file_bb |= 1_u64 << (rank * 8 + file);
-            rank += 1;
-        }
-        if file < 4 {
-            king_flank |= file_bb;
-        } else {
-            queen_flank |= file_bb
-        }
-        file += 1;
-    }
-
-    let mut file = 0_u8;
-    while file < 8 {
-        data.king_flank[file as usize] = if file < 4 {
-            BitBoard(king_flank)
-        } else {
-            BitBoard(queen_flank)
-        };
-        file += 1;
-    }
 
     let mut king_rank = 0_u8;
     while king_rank < 8 {
@@ -329,21 +298,11 @@ impl Evaluator for BasicEval {
         let mut w_pawn_threats = EMPTY;
         let mut b_pawn_threats = EMPTY;
 
-        let mut w_pawn_push_threats = EMPTY;
-        let mut b_pawn_push_threats = EMPTY;
         for pawn in w_safe_pawns {
             w_pawn_threats |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
-            let pushed = chess::get_pawn_quiets(pawn, Color::White, blockers);
-            for pawn in pushed {
-                w_pawn_push_threats |= chess::get_pawn_attacks(pawn, Color::White, black_non_pawn);
-            }
         }
         for pawn in b_safe_pawns {
             b_pawn_threats |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
-            let pushed = chess::get_pawn_quiets(pawn, Color::Black, blockers);
-            for pawn in pushed {
-                b_pawn_push_threats |= chess::get_pawn_attacks(pawn, Color::Black, white_non_pawn);
-            }
         }
 
         let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
@@ -352,19 +311,9 @@ impl Evaluator for BasicEval {
         let safe_pawn_threat_score =
             (w_safe_pawn_threats - b_safe_pawn_threats) * THREAT_BY_SAFE_PAWN;
 
-        let mut pawn_push_threat_score = TaperedEval(0, 0);
-        #[cfg(feature = "new_eval")]
-        {
-            let w_pawn_push_threats = (w_pawn_push_threats & black_non_pawn).popcnt() as i32;
-            let b_pawn_push_threats = (b_pawn_push_threats & white_non_pawn).popcnt() as i32;
+        let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-            pawn_push_threat_score +=
-                (w_pawn_push_threats - b_pawn_push_threats) * THREAT_BY_PAWN_PUSH
-        }
-
-        let pawn_score = self.get_pawn_score(white_pawns, black_pawns, phase);
-
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + pawn_push_threat_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)
@@ -386,7 +335,7 @@ impl BasicEval {
         }
     }
 
-    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard, phase: i32) -> TaperedEval {
+    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard) -> TaperedEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
