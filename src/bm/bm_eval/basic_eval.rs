@@ -320,77 +320,46 @@ impl Evaluator for BasicEval {
         let restriction_score =
             (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
 
-        let mut trapped_piece_score = TaperedEval(0, 0);
+        let mut hanging_eval = TaperedEval(0, 0);
         #[cfg(feature = "new_eval")]
         {
-            let w_strong_pawns = w_safe_pawns & (!b_pawn_attack | w_pawn_attack);
-            let b_strong_pawns = b_safe_pawns & (!w_pawn_attack | b_pawn_attack);
+            let w_hanging = (b_pawn_attack | (black_attacked & !white_attacked)) & white_non_pawn;
+            let b_hanging = (w_pawn_attack | (white_attacked & !black_attacked)) & black_non_pawn;
+            hanging_eval = (w_hanging.popcnt() as i32 - b_hanging.popcnt() as i32) * HANGING;
+        }
 
-            let w_blockers = b_strong_pawns | BitBoard((black_pawns.0 << 8) & w_strong_pawns.0);
-            let b_blockers = w_strong_pawns | BitBoard((white_pawns.0 >> 8) & b_strong_pawns.0);
+        let mut trapped_piece_score = TaperedEval(0, 0);
+        let w_strong_pawns = w_safe_pawns & (!b_pawn_attack | w_pawn_attack);
+        let b_strong_pawns = b_safe_pawns & (!w_pawn_attack | b_pawn_attack);
 
-            for bishop in white_bishops {
-                let bishop_good_moves =
-                    chess::get_bishop_moves(bishop, blockers) & !w_blockers & !b_pawn_attack;
-                if bishop_good_moves == EMPTY {
-                    trapped_piece_score += TRAPPED_PIECE;
-                }
-            }
-            for bishop in black_bishops {
-                let bishop_good_moves =
-                    chess::get_bishop_moves(bishop, blockers) & !b_blockers & !w_pawn_attack;
-                if bishop_good_moves == EMPTY {
-                    trapped_piece_score -= TRAPPED_PIECE;
-                }
-            }
-            for knight in white_knights {
-                let knight_good_moves =
-                    chess::get_knight_moves(knight) & !w_blockers & !b_pawn_attack;
-                if knight_good_moves == EMPTY {
-                    trapped_piece_score += TRAPPED_PIECE;
-                }
-            }
-            for knight in black_knights {
-                let knight_good_moves =
-                    chess::get_knight_moves(knight) & !b_blockers & !w_pawn_attack;
-                if knight_good_moves == EMPTY {
-                    trapped_piece_score -= TRAPPED_PIECE;
-                }
-            }
-            /*
-            for rook in white_rooks {
-                let rook_good_moves =
-                    chess::get_rook_moves(rook, blockers) & !w_blockers & !b_pawn_attack;
-                if rook_good_moves == EMPTY {
-                    trapped_piece_score += TRAPPED_PIECE;
-                }
-            }
-            for rook in black_rooks {
-                let rook_good_moves =
-                    chess::get_rook_moves(rook, blockers) & !b_blockers & !w_pawn_attack;
-                if rook_good_moves == EMPTY {
-                    trapped_piece_score -= TRAPPED_PIECE;
-                }
-            }
+        let w_blockers = b_strong_pawns | BitBoard((black_pawns.0 << 8) & w_strong_pawns.0);
+        let b_blockers = w_strong_pawns | BitBoard((white_pawns.0 >> 8) & b_strong_pawns.0);
 
-            for queen in white_queens {
-                let queen_good_moves = (chess::get_bishop_moves(queen, blockers)
-                    | chess::get_rook_moves(queen, blockers))
-                    & !w_blockers
-                    & !b_pawn_attack;
-                if queen_good_moves == EMPTY {
-                    trapped_piece_score += TRAPPED_PIECE;
-                }
+        for bishop in white_bishops {
+            let bishop_good_moves =
+                chess::get_bishop_moves(bishop, blockers) & !w_blockers & !b_pawn_attack;
+            if bishop_good_moves == EMPTY {
+                trapped_piece_score += TRAPPED_PIECE;
             }
-            for queen in black_queens {
-                let queen_good_moves = (chess::get_bishop_moves(queen, blockers)
-                    | chess::get_rook_moves(queen, blockers))
-                    & !b_blockers
-                    & !w_pawn_attack;
-                if queen_good_moves == EMPTY {
-                    trapped_piece_score -= TRAPPED_PIECE;
-                }
-            } */
+        }
+        for bishop in black_bishops {
+            let bishop_good_moves =
+                chess::get_bishop_moves(bishop, blockers) & !b_blockers & !w_pawn_attack;
+            if bishop_good_moves == EMPTY {
+                trapped_piece_score -= TRAPPED_PIECE;
+            }
+        }
+        for knight in white_knights {
+            let knight_good_moves = chess::get_knight_moves(knight) & !w_blockers & !b_pawn_attack;
+            if knight_good_moves == EMPTY {
+                trapped_piece_score += TRAPPED_PIECE;
+            }
+        }
+        for knight in black_knights {
+            let knight_good_moves = chess::get_knight_moves(knight) & !b_blockers & !w_pawn_attack;
+            if knight_good_moves == EMPTY {
+                trapped_piece_score -= TRAPPED_PIECE;
+            }
         }
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
@@ -399,7 +368,8 @@ impl Evaluator for BasicEval {
             + pawn_score
             + safe_pawn_threat_score
             + restriction_score
-            + trapped_piece_score;
+            + trapped_piece_score
+            + hanging_eval;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)

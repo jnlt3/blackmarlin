@@ -196,6 +196,7 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 pub const RESTRICTED: TaperedEval = TaperedEval(2, 2);
 pub const TRAPPED_PIECE: TaperedEval = TaperedEval(-25, -25);
+pub const HANGING: TaperedEval = TaperedEval(-25, -15);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TaperedEval(pub i32, pub i32);
