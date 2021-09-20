@@ -311,9 +311,22 @@ impl Evaluator for BasicEval {
         let safe_pawn_threat_score =
             (w_safe_pawn_threats - b_safe_pawn_threats) * THREAT_BY_SAFE_PAWN;
 
+        let mut restriction_score = TaperedEval(0, 0);
+        #[cfg(feature = "new_eval")]
+        {
+            let w_protected = w_pawn_attack | (white_attacked & !black_attacked);
+            let b_protected = b_pawn_attack | (black_attacked & !white_attacked);
+
+            let restriction = black_attacked & white_attacked;
+            let w_restriction_score = (restriction & !b_protected).popcnt();
+            let b_restriction_score = (restriction & !w_protected).popcnt();
+            restriction_score =
+                (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
+        }
+
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)
