@@ -199,6 +199,7 @@ impl Evaluator for BasicEval {
         let white_rooks = rooks & white;
         let white_queens = queens & white;
         let white_king = kings & white;
+        let white_minors = white_knights | white_bishops;
 
         let black_pawns = pawns & black;
         let black_knights = knights & black;
@@ -206,6 +207,7 @@ impl Evaluator for BasicEval {
         let black_rooks = rooks & black;
         let black_queens = queens & black;
         let black_king = kings & black;
+        let black_minors = black_knights | black_bishops;
 
         let phase = phase as i32;
 
@@ -311,22 +313,31 @@ impl Evaluator for BasicEval {
         let safe_pawn_threat_score =
             (w_safe_pawn_threats - b_safe_pawn_threats) * THREAT_BY_SAFE_PAWN;
 
-        let mut restriction_score = TaperedEval(0, 0);
+        let w_protected = w_pawn_attack | (white_attacked & !black_attacked);
+        let b_protected = b_pawn_attack | (black_attacked & !white_attacked);
+
+        let restriction = black_attacked & white_attacked;
+        let w_restriction_score = (restriction & !b_protected).popcnt();
+        let b_restriction_score = (restriction & !w_protected).popcnt();
+        let restriction_score =
+            (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
+
+        let mut minor_behind_pawn_score = TaperedEval(0, 0);
         #[cfg(feature = "new_eval")]
         {
-            let w_protected = w_pawn_attack | (white_attacked & !black_attacked);
-            let b_protected = b_pawn_attack | (black_attacked & !white_attacked);
-
-            let restriction = black_attacked & white_attacked;
-            let w_restriction_score = (restriction & !b_protected).popcnt();
-            let b_restriction_score = (restriction & !w_protected).popcnt();
-            restriction_score =
-                (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
+            let w_minor_behind_pawn = BitBoard(white_minors.0 & (white_pawns.0 >> 8)).popcnt();
+            let b_minor_behind_pawn = BitBoard(black_minors.0 & (black_pawns.0 << 8)).popcnt();
+            minor_behind_pawn_score +=
+                (w_minor_behind_pawn as i32 - b_minor_behind_pawn as i32) * MINOR_BEHIND_PAWN;
         }
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
+        let white_score = psqt_score
+            + pawn_score
+            + safe_pawn_threat_score
+            + restriction_score
+            + minor_behind_pawn_score;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)

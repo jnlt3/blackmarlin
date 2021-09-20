@@ -195,6 +195,7 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 pub const RESTRICTED: TaperedEval = TaperedEval(2, 2);
+pub const MINOR_BEHIND_PAWN: TaperedEval = TaperedEval(7, 1);
 
 #[derive(Debug, Copy, Clone)]
 pub struct TaperedEval(pub i32, pub i32);
