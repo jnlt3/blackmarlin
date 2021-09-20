@@ -326,8 +326,8 @@ impl Evaluator for BasicEval {
             let w_strong_pawns = w_safe_pawns & (!b_pawn_attack | w_pawn_attack);
             let b_strong_pawns = b_safe_pawns & (!w_pawn_attack | b_pawn_attack);
 
-            let w_blockers = b_strong_pawns | BitBoard((black_pawns.0 >> 8) & w_strong_pawns.0);
-            let b_blockers = w_strong_pawns | BitBoard((white_pawns.0 << 8) & b_strong_pawns.0);
+            let w_blockers = b_strong_pawns | BitBoard((black_pawns.0 << 8) & w_strong_pawns.0);
+            let b_blockers = w_strong_pawns | BitBoard((white_pawns.0 >> 8) & b_strong_pawns.0);
 
             for bishop in white_bishops {
                 let bishop_good_moves =
