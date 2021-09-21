@@ -28,6 +28,16 @@ const fn generate_table(
     combined
 }
 
+const fn values_to_tapered<const N: usize>(values: [i32; N]) -> [TaperedEval; N] {
+    let mut out = [TaperedEval(0, 0); N];
+    let mut index = 0;
+    while index < values.len() {
+        out[index] = TaperedEval(values[index], values[index]);
+        index += 1;
+    }
+    out
+}
+
 pub const PAWN: TaperedEval = TaperedEval(82, 94);
 pub const KNIGHT: TaperedEval = TaperedEval(337, 281);
 pub const BISHOP: TaperedEval = TaperedEval(365, 297);
@@ -191,11 +201,11 @@ pub const TEMPO: i32 = 20;
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
+pub const CONNECTED_PAWNS: [TaperedEval; 8] = values_to_tapered([0, 0, 0, 2, 5, 10, 20, 40]);
 
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 pub const RESTRICTED: TaperedEval = TaperedEval(2, 2);
-pub const HANGING: TaperedEval = TaperedEval(-25, -15);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TaperedEval(pub i32, pub i32);
@@ -204,7 +214,7 @@ impl TaperedEval {
     #[inline]
     pub fn convert(&self, phase: i32) -> i32 {
         (self.0 * (TOTAL_PHASE as i32 - phase) + self.1 * phase) / TOTAL_PHASE as i32
-    } 
+    }
 }
 
 macro_rules! impl_tapered_eval_op {

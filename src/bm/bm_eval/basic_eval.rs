@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_RANKS, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -319,23 +319,11 @@ impl Evaluator for BasicEval {
         let restriction_score =
             (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
 
-        let mut hanging_eval = TaperedEval(0, 0);
-        #[cfg(feature = "new_eval")]
-        {
-            let w_hanging =
-                (black_attacked & !white_attacked) & white_non_pawn & !b_safe_pawn_threats;
-            let b_hanging =
-                (white_attacked & !black_attacked) & black_non_pawn & !w_safe_pawn_threats;
-            hanging_eval = (w_hanging.popcnt() as i32 - b_hanging.popcnt() as i32) * HANGING;
-        }
+        let pawn_score =
+            self.get_pawn_score(white_pawns, black_pawns, w_pawn_attack, b_pawn_attack);
 
-        let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
-
-        let white_score = psqt_score
-            + pawn_score
-            + safe_pawn_threat_score
-            + restriction_score
-            + hanging_eval;
+        let white_score =
+            psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)
@@ -357,7 +345,13 @@ impl BasicEval {
         }
     }
 
-    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard) -> TaperedEval {
+    fn get_pawn_score(
+        &self,
+        white_pawns: BitBoard,
+        black_pawns: BitBoard,
+        w_pawn_attack: BitBoard,
+        b_pawn_attack: BitBoard,
+    ) -> TaperedEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
@@ -381,11 +375,24 @@ impl BasicEval {
             w_isolated += 1_u32.saturating_sub((adj_files & white_pawns).popcnt());
             b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
+
+        let mut w_connected = TaperedEval(0, 0);
+        let mut b_connected = TaperedEval(0, 0);
+
+        #[cfg(feature = "new_eval")]
+        for (&rank, (&eval_w, &eval_b)) in ALL_RANKS
+            .iter()
+            .zip(CONNECTED_PAWNS.iter().zip(CONNECTED_PAWNS.iter().rev()))
+        {
+            w_connected += (chess::get_rank(rank) & w_pawn_attack).popcnt() as i32 * eval_w;
+            b_connected += (chess::get_rank(rank) & b_pawn_attack).popcnt() as i32 * eval_b;
+        }
+
         let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
         let doubled_score = (w_doubled as i32 - b_doubled as i32) * DOUBLED;
         let isolated_score = (w_isolated as i32 - b_isolated as i32) * ISOLATED;
 
-        passed_score + doubled_score + isolated_score
+        passed_score + doubled_score + isolated_score - b_connected + w_connected
     }
 
     #[inline]
