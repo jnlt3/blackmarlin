@@ -201,7 +201,8 @@ pub const TEMPO: i32 = 20;
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
-pub const CONNECTED_PAWNS: [TaperedEval; 8] = values_to_tapered([0, 0, 1, 3, 7, 15, 30, 0]);
+pub const PHALANX: TaperedEval = TaperedEval(0, 20);
+pub const CONNECTED_PAWNS: [TaperedEval; 8] = values_to_tapered([0, 0, 0, 0, 0, 0, 0, 0]);
 
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);

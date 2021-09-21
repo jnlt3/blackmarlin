@@ -367,25 +367,40 @@ impl BasicEval {
             b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
 
+        let mut w_neighbours = BitBoard((white_pawns.0 << 1) | (white_pawns.0 >> 1));
+        let mut b_neighbours = BitBoard((black_pawns.0 << 1) | (black_pawns.0 >> 1));
+
         let mut w_connected = TaperedEval(0, 0);
         let mut b_connected = TaperedEval(0, 0);
+
+        let mut w_phalanx = 0;
+        let mut b_phalanx = 0;
 
         #[cfg(feature = "new_eval")]
         for (&rank, (&eval_w, &eval_b)) in ALL_RANKS
             .iter()
             .zip(CONNECTED_PAWNS.iter().zip(CONNECTED_PAWNS.iter().rev()))
         {
-            w_connected +=
-                (chess::get_rank(rank) & w_pawn_attack & white_pawns).popcnt() as i32 * eval_w;
-            b_connected +=
-                (chess::get_rank(rank) & b_pawn_attack & black_pawns).popcnt() as i32 * eval_b;
+            let rank = chess::get_rank(rank);
+
+            let w_current_phalanx = w_neighbours & rank;
+            let b_current_phalanx = b_neighbours & rank;
+            w_neighbours &= !w_current_phalanx;
+            b_neighbours &= !b_current_phalanx;
+            w_phalanx += (w_current_phalanx).popcnt() / 2;
+            b_phalanx += (b_current_phalanx).popcnt() / 2;
+
+            w_connected += (rank & w_pawn_attack & white_pawns).popcnt() as i32 * eval_w;
+            b_connected += (rank & b_pawn_attack & black_pawns).popcnt() as i32 * eval_b;
         }
 
         let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
         let doubled_score = (w_doubled as i32 - b_doubled as i32) * DOUBLED;
         let isolated_score = (w_isolated as i32 - b_isolated as i32) * ISOLATED;
+        let connected_score = w_connected - b_connected;
+        let phalanx_score = (w_phalanx as i32 - b_phalanx as i32) * PHALANX;
 
-        passed_score + doubled_score + isolated_score - b_connected + w_connected
+        passed_score + doubled_score + isolated_score + phalanx_score + connected_score
     }
 
     #[inline]
