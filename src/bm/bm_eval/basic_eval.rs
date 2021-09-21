@@ -224,8 +224,6 @@ impl Evaluator for BasicEval {
 
         let psqt_score = white_psqt_score - black_psqt_score;
 
-        let blockers = *board.combined();
-
         let mut white_attacked = EMPTY;
         let mut black_attacked = EMPTY;
 
@@ -233,7 +231,7 @@ impl Evaluator for BasicEval {
         let mut b_pawn_attack = EMPTY;
 
         for pawn in white_pawns {
-            let attacks = chess::get_pawn_attacks(pawn, Color::White, black);
+            let attacks = chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
             white_attacked |= attacks;
             w_pawn_attack |= attacks;
         }
@@ -242,24 +240,21 @@ impl Evaluator for BasicEval {
             white_attacked |= attacks;
         }
         for bishop in white_bishops {
-            let blockers = blockers & !white_bishops & !white_queens;
-            let attacks = chess::get_bishop_moves(bishop, blockers);
+            let attacks = chess::get_bishop_moves(bishop, EMPTY);
             white_attacked |= attacks;
         }
         for rook in white_rooks {
-            let blockers = blockers & !white_rooks & !white_queens;
-            let attacks = chess::get_rook_moves(rook, blockers);
+            let attacks = chess::get_rook_moves(rook, EMPTY);
             white_attacked |= attacks;
         }
         for queen in white_queens {
-            let blockers = blockers & !white_rooks & !white_bishops & !white_queens;
             let attacks =
-                chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+                chess::get_bishop_moves(queen, EMPTY) | chess::get_rook_moves(queen, EMPTY);
             white_attacked |= attacks;
         }
 
         for pawn in black_pawns {
-            let attacks = chess::get_pawn_attacks(pawn, Color::Black, white);
+            let attacks = chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
             black_attacked |= attacks;
             b_pawn_attack |= attacks;
         }
@@ -268,19 +263,16 @@ impl Evaluator for BasicEval {
             black_attacked |= attacks;
         }
         for bishop in black_bishops {
-            let blockers = blockers & !black_queens & !black_bishops;
-            let attacks = chess::get_bishop_moves(bishop, blockers);
+            let attacks = chess::get_bishop_moves(bishop, EMPTY);
             black_attacked |= attacks;
         }
         for rook in black_rooks {
-            let blockers = blockers & !black_queens & !black_rooks;
-            let attacks = chess::get_rook_moves(rook, blockers);
+            let attacks = chess::get_rook_moves(rook, EMPTY);
             black_attacked |= attacks;
         }
         for queen in black_queens {
-            let blockers = blockers & !black_bishops & !black_rooks & !black_queens;
             let attacks =
-                chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+                chess::get_bishop_moves(queen, EMPTY) | chess::get_rook_moves(queen, EMPTY);
             black_attacked |= attacks;
         }
 
@@ -322,8 +314,7 @@ impl Evaluator for BasicEval {
         let pawn_score =
             self.get_pawn_score(white_pawns, black_pawns, w_pawn_attack, b_pawn_attack);
 
-        let white_score =
-            psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)
@@ -384,8 +375,10 @@ impl BasicEval {
             .iter()
             .zip(CONNECTED_PAWNS.iter().zip(CONNECTED_PAWNS.iter().rev()))
         {
-            w_connected += (chess::get_rank(rank) & w_pawn_attack).popcnt() as i32 * eval_w;
-            b_connected += (chess::get_rank(rank) & b_pawn_attack).popcnt() as i32 * eval_b;
+            w_connected +=
+                (chess::get_rank(rank) & w_pawn_attack & white_pawns).popcnt() as i32 * eval_w;
+            b_connected +=
+                (chess::get_rank(rank) & b_pawn_attack & black_pawns).popcnt() as i32 * eval_b;
         }
 
         let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
