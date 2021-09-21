@@ -207,8 +207,6 @@ impl Evaluator for BasicEval {
         let black_queens = queens & black;
         let black_king = kings & black;
 
-        let phase = phase as i32;
-
         //PSQT
         let white_psqt_score = Self::get_white_psqt_score(white_pawns, &PAWN_TABLE)
             + Self::get_white_psqt_score(white_knights, &KNIGHT_TABLE)
@@ -305,11 +303,12 @@ impl Evaluator for BasicEval {
             b_pawn_threats |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
         }
 
-        let w_safe_pawn_threats = (w_pawn_threats & black_non_pawn).popcnt() as i32;
-        let b_safe_pawn_threats = (b_pawn_threats & white_non_pawn).popcnt() as i32;
+        let b_safe_pawn_threats = b_pawn_threats & white_non_pawn;
+        let w_safe_pawn_threats = w_pawn_threats & black_non_pawn;
 
-        let safe_pawn_threat_score =
-            (w_safe_pawn_threats - b_safe_pawn_threats) * THREAT_BY_SAFE_PAWN;
+        let safe_pawn_threat_score = (w_safe_pawn_threats.popcnt() as i32
+            - b_safe_pawn_threats.popcnt() as i32)
+            * THREAT_BY_SAFE_PAWN;
 
         let w_protected = w_pawn_attack | (white_attacked & !black_attacked);
         let b_protected = b_pawn_attack | (black_attacked & !white_attacked);
@@ -323,43 +322,11 @@ impl Evaluator for BasicEval {
         let mut hanging_eval = TaperedEval(0, 0);
         #[cfg(feature = "new_eval")]
         {
-            let w_hanging = (b_pawn_attack | (black_attacked & !white_attacked)) & white_non_pawn;
-            let b_hanging = (w_pawn_attack | (white_attacked & !black_attacked)) & black_non_pawn;
+            let w_hanging =
+                (black_attacked & !white_attacked) & white_non_pawn & !b_safe_pawn_threats;
+            let b_hanging =
+                (white_attacked & !black_attacked) & black_non_pawn & !w_safe_pawn_threats;
             hanging_eval = (w_hanging.popcnt() as i32 - b_hanging.popcnt() as i32) * HANGING;
-        }
-
-        let mut trapped_piece_score = TaperedEval(0, 0);
-        let w_strong_pawns = w_safe_pawns & (!b_pawn_attack | w_pawn_attack);
-        let b_strong_pawns = b_safe_pawns & (!w_pawn_attack | b_pawn_attack);
-
-        let w_blockers = b_strong_pawns | BitBoard((black_pawns.0 << 8) & w_strong_pawns.0);
-        let b_blockers = w_strong_pawns | BitBoard((white_pawns.0 >> 8) & b_strong_pawns.0);
-
-        for bishop in white_bishops {
-            let bishop_good_moves =
-                chess::get_bishop_moves(bishop, blockers) & !w_blockers & !b_pawn_attack;
-            if bishop_good_moves == EMPTY {
-                trapped_piece_score += TRAPPED_PIECE;
-            }
-        }
-        for bishop in black_bishops {
-            let bishop_good_moves =
-                chess::get_bishop_moves(bishop, blockers) & !b_blockers & !w_pawn_attack;
-            if bishop_good_moves == EMPTY {
-                trapped_piece_score -= TRAPPED_PIECE;
-            }
-        }
-        for knight in white_knights {
-            let knight_good_moves = chess::get_knight_moves(knight) & !w_blockers & !b_pawn_attack;
-            if knight_good_moves == EMPTY {
-                trapped_piece_score += TRAPPED_PIECE;
-            }
-        }
-        for knight in black_knights {
-            let knight_good_moves = chess::get_knight_moves(knight) & !b_blockers & !w_pawn_attack;
-            if knight_good_moves == EMPTY {
-                trapped_piece_score -= TRAPPED_PIECE;
-            }
         }
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
@@ -368,7 +335,6 @@ impl Evaluator for BasicEval {
             + pawn_score
             + safe_pawn_threat_score
             + restriction_score
-            + trapped_piece_score
             + hanging_eval;
 
         let score = turn * white_score;
