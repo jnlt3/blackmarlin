@@ -271,25 +271,29 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
             let start_time = Instant::now();
             let mut best_move = None;
             let mut eval = None;
-            let mut depth = 1;
+            let mut depth = 1_u32;
             'outer: loop {
-                search_options.window.set(search_options.eval);
                 let mut fail_cnt = 0;
+                let mut fail_high_cnt = 0_u32;
+                search_options.window.reset();
                 let (alpha, beta) = if depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt {
                     search_options.window.get()
                 } else {
                     (Evaluation::min(), Evaluation::max())
                 };
+                let mut search_depth;
                 loop {
+                    search_depth = (depth - 1).saturating_sub(fail_high_cnt) + 1;
                     let (make_move, score) = search::search::<Pv, Eval>(
                         &mut position,
                         &mut search_options,
                         0,
-                        depth,
+                        search_depth,
                         alpha,
                         beta,
                         &mut nodes,
                     );
+                    search_options.window.set(score);
                     if depth > 1 && search_options.abort() {
                         break 'outer;
                     }
@@ -304,15 +308,17 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                     } else {
                         fail_cnt += 1;
                         if score <= alpha {
+                            fail_high_cnt = 0;
                             search_options.window.fail_low();
                         } else {
+                            fail_high_cnt += 1;
                             search_options.window.fail_high();
                         }
                     }
                 }
                 debugger.push(SearchStats::new(
                     start_time.elapsed().as_millis(),
-                    depth,
+                    search_depth,
                     eval,
                     best_move,
                 ));
