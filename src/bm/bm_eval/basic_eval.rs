@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_RANKS, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -311,8 +311,7 @@ impl Evaluator for BasicEval {
         let restriction_score =
             (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
 
-        let pawn_score =
-            self.get_pawn_score(white_pawns, black_pawns, w_pawn_attack, b_pawn_attack);
+        let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
         let white_score = psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
 
@@ -336,13 +335,7 @@ impl BasicEval {
         }
     }
 
-    fn get_pawn_score(
-        &self,
-        white_pawns: BitBoard,
-        black_pawns: BitBoard,
-        w_pawn_attack: BitBoard,
-        b_pawn_attack: BitBoard,
-    ) -> TaperedEval {
+    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard) -> TaperedEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
@@ -367,40 +360,11 @@ impl BasicEval {
             b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
 
-        let mut w_neighbours = BitBoard((white_pawns.0 << 1) | (white_pawns.0 >> 1));
-        let mut b_neighbours = BitBoard((black_pawns.0 << 1) | (black_pawns.0 >> 1));
-
-        let mut w_connected = TaperedEval(0, 0);
-        let mut b_connected = TaperedEval(0, 0);
-
-        let mut w_phalanx = 0;
-        let mut b_phalanx = 0;
-
-        #[cfg(feature = "new_eval")]
-        for (&rank, (&eval_w, &eval_b)) in ALL_RANKS
-            .iter()
-            .zip(CONNECTED_PAWNS.iter().zip(CONNECTED_PAWNS.iter().rev()))
-        {
-            let rank = chess::get_rank(rank);
-
-            let w_current_phalanx = w_neighbours & rank;
-            let b_current_phalanx = b_neighbours & rank;
-            w_neighbours &= !w_current_phalanx;
-            b_neighbours &= !b_current_phalanx;
-            w_phalanx += (w_current_phalanx).popcnt() / 2;
-            b_phalanx += (b_current_phalanx).popcnt() / 2;
-
-            w_connected += (rank & w_pawn_attack & white_pawns).popcnt() as i32 * eval_w;
-            b_connected += (rank & b_pawn_attack & black_pawns).popcnt() as i32 * eval_b;
-        }
-
         let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
         let doubled_score = (w_doubled as i32 - b_doubled as i32) * DOUBLED;
         let isolated_score = (w_isolated as i32 - b_isolated as i32) * ISOLATED;
-        let connected_score = w_connected - b_connected;
-        let phalanx_score = (w_phalanx as i32 - b_phalanx as i32) * PHALANX;
 
-        passed_score + doubled_score + isolated_score + phalanx_score + connected_score
+        passed_score + doubled_score + isolated_score
     }
 
     #[inline]
