@@ -83,7 +83,7 @@ impl Evaluator for BasicEval {
 
     fn see(mut board: Board, mut make_move: ChessMove) -> i32 {
         let mut index = 0;
-        let mut gains = [0i32; 32];
+        let mut gains = [0_i32; 32];
         let target_square = make_move.get_dest();
         gains[0] = Self::piece_pts(board.piece_on(target_square).unwrap());
         'outer: for i in 1..32 {
