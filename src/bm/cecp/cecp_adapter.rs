@@ -11,6 +11,7 @@ use crate::bm::bm_runner::runner::Runner;
 use crate::bm::bm_runner::time::{
     CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, ManualAbort, TimeManager,
 };
+use crate::bm::bm_util::diagnostics;
 use crate::bm::bm_util::evaluator::Evaluator;
 use std::marker::PhantomData;
 
@@ -218,6 +219,14 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             CecpCommand::MoveNow => {
                 //TODO
             }
+            CecpCommand::Diagnostics => {
+                if self.is_analyzing() {
+                    println!("# Diagnostcics should be called when there is no analysis happening");
+                } else {
+                    diagnostics::diagnostics_nps::<Eval, R>();
+                    diagnostics::diagnostics_scaling::<Eval, R>();
+                }
+            }
         }
         true
     }
@@ -283,6 +292,7 @@ enum CecpCommand {
     Force,
     Quit,
     Perf,
+    Diagnostics,
     Empty,
 }
 
@@ -370,6 +380,7 @@ impl CecpCommand {
             "quit" => CecpCommand::Quit,
             "eval" => CecpCommand::Eval,
             "perf" => CecpCommand::Perf,
+            "diagnostics" => CecpCommand::Diagnostics,
             _ => CecpCommand::Empty,
         }
     }

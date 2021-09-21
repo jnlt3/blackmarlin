@@ -276,3 +276,50 @@ impl TimeManager for CompoundTimeManager {
         self.managers.iter().for_each(|manager| manager.clear());
     }
 }
+
+#[derive(Debug)]
+pub struct Diagnostics<Inner: TimeManager> {
+    manager: Arc<Inner>,
+    data: Mutex<Vec<(u32, u32)>>,
+}
+
+impl<Inner: TimeManager> Diagnostics<Inner> {
+    pub fn new(manager: Arc<Inner>) -> Diagnostics<Inner> {
+        Self {
+            manager,
+            data: Mutex::new(vec![]),
+        }
+    }
+
+    pub fn get_data(&self) -> &Mutex<Vec<(u32, u32)>> {
+        &self.data
+    }
+}
+
+impl<Inner: TimeManager> TimeManager for Diagnostics<Inner> {
+    fn deepen(
+        &self,
+        thread: u8,
+        depth: u32,
+        nodes: u32,
+        eval: Evaluation,
+        best_move: ChessMove,
+        delta_time: Duration,
+    ) {
+        self.manager
+            .deepen(thread, depth, nodes, eval, best_move, delta_time);
+        self.data.lock().unwrap().push((nodes, depth));
+    }
+
+    fn initiate(&self, time_left: Duration, move_cnt: usize) {
+        self.manager.initiate(time_left, move_cnt);
+    }
+
+    fn abort(&self, start: Instant) -> bool {
+        self.manager.abort(start)
+    }
+
+    fn clear(&self) {
+        self.manager.clear();
+    }
+}
