@@ -16,14 +16,23 @@ opt-level = 3
 [dependencies]
 chess = "3.2.0"
 text_io = "0.1.8"
-jemallocator = "0.3.2"
+jemallocator = { version = "0.3.2", optional = true }
 arrayvec = "0.7.1"
 rand = "0.8.4"
 
 [features]
 standard = ["best_hist", "advanced_move_gen", "all_move", "q_search_move_ord"]
 experimental = ["standard", "new_eval"]
-all = ["all_hist", "advanced_move_gen", "q_search_move_ord", "all_move", "promo_move_ord", "new_eval"]
+all = [
+    "all_hist",
+    "advanced_move_gen",
+    "q_search_move_ord",
+    "all_move",
+    "promo_move_ord",
+    "new_eval",
+    "jem",
+]
+jem = ["jemallocator"]
 
 
 new_eval = []

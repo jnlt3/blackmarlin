@@ -8,6 +8,7 @@ use crate::bm::bm_runner::ab_runner::AbRunner;
 mod bm;
 
 #[global_allocator]
+#[cfg(feature = "jem")]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 type Runner = AbRunner<BasicEval>;
