@@ -11,7 +11,7 @@ use crate::bm::bm_runner::{
 use super::evaluator::Evaluator;
 
 const SECS_FOR_NPS: u64 = 5;
-const SECS_FOR_SCALING: u64 = 10;
+const SECS_FOR_SCALING: u64 = 1;
 const SCALING_ITERS: usize = 1000;
 
 const POSITIONS: &[&str] = &[
