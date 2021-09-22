@@ -34,24 +34,25 @@ impl Window {
 
     pub fn set(&mut self, eval: Evaluation) {
         self.center = eval;
-        self.set_bounds();
-        self.window += self.window * self.factor / self.divisor + self.add;
     }
 
     pub fn get(&self) -> (Evaluation, Evaluation) {
-        (
-            self.alpha,
-            self.beta,
-        )
+        (self.alpha, self.beta)
     }
 
     pub fn fail_low(&mut self) {
         self.beta = (self.alpha + self.beta) / 2;
         self.alpha = self.center - self.window;
+        self.expand();
     }
 
     pub fn fail_high(&mut self) {
         self.beta = self.center + self.window;
+        self.expand();
+    }
+
+    fn expand(&mut self) {
+        self.window += self.window * self.factor / self.divisor + self.add;
     }
 
     fn set_bounds(&mut self) {
