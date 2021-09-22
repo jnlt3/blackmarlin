@@ -188,12 +188,14 @@ pub const KING_TABLE: [[TaperedEval; 8]; 8] = generate_table(
 
 pub const TEMPO: i32 = 20;
 
+
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
+pub const THREAT_BY_KING: TaperedEval = TaperedEval(0, 30);
 pub const RESTRICTED: TaperedEval = TaperedEval(2, 2);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

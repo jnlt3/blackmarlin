@@ -311,10 +311,19 @@ impl Evaluator for BasicEval {
         let restriction_score =
             (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
 
+        let w_king_threat =
+            chess::get_king_moves(board.king_square(Color::White)) & black & !black_attacked;
+        let b_king_threat =
+            chess::get_king_moves(board.king_square(Color::Black)) & white & !white_attacked;
+
+        let king_score =
+            (w_king_threat.popcnt() as i32 - b_king_threat.popcnt() as i32) * THREAT_BY_KING;
+
         let pawn_score =
             self.get_pawn_score(white_pawns, black_pawns, w_pawn_attack, b_pawn_attack);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
+        let white_score =
+            psqt_score + pawn_score + safe_pawn_threat_score + restriction_score + king_score;
 
         let score = turn * white_score;
         Evaluation::new(score.convert(phase) + TEMPO)
