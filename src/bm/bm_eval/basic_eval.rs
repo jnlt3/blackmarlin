@@ -323,24 +323,21 @@ impl Evaluator for BasicEval {
 
         let white_score =
             psqt_score + pawn_score + safe_pawn_threat_score + restriction_score + king_score;
-
+        let white_score = white_score.convert(phase);
         let white_score = match Self::outcome_state(board) {
             OutcomeState::Loss => white_score - 10000,
-            OutcomeState::Draw => white_score / 10,
             OutcomeState::Unknown => white_score,
             OutcomeState::Win => white_score + 10000,
+            OutcomeState::Draw => white_score / 10,
             OutcomeState::LikelyLoss => {
-                let score = white_score.convert(phase);
-                return Evaluation::new(score.min(0) * turn);
+                return Evaluation::new(white_score.min(0) * turn);
             }
             OutcomeState::LikelyWin => {
-                let score = white_score.convert(phase);
-                return Evaluation::new(score.max(0) * turn);
+                return Evaluation::new(white_score.max(0) * turn);
             }
         };
-        let score = turn * white_score;
 
-        Evaluation::new(score.convert(phase) + TEMPO)
+        Evaluation::new(turn * white_score + TEMPO)
     }
 
     fn clear_cache(&mut self) {}
@@ -433,34 +430,27 @@ impl BasicEval {
     }
 
     fn can_checkmate(board: &Board, side: Color) -> Checkmate {
-        let pieces = board.color_combined(side);
+        let pieces = *board.color_combined(side);
         let king_only = pieces.popcnt() == 1;
         if king_only {
             return Checkmate::Impossible;
         }
-        let enemy_pawn_cnt = board.pieces(Piece::Pawn) & board.color_combined(!side);
         let single_piece_win =
             pieces & (board.pieces(Piece::Rook) | board.pieces(Piece::Queen)) != EMPTY;
 
         let knights = *board.pieces(Piece::Knight) & pieces;
         let bishops = *board.pieces(Piece::Bishop) & pieces;
 
-        let bishop_cnt = bishops.popcnt();
         let white_bishop = (BitBoard(WHITE_SQUARES) & bishops) != EMPTY;
         let black_bishop = (BitBoard(BLACK_SQUARES) & bishops) != EMPTY;
 
         let bishop_pair = white_bishop && black_bishop;
-        if bishop_pair
-            || (bishops != EMPTY && knights != EMPTY)
-            || (knights.popcnt() == 2 && enemy_pawn_cnt != EMPTY)
-        {
-            return if board.color_combined(!side).popcnt() == 1 {
-                Checkmate::Certain
-            } else {
-                Checkmate::Unknown
-            };
+        if bishop_pair || single_piece_win || (bishops != EMPTY && knights != EMPTY) {
+            if board.color_combined(!side).popcnt() == 1 {
+                return Checkmate::Certain;
+            }
         }
-        let pawn_cnt = board.pieces(Piece::Pawn) & board.color_combined(side);
+        let pawn_cnt = board.pieces(Piece::Pawn) & pieces;
         if pawn_cnt == EMPTY {
             Checkmate::Impossible
         } else {
