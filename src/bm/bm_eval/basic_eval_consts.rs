@@ -188,7 +188,6 @@ pub const KING_TABLE: [[TaperedEval; 8]; 8] = generate_table(
 
 pub const TEMPO: i32 = 20;
 
-
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
@@ -197,6 +196,27 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 pub const THREAT_BY_KING: TaperedEval = TaperedEval(0, 30);
 pub const RESTRICTED: TaperedEval = TaperedEval(2, 2);
+
+pub const WHITE_SQUARES: u64 = 0b0101010101010101010101010101010101010101010101010101010101010101;
+pub const BLACK_SQUARES: u64 = !WHITE_SQUARES;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum OutcomeState {
+    Loss,       // This is a guaranteed draw
+    LikelyLoss, // I can't checkmate but the enemy can
+    Draw,       // This is a guaranteed draw
+    Unknown,    // Both sides can checkmate
+    LikelyWin,  // I can checkmate but the enemy can't
+    Win,        // This is a guaranteed win
+}
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Checkmate {
+    Impossible,
+    Unknown,
+    Certain,
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TaperedEval(pub i32, pub i32);
@@ -268,6 +288,7 @@ impl_tapered_eval_op_assign!(SubAssign, sub_assign);
 impl_tapered_eval_i32_op!(Add, add);
 impl_tapered_eval_i32_op!(Sub, sub);
 impl_tapered_eval_i32_op!(Mul, mul);
+impl_tapered_eval_i32_op!(Div, div);
 impl_tapered_eval_i32_op_assign!(AddAssign, add_assign);
 impl_tapered_eval_i32_op_assign!(SubAssign, sub_assign);
 impl_tapered_eval_i32_op_assign!(MulAssign, mul_assign);

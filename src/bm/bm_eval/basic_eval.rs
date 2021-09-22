@@ -319,13 +319,27 @@ impl Evaluator for BasicEval {
         let king_score =
             (w_king_threat.popcnt() as i32 - b_king_threat.popcnt() as i32) * THREAT_BY_KING;
 
-        let pawn_score =
-            self.get_pawn_score(white_pawns, black_pawns, w_pawn_attack, b_pawn_attack);
+        let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
         let white_score =
             psqt_score + pawn_score + safe_pawn_threat_score + restriction_score + king_score;
 
+        let white_score = match Self::outcome_state(board) {
+            OutcomeState::Loss => white_score - 10000,
+            OutcomeState::Draw => white_score / 10,
+            OutcomeState::Unknown => white_score,
+            OutcomeState::Win => white_score + 10000,
+            OutcomeState::LikelyLoss => {
+                let score = white_score.convert(phase);
+                return Evaluation::new(score.min(0) * turn);
+            }
+            OutcomeState::LikelyWin => {
+                let score = white_score.convert(phase);
+                return Evaluation::new(score.max(0) * turn);
+            }
+        };
         let score = turn * white_score;
+
         Evaluation::new(score.convert(phase) + TEMPO)
     }
 
@@ -345,13 +359,7 @@ impl BasicEval {
         }
     }
 
-    fn get_pawn_score(
-        &self,
-        white_pawns: BitBoard,
-        black_pawns: BitBoard,
-        w_pawn_attacks: BitBoard,
-        b_pawn_attacks: BitBoard,
-    ) -> TaperedEval {
+    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard) -> TaperedEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
@@ -402,5 +410,61 @@ impl BasicEval {
             psqt_score += table[rank][file]
         }
         psqt_score
+    }
+
+    fn outcome_state(board: &Board) -> OutcomeState {
+        let w_checkmate = Self::can_checkmate(board, Color::White);
+        let b_checkmate = Self::can_checkmate(board, Color::Black);
+        assert!(!(w_checkmate == Checkmate::Certain && b_checkmate == Checkmate::Certain));
+        if let Checkmate::Certain = w_checkmate {
+            return OutcomeState::Win;
+        } else if let Checkmate::Certain = b_checkmate {
+            return OutcomeState::Loss;
+        }
+        match (w_checkmate, b_checkmate) {
+            (Checkmate::Impossible, Checkmate::Impossible) => OutcomeState::Draw,
+            (Checkmate::Impossible, Checkmate::Unknown) => OutcomeState::LikelyLoss,
+            (Checkmate::Unknown, Checkmate::Impossible) => OutcomeState::LikelyWin,
+            (Checkmate::Unknown, Checkmate::Unknown) => OutcomeState::Unknown,
+            _ => {
+                unreachable!();
+            }
+        }
+    }
+
+    fn can_checkmate(board: &Board, side: Color) -> Checkmate {
+        let pieces = board.color_combined(side);
+        let king_only = pieces.popcnt() == 1;
+        if king_only {
+            return Checkmate::Impossible;
+        }
+        let enemy_pawn_cnt = board.pieces(Piece::Pawn) & board.color_combined(!side);
+        let single_piece_win =
+            pieces & (board.pieces(Piece::Rook) | board.pieces(Piece::Queen)) != EMPTY;
+
+        let knights = *board.pieces(Piece::Knight) & pieces;
+        let bishops = *board.pieces(Piece::Bishop) & pieces;
+
+        let bishop_cnt = bishops.popcnt();
+        let white_bishop = (BitBoard(WHITE_SQUARES) & bishops) != EMPTY;
+        let black_bishop = (BitBoard(BLACK_SQUARES) & bishops) != EMPTY;
+
+        let bishop_pair = white_bishop && black_bishop;
+        if bishop_pair
+            || (bishops != EMPTY && knights != EMPTY)
+            || (knights.popcnt() == 2 && enemy_pawn_cnt != EMPTY)
+        {
+            return if board.color_combined(!side).popcnt() == 1 {
+                Checkmate::Certain
+            } else {
+                Checkmate::Unknown
+            };
+        }
+        let pawn_cnt = board.pieces(Piece::Pawn) & board.color_combined(side);
+        if pawn_cnt == EMPTY {
+            Checkmate::Impossible
+        } else {
+            Checkmate::Unknown
+        }
     }
 }
