@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_RANKS, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -306,12 +306,13 @@ impl Evaluator for BasicEval {
         let b_protected = b_pawn_attack | (black_attacked & !white_attacked);
 
         let restriction = black_attacked & white_attacked;
-        let w_restriction_score = (restriction & !b_protected).popcnt();
-        let b_restriction_score = (restriction & !w_protected).popcnt();
+        let w_restriction_score = (restriction & b_protected).popcnt();
+        let b_restriction_score = (restriction & w_protected).popcnt();
         let restriction_score =
             (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
 
-        let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
+        let pawn_score =
+            self.get_pawn_score(white_pawns, black_pawns, w_pawn_attack, b_pawn_attack);
 
         let white_score = psqt_score + pawn_score + safe_pawn_threat_score + restriction_score;
 
@@ -335,7 +336,13 @@ impl BasicEval {
         }
     }
 
-    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard) -> TaperedEval {
+    fn get_pawn_score(
+        &self,
+        white_pawns: BitBoard,
+        black_pawns: BitBoard,
+        w_pawn_attacks: BitBoard,
+        b_pawn_attacks: BitBoard,
+    ) -> TaperedEval {
         let mut w_passed = 0;
         let mut b_passed = 0;
         for pawn in white_pawns {
@@ -359,7 +366,6 @@ impl BasicEval {
             w_isolated += 1_u32.saturating_sub((adj_files & white_pawns).popcnt());
             b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
-
         let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
         let doubled_score = (w_doubled as i32 - b_doubled as i32) * DOUBLED;
         let isolated_score = (w_isolated as i32 - b_isolated as i32) * ISOLATED;
