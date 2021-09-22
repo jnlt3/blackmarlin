@@ -22,34 +22,50 @@ use chess::MoveGen;
 
 pub trait SearchType {
     const DO_NULL_MOVE: bool;
-
     const IS_PV: bool;
-
+    const IS_ZW: bool;
     type OffPv: SearchType;
+    type ZeroWindow: SearchType;
 }
 
 pub struct Pv;
 
 pub struct NonPv;
 
+pub struct Zw;
+
 pub struct NullMove;
 
 impl SearchType for Pv {
     const DO_NULL_MOVE: bool = true;
     const IS_PV: bool = true;
+    const IS_ZW: bool = false;
     type OffPv = NonPv;
+    type ZeroWindow = Zw;
 }
 
 impl SearchType for NonPv {
     const DO_NULL_MOVE: bool = true;
     const IS_PV: bool = false;
+    const IS_ZW: bool = false;
     type OffPv = NonPv;
+    type ZeroWindow = Zw;
+}
+
+impl SearchType for Zw {
+    const DO_NULL_MOVE: bool = true;
+    const IS_PV: bool = false;
+    const IS_ZW: bool = true;
+    type OffPv = NonPv;
+    type ZeroWindow = Zw;
 }
 
 impl SearchType for NullMove {
     const DO_NULL_MOVE: bool = false;
     const IS_PV: bool = false;
+    const IS_ZW: bool = true;
     type OffPv = NullMove;
+    type ZeroWindow = NullMove;
 }
 
 const MIN_PIECE_CNT: u32 = 2;
@@ -290,7 +306,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
-            let (_, lmr_score) = search::<Search::OffPv, Eval>(
+            let (_, lmr_score) = search::<Search::ZeroWindow, Eval>(
                 position,
                 search_options,
                 ply + 1,
@@ -302,8 +318,8 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             score = lmr_score << Next;
 
             //Do Zero Window Search in case reduction wasn't zero
-            if reduction > 0 && score > alpha {
-                let (_, zw_score) = search::<Search::OffPv, Eval>(
+            if !Search::IS_ZW && reduction > 0 && score > alpha {
+                let (_, zw_score) = search::<Search::ZeroWindow, Eval>(
                     position,
                     search_options,
                     ply + 1,
