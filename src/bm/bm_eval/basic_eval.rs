@@ -2,7 +2,7 @@ use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_RANKS, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -302,15 +302,6 @@ impl Evaluator for BasicEval {
             - b_safe_pawn_threats.popcnt() as i32)
             * THREAT_BY_SAFE_PAWN;
 
-        let w_protected = w_pawn_attack | (white_attacked & !black_attacked);
-        let b_protected = b_pawn_attack | (black_attacked & !white_attacked);
-
-        let restriction = black_attacked & white_attacked;
-        let w_restriction_score = (restriction & b_protected).popcnt();
-        let b_restriction_score = (restriction & w_protected).popcnt();
-        let restriction_score =
-            (w_restriction_score as i32 - b_restriction_score as i32) * RESTRICTED;
-
         let w_king_threat =
             chess::get_king_moves(board.king_square(Color::White)) & black & !black_attacked;
         let b_king_threat =
@@ -321,8 +312,7 @@ impl Evaluator for BasicEval {
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-        let white_score =
-            psqt_score + pawn_score + safe_pawn_threat_score + restriction_score + king_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + king_score;
         let white_score = white_score.convert(phase);
         let white_score = match Self::outcome_state(board) {
             OutcomeState::Loss => white_score - 10000,
@@ -445,10 +435,10 @@ impl BasicEval {
         let black_bishop = (BitBoard(BLACK_SQUARES) & bishops) != EMPTY;
 
         let bishop_pair = white_bishop && black_bishop;
-        if bishop_pair || single_piece_win || (bishops != EMPTY && knights != EMPTY) {
-            if board.color_combined(!side).popcnt() == 1 {
-                return Checkmate::Certain;
-            }
+        if (bishop_pair || single_piece_win || (bishops != EMPTY && knights != EMPTY))
+            && board.color_combined(!side).popcnt() == 1
+        {
+            return Checkmate::Certain;
         }
         let pawn_cnt = board.pieces(Piece::Pawn) & pieces;
         if pawn_cnt == EMPTY {

@@ -10,7 +10,6 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
 use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
 
-use crate::bm::bm_util::c_hist::PieceTo;
 use crate::bm::bm_util::evaluator::Evaluator;
 
 #[cfg(feature = "advanced_move_gen")]
@@ -224,13 +223,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         MoveEntry::new()
     };
 
-    let mut piece_to = None;
-    if let Some(prev_move) = position.prev_move() {
-        piece_to = Some(PieceTo {
-            piece: board.piece_on(prev_move.get_dest()).unwrap(),
-            to: prev_move.get_dest(),
-        });
-    }
     let move_gen;
     #[cfg(feature = "advanced_move_gen")]
     {
@@ -240,7 +232,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             threat_move_entry.into_iter(),
             search_options.get_k_table()[ply as usize].into_iter(),
             search_options,
-            piece_to,
         );
     }
 
@@ -364,29 +355,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
                         make_move.get_dest(),
                         depth * depth,
                     );
-                    if let Some(piece_to) = piece_to {
-                        let c_hist = search_options.get_c_hist();
-                        c_hist.add(
-                            !color,
-                            piece_to.piece,
-                            piece_to.to,
-                            moved_piece,
-                            make_move.get_dest(),
-                            depth,
-                        );
-
-                        let c_table = search_options.get_c_table();
-                        c_table.add(!color, piece_to.piece, piece_to.to, make_move);
-                    }
-                } else {
-                    let ch_table = search_options.get_ch_table();
-                    ch_table.add(
-                        color,
-                        board.piece_on(make_move.get_source()).unwrap(),
-                        make_move.get_dest(),
-                        board.piece_on(make_move.get_dest()).unwrap(),
-                        depth,
-                    );
                 }
                 let analysis = Analysis::new(depth, LowerBound(score), make_move);
                 search_options.get_t_table().set(position, &analysis);
@@ -459,10 +427,7 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
     #[cfg(not(feature = "q_search_move_ord"))]
     let move_gen = MoveGen::new_legal(&board);
     #[cfg(feature = "q_search_move_ord")]
-    let move_gen = QuiescenceSearchMoveGen::<Eval, { SEARCH_PARAMS.do_see_prune() }>::new(
-        &board,
-        search_options,
-    );
+    let move_gen = QuiescenceSearchMoveGen::<Eval, { SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
 

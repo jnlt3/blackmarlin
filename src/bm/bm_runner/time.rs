@@ -224,7 +224,7 @@ impl TimeManager for ManualAbort {
         self.abort.store(false, Ordering::SeqCst);
     }
 
-    fn abort(&self, start: Instant) -> bool {
+    fn abort(&self, _: Instant) -> bool {
         self.abort.load(Ordering::SeqCst)
     }
 

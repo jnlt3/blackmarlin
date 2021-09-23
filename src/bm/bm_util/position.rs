@@ -32,12 +32,7 @@ impl Position {
     pub fn board(&self) -> &Board {
         &self.board[self.board.len() - 1]
     }
-
-    #[inline]
-    pub fn prev_move(&self) -> Option<ChessMove> {
-        self.moves.last().copied().unwrap_or(None)
-    }
-
+    
     #[inline]
     pub fn null_move(&mut self) -> bool {
         if let Some(new_board) = self.board().null_move() {

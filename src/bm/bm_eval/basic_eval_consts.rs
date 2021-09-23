@@ -195,7 +195,6 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 pub const THREAT_BY_KING: TaperedEval = TaperedEval(0, 30);
-pub const RESTRICTED: TaperedEval = TaperedEval(2, 2);
 
 pub const WHITE_SQUARES: u64 = 0b0101010101010101010101010101010101010101010101010101010101010101;
 pub const BLACK_SQUARES: u64 = !WHITE_SQUARES;

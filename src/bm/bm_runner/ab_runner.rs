@@ -13,9 +13,6 @@ use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_search::threshold::Threshold;
-use crate::bm::bm_util::c_hist::CMoveHistoryTable;
-use crate::bm::bm_util::c_move::CounterMoveTable;
-use crate::bm::bm_util::ch_table::CaptureHistoryTable;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
 use crate::bm::bm_util::lookup::{LookUp, LookUp2d};
@@ -169,11 +166,8 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
     window: Window,
     t_table: Arc<TranspositionTable>,
     h_table: Arc<HistoryTable>,
-    ch_table: Arc<CaptureHistoryTable>,
-    c_hist: Arc<CMoveHistoryTable>,
-    c_table: Arc<CounterMoveTable>,
-    killer_moves: Vec<MoveEntry<KILLER_MOVE_CNT>>,
-    threat_moves: Vec<MoveEntry<THREAT_MOVE_CNT>>,
+    killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
+    threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
     tt_hits: u32,
@@ -205,21 +199,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     #[inline]
     pub fn get_h_table(&self) -> &Arc<HistoryTable> {
         &self.h_table
-    }
-
-    #[inline]
-    pub fn get_ch_table(&self) -> &Arc<CaptureHistoryTable> {
-        &self.ch_table
-    }
-
-    #[inline]
-    pub fn get_c_hist(&self) -> &Arc<CMoveHistoryTable> {
-        &self.c_hist
-    }
-
-    #[inline]
-    pub fn get_c_table(&self) -> &Arc<CounterMoveTable> {
-        &self.c_table
     }
 
     #[inline]
@@ -374,9 +353,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 t_table: Arc::new(TranspositionTable::new(2_usize.pow(21))),
                 h_table: Arc::new(HistoryTable::new()),
-                ch_table: Arc::new(CaptureHistoryTable::new()),
-                c_hist: Arc::new(CMoveHistoryTable::new()),
-                c_table: Arc::new(CounterMoveTable::new()),
                 killer_moves: Vec::new(),
                 threat_moves: Vec::new(),
                 lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
@@ -450,9 +426,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
 
     fn set_board(&mut self, board: Board) {
         self.search_options.h_table.for_all(|_| 0);
-        self.search_options.c_hist.for_all(|_| 0);
-        self.search_options.ch_table.for_all(|_| 0);
-        self.search_options.c_table.clear();
         self.search_options.t_table.clean();
         self.position = Position::new(board);
         self.search_options.eval().clear_cache();
@@ -461,8 +434,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
 
     fn make_move(&mut self, make_move: ChessMove) {
         self.search_options.h_table.for_all(|weight| weight / 8);
-        self.search_options.c_hist.for_all(|weight| weight / 8);
-        self.search_options.ch_table.for_all(|weight| weight / 8);
         self.position.make_move(make_move);
         self.search_options.eval().clear_cache();
     }

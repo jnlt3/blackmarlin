@@ -1,10 +1,7 @@
-use chess::{Board, ChessMove, MoveGen, Piece, EMPTY};
+use chess::{Board, ChessMove, MoveGen, EMPTY};
 
 use crate::bm::bm_runner::ab_runner::SearchOptions;
 
-use crate::bm::bm_util::c_hist::{CMoveHistoryTable, PieceTo};
-
-use crate::bm::bm_util::ch_table::CaptureHistoryTable;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
 use arrayvec::ArrayVec;
@@ -12,11 +9,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
-
-const C_HIST_FACTOR: i32 = 1;
-const C_HIST_DIVISOR: i32 = 400;
-const CH_TABLE_FACTOR: i32 = 1;
-const CH_TABLE_DIVISOR: i32 = 8;
 
 const MAX_MOVES: usize = 218;
 const MAX_PROMO_MOVES: usize = 14;
@@ -79,10 +71,6 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
     hist: Arc<HistoryTable>,
-    c_hist: Arc<CaptureHistoryTable>,
-    c_move_hist: Arc<CMoveHistoryTable>,
-    counter_move: Option<ChessMove>,
-    prev_move: Option<PieceTo>,
     gen_type: GenType,
     board: Board,
 
@@ -104,15 +92,7 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
         options: &SearchOptions<Eval>,
-        prev_move: Option<PieceTo>,
     ) -> Self {
-        let mut counter_move = None;
-        if let Some(piece_to) = prev_move {
-            counter_move =
-                options
-                    .get_c_table()
-                    .get(!board.side_to_move(), piece_to.piece, piece_to.to);
-        }
         Self {
             gen_type: GenType::PvMove,
             move_gen: MoveGen::new_legal(board),
@@ -120,10 +100,6 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
             threat_move_entry,
             killer_entry,
             hist: options.get_h_table().clone(),
-            c_hist: options.get_ch_table().clone(),
-            counter_move,
-            prev_move,
-            c_move_hist: options.get_c_hist().clone(),
             board: *board,
             queue: ArrayVec::new(),
             queen_promo: ArrayVec::new(),
@@ -161,20 +137,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             GenType::CalcCaptures => {
                 self.move_gen.set_iterator_mask(*self.board.combined());
                 for make_move in &mut self.move_gen {
-                    let mut expected_gain = Eval::see(self.board, make_move);
-
-                    #[cfg(feature = "c_hist")]
-                    {
-                        let history_gain = self.c_hist.get(
-                            self.board.side_to_move(),
-                            self.board.piece_on(make_move.get_source()).unwrap(),
-                            make_move.get_dest(),
-                            self.board.piece_on(make_move.get_dest()).unwrap(),
-                        ) as i32
-                            * C_HIST_FACTOR
-                            / C_HIST_DIVISOR;
-                        expected_gain += history_gain;
-                    }
+                    let expected_gain = Eval::see(self.board, make_move);
                     let pos = self
                         .queue
                         .binary_search_by_key(&expected_gain, |(_, score)| *score)
@@ -208,33 +171,14 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                             }
                         };
                     }
-                    let piece = self.board.piece_on(make_move.get_source()).unwrap();
-                    #[cfg(feature = "c_move")]
-                    {
-                        if Some(make_move) == self.counter_move {
-                            return Some(make_move);
-                        }
-                    }
                     let mut score = 0;
+                    let piece = self.board.piece_on(make_move.get_source()).unwrap();
                     #[cfg(feature = "hist")]
                     {
                         score +=
                             self.hist
                                 .get(self.board.side_to_move(), piece, make_move.get_dest())
                                 as i32;
-                    }
-
-                    #[cfg(feature = "cmh_table")]
-                    if let Some(last_move) = &self.prev_move {
-                        let counter_move_hist = self.c_move_hist.get(
-                            !self.board.side_to_move(),
-                            last_move.piece,
-                            last_move.to,
-                            self.board.piece_on(make_move.get_source()).unwrap(),
-                            make_move.get_dest(),
-                        ) * CH_TABLE_FACTOR as u32
-                            / CH_TABLE_DIVISOR as u32;
-                        score += counter_move_hist as i32;
                     }
                     let pos = self.queue[partition..]
                         .binary_search_by_key(&score, |(_, score)| *score)
@@ -318,21 +262,19 @@ pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
     move_gen: MoveGen,
     board: Board,
     gen_type: QSearchGenType,
-    queue: ArrayVec<(ChessMove, i32), 218>,
-    c_hist: Arc<CaptureHistoryTable>,
+    queue: ArrayVec<(ChessMove, i32), MAX_MOVES>,
 
     eval: PhantomData<Eval>,
 }
 
 #[cfg(feature = "q_search_move_ord")]
 impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
-    pub fn new(board: &Board, options: &SearchOptions<Eval>) -> Self {
+    pub fn new(board: &Board) -> Self {
         Self {
             board: *board,
             move_gen: MoveGen::new_legal(board),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
-            c_hist: options.get_ch_table().clone(),
             eval: Default::default(),
         }
     }
@@ -346,19 +288,7 @@ impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGe
         if self.gen_type == QSearchGenType::CalcCaptures {
             self.move_gen.set_iterator_mask(*self.board.combined());
             for make_move in &mut self.move_gen {
-                let mut expected_gain = Eval::see(self.board, make_move);
-                #[cfg(feature = "q_c_hist")]
-                {
-                    let history_gain = self.c_hist.get(
-                        self.board.side_to_move(),
-                        self.board.piece_on(make_move.get_source()).unwrap(),
-                        make_move.get_dest(),
-                        self.board.piece_on(make_move.get_dest()).unwrap(),
-                    ) as i32
-                        * C_HIST_FACTOR
-                        / C_HIST_DIVISOR;
-                    expected_gain += history_gain;
-                }
+                let expected_gain = Eval::see(self.board, make_move);
                 if !SEE_PRUNE || expected_gain > -1 {
                     let pos = self
                         .queue
