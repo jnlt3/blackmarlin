@@ -1,4 +1,6 @@
-use chess::{Board, ChessMove, Color};
+use chess::{BitBoard, Board, ChessMove, Color};
+
+use super::access::BbRepr;
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -32,7 +34,7 @@ impl Position {
     pub fn board(&self) -> &Board {
         &self.board[self.board.len() - 1]
     }
-    
+
     #[inline]
     pub fn null_move(&mut self) -> bool {
         if let Some(new_board) = self.board().null_move() {
@@ -54,7 +56,8 @@ impl Position {
 
     #[inline]
     pub fn make_move(&mut self, make_move: ChessMove) {
-        self.board.push(self.board().make_move_new(make_move));
+        let board = self.board().make_move_new(make_move);
+        self.board.push(board);
         self.moves.push(Some(make_move));
     }
 
@@ -67,5 +70,10 @@ impl Position {
     #[inline]
     pub fn hash(&self) -> u64 {
         self.board().get_hash()
+    }
+
+    #[inline]
+    pub fn access<T: BbRepr>(&self) -> BitBoard {
+        T::get_bit_board(self.board())
     }
 }

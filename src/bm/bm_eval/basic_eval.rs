@@ -1,5 +1,7 @@
+use crate::access;
 use crate::bm::bm_eval::basic_eval_consts::*;
 use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_util::access::*;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
@@ -70,6 +72,21 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
     }
     data
 }
+pub type WhiteNonKingAttacks = access!(
+    WhitePawnAttacks
+        | WhiteKnightAttacks
+        | WhiteBishopAttacks
+        | WhiteRookAttacks
+        | WhiteQueenAttacks
+);
+pub type BlackNonKingAttacks = access!(
+    BlackPawnAttacks
+        | BlackKnightAttacks
+        | BlackBishopAttacks
+        | BlackRookAttacks
+        | BlackQueenAttacks
+);
+
 
 const DATA: BasicEvalData = get_basic_eval_data();
 
@@ -175,12 +192,12 @@ impl Evaluator for BasicEval {
 
         let turn = position.turn();
 
-        let pawns = *board.pieces(Piece::Pawn);
-        let knights = *board.pieces(Piece::Knight);
-        let bishops = *board.pieces(Piece::Bishop);
-        let rooks = *board.pieces(Piece::Rook);
-        let queens = *board.pieces(Piece::Queen);
-        let kings = *board.pieces(Piece::King);
+        let pawns = position.access::<Pawns>();
+        let knights = position.access::<Knights>();
+        let bishops = position.access::<Bishops>();
+        let rooks = position.access::<Rooks>();
+        let queens = position.access::<Queens>();
+        let kings = position.access::<Kings>();
 
         let phase = TOTAL_PHASE.saturating_sub(
             pawns.popcnt() * PAWN_PHASE
@@ -190,8 +207,8 @@ impl Evaluator for BasicEval {
                 + queens.popcnt() * QUEEN_PHASE,
         ) as i32;
 
-        let white = *board.color_combined(Color::White);
-        let black = *board.color_combined(Color::Black);
+        let white = position.access::<White>();
+        let black = position.access::<Black>();
 
         let white_pawns = pawns & white;
         let white_knights = knights & white;
@@ -224,57 +241,8 @@ impl Evaluator for BasicEval {
 
         let psqt_score = white_psqt_score - black_psqt_score;
 
-        let mut white_attacked = EMPTY;
-        let mut black_attacked = EMPTY;
-
-        let mut w_pawn_attack = EMPTY;
-        let mut b_pawn_attack = EMPTY;
-
-        for pawn in white_pawns {
-            let attacks = chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
-            white_attacked |= attacks;
-            w_pawn_attack |= attacks;
-        }
-        for knight in white_knights {
-            let attacks = chess::get_knight_moves(knight);
-            white_attacked |= attacks;
-        }
-        for bishop in white_bishops {
-            let attacks = chess::get_bishop_moves(bishop, EMPTY);
-            white_attacked |= attacks;
-        }
-        for rook in white_rooks {
-            let attacks = chess::get_rook_moves(rook, EMPTY);
-            white_attacked |= attacks;
-        }
-        for queen in white_queens {
-            let attacks =
-                chess::get_bishop_moves(queen, EMPTY) | chess::get_rook_moves(queen, EMPTY);
-            white_attacked |= attacks;
-        }
-
-        for pawn in black_pawns {
-            let attacks = chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
-            black_attacked |= attacks;
-            b_pawn_attack |= attacks;
-        }
-        for knight in black_knights {
-            let attacks = chess::get_knight_moves(knight);
-            black_attacked |= attacks;
-        }
-        for bishop in black_bishops {
-            let attacks = chess::get_bishop_moves(bishop, EMPTY);
-            black_attacked |= attacks;
-        }
-        for rook in black_rooks {
-            let attacks = chess::get_rook_moves(rook, EMPTY);
-            black_attacked |= attacks;
-        }
-        for queen in black_queens {
-            let attacks =
-                chess::get_bishop_moves(queen, EMPTY) | chess::get_rook_moves(queen, EMPTY);
-            black_attacked |= attacks;
-        }
+        let white_attacked = position.access::<WhiteNonKingAttacks>();
+        let black_attacked = position.access::<BlackNonKingAttacks>();
 
         let w_safe_squares = !black_attacked | white_attacked;
         let w_safe_pawns = white_pawns & w_safe_squares;
@@ -302,17 +270,21 @@ impl Evaluator for BasicEval {
             - b_safe_pawn_threats.popcnt() as i32)
             * THREAT_BY_SAFE_PAWN;
 
-        let w_king_threat =
-            chess::get_king_moves(board.king_square(Color::White)) & black & !black_attacked;
-        let b_king_threat =
-            chess::get_king_moves(board.king_square(Color::Black)) & white & !white_attacked;
+        let w_king_threat = position.access::<WhiteKingAttacks>() & black & !black_attacked;
+        let b_king_threat = position.access::<BlackKingAttacks>() & white & !white_attacked;
 
         let king_score =
             (w_king_threat.popcnt() as i32 - b_king_threat.popcnt() as i32) * THREAT_BY_KING;
 
+        let w_hanging = (position.access::<BlackPawnAttacks>() | !w_safe_squares) & white;
+        let b_hanging = (position.access::<WhitePawnAttacks>() | !b_safe_squares) & black;
+
+        let hanging_score = (w_hanging.popcnt() as i32 - b_hanging.popcnt() as i32) * HANGING;
+
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + king_score;
+        let white_score =
+            psqt_score + pawn_score + safe_pawn_threat_score + king_score + hanging_score;
         let white_score = white_score.convert(phase);
         let white_score = match Self::outcome_state(board) {
             OutcomeState::Loss => white_score - 10000,
