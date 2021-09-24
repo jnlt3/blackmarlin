@@ -13,6 +13,9 @@ codegen-units = 1
 opt-level = 3
 
 
+[profile.dev.build-override]
+opt-level = 3
+
 [dependencies]
 chess = "3.2.0"
 text_io = "0.1.8"
@@ -40,7 +43,7 @@ q_search_move_ord = [] # use move ordering in quiescence search
 promo_move_ord = []
 
 all_hist = ["hist"]
-hist = []                                    # counter move history table
+hist = []           # counter move history table
 
 all_move = ["pv", "killer", "threat"]
 pv = []                               # use pv in move generation
