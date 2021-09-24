@@ -7,6 +7,8 @@ pub trait Attacker {
     fn get_attacks(squares: BitBoard, blockers: BitBoard) -> BitBoard;
 }
 
+pub trait Side {}
+
 impl<T: Attacker, U: Attacker> Attacker for (T, U) {
     fn get_attacks(squares: BitBoard, blockers: BitBoard) -> BitBoard {
         T::get_attacks(squares, blockers) | U::get_attacks(squares, blockers)
@@ -75,6 +77,9 @@ impl_bb_type!(Bishops, board, *board.pieces(Piece::Bishop));
 impl_bb_type!(Rooks, board, *board.pieces(Piece::Rook));
 impl_bb_type!(Queens, board, *board.pieces(Piece::Queen));
 impl_bb_type!(Kings, board, *board.pieces(Piece::King));
+
+impl Side for White {}
+impl Side for Black {}
 
 impl Attacker for (White, Pawns) {
     fn get_attacks(squares: BitBoard, blockers: BitBoard) -> BitBoard {
@@ -171,16 +176,9 @@ macro_rules! access {
     };
 }
 
-pub type WhitePawnAttacks = AttacksOf<And<White, Pawns>, All, (White, Pawns)>;
-pub type WhiteKnightAttacks = attack_type!(White, Knights);
-pub type WhiteBishopAttacks = attack_type!(White, Bishops);
-pub type WhiteRookAttacks = attack_type!(White, Rooks);
-pub type WhiteQueenAttacks = attack_type!(White, Queens);
-pub type WhiteKingAttacks = attack_type!(White, Kings);
-
-pub type BlackPawnAttacks = AttacksOf<And<Black, Pawns>, All, (Black, Pawns)>;
-pub type BlackKnightAttacks = attack_type!(Black, Knights);
-pub type BlackBishopAttacks = attack_type!(Black, Bishops);
-pub type BlackRookAttacks = attack_type!(Black, Rooks);
-pub type BlackQueenAttacks = attack_type!(Black, Queens);
-pub type BlackKingAttacks = attack_type!(Black, Kings);
+pub type PawnAttacks<Side> = AttacksOf<And<Side, Pawns>, All, (Side, Pawns)>;
+pub type KnightAttacks<Side> = attack_type!(Side, Knights);
+pub type BishopAttacks<Side> = attack_type!(Side, Bishops);
+pub type RookAttacks<Side> = attack_type!(Side, Rooks);
+pub type QueenAttacks<Side> = attack_type!(Side, Queens);
+pub type KingAttacks<Side> = attack_type!(Side, Kings);

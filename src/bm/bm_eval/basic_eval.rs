@@ -72,21 +72,13 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
     }
     data
 }
-pub type WhiteNonKingAttacks = access!(
-    WhitePawnAttacks
-        | WhiteKnightAttacks
-        | WhiteBishopAttacks
-        | WhiteRookAttacks
-        | WhiteQueenAttacks
+pub type NonKingAttacks<Side> = access!(
+    PawnAttacks<Side>
+        | KnightAttacks<Side>
+        | BishopAttacks<Side>
+        | RookAttacks<Side>
+        | QueenAttacks<Side>
 );
-pub type BlackNonKingAttacks = access!(
-    BlackPawnAttacks
-        | BlackKnightAttacks
-        | BlackBishopAttacks
-        | BlackRookAttacks
-        | BlackQueenAttacks
-);
-
 
 const DATA: BasicEvalData = get_basic_eval_data();
 
@@ -241,8 +233,8 @@ impl Evaluator for BasicEval {
 
         let psqt_score = white_psqt_score - black_psqt_score;
 
-        let white_attacked = position.access::<WhiteNonKingAttacks>();
-        let black_attacked = position.access::<BlackNonKingAttacks>();
+        let white_attacked = position.access::<NonKingAttacks<White>>();
+        let black_attacked = position.access::<NonKingAttacks<Black>>();
 
         let w_safe_squares = !black_attacked | white_attacked;
         let w_safe_pawns = white_pawns & w_safe_squares;
@@ -270,14 +262,14 @@ impl Evaluator for BasicEval {
             - b_safe_pawn_threats.popcnt() as i32)
             * THREAT_BY_SAFE_PAWN;
 
-        let w_king_threat = position.access::<WhiteKingAttacks>() & black & !black_attacked;
-        let b_king_threat = position.access::<BlackKingAttacks>() & white & !white_attacked;
+        let w_king_threat = position.access::<KingAttacks<White>>() & black & !black_attacked;
+        let b_king_threat = position.access::<KingAttacks<Black>>() & white & !white_attacked;
 
         let king_score =
             (w_king_threat.popcnt() as i32 - b_king_threat.popcnt() as i32) * THREAT_BY_KING;
 
-        let w_hanging = (position.access::<BlackPawnAttacks>() | !w_safe_squares) & white;
-        let b_hanging = (position.access::<WhitePawnAttacks>() | !b_safe_squares) & black;
+        let w_hanging = (position.access::<PawnAttacks<White>>() | !w_safe_squares) & white;
+        let b_hanging = (position.access::<PawnAttacks<Black>>() | !b_safe_squares) & black;
 
         let hanging_score = (w_hanging.popcnt() as i32 - b_hanging.popcnt() as i32) * HANGING;
 
