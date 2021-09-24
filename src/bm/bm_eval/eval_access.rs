@@ -63,7 +63,7 @@ impl<'a> EvalResource<'a> {
     }
 }
 
-macro_rules! impl_query {
+macro_rules! impl_access {
     ($name:ident, $res:ident, $func:expr) => {
         pub struct $name;
 
@@ -75,14 +75,14 @@ macro_rules! impl_query {
     };
 }
 
-impl_query!(Pawns, res, *res.board.pieces(Piece::Pawn));
-impl_query!(Knights, res, *res.board.pieces(Piece::Knight));
-impl_query!(Bishops, res, *res.board.pieces(Piece::Bishop));
-impl_query!(Rooks, res, *res.board.pieces(Piece::Rook));
-impl_query!(Queens, res, *res.board.pieces(Piece::Queen));
-impl_query!(Kings, res, *res.board.pieces(Piece::King));
-impl_query!(White, res, *res.board.color_combined(Color::White));
-impl_query!(Black, res, *res.board.color_combined(Color::Black));
-impl_query!(All, res, *res.board.combined());
-impl_query!(WhiteNonKingAttack, res, res.w_attack);
-impl_query!(BlackNonKingAttack, res, res.b_attack);
+impl_access!(Pawns, res, *res.board.pieces(Piece::Pawn));
+impl_access!(Knights, res, *res.board.pieces(Piece::Knight));
+impl_access!(Bishops, res, *res.board.pieces(Piece::Bishop));
+impl_access!(Rooks, res, *res.board.pieces(Piece::Rook));
+impl_access!(Queens, res, *res.board.pieces(Piece::Queen));
+impl_access!(Kings, res, *res.board.pieces(Piece::King));
+impl_access!(White, res, *res.board.color_combined(Color::White));
+impl_access!(Black, res, *res.board.color_combined(Color::Black));
+impl_access!(All, res, *res.board.combined());
+impl_access!(WhiteNonKingAttack, res, res.w_attack);
+impl_access!(BlackNonKingAttack, res, res.b_attack);
