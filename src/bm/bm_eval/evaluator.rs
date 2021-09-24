@@ -1,10 +1,11 @@
-use crate::access;
-use crate::bm::bm_eval::basic_eval_consts::*;
+use super::eval_access::*;
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_util::access::*;
+use crate::bm::bm_eval::eval_consts::*;
 use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::position::Position;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
+
+use super::eval_access::EvalResource;
 
 const PIECES: [Piece; 6] = [
     Piece::Pawn,
@@ -16,13 +17,13 @@ const PIECES: [Piece; 6] = [
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BasicEvalData {
+pub struct EvalData {
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
 }
 
-pub const fn get_basic_eval_data() -> BasicEvalData {
-    let mut data = BasicEvalData {
+pub const fn get_basic_eval_data() -> EvalData {
+    let mut data = EvalData {
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
     };
@@ -72,20 +73,13 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
     }
     data
 }
-pub type NonKingAttacks<Side> = access!(
-    PawnAttacks<Side>
-        | KnightAttacks<Side>
-        | BishopAttacks<Side>
-        | RookAttacks<Side>
-        | QueenAttacks<Side>
-);
 
-const DATA: BasicEvalData = get_basic_eval_data();
+const DATA: EvalData = get_basic_eval_data();
 
 #[derive(Debug, Clone)]
-pub struct BasicEval;
+pub struct StdEvaluator;
 
-impl Evaluator for BasicEval {
+impl Evaluator for StdEvaluator {
     fn new() -> Self {
         Self
     }
@@ -181,15 +175,16 @@ impl Evaluator for BasicEval {
      */
     fn evaluate(&mut self, position: &Position) -> Evaluation {
         let board = position.board();
+        let res = EvalResource::new(board);
 
         let turn = position.turn();
 
-        let pawns = position.access::<Pawns>();
-        let knights = position.access::<Knights>();
-        let bishops = position.access::<Bishops>();
-        let rooks = position.access::<Rooks>();
-        let queens = position.access::<Queens>();
-        let kings = position.access::<Kings>();
+        let pawns = res.get::<Pawns>();
+        let knights = res.get::<Knights>();
+        let bishops = res.get::<Bishops>();
+        let rooks = res.get::<Rooks>();
+        let queens = res.get::<Queens>();
+        let kings = res.get::<Kings>();
 
         let phase = TOTAL_PHASE.saturating_sub(
             pawns.popcnt() * PAWN_PHASE
@@ -199,8 +194,8 @@ impl Evaluator for BasicEval {
                 + queens.popcnt() * QUEEN_PHASE,
         ) as i32;
 
-        let white = position.access::<White>();
-        let black = position.access::<Black>();
+        let white = res.get::<White>();
+        let black = res.get::<Black>();
 
         let white_pawns = pawns & white;
         let white_knights = knights & white;
@@ -233,8 +228,8 @@ impl Evaluator for BasicEval {
 
         let psqt_score = white_psqt_score - black_psqt_score;
 
-        let white_attacked = position.access::<NonKingAttacks<White>>();
-        let black_attacked = position.access::<NonKingAttacks<Black>>();
+        let white_attacked = res.get::<WhiteNonKingAttack>();
+        let black_attacked = res.get::<BlackNonKingAttack>();
 
         let w_safe_squares = !black_attacked | white_attacked;
         let w_safe_pawns = white_pawns & w_safe_squares;
@@ -285,7 +280,7 @@ impl Evaluator for BasicEval {
     fn clear_cache(&mut self) {}
 }
 
-impl BasicEval {
+impl StdEvaluator {
     //TODO: investigate tapered evaluation
     fn piece_pts(piece: Piece) -> i32 {
         match piece {

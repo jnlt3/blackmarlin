@@ -1,6 +1,4 @@
-use chess::{BitBoard, Board, ChessMove, Color};
-
-use super::access::BbRepr;
+use chess::{Board, ChessMove, Color};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -70,10 +68,5 @@ impl Position {
     #[inline]
     pub fn hash(&self) -> u64 {
         self.board().get_hash()
-    }
-
-    #[inline]
-    pub fn access<T: BbRepr>(&self) -> BitBoard {
-        T::get_bit_board(self.board())
     }
 }

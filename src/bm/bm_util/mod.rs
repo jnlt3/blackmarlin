@@ -1,4 +1,3 @@
-pub mod access;
 pub mod diagnostics;
 pub mod evaluator;
 pub mod h_table;
