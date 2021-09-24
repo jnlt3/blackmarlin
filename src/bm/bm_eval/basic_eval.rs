@@ -34,6 +34,7 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
             let king = (king_rank * 8 + king_file) as usize;
             let mut w_ahead = 0_u64;
             let mut b_ahead = 0_u64;
+
             {
                 let king_rank = king_rank as i32;
                 let king_file = king_file as i32;
@@ -65,7 +66,6 @@ pub const fn get_basic_eval_data() -> BasicEvalData {
             }
             data.w_ahead[king] = BitBoard(w_ahead);
             data.b_ahead[king] = BitBoard(b_ahead);
-
             king_file += 1;
         }
         king_rank += 1;
@@ -262,21 +262,9 @@ impl Evaluator for BasicEval {
             - b_safe_pawn_threats.popcnt() as i32)
             * THREAT_BY_SAFE_PAWN;
 
-        let w_king_threat = position.access::<KingAttacks<White>>() & black & !black_attacked;
-        let b_king_threat = position.access::<KingAttacks<Black>>() & white & !white_attacked;
-
-        let king_score =
-            (w_king_threat.popcnt() as i32 - b_king_threat.popcnt() as i32) * THREAT_BY_KING;
-
-        let w_hanging = (position.access::<PawnAttacks<White>>() | !w_safe_squares) & white;
-        let b_hanging = (position.access::<PawnAttacks<Black>>() | !b_safe_squares) & black;
-
-        let hanging_score = (w_hanging.popcnt() as i32 - b_hanging.popcnt() as i32) * HANGING;
-
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-        let white_score =
-            psqt_score + pawn_score + safe_pawn_threat_score + king_score + hanging_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score;
         let white_score = white_score.convert(phase);
         let white_score = match Self::outcome_state(board) {
             OutcomeState::Loss => white_score - 10000,
