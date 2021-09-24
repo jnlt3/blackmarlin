@@ -24,19 +24,15 @@ arrayvec = "0.7.1"
 
 [features]
 standard = ["all_hist", "advanced_move_gen", "all_move", "q_search_move_ord"]
-experimental = ["standard", "new_eval"]
 all = [
     "all_hist",
     "advanced_move_gen",
     "q_search_move_ord",
     "all_move",
     "promo_move_ord",
-    "new_eval",
     "jem",
 ]
 jem = ["jemallocator"]
-
-new_eval = []
 
 advanced_move_gen = [] # more advanced move generation
 q_search_move_ord = [] # use move ordering in quiescence search
