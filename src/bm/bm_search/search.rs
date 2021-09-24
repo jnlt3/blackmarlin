@@ -81,6 +81,11 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     if ply != 0 && search_options.abort() {
         return (None, Evaluation::new(0));
     }
+
+    if position.three_fold_repetition() {
+        *nodes += 1;
+        return (None, Evaluation::new(0));
+    }
     if ply >= target_ply {
         return (
             None,
@@ -97,10 +102,6 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     }
     let tt_entry = search_options.get_t_table().get(position);
     *nodes += 1;
-
-    if position.three_fold_repetition() {
-        return (None, Evaluation::new(0));
-    }
 
     let mut best_move = None;
 
@@ -398,10 +399,6 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
     nodes: &mut u32,
 ) -> Evaluation {
     *nodes += 1;
-
-    if position.three_fold_repetition() {
-        return Evaluation::new(0);
-    }
     if ply >= target_ply {
         return search_options.eval().evaluate(position);
     }
