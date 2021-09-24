@@ -35,7 +35,7 @@ pub const DO_DELTA_PRUNE: bool = true;
 pub const DO_SEE_PRUNE: bool = true;
 
 pub const FAIL_CNT: u8 = 10;
-pub const WINDOW_START: i32 = 15;
+pub const WINDOW_START: i32 = 25;
 pub const WINDOW_FACTOR: i32 = 1;
 pub const WINDOW_DIVISOR: i32 = 4;
 pub const WINDOW_ADD: i32 = 5;

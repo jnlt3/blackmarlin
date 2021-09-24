@@ -255,13 +255,13 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                 let mut fail_cnt = 0;
                 let mut fail_high_cnt = 0_u32;
                 search_options.window.reset();
-                let (alpha, beta) = if depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt {
-                    search_options.window.get()
-                } else {
-                    (Evaluation::min(), Evaluation::max())
-                };
                 let mut search_depth;
                 loop {
+                    let (alpha, beta) = if depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt {
+                        search_options.window.get()
+                    } else {
+                        (Evaluation::min(), Evaluation::max())
+                    };
                     search_depth = (depth - 1).saturating_sub(fail_high_cnt) + 1;
                     let (make_move, score) = search::search::<Pv, Eval>(
                         &mut position,
@@ -276,10 +276,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                     if depth > 1 && search_options.abort() {
                         break 'outer;
                     }
-                    if fail_cnt >= SEARCH_PARAMS.fail_cnt
-                        || (score > alpha && score < beta)
-                        || score.is_mate()
-                    {
+                    if (score > alpha && score < beta) || score.is_mate() {
                         search_options.eval = score;
                         best_move = make_move;
                         eval = Some(score);
