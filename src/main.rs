@@ -1,4 +1,4 @@
-use crate::bm::cecp::cecp_adapter::CecpAdapter;
+use crate::bm::cecp::CecpAdapter;
 use text_io::read;
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
