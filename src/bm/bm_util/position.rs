@@ -45,7 +45,7 @@ impl Position {
     }
 
     #[inline]
-    pub fn turn(&self) -> i32 {
+    pub fn turn(&self) -> i16 {
         match self.board().side_to_move() {
             Color::White => 1,
             Color::Black => -1,

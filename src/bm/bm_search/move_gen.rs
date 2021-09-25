@@ -74,7 +74,7 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     gen_type: GenType,
     board: Board,
 
-    queue: ArrayVec<(ChessMove, i32), MAX_MOVES>,
+    queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
     mask: [bool; MAX_MOVES],
     queen_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
     knight_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
@@ -166,7 +166,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                         match piece {
                             chess::Piece::Queen | chess::Piece::Knight => {}
                             _ => {
-                                self.queue.insert(partition, (make_move, i32::MIN));
+                                self.queue.insert(partition, (make_move, i16::MIN));
                                 continue;
                             }
                         };
@@ -175,10 +175,10 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();
                     #[cfg(feature = "hist")]
                     {
-                        score +=
-                            self.hist
-                                .get(self.board.side_to_move(), piece, make_move.get_dest())
-                                as i32;
+                        score += self
+                            .hist
+                            .get(self.board.side_to_move(), piece, make_move.get_dest())
+                            .min(i16::MAX as u32) as i16;
                     }
                     let pos = self.queue[partition..]
                         .binary_search_by_key(&score, |(_, score)| *score)
@@ -262,7 +262,7 @@ pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
     move_gen: MoveGen,
     board: Board,
     gen_type: QSearchGenType,
-    queue: ArrayVec<(ChessMove, i32), MAX_MOVES>,
+    queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
 
     eval: PhantomData<Eval>,
 }

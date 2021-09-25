@@ -2,19 +2,19 @@ use crate::bm::bm_eval::eval::Evaluation;
 
 #[derive(Debug, Clone)]
 pub struct Window {
-    start: i32,
-    factor: i32,
-    divisor: i32,
-    add: i32,
+    start: i16,
+    factor: i16,
+    divisor: i16,
+    add: i16,
 
     center: Evaluation,
     alpha: Evaluation,
     beta: Evaluation,
-    window: i32,
+    window: i16,
 }
 
 impl Window {
-    pub const fn new(start: i32, factor: i32, divisor: i32, add: i32) -> Self {
+    pub const fn new(start: i16, factor: i16, divisor: i16, add: i16) -> Self {
         Self {
             start,
             factor,

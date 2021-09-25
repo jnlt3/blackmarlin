@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use chess::ChessMove;
@@ -52,18 +53,49 @@ impl Analysis {
     }
 }
 
-type Entry = Option<(u64, Analysis)>;
+#[derive(Debug)]
+pub struct Entry {
+    hash: AtomicU64,
+    analysis: AtomicU64,
+}
+
+impl Entry {
+    unsafe fn zeroed() -> Self {
+        Self {
+            hash: std::mem::transmute::<u64, AtomicU64>(u64::MAX),
+            analysis: std::mem::transmute::<u64, AtomicU64>(0),
+        }
+    }
+    unsafe fn zero(&self) {
+        self.hash.store(u64::MAX, Ordering::SeqCst);
+        self.analysis.store(0, Ordering::SeqCst);
+    }
+
+    unsafe fn new(hash: u64, entry: u64) -> Self {
+        Self {
+            hash: std::mem::transmute::<u64, AtomicU64>(hash ^ entry),
+            analysis: std::mem::transmute::<u64, AtomicU64>(entry),
+        }
+    }
+
+    unsafe fn set_new(&self, hash: u64, entry: u64) {
+        self.hash.store(hash ^ entry, Ordering::SeqCst);
+        self.analysis.store(entry, Ordering::SeqCst);
+    }
+}
 
 #[derive(Debug)]
 pub struct TranspositionTable {
-    table: Mutex<Box<[Entry]>>,
+    table: Box<[Entry]>,
     mask: usize,
 }
 
 impl TranspositionTable {
     pub fn new(size: usize) -> Self {
         let size = size.next_power_of_two();
-        let table = Mutex::new(vec![None; size].into_boxed_slice());
+        let table = (0..size)
+            .map(|_| unsafe { Entry::zeroed() })
+            .collect::<Box<_>>();
         Self {
             table,
             mask: size - 1,
@@ -78,12 +110,12 @@ impl TranspositionTable {
     pub fn get(&self, position: &Position) -> Option<Analysis> {
         let hash = position.hash();
         let index = self.index(hash);
-        if let Some((entry_hash, entry)) = &self.table.lock().unwrap()[index] {
-            if *entry_hash == hash {
-                Some(*entry)
-            } else {
-                None
-            }
+
+        let entry = &self.table[index];
+        let hash_u64 = entry.hash.load(Ordering::SeqCst);
+        let entry_u64 = entry.analysis.load(Ordering::SeqCst);
+        if entry_u64 ^ hash == hash_u64 {
+            unsafe { Some(std::mem::transmute::<u64, Analysis>(entry_u64)) }
         } else {
             None
         }
@@ -92,15 +124,13 @@ impl TranspositionTable {
     pub fn set(&self, position: &Position, entry: &Analysis) {
         let hash = position.hash();
         let index = self.index(hash);
-        let fetched_entry = &mut self.table.lock().unwrap()[index];
-        *fetched_entry = Some((hash, *entry))
+        let fetched_entry = &self.table[index];
+        unsafe {
+            fetched_entry.set_new(hash, std::mem::transmute::<Analysis, u64>(*entry));
+        }
     }
 
     pub fn clean(&self) {
-        self.table
-            .lock()
-            .unwrap()
-            .iter_mut()
-            .for_each(|entry| *entry = None);
+        self.table.iter().for_each(|entry| unsafe { entry.zero() });
     }
 }

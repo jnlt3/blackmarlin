@@ -8,10 +8,10 @@ pub const TOTAL_PHASE: u32 =
     PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2;
 
 const fn generate_table(
-    table: [[i32; 8]; 8],
-    end_table: [[i32; 8]; 8],
-    piece_value: i32,
-    end_piece_value: i32,
+    table: [[i16; 8]; 8],
+    end_table: [[i16; 8]; 8],
+    piece_value: i16,
+    end_piece_value: i16,
 ) -> [[TaperedEval; 8]; 8] {
     let mut combined = [[TaperedEval(0, 0); 8]; 8];
     let mut x = 0;
@@ -49,9 +49,9 @@ pub const PAWN_TABLE: [[TaperedEval; 8]; 8] = generate_table(
     ],
     [
         [0, 0, 0, 0, 0, 0, 0, 0],
-        [178, 173, 158, 134, 147, 132, 165, 187],
+        [178, 173, 158, 134, 147, 116, 165, 187],
         [94, 100, 85, 67, 56, 53, 82, 84],
-        [32, 24, 13, 5, -2, 4, 17, 17],
+        [16, 24, 13, 5, -2, 4, 17, 17],
         [13, 9, -3, -7, -7, -8, 3, -1],
         [4, 7, -6, 1, 0, -5, -1, -8],
         [13, 8, 8, 10, 13, 0, 2, -7],
@@ -113,8 +113,8 @@ pub const BISHOP_TABLE: [[TaperedEval; 8]; 8] = generate_table(
 
 pub const ROOK_TABLE: [[TaperedEval; 8]; 8] = generate_table(
     [
-        [32, 42, 32, 51, 63, 9, 31, 43],
-        [27, 32, 58, 62, 80, 67, 26, 44],
+        [16, 42, 16, 51, 63, 9, 31, 43],
+        [27, 16, 58, 62, 80, 67, 26, 44],
         [-5, 19, 26, 36, 17, 45, 61, 16],
         [-24, -11, 7, 26, 24, 35, -8, -20],
         [-36, -26, -12, -1, 9, -7, 6, -23],
@@ -149,13 +149,13 @@ pub const QUEEN_TABLE: [[TaperedEval; 8]; 8] = generate_table(
     ],
     [
         [-9, 22, 22, 27, 27, 19, 10, 20],
-        [-17, 20, 32, 41, 58, 25, 30, 0],
+        [-17, 20, 16, 41, 58, 25, 30, 0],
         [-20, 6, 9, 49, 47, 35, 19, 9],
         [3, 22, 24, 45, 57, 40, 57, 36],
         [-18, 28, 19, 47, 31, 34, 39, 23],
         [-16, -27, 15, 6, 9, 17, 10, 5],
-        [-22, -23, -30, -16, -16, -23, -36, -32],
-        [-33, -28, -22, -43, -5, -32, -20, -41],
+        [-22, -23, -30, -16, -16, -23, -36, -16],
+        [-33, -28, -22, -43, -5, -16, -20, -41],
     ],
     QUEEN.0,
     QUEEN.1,
@@ -186,7 +186,7 @@ pub const KING_TABLE: [[TaperedEval; 8]; 8] = generate_table(
     KING.1,
 );
 
-pub const TEMPO: i32 = 20;
+pub const TEMPO: i16 = 20;
 
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
@@ -217,12 +217,12 @@ pub enum Checkmate {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct TaperedEval(pub i32, pub i32);
+pub struct TaperedEval(pub i16, pub i16);
 
 impl TaperedEval {
     #[inline]
-    pub fn convert(&self, phase: i32) -> i32 {
-        (self.0 * (TOTAL_PHASE as i32 - phase) + self.1 * phase) / TOTAL_PHASE as i32
+    pub fn convert(&self, phase: i16) -> i16 {
+        (self.0 * (TOTAL_PHASE as i16 - phase) + self.1 * phase) / TOTAL_PHASE as i16
     }
 }
 
@@ -249,16 +249,16 @@ macro_rules! impl_tapered_eval_op_assign {
     };
 }
 
-macro_rules! impl_tapered_eval_i32_op {
+macro_rules! impl_tapered_eval_i16_op {
     ($trait:ident, $op:ident) => {
-        impl std::ops::$trait<i32> for TaperedEval {
+        impl std::ops::$trait<i16> for TaperedEval {
             type Output = TaperedEval;
 
-            fn $op(self, rhs: i32) -> Self::Output {
+            fn $op(self, rhs: i16) -> Self::Output {
                 TaperedEval(self.0.$op(rhs), self.1.$op(rhs))
             }
         }
-        impl std::ops::$trait<TaperedEval> for i32 {
+        impl std::ops::$trait<TaperedEval> for i16 {
             type Output = TaperedEval;
 
             fn $op(self, rhs: TaperedEval) -> Self::Output {
@@ -268,10 +268,10 @@ macro_rules! impl_tapered_eval_i32_op {
     };
 }
 
-macro_rules! impl_tapered_eval_i32_op_assign {
+macro_rules! impl_tapered_eval_i16_op_assign {
     ($trait:ident, $op:ident) => {
-        impl std::ops::$trait<i32> for TaperedEval {
-            fn $op(&mut self, rhs: i32) {
+        impl std::ops::$trait<i16> for TaperedEval {
+            fn $op(&mut self, rhs: i16) {
                 self.0.$op(rhs);
                 self.1.$op(rhs);
             }
@@ -283,10 +283,10 @@ impl_tapered_eval_op!(Add, add);
 impl_tapered_eval_op!(Sub, sub);
 impl_tapered_eval_op_assign!(AddAssign, add_assign);
 impl_tapered_eval_op_assign!(SubAssign, sub_assign);
-impl_tapered_eval_i32_op!(Add, add);
-impl_tapered_eval_i32_op!(Sub, sub);
-impl_tapered_eval_i32_op!(Mul, mul);
-impl_tapered_eval_i32_op!(Div, div);
-impl_tapered_eval_i32_op_assign!(AddAssign, add_assign);
-impl_tapered_eval_i32_op_assign!(SubAssign, sub_assign);
-impl_tapered_eval_i32_op_assign!(MulAssign, mul_assign);
+impl_tapered_eval_i16_op!(Add, add);
+impl_tapered_eval_i16_op!(Sub, sub);
+impl_tapered_eval_i16_op!(Mul, mul);
+impl_tapered_eval_i16_op!(Div, div);
+impl_tapered_eval_i16_op_assign!(AddAssign, add_assign);
+impl_tapered_eval_i16_op_assign!(SubAssign, sub_assign);
+impl_tapered_eval_i16_op_assign!(MulAssign, mul_assign);

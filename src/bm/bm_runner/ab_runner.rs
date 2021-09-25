@@ -68,7 +68,7 @@ pub struct SearchParams {
     lmp_depth: u32,
     do_lmp: bool,
     q_search_depth: u32,
-    delta_margin: i32,
+    delta_margin: i16,
     do_dp: bool,
     do_see_prune: bool,
 }
@@ -90,7 +90,7 @@ impl SearchParams {
     }
 
     #[inline]
-    pub const fn get_delta(&self) -> i32 {
+    pub const fn get_delta(&self) -> i16 {
         self.delta_margin
     }
 
@@ -237,7 +237,6 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
         &self,
         search_start: Instant,
         thread: u8,
-        incr: u32,
     ) -> JoinHandle<(Option<ChessMove>, Evaluation, u32, u32)> {
         let mut nodes = 0;
 
@@ -319,7 +318,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                 if search_options.eval.is_mate() {
                     break;
                 }
-                depth += incr;
+                depth += 1;
                 //As far as time manager is concerned Option<ChessMove> is no different than ChessMove however None == None doesn't apply
                 search_options.time_manager.deepen(
                     thread,
@@ -382,11 +381,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
         let search_start = Instant::now();
         //TODO: Research the effects of different depths
         for i in 0..threads {
-            join_handlers.push(self.launch_searcher::<SM, Info>(
-                search_start,
-                i,
-                (i % 2 + 1) as u32,
-            ));
+            join_handlers.push(self.launch_searcher::<SM, Info>(search_start, i));
         }
         let mut final_move = None;
         let mut final_eval = None;

@@ -171,10 +171,10 @@ impl GuiInfo for XBoardInfo {
         let elapsed = elapsed.as_millis() / 10;
 
         let cecp_score = if eval.is_mate() {
-            let mate_in = eval.mate_in().unwrap();
+            let mate_in = eval.mate_in().unwrap() as i32;
             100000 * mate_in.signum() + mate_in
         } else {
-            eval.raw()
+            eval.raw() as i32
         };
         let mut buffer = String::new();
         buffer += &format!("{} {} {} {}", depth, cecp_score, elapsed, node_cnt);

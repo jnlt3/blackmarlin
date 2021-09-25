@@ -5,7 +5,7 @@ use chess::{Board, ChessMove};
 pub trait Evaluator: 'static + Clone + Send {
     fn new() -> Self;
 
-    fn see(board: Board, make_move: ChessMove) -> i32;
+    fn see(board: Board, make_move: ChessMove) -> i16;
 
     fn evaluate(&mut self, position: &Position) -> Evaluation;
 

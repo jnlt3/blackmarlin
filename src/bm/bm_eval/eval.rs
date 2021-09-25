@@ -1,6 +1,6 @@
-const CHECKMATE: i32 = 64;
-const CHECKMATE_EVAL: i32 = i32::MAX;
-const MAX_EVAL: i32 = CHECKMATE_EVAL - CHECKMATE;
+const CHECKMATE: i16 = 64;
+const CHECKMATE_EVAL: i16 = i16::MAX;
+const MAX_EVAL: i16 = CHECKMATE_EVAL - CHECKMATE;
 
 pub enum Depth {
     Next,
@@ -8,17 +8,17 @@ pub enum Depth {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Evaluation {
-    score: i32,
+    score: i16,
 }
 
 impl Evaluation {
     #[inline]
-    pub const fn new(score: i32) -> Self {
+    pub const fn new(score: i16) -> Self {
         Self { score }
     }
 
     #[inline]
-    pub fn new_checkmate(mate_in: i32) -> Self {
+    pub fn new_checkmate(mate_in: i16) -> Self {
         Self {
             score: if mate_in < 0 {
                 -CHECKMATE_EVAL - mate_in - 1
@@ -34,7 +34,7 @@ impl Evaluation {
     }
 
     #[inline]
-    pub const fn mate_in(&self) -> Option<i32> {
+    pub const fn mate_in(&self) -> Option<i16> {
         if self.is_mate() {
             Some(self.score.signum() * (MAX_EVAL - self.score.abs()))
         } else {
@@ -43,7 +43,7 @@ impl Evaluation {
     }
 
     #[inline]
-    pub const fn raw(&self) -> i32 {
+    pub const fn raw(&self) -> i16 {
         self.score
     }
 
@@ -100,13 +100,13 @@ impl std::ops::Shr<Depth> for Evaluation {
     }
 }
 
-macro_rules! impl_i32_ops {
+macro_rules! impl_i16_ops {
     ($($trait:ident, $fn:ident, $op:ident;)*) => {
         $(
-            impl std::ops::$trait<i32> for Evaluation {
+            impl std::ops::$trait<i16> for Evaluation {
                 type Output = Self;
 
-                fn $fn(self, rhs: i32) -> Self::Output {
+                fn $fn(self, rhs: i16) -> Self::Output {
                     Evaluation {
                         score: self.score.$op(rhs)
                     }
@@ -132,7 +132,7 @@ macro_rules! impl_eval_ops {
     };
 }
 
-impl_i32_ops! {
+impl_i16_ops! {
     Add, add, add;
     Sub, sub, sub;
     Mul, mul, mul;

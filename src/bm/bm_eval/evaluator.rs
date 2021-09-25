@@ -37,16 +37,16 @@ pub const fn get_basic_eval_data() -> EvalData {
             let mut b_ahead = 0_u64;
 
             {
-                let king_rank = king_rank as i32;
-                let king_file = king_file as i32;
+                let king_rank = king_rank as i16;
+                let king_file = king_file as i16;
                 let mut rank = 0_u8;
                 while rank < 8 {
                     let mut file = 0_u8;
                     while file < 8 {
                         let sq = rank * 8 + file;
                         {
-                            let file = file as i32;
-                            let rank = rank as i32;
+                            let file = file as i16;
+                            let rank = rank as i16;
 
                             let file_diff = (file - king_file).abs();
                             let rank_diff = rank - king_rank;
@@ -84,12 +84,12 @@ impl Evaluator for StdEvaluator {
         Self
     }
 
-    fn see(mut board: Board, mut make_move: ChessMove) -> i32 {
+    fn see(mut board: Board, mut make_move: ChessMove) -> i16 {
         let mut index = 0;
-        let mut gains = [0_i32; 32];
+        let mut gains = [0_i16; 16];
         let target_square = make_move.get_dest();
         gains[0] = Self::piece_pts(board.piece_on(target_square).unwrap());
-        'outer: for i in 1..32 {
+        'outer: for i in 1..16 {
             board = board.make_move_new(make_move);
             gains[i] = Self::piece_pts(board.piece_on(target_square).unwrap()) - gains[i - 1];
             let color = board.side_to_move();
@@ -165,7 +165,7 @@ impl Evaluator for StdEvaluator {
             break;
         }
         for i in (1..index).rev() {
-            gains[i - 1] = -i32::max(-gains[i - 1], gains[i]);
+            gains[i - 1] = -i16::max(-gains[i - 1], gains[i]);
         }
         gains[0]
     }
@@ -192,7 +192,7 @@ impl Evaluator for StdEvaluator {
                 + bishops.popcnt() * BISHOP_PHASE
                 + rooks.popcnt() * ROOK_PHASE
                 + queens.popcnt() * QUEEN_PHASE,
-        ) as i32;
+        ) as i16;
 
         let white = res.get::<White>();
         let black = res.get::<Black>();
@@ -253,8 +253,8 @@ impl Evaluator for StdEvaluator {
         let b_safe_pawn_threats = b_pawn_threats & white_non_pawn;
         let w_safe_pawn_threats = w_pawn_threats & black_non_pawn;
 
-        let safe_pawn_threat_score = (w_safe_pawn_threats.popcnt() as i32
-            - b_safe_pawn_threats.popcnt() as i32)
+        let safe_pawn_threat_score = (w_safe_pawn_threats.popcnt() as i16
+            - b_safe_pawn_threats.popcnt() as i16)
             * THREAT_BY_SAFE_PAWN;
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
@@ -282,7 +282,7 @@ impl Evaluator for StdEvaluator {
 
 impl StdEvaluator {
     //TODO: investigate tapered evaluation
-    fn piece_pts(piece: Piece) -> i32 {
+    fn piece_pts(piece: Piece) -> i16 {
         match piece {
             Piece::Pawn => PAWN.0,
             Piece::Knight => KNIGHT.0,
@@ -317,9 +317,9 @@ impl StdEvaluator {
             w_isolated += 1_u32.saturating_sub((adj_files & white_pawns).popcnt());
             b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
-        let passed_score = (w_passed as i32 - b_passed as i32) * PASSER;
-        let doubled_score = (w_doubled as i32 - b_doubled as i32) * DOUBLED;
-        let isolated_score = (w_isolated as i32 - b_isolated as i32) * ISOLATED;
+        let passed_score = (w_passed as i16 - b_passed as i16) * PASSER;
+        let doubled_score = (w_doubled as i16 - b_doubled as i16) * DOUBLED;
+        let isolated_score = (w_isolated as i16 - b_isolated as i16) * ISOLATED;
 
         passed_score + doubled_score + isolated_score
     }

@@ -124,7 +124,7 @@ const PANIC_DIV: u32 = 5;
 pub struct MainTimeManager {
     start: Instant,
     expected_moves: AtomicU32,
-    evals: Mutex<Vec<(i32, u32)>>,
+    evals: Mutex<Vec<(i16, u32)>>,
     normal_duration: AtomicU32,
     max_duration: AtomicU32,
     target_duration: AtomicU32,
