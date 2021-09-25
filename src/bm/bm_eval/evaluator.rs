@@ -20,20 +20,17 @@ const PIECES: [Piece; 6] = [
 pub struct EvalData {
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
-    king_flank: BitBoard,
-    queen_flank: BitBoard,
+    w_protector: [BitBoard; 64],
+    b_protector: [BitBoard; 64],
 }
 
 pub const fn get_basic_eval_data() -> EvalData {
     let mut data = EvalData {
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
-        king_flank: EMPTY,
-        queen_flank: EMPTY,
+        w_protector: [BitBoard(0); 64],
+        b_protector: [BitBoard(0); 64],
     };
-
-    let mut king_flank = 0_u64;
-    let mut queen_flank = 0_u64;
 
     let mut king_rank = 0_u8;
     while king_rank < 8 {
@@ -43,13 +40,10 @@ pub const fn get_basic_eval_data() -> EvalData {
             let mut w_ahead = 0_u64;
             let mut b_ahead = 0_u64;
 
-            {
-                if king_file < 4 {
-                    king_flank |= 1_u64 << king;
-                } else {
-                    queen_flank |= 1_u64 << king;
-                }
+            let mut w_protector = 0_u64;
+            let mut b_protector = 0_u64;
 
+            {
                 let king_rank = king_rank as i16;
                 let king_file = king_file as i16;
                 let mut rank = 0_u8;
@@ -65,12 +59,18 @@ pub const fn get_basic_eval_data() -> EvalData {
                             let rank_diff = rank - king_rank;
 
                             let bitboard = 1_u64 << sq;
-                            if file_diff <= 1 && rank_diff > 0 {
-                                w_ahead |= bitboard;
+                            if file_diff <= 1 && rank_diff > -1 {
+                                w_protector |= bitboard;
+                                if rank_diff > 0 {
+                                    w_ahead |= bitboard;
+                                }
                             }
                             let rank_diff = king_rank - rank;
-                            if file_diff <= 1 && rank_diff > 0 {
-                                b_ahead |= bitboard
+                            if file_diff <= 1 && rank_diff > -1 {
+                                b_protector |= bitboard;
+                                if rank_diff > 0 {
+                                    b_ahead |= bitboard
+                                }
                             }
                         }
                         file += 1;
@@ -80,12 +80,12 @@ pub const fn get_basic_eval_data() -> EvalData {
             }
             data.w_ahead[king] = BitBoard(w_ahead);
             data.b_ahead[king] = BitBoard(b_ahead);
+            data.w_protector[king] = BitBoard(w_protector);
+            data.b_protector[king] = BitBoard(b_protector);
             king_file += 1;
         }
         king_rank += 1;
     }
-    data.king_flank = BitBoard(king_flank);
-    data.queen_flank = BitBoard(queen_flank);
     data
 }
 
@@ -275,20 +275,12 @@ impl Evaluator for StdEvaluator {
         let w_king = board.king_square(Color::White);
         let b_king = board.king_square(Color::Black);
 
-        let w_empty = if w_king.get_file().to_index() < 4 {
-            DATA.king_flank
-        } else {
-            DATA.queen_flank
-        } | pawns
-            == EMPTY;
-        let b_empty = if b_king.get_file().to_index() < 4 {
-            DATA.king_flank
-        } else {
-            DATA.queen_flank
-        } | pawns
-            == EMPTY;
+        let w_king_protectors = DATA.w_protector[w_king.to_index()] & white_pawns;
+        let b_king_protectors = DATA.b_protector[b_king.to_index()] & black_pawns;
 
-        let empty_flank_score = (w_empty as i16 - b_empty as i16) * EMPTY_FLANK;
+        let empty_flank_score = (w_king_protectors.popcnt() as i16
+            - b_king_protectors.popcnt() as i16)
+            * KING_PROTECTOR;
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
