@@ -276,15 +276,17 @@ impl Evaluator for StdEvaluator {
         let b_king = board.king_square(Color::Black);
 
         let w_empty = if w_king.get_file().to_index() < 4 {
-            DATA.king_flank | pawns != EMPTY
+            DATA.king_flank
         } else {
-            DATA.queen_flank | pawns != EMPTY
-        };
+            DATA.queen_flank
+        } | pawns
+            == EMPTY;
         let b_empty = if b_king.get_file().to_index() < 4 {
-            DATA.king_flank | pawns != EMPTY
+            DATA.king_flank
         } else {
-            DATA.queen_flank | pawns != EMPTY
-        };
+            DATA.queen_flank
+        } | pawns
+            == EMPTY;
 
         let empty_flank_score = (w_empty as i16 - b_empty as i16) * EMPTY_FLANK;
 
