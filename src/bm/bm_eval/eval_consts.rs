@@ -194,6 +194,7 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
+pub const EMPTY_FLANK: TaperedEval = TaperedEval(-5, -40);
 
 pub const WHITE_SQUARES: u64 = 0b0101010101010101010101010101010101010101010101010101010101010101;
 pub const BLACK_SQUARES: u64 = !WHITE_SQUARES;
@@ -222,7 +223,8 @@ pub struct TaperedEval(pub i16, pub i16);
 impl TaperedEval {
     #[inline]
     pub fn convert(&self, phase: i16) -> i16 {
-        (self.0 * (TOTAL_PHASE as i16 - phase) + self.1 * phase) / TOTAL_PHASE as i16
+        let phase = phase as i32;
+        ((self.0 as i32 * (TOTAL_PHASE as i32 - phase) + self.1 as i32 * phase) / TOTAL_PHASE as i32) as i16
     }
 }
 

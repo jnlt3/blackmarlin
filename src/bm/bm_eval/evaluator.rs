@@ -20,13 +20,20 @@ const PIECES: [Piece; 6] = [
 pub struct EvalData {
     w_ahead: [BitBoard; 64],
     b_ahead: [BitBoard; 64],
+    king_flank: BitBoard,
+    queen_flank: BitBoard,
 }
 
 pub const fn get_basic_eval_data() -> EvalData {
     let mut data = EvalData {
         w_ahead: [BitBoard(0); 64],
         b_ahead: [BitBoard(0); 64],
+        king_flank: EMPTY,
+        queen_flank: EMPTY,
     };
+
+    let mut king_flank = 0_u64;
+    let mut queen_flank = 0_u64;
 
     let mut king_rank = 0_u8;
     while king_rank < 8 {
@@ -37,6 +44,12 @@ pub const fn get_basic_eval_data() -> EvalData {
             let mut b_ahead = 0_u64;
 
             {
+                if king_file < 4 {
+                    king_flank |= 1_u64 << king;
+                } else {
+                    queen_flank |= 1_u64 << king;
+                }
+
                 let king_rank = king_rank as i16;
                 let king_file = king_file as i16;
                 let mut rank = 0_u8;
@@ -71,6 +84,8 @@ pub const fn get_basic_eval_data() -> EvalData {
         }
         king_rank += 1;
     }
+    data.king_flank = BitBoard(king_flank);
+    data.queen_flank = BitBoard(queen_flank);
     data
 }
 
@@ -257,9 +272,25 @@ impl Evaluator for StdEvaluator {
             - b_safe_pawn_threats.popcnt() as i16)
             * THREAT_BY_SAFE_PAWN;
 
+        let w_king = board.king_square(Color::White);
+        let b_king = board.king_square(Color::Black);
+
+        let w_empty = if w_king.get_file().to_index() < 4 {
+            DATA.king_flank | pawns != EMPTY
+        } else {
+            DATA.queen_flank | pawns != EMPTY
+        };
+        let b_empty = if b_king.get_file().to_index() < 4 {
+            DATA.king_flank | pawns != EMPTY
+        } else {
+            DATA.queen_flank | pawns != EMPTY
+        };
+
+        let empty_flank_score = (w_empty as i16 - b_empty as i16) * EMPTY_FLANK;
+
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
-        let white_score = psqt_score + pawn_score + safe_pawn_threat_score;
+        let white_score = psqt_score + pawn_score + safe_pawn_threat_score + empty_flank_score;
         let white_score = white_score.convert(phase);
         let white_score = match Self::outcome_state(board) {
             OutcomeState::Loss => white_score - 10000,
