@@ -117,8 +117,8 @@ const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
 const POWER: f64 = 1.0;
 
 const PANIC_TIME: u32 = 10000;
-const PANIC_MUL: u32 = 4;
-const PANIC_DIV: u32 = 5;
+const PANIC_MUL: u32 = 9;
+const PANIC_DIV: u32 = 10;
 
 #[derive(Debug)]
 pub struct MainTimeManager {
