@@ -104,15 +104,14 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
     }
 
     pub fn features(&self) -> String {
-        "feature ping=1 setboard=1 analyze=1 time=1 smp=1".to_string()
+        "feature ping=1 setboard=1 analyze=1 time=1 smp=1 done=1".to_string()
     }
 
     pub fn input(&mut self, input: String) -> bool {
         let command = CecpCommand::new(&input);
         match command {
             CecpCommand::XBoard => {
-                println!("{}", self.features());
-                println!("done=1");
+                println!("{}", self.features()); 
             }
             CecpCommand::Move(make_move) => {
                 let analyzing = self.is_analyzing();
