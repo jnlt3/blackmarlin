@@ -1,5 +1,5 @@
-use std::iter::{IntoIterator, Take};
 use std::array::IntoIter;
+use std::iter::{IntoIterator, Take};
 
 use chess::ChessMove;
 
@@ -20,6 +20,9 @@ impl<const N: usize> MoveEntry<N> {
     }
 
     pub fn push(&mut self, killer_move: ChessMove) {
+        if N == 0 {
+            return;
+        }
         if self.size == 0 || !self.moves.contains(&killer_move) {
             self.moves[self.index] = killer_move;
             self.size += 1;
