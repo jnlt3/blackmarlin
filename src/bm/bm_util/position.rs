@@ -3,16 +3,12 @@ use chess::{Board, ChessMove, Color};
 #[derive(Debug, Clone)]
 pub struct Position {
     board: Vec<Board>,
-    moves: Vec<Option<ChessMove>>,
 }
 
 //TODO: Counting Bloom Filter for threefold repetition detection
 impl Position {
     pub fn new(board: Board) -> Self {
-        Self {
-            board: vec![board],
-            moves: vec![],
-        }
+        Self { board: vec![board] }
     }
 
     #[inline]
@@ -37,7 +33,6 @@ impl Position {
     pub fn null_move(&mut self) -> bool {
         if let Some(new_board) = self.board().null_move() {
             self.board.push(new_board);
-            self.moves.push(None);
             true
         } else {
             false
@@ -56,13 +51,11 @@ impl Position {
     pub fn make_move(&mut self, make_move: ChessMove) {
         let board = self.board().make_move_new(make_move);
         self.board.push(board);
-        self.moves.push(Some(make_move));
     }
 
     #[inline]
     pub fn unmake_move(&mut self) {
         self.board.pop();
-        self.moves.pop();
     }
 
     #[inline]
