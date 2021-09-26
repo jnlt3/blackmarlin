@@ -196,8 +196,6 @@ pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 
 pub const KING_PROTECTOR: TaperedEval = TaperedEval(50, 0);
-
-pub const KING_ACTIVE_CHECKER: TaperedEval = TaperedEval(0, 0);
 pub const KING_CHECKER: TaperedEval = TaperedEval(10, 8);
 
 pub const WHITE_SQUARES: u64 = 0b0101010101010101010101010101010101010101010101010101010101010101;
