@@ -180,10 +180,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                             .get(self.board.side_to_move(), piece, make_move.get_dest())
                             .min(i16::MAX as u32) as i16;
                     }
-                    let pos = self.queue[partition..]
-                        .binary_search_by_key(&score, |(_, score)| *score)
-                        .unwrap_or_else(|pos| pos);
-                    self.queue.insert(partition + pos, (make_move, score));
+                    self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::QPromotions;
                 self.next()
@@ -238,12 +235,30 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                 self.next()
             }
             GenType::Quiet => {
+                let mut max = 0;
+                let mut best_index = 0;
+                let mut best_move = None;
+                for (index, &(make_move, score)) in
+                    self.queue.iter().enumerate()
+                {
+                    if best_move.is_none() || score > max {
+                        best_move = Some(make_move);
+                        max = score;
+                        best_index = index;
+                    }
+                }
+                if let Some(_) = best_move {
+                    self.queue.remove(best_index);
+                    best_move
+                } else {
+                    None
+                }
+                /*
                 while let Some((make_move, _)) = self.queue.pop() {
                     if self.mask[self.queue.len()] {
                         return Some(make_move);
                     }
-                }
-                None
+                } */
             }
         }
     }

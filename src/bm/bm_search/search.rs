@@ -36,7 +36,7 @@ pub struct Zw;
 pub struct NullMove;
 
 impl SearchType for Pv {
-    const DO_NULL_MOVE: bool = true;
+    const DO_NULL_MOVE: bool = false;
     const IS_PV: bool = true;
     const IS_ZW: bool = false;
     type OffPv = NonPv;
@@ -181,7 +181,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     if do_iid && best_move.is_none() {
         let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
         let target_ply = target_ply.max(reduction) - reduction;
-        let (iid_move, _) = search::<Pv, Eval>(
+        let (iid_move, _) = search::<Search, Eval>(
             position,
             search_options,
             ply,
@@ -193,8 +193,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         best_move = iid_move;
     }
 
-    let do_f_prune =
-        !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
+    let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
 
     let eval = if do_f_prune {
         Some(search_options.eval().evaluate(position))
