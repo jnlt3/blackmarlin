@@ -163,6 +163,8 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
     start: Instant,
     evaluator: Eval,
     time_manager: Arc<dyn TimeManager>,
+    counter: u8,
+
     window: Window,
     t_table: Arc<TranspositionTable>,
     h_table: Arc<HistoryTable>,
@@ -176,9 +178,19 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
 }
 
 impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
+
     #[inline]
-    pub fn abort(&self) -> bool {
-        self.time_manager.abort(self.start)
+    pub fn abort(&mut self) -> bool {
+        // self.time_manager.abort(self.start)
+        //FIXME: This is ugly code, although it gains 4% nodes per second
+        if self.counter == 0 {
+            let abort = self.time_manager.abort(self.start);
+            if abort {
+                return abort;
+            }
+        }
+        self.counter = self.counter.wrapping_add(1);
+        false
     }
 
     #[inline]
@@ -365,6 +377,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 tt_misses: 0,
                 eval: evaluator.evaluate(&position),
                 start: Instant::now(),
+                counter: 0,
                 evaluator,
             },
             position,
