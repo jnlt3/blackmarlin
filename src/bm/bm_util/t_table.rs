@@ -70,10 +70,11 @@ impl Entry {
         self.analysis.store(0, Ordering::SeqCst);
     }
 
-    unsafe fn set_new(&self, hash: u64, entry: u64) {
+    fn set_new(&self, hash: u64, entry: u64) {
         self.hash.store(hash, Ordering::SeqCst);
         self.analysis.store(entry, Ordering::SeqCst);
     }
+
 }
 
 #[derive(Debug)]
@@ -118,9 +119,7 @@ impl TranspositionTable {
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(*entry) };
-        unsafe {
-            fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
-        }
+        fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
     }
 
     pub fn clean(&self) {
