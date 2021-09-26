@@ -434,8 +434,8 @@ impl Evaluator for StdEvaluator {
             b_pawn_threats |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
         }
 
-        let b_safe_pawn_threats = b_pawn_threats & white_non_pawn;
         let w_safe_pawn_threats = w_pawn_threats & black_non_pawn;
+        let b_safe_pawn_threats = b_pawn_threats & white_non_pawn;
 
         let safe_pawn_threat_score = (w_safe_pawn_threats.popcnt() as i16
             - b_safe_pawn_threats.popcnt() as i16)
@@ -471,18 +471,9 @@ impl Evaluator for StdEvaluator {
         let b_checkers = (b_queen_checkers.popcnt()
             + (b_knight_checkers | b_bishop_checkers | b_rook_checkers).popcnt())
             as i16;
+        
 
-        let w_active_checkers = ((res.get::<KnightChecksWhite>() & white_knights)
-            | (res.get::<DiagonalChecksWhite>() & (white_bishops | white_queens))
-            | (res.get::<OrthogonalChecksWhite>() & (white_rooks | white_queens)))
-            .popcnt();
-        let b_active_checkers = ((res.get::<KnightChecksBlack>() & black_knights)
-            | (res.get::<DiagonalChecksBlack>() & (black_bishops | black_queens))
-            | (res.get::<OrthogonalChecksBlack>() & (black_rooks | black_queens)))
-            .popcnt();
-
-        let checkers_score = (w_checkers as i16 - b_checkers as i16) * KING_CHECKER
-            + (w_active_checkers as i16 - b_active_checkers as i16) * KING_ACTIVE_CHECKER;
+        let checkers_score = (w_checkers as i16 - b_checkers as i16) * KING_CHECKER;
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
