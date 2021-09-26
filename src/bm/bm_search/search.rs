@@ -194,7 +194,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     }
 
     let do_f_prune =
-        !Search::IS_PV && !in_check && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
+        !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
 
     let eval = if do_f_prune {
         Some(search_options.eval().evaluate(position))
