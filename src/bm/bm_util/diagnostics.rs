@@ -94,7 +94,11 @@ pub fn diagnostics_scaling<Eval: 'static + Evaluator + Clone + Send, R: Runner<E
             ratios.push((nodes as f64).powf(1.0 / power) / (depth as f64));
         }
         let mean = ratios.iter().sum::<f64>() / ratios.len() as f64;
-        let error = ratios.iter().map(|&r| (r / mean - 1.0).powi(2)).sum::<f64>() / ratios.len() as f64;
+        let error = ratios
+            .iter()
+            .map(|&r| (r / mean - 1.0).powi(2))
+            .sum::<f64>()
+            / ratios.len() as f64;
         ratios.clear();
         if error < lowest_error {
             lowest_error = error;
@@ -103,6 +107,10 @@ pub fn diagnostics_scaling<Eval: 'static + Evaluator + Clone + Send, R: Runner<E
         }
     }
     println!("# Scaling");
-    println!("power: {}, factor: {}", scaling_value.unwrap(), factor.unwrap());
+    println!(
+        "power: {}, factor: {}",
+        scaling_value.unwrap(),
+        factor.unwrap()
+    );
     println!("err: {}", lowest_error);
 }

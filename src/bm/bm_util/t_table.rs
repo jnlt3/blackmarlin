@@ -74,7 +74,6 @@ impl Entry {
         self.hash.store(hash, Ordering::SeqCst);
         self.analysis.store(entry, Ordering::SeqCst);
     }
-
 }
 
 #[derive(Debug)]

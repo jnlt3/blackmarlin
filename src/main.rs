@@ -15,5 +15,9 @@ type Runner = AbRunner<StdEvaluator>;
 
 fn main() {
     let mut cecp_adapter = CecpAdapter::<StdEvaluator, Runner>::new();
+    if std::env::args().into_iter().any(|x| x.trim() == "bench") {
+        cecp_adapter.input("perf".to_string());
+        return;
+    }
     while cecp_adapter.input(read!("{}\n")) {}
 }

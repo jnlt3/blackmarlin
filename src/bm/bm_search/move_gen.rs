@@ -238,9 +238,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                 let mut max = 0;
                 let mut best_index = 0;
                 let mut best_move = None;
-                for (index, &(make_move, score)) in
-                    self.queue.iter().enumerate()
-                {
+                for (index, &(make_move, score)) in self.queue.iter().enumerate() {
                     if best_move.is_none() || score > max {
                         best_move = Some(make_move);
                         max = score;

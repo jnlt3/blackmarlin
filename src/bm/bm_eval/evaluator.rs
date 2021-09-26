@@ -471,13 +471,20 @@ impl Evaluator for StdEvaluator {
         let b_checkers = (b_queen_checkers.popcnt()
             + (b_knight_checkers | b_bishop_checkers | b_rook_checkers).popcnt())
             as i16;
-        
 
         let checkers_score = (w_checkers as i16 - b_checkers as i16) * KING_CHECKER;
+
+        let w_has_bishop_pair = white_bishops & BitBoard(WHITE_SQUARES) != EMPTY
+            && white_bishops & BitBoard(BLACK_SQUARES) != EMPTY;
+        let b_has_bishop_pair = black_bishops & BitBoard(WHITE_SQUARES) != EMPTY
+            && black_bishops & BitBoard(BLACK_SQUARES) != EMPTY;
+
+        let bishop_pair_score = (w_has_bishop_pair as i16 - b_has_bishop_pair as i16) * BISHOP_PAIR;
 
         let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
 
         let white_score = psqt_score
+            + bishop_pair_score
             + pawn_score
             + safe_pawn_threat_score
             + king_protector_score

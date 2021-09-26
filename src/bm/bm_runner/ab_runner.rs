@@ -178,7 +178,6 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
 }
 
 impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
-
     #[inline]
     pub fn abort(&mut self) -> bool {
         // self.time_manager.abort(self.start)

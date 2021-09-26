@@ -111,7 +111,7 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
         let command = CecpCommand::new(&input);
         match command {
             CecpCommand::XBoard => {
-                println!("{}", self.features()); 
+                println!("{}", self.features());
             }
             CecpCommand::Move(make_move) => {
                 let analyzing = self.is_analyzing();
@@ -185,14 +185,14 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 self.current_time_manager = TimeManagerType::ConstTime;
                 self.time_manager
                     .set_mode(TimeManagerType::ConstTime as usize);
-                self.const_time.set_duration(Duration::from_secs(1));
+                self.const_time.set_duration(Duration::from_secs_f32(3.0));
                 let mut sum_node_cnt = 0;
                 let mut sum_time = Duration::from_nanos(0);
                 let mut avg_depth = 0;
                 for position in POSITIONS {
                     let board = chess::Board::from_str(position).unwrap();
                     bm_runner.set_board(board);
-                    self.time_manager.initiate(Duration::from_secs(1), 0);
+                    self.time_manager.initiate(Duration::from_secs_f32(3.0), 0);
                     let start = Instant::now();
                     let (_, _, depth, node_cnt) = bm_runner.search::<Run, NoInfo>(self.threads);
                     sum_time += start.elapsed();
