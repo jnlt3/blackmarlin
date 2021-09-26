@@ -434,10 +434,9 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
                 continue;
             }
         }
-        position.make_move(make_move);
-        let gives_check = *board.checkers() != EMPTY;
 
-        if in_check || gives_check || is_capture {
+        if in_check || is_capture {
+            position.make_move(make_move);
             let search_score = q_search(
                 position,
                 search_options,
@@ -458,8 +457,8 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
                     return score;
                 }
             }
+            position.unmake_move();
         }
-        position.unmake_move();
     }
     highest_score.unwrap_or(alpha)
 }
