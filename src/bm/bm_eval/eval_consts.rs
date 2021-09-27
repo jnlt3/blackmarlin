@@ -191,8 +191,6 @@ pub const TEMPO: i16 = 20;
 pub const PASSER: TaperedEval = TaperedEval(15, 30);
 pub const DOUBLED: TaperedEval = TaperedEval(0, -15);
 pub const ISOLATED: TaperedEval = TaperedEval(0, 0);
-
-pub const BISHOP_PAIR: TaperedEval = TaperedEval(0, 0);
 //Ideas from Stockfish eval.cpp
 pub const THREAT_BY_SAFE_PAWN: TaperedEval = TaperedEval(70, 35);
 
