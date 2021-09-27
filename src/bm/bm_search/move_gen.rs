@@ -251,12 +251,6 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
                 } else {
                     None
                 }
-                /*
-                while let Some((make_move, _)) = self.queue.pop() {
-                    if self.mask[self.queue.len()] {
-                        return Some(make_move);
-                    }
-                } */
             }
         }
     }
