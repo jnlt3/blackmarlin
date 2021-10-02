@@ -17,7 +17,6 @@ impl Position {
         self.board
             .iter()
             .rev()
-            .step_by(2)
             .skip(1)
             .filter(|board| board.get_hash() == hash)
             .count()
