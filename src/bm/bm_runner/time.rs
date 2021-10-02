@@ -1,7 +1,7 @@
 use crate::bm::bm_eval::eval::Evaluation;
 use chess::ChessMove;
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -110,7 +110,10 @@ impl TimeManager for ConstTime {
     }
 
     fn clear(&self) {
-        self.target_duration.store(self.std_target_duration.load(Ordering::SeqCst), Ordering::SeqCst);
+        self.target_duration.store(
+            self.std_target_duration.load(Ordering::SeqCst),
+            Ordering::SeqCst,
+        );
     }
 }
 
@@ -128,7 +131,7 @@ const PANIC_DIV: u32 = 10;
 pub struct MainTimeManager {
     start: Instant,
     expected_moves: AtomicU32,
-    evals: Mutex<Vec<(i16, u32)>>,
+    last_eval: AtomicI16,
     normal_duration: AtomicU32,
     max_duration: AtomicU32,
     target_duration: AtomicU32,
@@ -139,7 +142,7 @@ impl MainTimeManager {
         Self {
             start: Instant::now(),
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
-            evals: Mutex::new(vec![]),
+            last_eval: AtomicI16::new(0),
             normal_duration: AtomicU32::new(0),
             max_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
@@ -149,48 +152,41 @@ impl MainTimeManager {
 
 impl TimeManager for MainTimeManager {
     fn deepen(&self, _: u8, depth: u32, _: u32, eval: Evaluation, _: ChessMove, _: Duration) {
-        let weight = depth * depth;
-
-        let mut evals = self.evals.lock().unwrap();
-
-        let mut sum_weights = 0;
-        if depth > 4 {
-            evals.iter().for_each(|&(_, weight)| {
-                sum_weights += weight;
-            });
-            let optimal_eval = eval.raw();
-            let eval_variance = evals
-                .iter()
-                .map(|&(eval, weight)| weight as u64 * ((eval - optimal_eval).abs() as u64).pow(2))
-                .sum::<u64>()
-                / sum_weights as u64;
-            let std_dev = (eval_variance as f64).sqrt();
-
-            let time_f64 = self.normal_duration.load(Ordering::SeqCst) as f64;
-            let new_time = time_f64 * (std_dev * FACTOR).powf(POWER).max(1.0);
-            self.target_duration
-                .store(new_time as u32, Ordering::SeqCst);
-            self.target_duration
-                .fetch_min(self.max_duration.load(Ordering::SeqCst), Ordering::SeqCst);
+        if depth <= 4 {
+            return;
         }
-        evals.push((eval.raw(), weight));
+        let current_eval = eval.raw();
+        let last_eval = self.last_eval.load(Ordering::SeqCst);
+        let mut time = (self.target_duration.load(Ordering::SeqCst) * 1000) as f32;
+        if last_eval > current_eval + 10 {
+            time *= 1.05;
+        }
+        if last_eval > current_eval + 20 {
+            time *= 1.05;
+        }
+        if last_eval > current_eval + 40 {
+            time *= 1.05;
+        }
+        if last_eval > current_eval + 15 {
+            time *= 1.025;
+        }
+        if last_eval > current_eval + 30 {
+            time *= 1.05;
+        }
+        self.target_duration
+            .store((time * 0.001) as u32, Ordering::SeqCst);
+        self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
     fn initiate(&self, time_left: Duration, move_cnt: usize) {
-        if move_cnt <= 1 {
+        if move_cnt == 0 {
             self.target_duration.store(0, Ordering::SeqCst);
-        }
-        let time_left_millis = time_left.as_millis() as u32;
-        let time_left_for_panic = time_left_millis
-            .saturating_sub(PANIC_TIME)
-            .max(time_left_millis * (PANIC_DIV - PANIC_MUL) / PANIC_DIV);
-        let percentage_time = time_left_for_panic / self.expected_moves.load(Ordering::SeqCst);
-        self.normal_duration
-            .store(percentage_time, Ordering::SeqCst);
-        self.target_duration
-            .store(percentage_time, Ordering::SeqCst);
-        self.max_duration
-            .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst)
+        } else {
+            self.target_duration.store(
+                time_left.as_millis() as u32 / self.expected_moves.load(Ordering::SeqCst),
+                Ordering::SeqCst,
+            );
+        };
     }
 
     fn abort(&self, start: Instant) -> bool {
@@ -198,7 +194,6 @@ impl TimeManager for MainTimeManager {
     }
 
     fn clear(&self) {
-        self.evals.lock().unwrap().clear();
         self.expected_moves.fetch_sub(1, Ordering::SeqCst);
         self.expected_moves.fetch_max(MIN_MOVES, Ordering::SeqCst);
     }
