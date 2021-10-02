@@ -1,5 +1,7 @@
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::eval_consts::*;
+#[cfg(feature = "trace")]
+use arrayvec::ArrayVec;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
@@ -109,6 +111,8 @@ pub struct EvalTrace {
     pub chained: i16,
     pub phalanx: i16,
     pub threat: i16,
+    pub passed_table: RanksPair,
+
     pub bishop_pair: i16,
 
     pub knight_attack_cnt: i16,
@@ -116,7 +120,10 @@ pub struct EvalTrace {
     pub rook_attack_cnt: i16,
     pub queen_attack_cnt: i16,
 
-    pub passed_table: RanksPair,
+    pub knight_mobility: Indices<6, 9>,
+    pub bishop_mobility: Indices<6, 14>,
+    pub rook_mobility: Indices<6, 15>,
+    pub queen_mobility: Indices<6, 28>,
 
     pub pawn_cnt: i16,
     pub knight_cnt: i16,
@@ -140,6 +147,13 @@ pub struct BbPair(pub BitBoard, pub BitBoard);
 #[cfg(feature = "trace")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
 pub struct RanksPair(pub BitBoard, pub BitBoard);
+
+#[cfg(feature = "trace")]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+pub struct Indices<const CAP: usize, const SIZE: usize>(
+    pub ArrayVec<u8, CAP>,
+    pub ArrayVec<u8, CAP>,
+);
 
 macro_rules! reset_trace {
     ($trace: expr) => {
@@ -186,6 +200,20 @@ macro_rules! trace_eval {
             trace_eval!($trace, $($fields),*);
         }
     }
+}
+
+macro_rules! trace_index {
+    ($trace: expr, $field: ident, $color: expr, $index: expr) => {
+        #[cfg(feature = "trace")]
+        {
+            let index: u8 = $index as u8;
+            let color: Color = $color;
+            match color {
+                Color::White => $trace.$field.0.push(index),
+                Color::Black => $trace.$field.1.push(index),
+            };
+        }
+    };
 }
 
 macro_rules! trace_ranks_pair {
@@ -368,10 +396,12 @@ impl StdEvaluator {
         let whites = *board.color_combined(Color::White);
         let blacks = *board.color_combined(Color::Black);
 
+        let pawns = *board.pieces(Piece::Pawn);
         let knights = *board.pieces(Piece::Knight);
         let bishops = *board.pieces(Piece::Bishop);
         let rooks = *board.pieces(Piece::Rook);
         let queens = *board.pieces(Piece::Queen);
+        let kings = *board.pieces(Piece::King);
 
         let w_king = board.king_square(Color::White);
         let b_king = board.king_square(Color::Black);
@@ -395,14 +425,38 @@ impl StdEvaluator {
         let mut rook_attack_cnt = 0_i16;
         let mut queen_attack_cnt = 0_i16;
 
+        let mut w_pawn_attacks = EMPTY;
+        let mut b_pawn_attacks = EMPTY;
+
+        for pawn in pawns & whites {
+            w_pawn_attacks |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+        }
+        for pawn in pawns & whites {
+            b_pawn_attacks |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
+        }
+
+        let w_mobility_area = !(b_pawn_attacks | (kings & whites) | (whites & pawns));
+        let b_mobility_area = !(w_pawn_attacks | (kings & blacks) | (blacks & pawns));
+
+        let mut knight_mobility = TaperedEval(0, 0);
+        let mut bishop_mobility = TaperedEval(0, 0);
+        let mut rook_mobility = TaperedEval(0, 0);
+        let mut queen_mobility = TaperedEval(0, 0);
+
         for knight in knights & whites {
             let attacks = chess::get_knight_moves(knight);
+            let mobility = (attacks & w_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, knight_mobility, Color::White, mobility);
+            knight_mobility += KNIGHT_MOBILITY[mobility];
             if w_knight_attack & attacks != EMPTY {
                 knight_attack_cnt += 1;
             }
         }
         for knight in knights & blacks {
             let attacks = chess::get_knight_moves(knight);
+            let mobility = (attacks & b_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, knight_mobility, Color::Black, mobility);
+            knight_mobility -= KNIGHT_MOBILITY[mobility];
             if b_knight_attack & attacks != EMPTY {
                 knight_attack_cnt -= 1;
             }
@@ -410,12 +464,18 @@ impl StdEvaluator {
 
         for diag in bishops & whites {
             let attacks = chess::get_bishop_moves(diag, blockers);
+            let mobility = (attacks & w_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, bishop_mobility, Color::White, mobility);
+            bishop_mobility += BISHOP_MOBILITY[mobility];
             if w_bishop_attack & attacks != EMPTY {
                 bishop_attack_cnt += 1;
             }
         }
         for diag in bishops & blacks {
             let attacks = chess::get_bishop_moves(diag, blockers);
+            let mobility = (attacks & b_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, bishop_mobility, Color::Black, mobility);
+            bishop_mobility -= BISHOP_MOBILITY[mobility];
             if b_bishop_attack & attacks != EMPTY {
                 bishop_attack_cnt -= 1;
             }
@@ -423,27 +483,39 @@ impl StdEvaluator {
 
         for ortho in rooks & whites {
             let attacks = chess::get_rook_moves(ortho, blockers);
+            let mobility = (attacks & w_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, rook_mobility, Color::White, mobility);
+            rook_mobility += ROOK_MOBILITY[mobility];
             if w_rook_attack & attacks != EMPTY {
                 rook_attack_cnt += 1;
             }
         }
         for ortho in rooks & blacks {
             let attacks = chess::get_rook_moves(ortho, blockers);
+            let mobility = (attacks & b_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, rook_mobility, Color::Black, mobility);
+            rook_mobility -= ROOK_MOBILITY[mobility];
             if b_rook_attack & attacks != EMPTY {
                 rook_attack_cnt -= 1;
             }
         }
 
-        for ortho in queens & whites {
+        for queen in queens & whites {
             let attacks =
-                chess::get_bishop_moves(ortho, blockers) | chess::get_rook_moves(ortho, blockers);
+                chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+            let mobility = (attacks & w_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, queen_mobility, Color::White, mobility);
+            queen_mobility += QUEEN_MOBILITY[mobility];
             if w_queen_attack & attacks != EMPTY {
                 queen_attack_cnt += 1;
             }
         }
-        for ortho in queens & blacks {
+        for queen in queens & blacks {
             let attacks =
-                chess::get_bishop_moves(ortho, blockers) | chess::get_rook_moves(ortho, blockers);
+                chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+            let mobility = (attacks & b_mobility_area).popcnt() as usize;
+            trace_index!(&mut self.trace, queen_mobility, Color::Black, mobility);
+            queen_mobility -= QUEEN_MOBILITY[mobility];
             if b_queen_attack & attacks != EMPTY {
                 queen_attack_cnt -= 1;
             }
@@ -461,6 +533,10 @@ impl StdEvaluator {
             + bishop_attack_cnt * BISHOP_ATTACK_CNT
             + rook_attack_cnt * ROOK_ATTACK_CNT
             + queen_attack_cnt * QUEEN_ATTACK_CNT
+            + knight_mobility
+            + bishop_mobility
+            + rook_mobility
+            + queen_mobility
     }
 
     fn evaluate_bishops(&mut self, board: &Board) -> TaperedEval {

@@ -1,7 +1,8 @@
+use arrayvec::ArrayVec;
 use rand::Rng;
 
-use crate::bm::bm_eval::evaluator::EvalTrace;
 use crate::bm::bm_eval::evaluator::{BbPair, RanksPair};
+use crate::bm::bm_eval::evaluator::{EvalTrace, Indices};
 use std::ops::AddAssign;
 use std::ops::DivAssign;
 use std::ops::MulAssign;
@@ -42,7 +43,7 @@ impl Stringify for T {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct RankTable([T; 8]);
 
 impl Sqrt for RankTable {
@@ -66,7 +67,7 @@ impl Stringify for RankTable {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct SquareTable([[T; 8]; 8]);
 
 impl Sqrt for SquareTable {
@@ -96,15 +97,67 @@ impl Stringify for SquareTable {
     }
 }
 
-impl Default for RankTable {
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndexTable<const SIZE: usize>(ArrayVec<T, SIZE>);
+
+impl<const SIZE: usize> Default for IndexTable<SIZE> {
     fn default() -> Self {
-        Self([Default::default(); 8])
+        Self(ArrayVec::from([T::default(); SIZE]))
     }
 }
 
-impl Default for SquareTable {
-    fn default() -> Self {
-        Self([[Default::default(); 8]; 8])
+impl<const SIZE: usize> Sqrt for IndexTable<SIZE> {
+    fn sqrt(&self) -> Self {
+        let mut new = ArrayVec::<T, SIZE>::new();
+        for i in &self.0 {
+            new.push(i.sqrt());
+        }
+        IndexTable(new)
+    }
+}
+
+impl<const SIZE: usize> Stringify for IndexTable<SIZE> {
+    fn string(&self) -> String {
+        let mut string = "[".to_string();
+        for element in &self.0 {
+            string += &format!("{}, ", element.string());
+        }
+        string += "]";
+        string
+    }
+}
+
+impl<const CAP: usize, const SIZE: usize> std::ops::Mul<Indices<CAP, SIZE>> for IndexTable<SIZE> {
+    type Output = T;
+
+    fn mul(self, rhs: Indices<CAP, SIZE>) -> Self::Output {
+        let mut out = T::default();
+        for &index in &rhs.0 {
+            let index = index as usize;
+            out += self.0[index];
+        }
+        for &index in &rhs.1 {
+            let index = index as usize;
+            out -= self.0[index];
+        }
+        out
+    }
+}
+
+impl<const CAP: usize, const SIZE: usize> std::ops::Mul<T> for Indices<CAP, SIZE> {
+    type Output = IndexTable<SIZE>;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        let mut out = ArrayVec::from([T(0.0, 0.0); SIZE]);
+        for &index in &self.0 {
+            let index = index as usize;
+            out[index] += rhs;
+        }
+        for &index in &self.1 {
+            let index = index as usize;
+            out[index] -= rhs;
+        }
+        IndexTable::<SIZE>(out)
     }
 }
 
@@ -259,6 +312,14 @@ macro_rules! impl_op_assign {
             }
         }
 
+        impl<const SIZE: usize> std::ops::$trait for IndexTable<SIZE> {
+            fn $op(&mut self, rhs: Self) {
+                for r in 0..SIZE {
+                    self.0[r].$op(rhs.0[r]);
+                }
+            }
+        }
+
         impl std::ops::$trait<f32> for RankTable {
             fn $op(&mut self, rhs: f32) {
                 for i in 0..8 {
@@ -277,6 +338,14 @@ macro_rules! impl_op_assign {
             }
         }
 
+        impl<const SIZE: usize> std::ops::$trait<f32> for IndexTable<SIZE> {
+            fn $op(&mut self, rhs: f32) {
+                for r in 0..SIZE {
+                    self.0[r].$op(rhs);
+                }
+            }
+        }
+
         impl std::ops::$trait<T> for RankTable {
             fn $op(&mut self, rhs: T) {
                 for i in 0..8 {
@@ -291,6 +360,14 @@ macro_rules! impl_op_assign {
                     for f in 0..8 {
                         self.0[r][f].$op(rhs);
                     }
+                }
+            }
+        }
+
+        impl<const SIZE: usize> std::ops::$trait<T> for IndexTable<SIZE> {
+            fn $op(&mut self, rhs: T) {
+                for r in 0..SIZE {
+                    self.0[r].$op(rhs);
                 }
             }
         }
@@ -401,11 +478,11 @@ impl_op_assign!(DivAssign, div_assign);
 
 macro_rules! set_grad {
     ($weights: expr, $trace: expr, $grad: expr, $element: ident: $ty: ty) => {
-        $grad.$element += $trace.$element * $weights;
+        $grad.$element += $trace.$element.clone() * $weights;
     };
     ($weights: expr, $trace: expr, $grad: expr, $element: ident: $ty: ty, $($elements: ident: $tys: ty),*) => {
         {
-            $grad.$element += $trace.$element * $weights;
+            $grad.$element += $trace.$element.clone() * $weights;
             set_grad!($weights, $trace, $grad, $($elements: $ty),*);
         }
     }
@@ -423,10 +500,10 @@ macro_rules! apply_func {
 
 macro_rules! apply_op {
     ($op: ident, $first: expr, $second: expr, $element: ident: $ty: ty) => {
-        $first.$element.$op($second.$element);
+        $first.$element.$op($second.$element.clone());
     };
     ($op: ident, $first: expr, $second: expr, $element: ident: $ty: ty, $($elements: ident: $tys: ty),*) => {
-        $first.$element.$op($second.$element);
+        $first.$element.$op($second.$element.clone());
         apply_op!($op, $first, $second, $($elements: $tys),*);
     }
 }
@@ -443,10 +520,10 @@ macro_rules! apply_op_f32 {
 
 macro_rules! apply_weights {
     ($weights: expr, $eval_trace: expr, $element: ident: $ty: ty) => {
-        ($weights.$element * $eval_trace.$element)
+        ($weights.$element.clone() * $eval_trace.$element.clone())
     };
     ($weights: expr, $eval_trace: expr, $element: ident: $ty: ty, $($elements: ident: $tys: ty),*) => {
-        $weights.$element * $eval_trace.$element + apply_weights!($weights, $eval_trace, $($elements: $tys),*)
+        $weights.$element.clone() * $eval_trace.$element.clone() + apply_weights!($weights, $eval_trace, $($elements: $tys),*)
     }
 }
 
@@ -461,7 +538,7 @@ macro_rules! get_fields {
 
 macro_rules! params {
     ($($element: ident: $ty: ty),*) => {
-        #[derive(Debug, Copy, Clone, PartialEq, Default)]
+        #[derive(Debug, Clone, PartialEq, Default)]
         struct Grad { $($element: $ty),*}
 
         impl Grad {
@@ -516,7 +593,7 @@ macro_rules! params {
         impl_grad_op_assign!(MulAssign, Mul, mul_assign, mul);
         impl_grad_op_assign!(DivAssign, Div, div_assign, div);
 
-        #[derive(Debug, Copy, Clone, PartialEq, Default)]
+        #[derive(Debug, Clone, PartialEq, Default)]
         struct Weights {
             $($element: $ty),*
         }
@@ -540,7 +617,7 @@ macro_rules! optimizer {
     {$($element: ident: $ty: ty),*} => {
         params!($($element: $ty),*);
 
-        #[derive(Debug, Copy, Clone, PartialEq, Default)]
+        #[derive(Debug, Clone, PartialEq, Default)]
         pub struct Optimizer {
             weights: Weights,
 
@@ -599,8 +676,8 @@ macro_rules! optimizer {
             }
 
             fn apply(&mut self) {
-                self.cache = self.cache * self.beta + self.grad * self.grad * (1.0 - self.beta);
-                ((self.grad / (self.cache.sqrt() + 1e-8)) * self.lr).apply(&mut self.weights);
+                self.cache = self.cache.clone() * self.beta + self.grad.clone() * self.grad.clone() * (1.0 - self.beta);
+                ((self.grad.clone() / (self.cache.sqrt() + 1e-8)) * self.lr).apply(&mut self.weights);
                 self.grad *= 0.0;
             }
         }
@@ -628,11 +705,15 @@ pub fn tune(data_points: &[DataPoint]) {
         phalanx: T,
         passed_table: RankTable,
 
+        knight_mobility: IndexTable<9>,
+        bishop_mobility: IndexTable<14>,
+        rook_mobility: IndexTable<15>,
+        queen_mobility: IndexTable<28>,
+
         knight_attack_cnt: T,
         bishop_attack_cnt: T,
         rook_attack_cnt: T,
         queen_attack_cnt: T,
-
 
         pawn_cnt: T,
         knight_cnt: T,
@@ -648,9 +729,10 @@ pub fn tune(data_points: &[DataPoint]) {
         kings: SquareTable,
     }
 
-    let mut optim = Box::new(Optimizer::new(0.001, 0.999, 0.0052));
+    let mut optim = Box::new(Optimizer::new(0.001, 0.999, 0.0056));
     optim.weights.print();
     println!("err: {}", optim.error(data_points));
+
 
     for _ in 0..ITERS / PRINT_ITERS {
         for _ in 0..PRINT_ITERS {
