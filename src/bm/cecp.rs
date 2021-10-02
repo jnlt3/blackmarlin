@@ -5,15 +5,14 @@ use std::time::{Duration, Instant};
 
 use chess::{Board, ChessMove, MoveGen};
 
+use crate::bm::bm_eval::evaluator::StdEvaluator;
+use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
-use crate::bm::bm_runner::runner::Runner;
 use crate::bm::bm_runner::time::{
     CompoundTimeManager, ConstDepth, ConstTime, MainTimeManager, ManualAbort, TimeManager,
 };
 use crate::bm::bm_util::diagnostics;
-use crate::bm::bm_util::evaluator::Evaluator;
-use std::marker::PhantomData;
 
 const POSITIONS: &[&str] = &[
     "Q7/5Q2/8/8/3k4/6P1/6BP/7K b - - 0 67",
@@ -52,9 +51,8 @@ enum TimeManagerType {
     Normal,
 }
 
-pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> {
-    eval_type: PhantomData<Eval>,
-    bm_runner: Arc<Mutex<R>>,
+pub struct CecpAdapter {
+    bm_runner: Arc<Mutex<AbRunner>>,
 
     current_time_manager: TimeManagerType,
     time_manager: Arc<CompoundTimeManager>,
@@ -71,7 +69,7 @@ pub struct CecpAdapter<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>
     threads: u8,
 }
 
-impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval, R> {
+impl CecpAdapter {
     pub fn new() -> Self {
         let manual_abort = Arc::new(ManualAbort::new());
         let const_depth = Arc::new(ConstDepth::new(8));
@@ -87,9 +85,12 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
             managers.into_boxed_slice(),
             TimeManagerType::Normal as usize,
         ));
-        let bm_runner = Arc::new(Mutex::new(R::new(Board::default(), time_manager.clone())));
+        let bm_runner = Arc::new(Mutex::new(AbRunner::new(
+            Board::default(),
+            time_manager.clone(),
+            StdEvaluator::new(),
+        )));
         Self {
-            eval_type: PhantomData::default(),
             bm_runner,
             time_left: 0_f32,
             threads: 1,
@@ -185,14 +186,14 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 self.current_time_manager = TimeManagerType::ConstTime;
                 self.time_manager
                     .set_mode(TimeManagerType::ConstTime as usize);
-                self.const_time.set_duration(Duration::from_secs_f32(3.0));
+                self.const_time.set_duration(Duration::from_secs_f32(1.0));
                 let mut sum_node_cnt = 0;
                 let mut sum_time = Duration::from_nanos(0);
                 let mut avg_depth = 0;
                 for position in POSITIONS {
                     let board = chess::Board::from_str(position).unwrap();
                     bm_runner.set_board(board);
-                    self.time_manager.initiate(Duration::from_secs_f32(3.0), 0);
+                    self.time_manager.initiate(Duration::from_secs_f32(1.0), 0);
                     let start = Instant::now();
                     let (_, _, depth, node_cnt) = bm_runner.search::<Run, NoInfo>(self.threads);
                     sum_time += start.elapsed();
@@ -222,8 +223,8 @@ impl<Eval: 'static + Clone + Send + Evaluator, R: Runner<Eval>> CecpAdapter<Eval
                 if self.is_analyzing() {
                     println!("# Diagnostcics should be called when there is no analysis happening");
                 } else {
-                    diagnostics::diagnostics_nps::<Eval, R>();
-                    diagnostics::diagnostics_scaling::<Eval, R>();
+                    diagnostics::diagnostics_nps();
+                    diagnostics::diagnostics_scaling();
                 }
             }
         }

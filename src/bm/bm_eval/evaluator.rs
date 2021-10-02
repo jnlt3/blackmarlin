@@ -1,7 +1,5 @@
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::eval_consts::*;
-use crate::bm::bm_util::evaluator::Evaluator;
-use crate::bm::bm_util::position::Position;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
 
 const PIECES: [Piece; 6] = [
@@ -96,179 +94,140 @@ pub const fn get_basic_eval_data() -> EvalData {
 
 const DATA: EvalData = get_basic_eval_data();
 
-pub trait Access {
-    fn get(resource: &EvalResource) -> BitBoard;
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PsqtTrace {
+    pub bb: BitBoard,
+}
+#[cfg(feature = "trace")]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EvalTrace {
+    pub phase: i16,
+    pub tempo: i16,
+    pub passed: i16,
+    pub doubled: i16,
+    pub isolated: i16,
+    pub chained: i16,
+    pub phalanx: i16,
+    pub threat: i16,
+    pub bishop_pair: i16,
+
+    pub knight_attack_cnt: i16,
+    pub bishop_attack_cnt: i16,
+    pub rook_attack_cnt: i16,
+    pub queen_attack_cnt: i16,
+
+    pub passed_table: RanksPair,
+
+    pub pawn_cnt: i16,
+    pub knight_cnt: i16,
+    pub bishop_cnt: i16,
+    pub rook_cnt: i16,
+    pub queen_cnt: i16,
+    pub king_cnt: i16,
+
+    pub pawns: BbPair,
+    pub knights: BbPair,
+    pub bishops: BbPair,
+    pub rooks: BbPair,
+    pub queens: BbPair,
+    pub kings: BbPair,
 }
 
-pub struct EvalResource<'a> {
-    board: &'a Board,
+#[cfg(feature = "trace")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
+pub struct BbPair(pub BitBoard, pub BitBoard);
 
-    w_attack: BitBoard,
-    b_attack: BitBoard,
+#[cfg(feature = "trace")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
+pub struct RanksPair(pub BitBoard, pub BitBoard);
 
-    w_knight_checks: BitBoard,
-    b_knight_checks: BitBoard,
-    w_diag_checks: BitBoard,
-    b_diag_checks: BitBoard,
-    w_ortho_checks: BitBoard,
-    b_ortho_checks: BitBoard,
-
-    w_knight_attacks: BitBoard,
-    w_bishop_attacks: BitBoard,
-    w_rook_attacks: BitBoard,
-    w_queen_attacks: BitBoard,
-
-    b_knight_attacks: BitBoard,
-    b_bishop_attacks: BitBoard,
-    b_rook_attacks: BitBoard,
-    b_queen_attacks: BitBoard,
+macro_rules! reset_trace {
+    ($trace: expr) => {
+        #[cfg(feature = "trace")]
+        {
+            let trace: &mut EvalTrace = $trace;
+            *trace = Default::default();
+        }
+    };
 }
 
-impl<'a> EvalResource<'a> {
-    pub fn new(board: &'a Board) -> Self {
-        let white = *board.color_combined(Color::White);
-        let black = *board.color_combined(Color::Black);
-        let blockers = *board.combined();
-
-        let w_king = board.king_square(Color::White);
-        let b_king = board.king_square(Color::Black);
-
-        let mut w_non_king_att = chess::get_king_moves(w_king);
-        let mut b_non_king_att = chess::get_king_moves(b_king);
-
-        let w_knight_checks = chess::get_knight_moves(b_king) & !white;
-        let b_knight_checks = chess::get_knight_moves(w_king) & !black;
-        let w_diag_checks = chess::get_bishop_moves(b_king, blockers) & !white;
-        let b_diag_checks = chess::get_bishop_moves(w_king, blockers) & !black;
-        let w_ortho_checks = chess::get_rook_moves(b_king, blockers) & !white;
-        let b_ortho_checks = chess::get_rook_moves(w_king, blockers) & !black;
-
-        let mut w_knight_attacks = EMPTY;
-        let mut w_bishop_attacks = EMPTY;
-        let mut w_rook_attacks = EMPTY;
-        let mut w_queen_attacks = EMPTY;
-
-        let mut b_knight_attacks = EMPTY;
-        let mut b_bishop_attacks = EMPTY;
-        let mut b_rook_attacks = EMPTY;
-        let mut b_queen_attacks = EMPTY;
-
-        for sq in white & *board.pieces(Piece::Pawn) {
-            w_non_king_att |= chess::get_pawn_attacks(sq, Color::White, !EMPTY)
-        }
-        for sq in white & *board.pieces(Piece::Knight) {
-            w_knight_attacks |= chess::get_knight_moves(sq);
-        }
-        w_non_king_att |= w_knight_attacks;
-        for sq in white & *board.pieces(Piece::Bishop) {
-            w_bishop_attacks |= chess::get_bishop_moves(sq, blockers);
-        }
-        w_non_king_att |= w_bishop_attacks;
-        for sq in white & *board.pieces(Piece::Rook) {
-            w_rook_attacks |= chess::get_rook_moves(sq, blockers);
-        }
-        w_non_king_att |= w_rook_attacks;
-        for sq in white & *board.pieces(Piece::Queen) {
-            w_queen_attacks |=
-                chess::get_bishop_moves(sq, blockers) | chess::get_rook_moves(sq, blockers);
-        }
-        w_non_king_att |= w_queen_attacks;
-
-        for sq in black & *board.pieces(Piece::Pawn) {
-            b_non_king_att |= chess::get_pawn_attacks(sq, Color::Black, !EMPTY)
-        }
-        for sq in black & *board.pieces(Piece::Knight) {
-            b_knight_attacks |= chess::get_knight_moves(sq);
-        }
-        b_non_king_att |= b_knight_attacks;
-        for sq in black & *board.pieces(Piece::Bishop) {
-            b_bishop_attacks |= chess::get_bishop_moves(sq, blockers);
-        }
-        b_non_king_att |= b_bishop_attacks;
-        for sq in black & *board.pieces(Piece::Rook) {
-            b_rook_attacks |= chess::get_rook_moves(sq, blockers);
-        }
-        b_non_king_att |= b_rook_attacks;
-        for sq in black & *board.pieces(Piece::Queen) {
-            b_queen_attacks |=
-                chess::get_bishop_moves(sq, blockers) | chess::get_rook_moves(sq, blockers);
-        }
-        b_non_king_att |= b_queen_attacks;
-
-        Self {
-            w_attack: w_non_king_att,
-            b_attack: b_non_king_att,
-            w_knight_checks,
-            b_knight_checks,
-            w_diag_checks,
-            b_diag_checks,
-            w_ortho_checks,
-            b_ortho_checks,
-            w_knight_attacks,
-            w_bishop_attacks,
-            w_rook_attacks,
-            w_queen_attacks,
-
-            b_knight_attacks,
-            b_bishop_attacks,
-            b_rook_attacks,
-            b_queen_attacks,
-            board,
-        }
-    }
-
-    pub fn get<T: Access>(&self) -> BitBoard {
-        T::get(&self)
-    }
-}
-
-macro_rules! impl_access {
-    ($name:ident, $res:ident, $func:expr) => {
-        pub struct $name;
-
-        impl Access for $name {
-            fn get($res: &EvalResource) -> BitBoard {
-                $func
+macro_rules! trace_tempo {
+    ($trace: expr, $color: expr) => {
+        #[cfg(feature = "trace")]
+        {
+            $trace.tempo = match $color {
+                Color::White => 1,
+                Color::Black => -1,
             }
         }
     };
 }
 
-impl_access!(Pawns, res, *res.board.pieces(Piece::Pawn));
-impl_access!(Knights, res, *res.board.pieces(Piece::Knight));
-impl_access!(Bishops, res, *res.board.pieces(Piece::Bishop));
-impl_access!(Rooks, res, *res.board.pieces(Piece::Rook));
-impl_access!(Queens, res, *res.board.pieces(Piece::Queen));
-impl_access!(Kings, res, *res.board.pieces(Piece::King));
-impl_access!(White, res, *res.board.color_combined(Color::White));
-impl_access!(Black, res, *res.board.color_combined(Color::Black));
-impl_access!(All, res, *res.board.combined());
-impl_access!(WhiteNonKingAttack, res, res.w_attack);
-impl_access!(BlackNonKingAttack, res, res.b_attack);
-impl_access!(KnightChecksWhite, res, res.w_knight_checks);
-impl_access!(KnightChecksBlack, res, res.b_knight_checks);
-impl_access!(DiagonalChecksWhite, res, res.w_diag_checks);
-impl_access!(DiagonalChecksBlack, res, res.b_diag_checks);
-impl_access!(OrthogonalChecksWhite, res, res.w_ortho_checks);
-impl_access!(OrthogonalChecksBlack, res, res.b_ortho_checks);
-impl_access!(WhiteKnightAttack, res, res.w_knight_attacks);
-impl_access!(BlackKnightAttack, res, res.b_knight_attacks);
-impl_access!(WhiteBishopAttack, res, res.w_bishop_attacks);
-impl_access!(BlackBishopAttack, res, res.b_bishop_attacks);
-impl_access!(WhiteRookAttack, res, res.w_rook_attacks);
-impl_access!(BlackRookAttack, res, res.b_rook_attacks);
-impl_access!(WhiteQueenAttack, res, res.w_queen_attacks);
-impl_access!(BlackQueenAttack, res, res.b_queen_attacks);
+macro_rules! trace_phase {
+    ($trace: expr, $phase: expr) => {
+        #[cfg(feature = "trace")]
+        {
+            $trace.phase = $phase;
+        }
+    };
+}
+
+macro_rules! trace_eval {
+    ($trace: expr, $field: ident) => {
+        #[cfg(feature = "trace")]
+        {
+            $trace.$field = $field;
+        }
+    };
+    ($trace: expr, $field: ident, $($fields: ident),*) => {
+        #[cfg(feature = "trace")]
+        {
+            $trace.$field = $field;
+            trace_eval!($trace, $($fields),*);
+        }
+    }
+}
+
+macro_rules! trace_ranks_pair {
+    ($trace: expr, $field: ident, $bb_0: expr, $bb_1: expr) => {
+        #[cfg(feature = "trace")]
+        {
+            let trace: &mut EvalTrace = $trace;
+            let bb_0: BitBoard = $bb_0;
+            let bb_1: BitBoard = $bb_1;
+            trace.$field = RanksPair(bb_0, bb_1.reverse_colors());
+        }
+    };
+}
+
+macro_rules! trace_psqt {
+    ($trace: expr, $piece: ident, $piece_cnt: ident, $bitboard_0: expr, $bitboard_1: expr) => {
+        #[cfg(feature = "trace")]
+        {
+            let trace: &mut EvalTrace = $trace;
+            let bitboard_0: BitBoard = $bitboard_0;
+            let bitboard_1: BitBoard = $bitboard_1;
+            trace.$piece = BbPair(bitboard_0, bitboard_1.reverse_colors());
+            trace.$piece_cnt = bitboard_0.popcnt() as i16 - bitboard_1.popcnt() as i16;
+        }
+    };
+}
 
 #[derive(Debug, Clone)]
-pub struct StdEvaluator;
+pub struct StdEvaluator {
+    #[cfg(feature = "trace")]
+    trace: EvalTrace,
+}
 
-impl Evaluator for StdEvaluator {
-    fn new() -> Self {
-        Self
+impl StdEvaluator {
+    pub fn new() -> Self {
+        Self {
+            #[cfg(feature = "trace")]
+            trace: Default::default(),
+        }
     }
 
-    fn see(mut board: Board, mut make_move: ChessMove) -> i16 {
+    pub fn see(mut board: Board, mut make_move: ChessMove) -> i16 {
         let mut index = 0;
         let mut gains = [0_i16; 16];
         let target_square = make_move.get_dest();
@@ -357,260 +316,317 @@ impl Evaluator for StdEvaluator {
     /**
     Doesn't handle checkmates or stalemates
      */
-    fn evaluate(&mut self, position: &Position) -> Evaluation {
-        let board = position.board();
-        let res = EvalResource::new(board);
+    pub fn evaluate(&mut self, board: &Board) -> Evaluation {
+        reset_trace!(&mut self.trace);
+        trace_tempo!(&mut self.trace, board.side_to_move());
+        let turn = match board.side_to_move() {
+            Color::White => 1,
+            Color::Black => -1,
+        };
 
-        let turn = position.turn();
+        let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
+            + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
+            + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
+            + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
+            + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
+            .min(TOTAL_PHASE as u32) as i16;
+        trace_phase!(&mut self.trace, phase);
 
-        let pawns = res.get::<Pawns>();
-        let knights = res.get::<Knights>();
-        let bishops = res.get::<Bishops>();
-        let rooks = res.get::<Rooks>();
-        let queens = res.get::<Queens>();
-        let kings = res.get::<Kings>();
+        let eval = self.evaluate_psqt(board, Piece::Pawn)
+            + self.evaluate_psqt(board, Piece::Knight)
+            + self.evaluate_psqt(board, Piece::Bishop)
+            + self.evaluate_psqt(board, Piece::Rook)
+            + self.evaluate_psqt(board, Piece::Queen)
+            + self.evaluate_psqt(board, Piece::King)
+            + self.evaluate_pawns(board)
+            + self.evaluate_bishops(board)
+            + self.evaluate_threats(board);
 
-        let phase = TOTAL_PHASE.saturating_sub(
-            pawns.popcnt() * PAWN_PHASE
-                + knights.popcnt() * KNIGHT_PHASE
-                + bishops.popcnt() * BISHOP_PHASE
-                + rooks.popcnt() * ROOK_PHASE
-                + queens.popcnt() * QUEEN_PHASE,
-        ) as i16;
+        Evaluation::new((eval * turn + TEMPO).convert(phase))
+    }
 
-        let white = res.get::<White>();
-        let black = res.get::<Black>();
-
-        let white_pawns = pawns & white;
-        let white_knights = knights & white;
-        let white_bishops = bishops & white;
-        let white_rooks = rooks & white;
-        let white_queens = queens & white;
-        let white_king = kings & white;
-
-        let black_pawns = pawns & black;
-        let black_knights = knights & black;
-        let black_bishops = bishops & black;
-        let black_rooks = rooks & black;
-        let black_queens = queens & black;
-        let black_king = kings & black;
-
-        //PSQT
-        let white_psqt_score = Self::get_white_psqt_score(white_pawns, &PAWN_TABLE)
-            + Self::get_white_psqt_score(white_knights, &KNIGHT_TABLE)
-            + Self::get_white_psqt_score(white_bishops, &BISHOP_TABLE)
-            + Self::get_white_psqt_score(white_rooks, &ROOK_TABLE)
-            + Self::get_white_psqt_score(white_queens, &QUEEN_TABLE)
-            + Self::get_white_psqt_score(white_king, &KING_TABLE);
-
-        let black_psqt_score = Self::get_black_psqt_score(black_pawns, &PAWN_TABLE)
-            + Self::get_black_psqt_score(black_knights, &KNIGHT_TABLE)
-            + Self::get_black_psqt_score(black_bishops, &BISHOP_TABLE)
-            + Self::get_black_psqt_score(black_rooks, &ROOK_TABLE)
-            + Self::get_black_psqt_score(black_queens, &QUEEN_TABLE)
-            + Self::get_black_psqt_score(black_king, &KING_TABLE);
-
-        let psqt_score = white_psqt_score - black_psqt_score;
-
-        let white_attacked = res.get::<WhiteNonKingAttack>();
-        let black_attacked = res.get::<BlackNonKingAttack>();
-
-        let w_safe_squares = !black_attacked | white_attacked;
-        let w_safe_pawns = white_pawns & w_safe_squares;
-
-        let b_safe_squares = !white_attacked | black_attacked;
-        let b_safe_pawns = black_pawns & b_safe_squares;
-
-        let white_non_pawn = white & !white_pawns;
-        let black_non_pawn = black & !black_pawns;
-
-        let mut w_pawn_threats = EMPTY;
-        let mut b_pawn_threats = EMPTY;
-
-        for pawn in w_safe_pawns {
-            w_pawn_threats |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+    //TODO: investigate tapered evaluation
+    fn piece_pts(piece: Piece) -> i16 {
+        match piece {
+            Piece::Pawn => 100,
+            Piece::Knight => 300,
+            Piece::Bishop => 350,
+            Piece::Rook => 500,
+            Piece::Queen => 900,
+            Piece::King => 20000,
         }
-        for pawn in b_safe_pawns {
-            b_pawn_threats |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
-        }
+    }
 
-        let w_safe_pawn_threats = w_pawn_threats & black_non_pawn;
-        let b_safe_pawn_threats = b_pawn_threats & white_non_pawn;
+    #[cfg(feature = "trace")]
+    pub fn get_trace(&self) -> &EvalTrace {
+        &self.trace
+    }
 
-        let safe_pawn_threat_score = (w_safe_pawn_threats.popcnt() as i16
-            - b_safe_pawn_threats.popcnt() as i16)
-            * THREAT_BY_SAFE_PAWN;
+    fn evaluate_threats(&mut self, board: &Board) -> TaperedEval {
+        let blockers = *board.combined();
+
+        let whites = *board.color_combined(Color::White);
+        let blacks = *board.color_combined(Color::Black);
+
+        let knights = *board.pieces(Piece::Knight);
+        let bishops = *board.pieces(Piece::Bishop);
+        let rooks = *board.pieces(Piece::Rook);
+        let queens = *board.pieces(Piece::Queen);
 
         let w_king = board.king_square(Color::White);
         let b_king = board.king_square(Color::Black);
 
-        let w_king_protectors = DATA.w_protector[w_king.to_index()] & white_pawns;
-        let b_king_protectors = DATA.b_protector[b_king.to_index()] & black_pawns;
+        let w_knight_attack = chess::get_knight_moves(b_king);
+        let b_knight_attack = chess::get_knight_moves(w_king);
 
-        let king_protector_score = (w_king_protectors.popcnt() as i16
-            - b_king_protectors.popcnt() as i16)
-            * KING_PROTECTOR;
+        let w_bishop_attack = chess::get_bishop_moves(b_king, blockers);
+        let b_bishop_attack = chess::get_bishop_moves(w_king, blockers);
 
-        let w_knight_checkers = res.get::<KnightChecksWhite>() & res.get::<WhiteKnightAttack>();
-        let w_bishop_checkers = res.get::<DiagonalChecksWhite>() & res.get::<WhiteBishopAttack>();
-        let w_rook_checkers = res.get::<OrthogonalChecksWhite>() & res.get::<WhiteRookAttack>();
-        let w_queen_checkers = (res.get::<DiagonalChecksWhite>()
-            | res.get::<OrthogonalChecksWhite>())
-            & res.get::<WhiteQueenAttack>();
+        let w_rook_attack = chess::get_rook_moves(b_king, blockers);
+        let b_rook_attack = chess::get_rook_moves(w_king, blockers);
 
-        let b_knight_checkers = res.get::<KnightChecksBlack>() & res.get::<BlackKnightAttack>();
-        let b_bishop_checkers = res.get::<DiagonalChecksBlack>() & res.get::<BlackBishopAttack>();
-        let b_rook_checkers = res.get::<OrthogonalChecksBlack>() & res.get::<BlackRookAttack>();
-        let b_queen_checkers = (res.get::<DiagonalChecksBlack>()
-            | res.get::<OrthogonalChecksBlack>())
-            & res.get::<BlackQueenAttack>();
+        let w_queen_attack =
+            chess::get_bishop_moves(b_king, blockers) | chess::get_rook_moves(b_king, blockers);
+        let b_queen_attack =
+            chess::get_bishop_moves(w_king, blockers) | chess::get_rook_moves(w_king, blockers);
 
-        let w_checkers = (w_queen_checkers.popcnt()
-            + (w_knight_checkers | w_bishop_checkers | w_rook_checkers).popcnt())
-            as i16;
-        let b_checkers = (b_queen_checkers.popcnt()
-            + (b_knight_checkers | b_bishop_checkers | b_rook_checkers).popcnt())
-            as i16;
+        let mut knight_attack_cnt = 0_i16;
+        let mut bishop_attack_cnt = 0_i16;
+        let mut rook_attack_cnt = 0_i16;
+        let mut queen_attack_cnt = 0_i16;
 
-        let checkers_score = (w_checkers as i16 - b_checkers as i16) * KING_CHECKER;
-
-        let pawn_score = self.get_pawn_score(white_pawns, black_pawns);
-
-        let white_score = psqt_score
-            + pawn_score
-            + safe_pawn_threat_score
-            + king_protector_score
-            + checkers_score;
-        let white_score = white_score.convert(phase);
-        let white_score = match Self::outcome_state(board) {
-            OutcomeState::Unknown => white_score,
-            OutcomeState::Draw => white_score / 10,
-            OutcomeState::LikelyLoss | OutcomeState::Loss => {
-                return Evaluation::new(white_score.min(0) * turn);
+        for knight in knights & whites {
+            let attacks = chess::get_knight_moves(knight);
+            if w_knight_attack & attacks != EMPTY {
+                knight_attack_cnt += 1;
             }
-            OutcomeState::LikelyWin | OutcomeState::Win => {
-                return Evaluation::new(white_score.max(0) * turn);
-            }
-        };
-
-        Evaluation::new(turn * white_score + TEMPO)
-    }
-
-    fn clear_cache(&mut self) {}
-}
-
-impl StdEvaluator {
-    //TODO: investigate tapered evaluation
-    fn piece_pts(piece: Piece) -> i16 {
-        match piece {
-            Piece::Pawn => PAWN.0,
-            Piece::Knight => KNIGHT.0,
-            Piece::Bishop => BISHOP.0,
-            Piece::Rook => ROOK.0,
-            Piece::Queen => QUEEN.0,
-            Piece::King => KING.0,
         }
+        for knight in knights & blacks {
+            let attacks = chess::get_knight_moves(knight);
+            if b_knight_attack & attacks != EMPTY {
+                knight_attack_cnt -= 1;
+            }
+        }
+
+        for diag in bishops & whites {
+            let attacks = chess::get_bishop_moves(diag, blockers);
+            if w_bishop_attack & attacks != EMPTY {
+                bishop_attack_cnt += 1;
+            }
+        }
+        for diag in bishops & blacks {
+            let attacks = chess::get_bishop_moves(diag, blockers);
+            if b_bishop_attack & attacks != EMPTY {
+                bishop_attack_cnt -= 1;
+            }
+        }
+
+        for ortho in rooks & whites {
+            let attacks = chess::get_rook_moves(ortho, blockers);
+            if w_rook_attack & attacks != EMPTY {
+                rook_attack_cnt += 1;
+            }
+        }
+        for ortho in rooks & blacks {
+            let attacks = chess::get_rook_moves(ortho, blockers);
+            if b_rook_attack & attacks != EMPTY {
+                rook_attack_cnt -= 1;
+            }
+        }
+
+        for ortho in queens & whites {
+            let attacks =
+                chess::get_bishop_moves(ortho, blockers) | chess::get_rook_moves(ortho, blockers);
+            if w_queen_attack & attacks != EMPTY {
+                queen_attack_cnt += 1;
+            }
+        }
+        for ortho in queens & blacks {
+            let attacks =
+                chess::get_bishop_moves(ortho, blockers) | chess::get_rook_moves(ortho, blockers);
+            if b_queen_attack & attacks != EMPTY {
+                queen_attack_cnt -= 1;
+            }
+        }
+
+        trace_eval!(
+            &mut self.trace,
+            knight_attack_cnt,
+            bishop_attack_cnt,
+            rook_attack_cnt,
+            queen_attack_cnt
+        );
+
+        knight_attack_cnt * KNIGHT_ATTACK_CNT
+            + bishop_attack_cnt * BISHOP_ATTACK_CNT
+            + rook_attack_cnt * ROOK_ATTACK_CNT
+            + queen_attack_cnt * QUEEN_ATTACK_CNT
     }
 
-    fn get_pawn_score(&self, white_pawns: BitBoard, black_pawns: BitBoard) -> TaperedEval {
-        let mut w_passed = 0;
-        let mut b_passed = 0;
+    fn evaluate_bishops(&mut self, board: &Board) -> TaperedEval {
+        let bishops = *board.pieces(Piece::Bishop);
+        let w_bishops = bishops & *board.color_combined(Color::White);
+        let b_bishops = bishops & *board.color_combined(Color::Black);
+        let w_pair = if w_bishops.popcnt() > 1 { 1 } else { 0 };
+        let b_pair = if b_bishops.popcnt() > 1 { 1 } else { 0 };
+        let bishop_pair = w_pair - b_pair;
+        trace_eval!(&mut self.trace, bishop_pair);
+        bishop_pair * BISHOP_PAIR
+    }
+
+    fn evaluate_pawns(&mut self, board: &Board) -> TaperedEval {
+        let white_pawns = *board.pieces(Piece::Pawn) & board.color_combined(Color::White);
+        let black_pawns = *board.pieces(Piece::Pawn) & board.color_combined(Color::Black);
+
+        let mut w_passed_bb = EMPTY;
+        let mut b_passed_bb = EMPTY;
+
+        let mut w_isolated = 0_i16;
+        let mut b_isolated = 0_i16;
+
+        let white_non_pawn = board.color_combined(Color::White) & !white_pawns;
+        let black_non_pawn = board.color_combined(Color::Black) & !black_pawns;
+
+        let mut w_pawn_attacks = EMPTY;
+        let mut b_pawn_attacks = EMPTY;
+
         for pawn in white_pawns {
             let ahead = DATA.w_ahead[pawn.to_index()];
-            w_passed += 1_u32.saturating_sub((ahead & black_pawns).popcnt());
+
+            if (ahead & black_pawns) == EMPTY {
+                w_passed_bb |= BitBoard::from_square(pawn);
+            }
+
+            let adj = chess::get_adjacent_files(pawn.get_file());
+            if adj & white_pawns == EMPTY {
+                w_isolated += 1;
+            }
+
+            let attacks = chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+            w_pawn_attacks |= attacks;
         }
+
         for pawn in black_pawns {
             let ahead = DATA.b_ahead[pawn.to_index()];
-            b_passed += 1_u32.saturating_sub((ahead & white_pawns).popcnt());
-        }
 
+            if (ahead & white_pawns) == EMPTY {
+                b_passed_bb |= BitBoard::from_square(pawn);
+            }
+
+            let adj = chess::get_adjacent_files(pawn.get_file());
+            if adj & black_pawns == EMPTY {
+                b_isolated += 1;
+            }
+
+            let attacks = chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
+            b_pawn_attacks |= attacks;
+        }
         let mut w_doubled = 0;
         let mut b_doubled = 0;
-        let mut w_isolated = 0;
-        let mut b_isolated = 0;
         for &file in &ALL_FILES {
             let file_bb = chess::get_file(file);
-            let adj_files = chess::get_adjacent_files(file);
             w_doubled += (file_bb & white_pawns).popcnt().saturating_sub(1);
             b_doubled += (file_bb & black_pawns).popcnt().saturating_sub(1);
-            w_isolated += 1_u32.saturating_sub((adj_files & white_pawns).popcnt());
-            b_isolated += 1_u32.saturating_sub((adj_files & black_pawns).popcnt());
         }
-        let passed_score = (w_passed as i16 - b_passed as i16) * PASSER;
-        let doubled_score = (w_doubled as i16 - b_doubled as i16) * DOUBLED;
-        let isolated_score = (w_isolated as i16 - b_isolated as i16) * ISOLATED;
 
-        passed_score + doubled_score + isolated_score
+        let mut passer_score = TaperedEval(0, 0);
+        for sq in w_passed_bb {
+            let rank = sq.get_rank();
+            passer_score += PASSED_TABLE[rank.to_index()];
+        }
+        for sq in b_passed_bb.reverse_colors() {
+            let rank = sq.get_rank();
+            passer_score -= PASSED_TABLE[rank.to_index()];
+        }
+
+        let w_phalanx = (white_pawns & BitBoard(white_pawns.0 << 1)).popcnt();
+        let b_phalanx = (black_pawns & BitBoard(black_pawns.0 << 1)).popcnt();
+
+        let w_attacks = (w_pawn_attacks & black_non_pawn).popcnt();
+        let b_attacks = (b_pawn_attacks & white_non_pawn).popcnt();
+
+        let w_chained = (w_pawn_attacks & white_pawns).popcnt();
+        let b_chained = (b_pawn_attacks & black_pawns).popcnt();
+
+        let isolated = w_isolated - b_isolated;
+        let doubled = w_doubled as i16 - b_doubled as i16;
+        let threat = w_attacks as i16 - b_attacks as i16;
+        let chained = w_chained as i16 - b_chained as i16;
+        let phalanx = w_phalanx as i16 - b_phalanx as i16;
+
+        trace_eval!(&mut self.trace, isolated, doubled, threat, chained, phalanx);
+
+        trace_ranks_pair!(&mut self.trace, passed_table, w_passed_bb, b_passed_bb);
+
+        passer_score
+            + isolated * ISOLATED
+            + doubled * DOUBLED
+            + threat * THREAT
+            + chained * CHAINED
+            + phalanx * PHALANX
     }
 
     #[inline]
-    fn get_white_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
+    pub fn get_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
         let mut psqt_score = TaperedEval(0, 0);
         for square in board {
-            let rank = 7 - square.get_rank().to_index();
+            let rank = square.get_rank().to_index();
             let file = square.get_file().to_index();
             psqt_score += table[rank][file];
         }
         psqt_score
     }
 
-    #[inline]
-    fn get_black_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
-        let mut psqt_score = TaperedEval(0, 0);
-        for square in board {
-            let rank = square.get_rank().to_index();
-            let file = square.get_file().to_index();
-            psqt_score += table[rank][file]
-        }
-        psqt_score
-    }
+    fn evaluate_psqt(&mut self, board: &Board, piece: Piece) -> TaperedEval {
+        let pieces_white = board.pieces(piece) & board.color_combined(Color::White);
+        let pieces_black = board.pieces(piece) & board.color_combined(Color::Black);
 
-    fn outcome_state(board: &Board) -> OutcomeState {
-        let w_checkmate = Self::can_checkmate(board, Color::White);
-        let b_checkmate = Self::can_checkmate(board, Color::Black);
-        assert!(!(w_checkmate == Checkmate::Certain && b_checkmate == Checkmate::Certain));
-        if let Checkmate::Certain = w_checkmate {
-            return OutcomeState::Win;
-        } else if let Checkmate::Certain = b_checkmate {
-            return OutcomeState::Loss;
-        }
-        match (w_checkmate, b_checkmate) {
-            (Checkmate::Impossible, Checkmate::Impossible) => OutcomeState::Draw,
-            (Checkmate::Impossible, Checkmate::Unknown) => OutcomeState::LikelyLoss,
-            (Checkmate::Unknown, Checkmate::Impossible) => OutcomeState::LikelyWin,
-            (Checkmate::Unknown, Checkmate::Unknown) => OutcomeState::Unknown,
-            _ => {
-                unreachable!();
+        let psqt = match piece {
+            Piece::Pawn => {
+                trace_psqt!(&mut self.trace, pawns, pawn_cnt, pieces_white, pieces_black);
+                &PAWN_TABLE
             }
-        }
-    }
+            Piece::Knight => {
+                trace_psqt!(
+                    &mut self.trace,
+                    knights,
+                    knight_cnt,
+                    pieces_white,
+                    pieces_black
+                );
+                &KNIGHT_TABLE
+            }
+            Piece::Bishop => {
+                trace_psqt!(
+                    &mut self.trace,
+                    bishops,
+                    bishop_cnt,
+                    pieces_white,
+                    pieces_black
+                );
+                &BISHOP_TABLE
+            }
+            Piece::Rook => {
+                trace_psqt!(&mut self.trace, rooks, rook_cnt, pieces_white, pieces_black);
+                &ROOK_TABLE
+            }
+            Piece::Queen => {
+                trace_psqt!(
+                    &mut self.trace,
+                    queens,
+                    queen_cnt,
+                    pieces_white,
+                    pieces_black
+                );
+                &QUEEN_TABLE
+            }
+            Piece::King => {
+                trace_psqt!(&mut self.trace, kings, king_cnt, pieces_white, pieces_black);
+                &KING_TABLE
+            }
+        };
 
-    fn can_checkmate(board: &Board, side: Color) -> Checkmate {
-        let pieces = *board.color_combined(side);
-        let king_only = pieces.popcnt() == 1;
-        if king_only {
-            return Checkmate::Impossible;
-        }
-        let single_piece_win =
-            pieces & (board.pieces(Piece::Rook) | board.pieces(Piece::Queen)) != EMPTY;
-
-        let knights = *board.pieces(Piece::Knight) & pieces;
-        let bishops = *board.pieces(Piece::Bishop) & pieces;
-
-        let white_bishop = (BitBoard(WHITE_SQUARES) & bishops) != EMPTY;
-        let black_bishop = (BitBoard(BLACK_SQUARES) & bishops) != EMPTY;
-
-        let bishop_pair = white_bishop && black_bishop;
-        if (bishop_pair || single_piece_win || (bishops != EMPTY && knights != EMPTY))
-            && board.color_combined(!side).popcnt() == 1
-        {
-            return Checkmate::Certain;
-        }
-        let pawn_cnt = board.pieces(Piece::Pawn) & pieces;
-        if pawn_cnt == EMPTY {
-            Checkmate::Impossible
-        } else {
-            Checkmate::Unknown
-        }
+        Self::get_psqt_score(pieces_white, psqt)
+            - Self::get_psqt_score(pieces_black.reverse_colors(), psqt)
     }
 }

@@ -1,5 +1,4 @@
 pub mod diagnostics;
-pub mod evaluator;
 pub mod h_table;
 pub mod lookup;
 pub mod position;

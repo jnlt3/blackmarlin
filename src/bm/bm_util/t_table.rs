@@ -1,9 +1,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use chess::ChessMove;
+use chess::{Board, ChessMove};
 
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_util::position::Position;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Score {
@@ -99,8 +98,8 @@ impl TranspositionTable {
         (hash as usize) & self.mask
     }
 
-    pub fn get(&self, position: &Position) -> Option<Analysis> {
-        let hash = position.hash();
+    pub fn get(&self, board: &Board) -> Option<Analysis> {
+        let hash = board.get_hash();
         let index = self.index(hash);
 
         let entry = &self.table[index];
@@ -113,8 +112,8 @@ impl TranspositionTable {
         }
     }
 
-    pub fn set(&self, position: &Position, entry: &Analysis) {
-        let hash = position.hash();
+    pub fn set(&self, board: &Board, entry: &Analysis) {
+        let hash = board.get_hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(*entry) };

@@ -10,8 +10,6 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
 use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
 
-use crate::bm::bm_util::evaluator::Evaluator;
-
 #[cfg(feature = "advanced_move_gen")]
 use super::move_gen::OrderedMoveGen;
 #[cfg(feature = "q_search_move_ord")]
@@ -69,9 +67,9 @@ impl SearchType for NullMove {
 
 const MIN_PIECE_CNT: u32 = 2;
 
-pub fn search<Search: SearchType, Eval: Evaluator>(
+pub fn search<Search: SearchType>(
     position: &mut Position,
-    search_options: &mut SearchOptions<Eval>,
+    search_options: &mut SearchOptions,
     ply: u32,
     target_ply: u32,
     mut alpha: Evaluation,
@@ -82,10 +80,11 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         return (None, Evaluation::new(0));
     }
 
-    if position.three_fold_repetition() {
+    if ply != 0 && position.three_fold_repetition() {
         *nodes += 1;
         return (None, Evaluation::new(0));
     }
+
     if ply >= target_ply {
         return (
             None,
@@ -100,7 +99,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             ),
         );
     }
-    let tt_entry = search_options.get_t_table().get(position);
+    let tt_entry = search_options.get_t_table().get(position.board());
     *nodes += 1;
 
     let mut best_move = None;
@@ -158,7 +157,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         let zw = beta >> Next;
         let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
         let r_target_ply = target_ply.max(reduction) - reduction;
-        let (threat_move, search_score) = search::<NullMove, Eval>(
+        let (threat_move, search_score) = search::<NullMove>(
             position,
             search_options,
             ply + 1,
@@ -181,7 +180,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     if do_iid && best_move.is_none() {
         let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
         let target_ply = target_ply.max(reduction) - reduction;
-        let (iid_move, _) = search::<Search, Eval>(
+        let (iid_move, _) = search::<Search>(
             position,
             search_options,
             ply,
@@ -196,7 +195,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
     let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
 
     let eval = if do_f_prune {
-        Some(search_options.eval().evaluate(position))
+        Some(search_options.eval().evaluate(position.board()))
     } else {
         None
     };
@@ -253,7 +252,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         let mut score;
         if index == 1 {
             position.make_move(make_move);
-            let (_, search_score) = search::<Search, Eval>(
+            let (_, search_score) = search::<Search>(
                 position,
                 search_options,
                 ply + 1,
@@ -297,7 +296,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
-            let (_, lmr_score) = search::<Search::ZeroWindow, Eval>(
+            let (_, lmr_score) = search::<Search::ZeroWindow>(
                 position,
                 search_options,
                 ply + 1,
@@ -310,7 +309,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
 
             //Do Zero Window Search in case reduction wasn't zero
             if !Search::IS_ZW && reduction > 0 && score > alpha {
-                let (_, zw_score) = search::<Search::ZeroWindow, Eval>(
+                let (_, zw_score) = search::<Search::ZeroWindow>(
                     position,
                     search_options,
                     ply + 1,
@@ -323,7 +322,7 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
             }
             //All our attempts at reducing has failed
             if score > alpha {
-                let (_, search_score) = search::<Search::OffPv, Eval>(
+                let (_, search_score) = search::<Search::OffPv>(
                     position,
                     search_options,
                     ply + 1,
@@ -357,7 +356,9 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
                     );
                 }
                 let analysis = Analysis::new(depth, LowerBound(score), make_move);
-                search_options.get_t_table().set(position, &analysis);
+                search_options
+                    .get_t_table()
+                    .set(position.board(), &analysis);
                 return (Some(make_move), score);
             }
             alpha = score;
@@ -383,14 +384,16 @@ pub fn search<Search: SearchType, Eval: Evaluator>(
         };
 
         let analysis = Analysis::new(depth, score, *final_move);
-        search_options.get_t_table().set(position, &analysis);
+        search_options
+            .get_t_table()
+            .set(position.board(), &analysis);
     }
     (best_move, highest_score)
 }
 
-pub fn q_search<Eval: Evaluator + Clone + Send>(
+pub fn q_search(
     position: &mut Position,
-    search_options: &mut SearchOptions<Eval>,
+    search_options: &mut SearchOptions,
     ply: u32,
     target_ply: u32,
     mut alpha: Evaluation,
@@ -399,14 +402,14 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
 ) -> Evaluation {
     *nodes += 1;
     if ply >= target_ply {
-        return search_options.eval().evaluate(position);
+        return search_options.eval().evaluate(position.board());
     }
     let board = *position.board();
     let mut highest_score = None;
     let in_check = *board.checkers() != EMPTY;
 
     if !in_check {
-        let stand_pat = search_options.eval().evaluate(position);
+        let stand_pat = search_options.eval().evaluate(position.board());
         let do_dp = SEARCH_PARAMS.do_dp();
         if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
             return stand_pat;
@@ -423,7 +426,7 @@ pub fn q_search<Eval: Evaluator + Clone + Send>(
     #[cfg(not(feature = "q_search_move_ord"))]
     let move_gen = MoveGen::new_legal(&board);
     #[cfg(feature = "q_search_move_ord")]
-    let move_gen = QuiescenceSearchMoveGen::<Eval, { SEARCH_PARAMS.do_see_prune() }>::new(&board);
+    let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
 

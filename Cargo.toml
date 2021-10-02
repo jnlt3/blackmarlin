@@ -21,8 +21,12 @@ chess = "3.2.0"
 text_io = "0.1.8"
 jemallocator = { version = "0.3.2", optional = true }
 arrayvec = "0.7.1"
+regex = "1.5.4"
+rand = "0.8.4"
+rand_distr = "0.4.2"
 
 [features]
+trace = []
 standard = ["all_hist", "advanced_move_gen", "all_move", "q_search_move_ord"]
 all = [
     "all_hist",

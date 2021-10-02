@@ -2,13 +2,14 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 
 use chess::Board;
 
-use crate::bm::bm_runner::{
-    config::{NoInfo, Run},
-    runner::Runner,
-    time::{ConstTime, Diagnostics, TimeManager},
+use crate::bm::{
+    bm_eval::evaluator::StdEvaluator,
+    bm_runner::{
+        ab_runner::AbRunner,
+        config::{NoInfo, Run},
+        time::{ConstTime, Diagnostics, TimeManager},
+    },
 };
-
-use super::evaluator::Evaluator;
 
 const SECS_FOR_NPS: u64 = 5;
 const SECS_FOR_SCALING: u64 = 1;
@@ -42,7 +43,7 @@ const POSITIONS: &[&str] = &[
     "8/1p2k3/4rp2/p2R3Q/2q2B2/6P1/5P1P/6K1 b - - 14 73",
 ];
 
-pub fn diagnostics_nps<Eval: 'static + Evaluator + Clone + Send, R: Runner<Eval>>() {
+pub fn diagnostics_nps() {
     println!(
         "# Calculating NPS... This test is going to take ~{} seconds",
         SECS_FOR_NPS
@@ -50,7 +51,7 @@ pub fn diagnostics_nps<Eval: 'static + Evaluator + Clone + Send, R: Runner<Eval>
     let const_time = Arc::new(ConstTime::new(Duration::from_secs(SECS_FOR_NPS)));
     let timing = Arc::new(Diagnostics::new(const_time.clone()));
     let time_left = Duration::from_secs(SECS_FOR_NPS);
-    let mut runner = R::new(Board::default(), timing.clone());
+    let mut runner = AbRunner::new(Board::default(), timing.clone(), StdEvaluator::new());
     timing.initiate(time_left, 0);
     const_time.set_duration(time_left);
     runner.set_board(Board::default());
@@ -63,14 +64,14 @@ pub fn diagnostics_nps<Eval: 'static + Evaluator + Clone + Send, R: Runner<Eval>
     );
 }
 
-pub fn diagnostics_scaling<Eval: 'static + Evaluator + Clone + Send, R: Runner<Eval>>() {
+pub fn diagnostics_scaling() {
     println!(
         "# Calculating Scaling Info... This test is going to take ~{} seconds",
         SECS_FOR_SCALING * POSITIONS.len() as u64
     );
     let const_time = Arc::new(ConstTime::new(Duration::from_secs(SECS_FOR_SCALING)));
     let timing = Arc::new(Diagnostics::new(const_time.clone()));
-    let mut runner = R::new(Board::default(), timing.clone());
+    let mut runner = AbRunner::new(Board::default(), timing.clone(), StdEvaluator::new());
 
     let mut all_data = vec![];
     for (index, position) in POSITIONS.iter().enumerate() {

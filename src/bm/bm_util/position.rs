@@ -1,4 +1,4 @@
-use chess::{Board, ChessMove, Color};
+use chess::{Board, ChessMove};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -36,14 +36,6 @@ impl Position {
             true
         } else {
             false
-        }
-    }
-
-    #[inline]
-    pub fn turn(&self) -> i16 {
-        match self.board().side_to_move() {
-            Color::White => 1,
-            Color::Black => -1,
         }
     }
 

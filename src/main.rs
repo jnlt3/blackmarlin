@@ -1,9 +1,5 @@
-use crate::bm::cecp::CecpAdapter;
+use crate::bm::bm_console::BmConsole;
 use text_io::read;
-
-use crate::bm::bm_eval::evaluator::StdEvaluator;
-
-use crate::bm::bm_runner::ab_runner::AbRunner;
 
 mod bm;
 
@@ -11,13 +7,7 @@ mod bm;
 #[cfg(feature = "jem")]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-type Runner = AbRunner<StdEvaluator>;
-
-fn main() {
-    let mut cecp_adapter = CecpAdapter::<StdEvaluator, Runner>::new();
-    if std::env::args().into_iter().any(|x| x.trim() == "bench") {
-        cecp_adapter.input("perf".to_string());
-        return;
-    }
-    while cecp_adapter.input(read!("{}\n")) {}
+fn main() {    
+    let mut bm_console = BmConsole::new();
+    while bm_console.input(read!("{}\n")) {}
 }

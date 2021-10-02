@@ -1,11 +1,10 @@
 use chess::{Board, ChessMove, MoveGen, EMPTY};
 
+use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::SearchOptions;
 
-use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
 use arrayvec::ArrayVec;
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
@@ -65,7 +64,7 @@ impl Iterator for PvMoveGen {
 }
 
 #[cfg(feature = "advanced_move_gen")]
-pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
+pub struct OrderedMoveGen<const T: usize, const K: usize> {
     move_gen: MoveGen,
     pv_move: Option<ChessMove>,
     threat_move_entry: MoveEntryIterator<T>,
@@ -78,20 +77,16 @@ pub struct OrderedMoveGen<Eval: Evaluator, const T: usize, const K: usize> {
     mask: [bool; MAX_MOVES],
     queen_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
     knight_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
-
-    eval: PhantomData<Eval>,
 }
 
 #[cfg(feature = "advanced_move_gen")]
-impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
-    OrderedMoveGen<Eval, T, K>
-{
+impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     pub fn new(
         board: &Board,
         pv_move: Option<ChessMove>,
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
-        options: &SearchOptions<Eval>,
+        options: &SearchOptions,
     ) -> Self {
         Self {
             gen_type: GenType::PvMove,
@@ -105,7 +100,6 @@ impl<Eval: 'static + Evaluator + Clone + Send, const T: usize, const K: usize>
             queen_promo: ArrayVec::new(),
             knight_promo: ArrayVec::new(),
             mask: [true; MAX_MOVES],
-            eval: PhantomData::default(),
         }
     }
 }
@@ -118,7 +112,7 @@ Use positional encoding to represent moves
 */
 
 #[cfg(feature = "advanced_move_gen")]
-impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGen<Eval, K, T> {
+impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
     type Item = ChessMove;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -137,7 +131,7 @@ impl<Eval: Evaluator, const K: usize, const T: usize> Iterator for OrderedMoveGe
             GenType::CalcCaptures => {
                 self.move_gen.set_iterator_mask(*self.board.combined());
                 for make_move in &mut self.move_gen {
-                    let expected_gain = Eval::see(self.board, make_move);
+                    let expected_gain = StdEvaluator::see(self.board, make_move);
                     let pos = self
                         .queue
                         .binary_search_by_key(&expected_gain, |(_, score)| *score)
@@ -265,37 +259,34 @@ pub enum QSearchGenType {
 }
 
 #[cfg(feature = "q_search_move_ord")]
-pub struct QuiescenceSearchMoveGen<Eval: Evaluator, const SEE_PRUNE: bool> {
+pub struct QuiescenceSearchMoveGen<const SEE_PRUNE: bool> {
     move_gen: MoveGen,
     board: Board,
     gen_type: QSearchGenType,
     queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
-
-    eval: PhantomData<Eval>,
 }
 
 #[cfg(feature = "q_search_move_ord")]
-impl<Eval: Evaluator, const SEE_PRUNE: bool> QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
+impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
     pub fn new(board: &Board) -> Self {
         Self {
             board: *board,
             move_gen: MoveGen::new_legal(board),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
-            eval: Default::default(),
         }
     }
 }
 
 #[cfg(feature = "q_search_move_ord")]
-impl<Eval: Evaluator, const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<Eval, SEE_PRUNE> {
+impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
     type Item = ChessMove;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.gen_type == QSearchGenType::CalcCaptures {
             self.move_gen.set_iterator_mask(*self.board.combined());
             for make_move in &mut self.move_gen {
-                let expected_gain = Eval::see(self.board, make_move);
+                let expected_gain = StdEvaluator::see(self.board, make_move);
                 if !SEE_PRUNE || expected_gain > -1 {
                     let pos = self
                         .queue

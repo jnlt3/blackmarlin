@@ -64,7 +64,9 @@ impl TimeManager for ConstDepth {
         self.update_abort();
     }
 
-    fn initiate(&self, _: Duration, _: usize) {}
+    fn initiate(&self, _: Duration, _: usize) {
+        self.abort.store(false, Ordering::SeqCst);
+    }
 
     fn abort(&self, _: Instant) -> bool {
         self.abort.load(Ordering::SeqCst)
@@ -80,6 +82,7 @@ impl TimeManager for ConstDepth {
 pub struct ConstTime {
     start: Instant,
     target_duration: AtomicU32,
+    std_target_duration: AtomicU32,
 }
 
 impl ConstTime {
@@ -87,6 +90,7 @@ impl ConstTime {
         Self {
             start: Instant::now(),
             target_duration: AtomicU32::new(target_duration.as_millis() as u32),
+            std_target_duration: AtomicU32::new(target_duration.as_millis() as u32),
         }
     }
 
@@ -106,7 +110,7 @@ impl TimeManager for ConstTime {
     }
 
     fn clear(&self) {
-        self.target_duration.store(u32::MAX, Ordering::SeqCst);
+        self.target_duration.store(self.std_target_duration.load(Ordering::SeqCst), Ordering::SeqCst);
     }
 }
 

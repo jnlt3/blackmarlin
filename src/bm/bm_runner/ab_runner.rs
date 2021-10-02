@@ -5,15 +5,14 @@ use std::time::Instant;
 use chess::{Board, ChessMove};
 
 use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_consts::*;
 use crate::bm::bm_runner::config::{GuiInfo, SearchMode, SearchStats};
-use crate::bm::bm_runner::runner::Runner;
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_search::threshold::Threshold;
-use crate::bm::bm_util::evaluator::Evaluator;
 use crate::bm::bm_util::h_table::HistoryTable;
 use crate::bm::bm_util::lookup::{LookUp, LookUp2d};
 use crate::bm::bm_util::position::Position;
@@ -159,9 +158,9 @@ type LmrLookup = LookUp2d<u32, 32, 64>;
 type LmpLookup = LookUp<usize, { LMP_DEPTH as usize }>;
 
 #[derive(Debug, Clone)]
-pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
+pub struct SearchOptions {
     start: Instant,
-    evaluator: Eval,
+    evaluator: StdEvaluator,
     time_manager: Arc<dyn TimeManager>,
     counter: u8,
 
@@ -177,7 +176,7 @@ pub struct SearchOptions<Eval: 'static + Evaluator + Clone + Send> {
     eval: Evaluation,
 }
 
-impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
+impl SearchOptions {
     #[inline]
     pub fn abort(&mut self) -> bool {
         // self.time_manager.abort(self.start)
@@ -198,7 +197,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     }
 
     #[inline]
-    pub fn eval(&mut self) -> &mut Eval {
+    pub fn eval(&mut self) -> &mut StdEvaluator {
         &mut self.evaluator
     }
 
@@ -238,12 +237,12 @@ impl<Eval: 'static + Evaluator + Clone + Send> SearchOptions<Eval> {
     }
 }
 
-pub struct AbRunner<Eval: 'static + Evaluator + Clone + Send> {
-    search_options: SearchOptions<Eval>,
+pub struct AbRunner {
+    search_options: SearchOptions,
     position: Position,
 }
 
-impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
+impl AbRunner {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &self,
         search_start: Instant,
@@ -273,7 +272,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                         (Evaluation::min(), Evaluation::max())
                     };
                     search_depth = (depth - 1).saturating_sub(fail_high_cnt) + 1;
-                    let (make_move, score) = search::search::<Pv, Eval>(
+                    let (make_move, score) = search::search::<Pv>(
                         &mut position,
                         &mut search_options,
                         0,
@@ -313,7 +312,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                         let best_move = best_move;
                         let mut pv = vec![best_move];
                         position.make_move(best_move);
-                        while let Some(analysis) = search_options.t_table.get(&position) {
+                        while let Some(analysis) = search_options.t_table.get(position.board()) {
                             pv.push(analysis.table_move());
                             position.make_move(analysis.table_move());
                             if pv.len() > depth as usize {
@@ -330,7 +329,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
                     break;
                 }
                 depth += 1;
-                //As far as time manager is concerned Option<ChessMove> is no different than ChessMove however None == None doesn't apply
+
                 search_options.time_manager.deepen(
                     thread,
                     depth,
@@ -348,12 +347,13 @@ impl<Eval: 'static + Evaluator + Clone + Send> AbRunner<Eval> {
             }
         })
     }
-}
 
-impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
-    fn new(board: Board, time_manager: Arc<dyn TimeManager>) -> Self {
+    pub fn new(
+        board: Board,
+        time_manager: Arc<dyn TimeManager>,
+        mut evaluator: StdEvaluator,
+    ) -> Self {
         let position = Position::new(board);
-        let mut evaluator = Eval::new();
         Self {
             search_options: SearchOptions {
                 time_manager,
@@ -374,7 +374,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
                 })),
                 tt_hits: 0,
                 tt_misses: 0,
-                eval: evaluator.evaluate(&position),
+                eval: evaluator.evaluate(position.board()),
                 start: Instant::now(),
                 counter: 0,
                 evaluator,
@@ -383,7 +383,7 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
         }
     }
 
-    fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
+    pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &self,
         threads: u8,
     ) -> (ChessMove, Evaluation, u32, u32) {
@@ -424,39 +424,28 @@ impl<Eval: 'static + Evaluator + Clone + Send> Runner<Eval> for AbRunner<Eval> {
         )
     }
 
-    fn raw_eval(&mut self) -> Evaluation {
-        self.search_options.evaluator.evaluate(&self.position)
+    pub fn raw_eval(&mut self) -> Evaluation {
+        self.search_options
+            .evaluator
+            .evaluate(self.position.board())
     }
 
-    fn set_board(&mut self, board: Board) {
+    pub fn set_board(&mut self, board: Board) {
         self.search_options.h_table.for_all(|_| 0);
         self.search_options.t_table.clean();
         self.position = Position::new(board);
-        self.search_options.eval().clear_cache();
-        self.search_options.eval = self.search_options.evaluator.evaluate(&self.position);
+        self.search_options.eval = self
+            .search_options
+            .evaluator
+            .evaluate(self.position.board());
     }
 
-    fn make_move(&mut self, make_move: ChessMove) {
+    pub fn make_move(&mut self, make_move: ChessMove) {
         self.search_options.h_table.for_all(|weight| weight / 8);
         self.position.make_move(make_move);
-        self.search_options.eval().clear_cache();
     }
 
-    fn pv(&mut self, pv_len: usize) -> Vec<ChessMove> {
-        let mut moves = vec![];
-        for _ in 0..pv_len {
-            if let Some(make_move) = self.search_options.get_t_table().get(&self.position) {
-                moves.push(make_move.table_move());
-                self.position.make_move(make_move.table_move());
-            }
-        }
-        for _ in 0..moves.len() {
-            self.position.unmake_move();
-        }
-        moves
-    }
-
-    fn get_board(&self) -> &Board {
+    pub fn get_board(&self) -> &Board {
         self.position.board()
     }
 }
