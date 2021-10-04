@@ -1,9 +1,11 @@
-use super::cecp::CecpAdapter;
+use super::{bm_eval, cecp::CecpAdapter};
 
 #[cfg(feature = "trace")]
 mod gen_fen;
 #[cfg(feature = "trace")]
 mod grad;
+
+mod gen_eval;
 
 pub struct BmConsole {
     cecp: CecpAdapter,
@@ -17,18 +19,26 @@ impl BmConsole {
     }
 
     pub fn input(&mut self, command: String) -> bool {
-        #[cfg(feature = "trace")]
+        #[cfg(any(feature = "trace", feature = "data"))]
         if command.starts_with("!") {
             let (command, options) = Self::parse(&command[1..]);
             let command: &str = &command;
             match command {
+                #[cfg(feature = "trace")]
                 "gen" => Self::gen(options),
+                #[cfg(feature = "trace")]
                 "tune" => Self::tune(options),
+                #[cfg(feature = "data")]
+                "data" => Self::data(),
                 _ => {}
             }
             return true;
         }
         self.cecp.input(command)
+    }
+
+    fn data() {
+        gen_eval::gen_eval();
     }
 
     #[cfg(feature = "trace")]
@@ -121,7 +131,6 @@ impl BmConsole {
         std::fs::write(output_file, all_fens).unwrap();
     }
 
-    #[cfg(feature = "trace")]
     fn parse(command: &str) -> (String, Vec<(String, String)>) {
         let split = command.split(" ").collect::<Vec<_>>();
 

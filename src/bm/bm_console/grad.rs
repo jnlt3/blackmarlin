@@ -710,6 +710,8 @@ pub fn tune(data_points: &[DataPoint]) {
         rook_mobility: IndexTable<15>,
         queen_mobility: IndexTable<28>,
 
+        attackers: IndexTable<16>,
+
         knight_attack_cnt: T,
         bishop_attack_cnt: T,
         rook_attack_cnt: T,
@@ -729,7 +731,7 @@ pub fn tune(data_points: &[DataPoint]) {
         kings: SquareTable,
     }
 
-    let mut optim = Box::new(Optimizer::new(0.001, 0.999, 0.0056));
+    let mut optim = Box::new(Optimizer::new(0.00025, 0.999, 0.0056));
     optim.weights.print();
     println!("err: {}", optim.error(data_points));
 

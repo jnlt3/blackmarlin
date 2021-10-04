@@ -24,9 +24,13 @@ arrayvec = "0.7.1"
 regex = "1.5.4"
 rand = "0.8.4"
 rand_distr = "0.4.2"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = { version = "1.0.68" }
 
 [features]
+data = []
 trace = []
+nnue = []
 standard = ["all_hist", "advanced_move_gen", "all_move", "q_search_move_ord"]
 all = [
     "all_hist",

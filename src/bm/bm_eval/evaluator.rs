@@ -1,5 +1,5 @@
-use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::eval_consts::*;
+use crate::bm::{bm_eval::eval::Evaluation, nnue::Nnue};
 #[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
@@ -73,7 +73,7 @@ pub const fn get_basic_eval_data() -> EvalData {
                                     b_ahead |= bitboard
                                 }
                             }
-                            if file_diff <= 3 && rank_diff.abs() <= 3 {
+                            if file_diff <= 2 && rank_diff.abs() <= 2 {
                                 ring |= bitboard;
                             }
                         }
@@ -119,6 +119,8 @@ pub struct EvalTrace {
     pub bishop_attack_cnt: i16,
     pub rook_attack_cnt: i16,
     pub queen_attack_cnt: i16,
+
+    pub attackers: Indices<1, 16>,
 
     pub knight_mobility: Indices<6, 9>,
     pub bishop_mobility: Indices<6, 14>,
@@ -245,6 +247,8 @@ macro_rules! trace_psqt {
 pub struct StdEvaluator {
     #[cfg(feature = "trace")]
     trace: EvalTrace,
+    #[cfg(feature = "nnue")]
+    nnue: Nnue,
 }
 
 impl StdEvaluator {
@@ -252,6 +256,11 @@ impl StdEvaluator {
         Self {
             #[cfg(feature = "trace")]
             trace: Default::default(),
+            #[cfg(feature = "nnue")]
+            nnue: Nnue::new(
+                ""
+                    .to_string(),
+            ),
         }
     }
 
@@ -345,12 +354,16 @@ impl StdEvaluator {
     Doesn't handle checkmates or stalemates
      */
     pub fn evaluate(&mut self, board: &Board) -> Evaluation {
-        reset_trace!(&mut self.trace);
-        trace_tempo!(&mut self.trace, board.side_to_move());
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
         };
+        #[cfg(feature = "nnue")]
+        {
+            return Evaluation::new(self.nnue.feed_forward(board) * turn + 15);
+        }
+        reset_trace!(&mut self.trace);
+        trace_tempo!(&mut self.trace, board.side_to_move());
 
         let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
             + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
@@ -406,6 +419,9 @@ impl StdEvaluator {
         let w_king = board.king_square(Color::White);
         let b_king = board.king_square(Color::Black);
 
+        let w_king_ring = DATA.ring[w_king.to_index()];
+        let b_king_ring = DATA.ring[b_king.to_index()];
+
         let w_knight_attack = chess::get_knight_moves(b_king);
         let b_knight_attack = chess::get_knight_moves(w_king);
 
@@ -431,7 +447,7 @@ impl StdEvaluator {
         for pawn in pawns & whites {
             w_pawn_attacks |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
         }
-        for pawn in pawns & whites {
+        for pawn in pawns & blacks {
             b_pawn_attacks |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
         }
 
@@ -443,6 +459,9 @@ impl StdEvaluator {
         let mut rook_mobility = TaperedEval(0, 0);
         let mut queen_mobility = TaperedEval(0, 0);
 
+        let mut white_attackers = 0_usize;
+        let mut black_attackers = 0_usize;
+
         for knight in knights & whites {
             let attacks = chess::get_knight_moves(knight);
             let mobility = (attacks & w_mobility_area).popcnt() as usize;
@@ -450,6 +469,9 @@ impl StdEvaluator {
             knight_mobility += KNIGHT_MOBILITY[mobility];
             if w_knight_attack & attacks != EMPTY {
                 knight_attack_cnt += 1;
+            }
+            if b_king_ring & attacks != EMPTY {
+                white_attackers += 1;
             }
         }
         for knight in knights & blacks {
@@ -459,6 +481,9 @@ impl StdEvaluator {
             knight_mobility -= KNIGHT_MOBILITY[mobility];
             if b_knight_attack & attacks != EMPTY {
                 knight_attack_cnt -= 1;
+            }
+            if w_king_ring & attacks != EMPTY {
+                black_attackers += 1;
             }
         }
 
@@ -470,6 +495,9 @@ impl StdEvaluator {
             if w_bishop_attack & attacks != EMPTY {
                 bishop_attack_cnt += 1;
             }
+            if b_king_ring & attacks != EMPTY {
+                white_attackers += 1;
+            }
         }
         for diag in bishops & blacks {
             let attacks = chess::get_bishop_moves(diag, blockers);
@@ -478,6 +506,9 @@ impl StdEvaluator {
             bishop_mobility -= BISHOP_MOBILITY[mobility];
             if b_bishop_attack & attacks != EMPTY {
                 bishop_attack_cnt -= 1;
+            }
+            if w_king_ring & attacks != EMPTY {
+                black_attackers += 1;
             }
         }
 
@@ -489,6 +520,9 @@ impl StdEvaluator {
             if w_rook_attack & attacks != EMPTY {
                 rook_attack_cnt += 1;
             }
+            if b_king_ring & attacks != EMPTY {
+                white_attackers += 1;
+            }
         }
         for ortho in rooks & blacks {
             let attacks = chess::get_rook_moves(ortho, blockers);
@@ -497,6 +531,9 @@ impl StdEvaluator {
             rook_mobility -= ROOK_MOBILITY[mobility];
             if b_rook_attack & attacks != EMPTY {
                 rook_attack_cnt -= 1;
+            }
+            if w_king_ring & attacks != EMPTY {
+                black_attackers += 1;
             }
         }
 
@@ -509,6 +546,9 @@ impl StdEvaluator {
             if w_queen_attack & attacks != EMPTY {
                 queen_attack_cnt += 1;
             }
+            if b_king_ring & attacks != EMPTY {
+                white_attackers += 1;
+            }
         }
         for queen in queens & blacks {
             let attacks =
@@ -519,7 +559,21 @@ impl StdEvaluator {
             if b_queen_attack & attacks != EMPTY {
                 queen_attack_cnt -= 1;
             }
+            if w_king_ring & attacks != EMPTY {
+                black_attackers += 1;
+            }
         }
+
+        let white_in_king_ring = (whites & b_king_ring & !pawns).popcnt().min(3) as usize;
+        let black_in_king_ring = (blacks & w_king_ring & !pawns).popcnt().min(3) as usize;
+        let white_attackers = white_attackers.min(3);
+        let black_attackers = black_attackers.min(3);
+
+        let w_index = white_attackers * 4 + white_in_king_ring;
+        let b_index = black_attackers * 4 + black_in_king_ring;
+
+        trace_index!(&mut self.trace, attackers, Color::White, w_index as u8);
+        trace_index!(&mut self.trace, attackers, Color::Black, b_index as u8);
 
         trace_eval!(
             &mut self.trace,
@@ -529,6 +583,8 @@ impl StdEvaluator {
             queen_attack_cnt
         );
 
+        let attackers = ATTACKERS[w_index] - ATTACKERS[b_index];
+
         knight_attack_cnt * KNIGHT_ATTACK_CNT
             + bishop_attack_cnt * BISHOP_ATTACK_CNT
             + rook_attack_cnt * ROOK_ATTACK_CNT
@@ -537,6 +593,7 @@ impl StdEvaluator {
             + bishop_mobility
             + rook_mobility
             + queen_mobility
+            + attackers
     }
 
     fn evaluate_bishops(&mut self, board: &Board) -> TaperedEval {

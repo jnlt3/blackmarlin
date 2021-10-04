@@ -2,6 +2,7 @@ use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 #[cfg(not(feature = "advanced_move_gen"))]
@@ -433,7 +434,7 @@ pub fn q_search(
         #[cfg(not(feature = "q_search_move_ord"))]
         {
             let do_see_prune = SEARCH_PARAMS.do_see_prune() && is_capture && !in_check;
-            if do_see_prune && Eval::see(board, make_move) < 0 {
+            if do_see_prune && StdEvaluator::see(board, make_move) < 0 {
                 continue;
             }
         }

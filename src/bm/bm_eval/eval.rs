@@ -36,7 +36,7 @@ impl Evaluation {
     #[inline]
     pub const fn mate_in(&self) -> Option<i16> {
         if self.is_mate() {
-            Some(self.score.signum() * (MAX_EVAL - self.score.abs()))
+            Some(self.score.signum() * (CHECKMATE_EVAL - self.score.abs() + 1))
         } else {
             None
         }
@@ -152,6 +152,11 @@ fn mate_comparisons() {
     let w_checkmate_in_1 = Evaluation::new_checkmate(1);
     let b_checkmate_in_1 = Evaluation::new_checkmate(-1);
     let b_checkmate_in_2 = Evaluation::new_checkmate(-2);
+
+    assert_eq!(w_checkmate_in_2.mate_in().unwrap(), 2);
+    assert_eq!(w_checkmate_in_1.mate_in().unwrap(), 1);
+    assert_eq!(b_checkmate_in_1.mate_in().unwrap(), -1);
+    assert_eq!(b_checkmate_in_2.mate_in().unwrap(), -2);
 
     assert!(w_checkmate_in_1 > w_checkmate_in_2);
     assert!(w_checkmate_in_2 > b_checkmate_in_1);

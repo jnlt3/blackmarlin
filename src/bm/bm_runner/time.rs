@@ -119,20 +119,12 @@ impl TimeManager for ConstTime {
 
 const EXPECTED_MOVES: u32 = 80;
 const MIN_MOVES: u32 = 25;
-const NORMAL_STD_DEV: u32 = 10;
-const FACTOR: f64 = 1.0 / NORMAL_STD_DEV as f64;
-const POWER: f64 = 1.0;
-
-const PANIC_TIME: u32 = 10000;
-const PANIC_MUL: u32 = 9;
-const PANIC_DIV: u32 = 10;
 
 #[derive(Debug)]
 pub struct MainTimeManager {
     start: Instant,
     expected_moves: AtomicU32,
     last_eval: AtomicI16,
-    normal_duration: AtomicU32,
     max_duration: AtomicU32,
     target_duration: AtomicU32,
 }
@@ -143,7 +135,6 @@ impl MainTimeManager {
             start: Instant::now(),
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
             last_eval: AtomicI16::new(0),
-            normal_duration: AtomicU32::new(0),
             max_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
         }
@@ -173,6 +164,7 @@ impl TimeManager for MainTimeManager {
         if last_eval > current_eval + 30 {
             time *= 1.05;
         }
+        let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.target_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.last_eval.store(current_eval, Ordering::SeqCst);
@@ -186,6 +178,8 @@ impl TimeManager for MainTimeManager {
                 time_left.as_millis() as u32 / self.expected_moves.load(Ordering::SeqCst),
                 Ordering::SeqCst,
             );
+            self.max_duration
+                .store(time_left.as_millis() as u32 * 2 / 3, Ordering::SeqCst);
         };
     }
 
