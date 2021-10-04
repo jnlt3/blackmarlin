@@ -3,4 +3,4 @@ target/
 flamegraph.svg
 out/
 data/
-nnue/
+networks/

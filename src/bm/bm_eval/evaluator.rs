@@ -258,7 +258,7 @@ impl StdEvaluator {
             trace: Default::default(),
             #[cfg(feature = "nnue")]
             nnue: Nnue::new(
-                ""
+                "/Users/doruk/ProgrammingProjects/blackmarlin/nnue/q_large_rand01_557.json"
                     .to_string(),
             ),
         }
