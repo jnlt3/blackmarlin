@@ -356,11 +356,17 @@ pub fn search<Search: SearchType>(
                         depth * depth,
                     );
                 }
+
                 let analysis = Analysis::new(depth, LowerBound(score), make_move);
                 search_options
                     .get_t_table()
                     .set(position.board(), &analysis);
-                return (Some(make_move), score);
+
+                if score.is_mate() {
+                    beta = score;
+                } else {
+                    return (Some(make_move), score);
+                }
             }
             alpha = score;
         }
