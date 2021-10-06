@@ -2,7 +2,7 @@ use crate::bm::bm_eval::eval_consts::*;
 use crate::bm::{bm_eval::eval::Evaluation, nnue::Nnue};
 #[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
-use chess::{ALL_FILES, ALL_PIECES, BitBoard, Board, ChessMove, Color, EMPTY, Piece};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_PIECES, EMPTY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
@@ -249,8 +249,7 @@ impl StdEvaluator {
             trace: Default::default(),
             #[cfg(feature = "nnue")]
             nnue: Nnue::new(
-                ""
-                    .to_string(),
+                "/Users/doruk/ProgrammingProjects/blackmarlin/networks/bmnnue.json".to_string(),
             ),
         }
     }
