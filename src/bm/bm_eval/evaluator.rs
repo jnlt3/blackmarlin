@@ -2,16 +2,7 @@ use crate::bm::bm_eval::eval_consts::*;
 use crate::bm::{bm_eval::eval::Evaluation, nnue::Nnue};
 #[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, EMPTY};
-
-const PIECES: [Piece; 6] = [
-    Piece::Pawn,
-    Piece::Knight,
-    Piece::Bishop,
-    Piece::Rook,
-    Piece::Queen,
-    Piece::King,
-];
+use chess::{ALL_FILES, ALL_PIECES, BitBoard, Board, ChessMove, Color, EMPTY, Piece};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
@@ -258,7 +249,7 @@ impl StdEvaluator {
             trace: Default::default(),
             #[cfg(feature = "nnue")]
             nnue: Nnue::new(
-                "/Users/doruk/ProgrammingProjects/blackmarlin/nnue/q_large_rand01_557.json"
+                ""
                     .to_string(),
             ),
         }
@@ -275,7 +266,7 @@ impl StdEvaluator {
             let color = board.side_to_move();
             let defenders = *board.color_combined(color);
             let blockers = *board.combined();
-            for piece in &PIECES {
+            for piece in &ALL_PIECES {
                 match piece {
                     Piece::Pawn => {
                         let mut potential =

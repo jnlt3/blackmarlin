@@ -7,8 +7,6 @@ mod normal;
 
 const INPUT: usize = 768;
 const MID_0: usize = 128;
-const MID_1: usize = 64;
-const MID_2: usize = 32;
 const OUTPUT: usize = 1;
 
 #[derive(Debug, Clone)]
@@ -25,9 +23,7 @@ pub struct Nnue {
     inputs: [[i8; 64]; 12],
 
     input_layer: Incremental<INPUT, MID_0>,
-    mid_0_layer: Dense<MID_0, MID_1>,
-    mid_1_layer: Dense<MID_1, MID_2>,
-    out_layer: Dense<MID_2, OUTPUT>,
+    out_layer: Dense<MID_0, OUTPUT>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,14 +35,13 @@ impl Nnue {
     pub fn new(file: String) -> Self {
         let weights = std::fs::read_to_string(file).unwrap();
         let mut weights = serde_json::from_str::<W>(&weights).unwrap().weights;
+        
         let output_weights = NonConstWeights(weights.pop().unwrap());
-        let mid_1_weights = NonConstWeights(weights.pop().unwrap());
-        let mid_0_weights = NonConstWeights(weights.pop().unwrap());
         let input_weights = NonConstWeights(weights.pop().unwrap());
+
         let input_layer = Incremental::new(input_weights.into());
-        let mid_0_layer = Dense::new(mid_0_weights.into());
-        let mid_1_layer = Dense::new(mid_1_weights.into());
         let out_layer = Dense::new(output_weights.into());
+
         Self {
             white: EMPTY,
             black: EMPTY,
@@ -59,8 +54,6 @@ impl Nnue {
 
             inputs: [[0_i8; 64]; 12],
             input_layer,
-            mid_0_layer,
-            mid_1_layer,
             out_layer,
         }
     }
@@ -106,21 +99,13 @@ impl Nnue {
                 let old = *input;
                 let new = 1 - old;
                 *input = new;
-                self.input_layer.incr_ff(64 * index + sq.to_index(), new - old);
+                self.input_layer
+                    .incr_ff(64 * index + sq.to_index(), new - old);
             }
         }
 
         let incr_layer = *self.input_layer.get();
-        let mut incr_layer = normal::clipped_relu(incr_layer);
-        
-        let mut mid_0 = self.mid_0_layer.ff(&mut incr_layer);
-        normal::scale(&mut mid_0);
-        let mut mid_0 = normal::clipped_relu(mid_0);
-
-        let mut mid_1 = self.mid_1_layer.ff(&mut mid_0);
-        normal::scale(&mut mid_1);
-        let mid_1 = normal::clipped_relu(mid_1);
-
-        normal::out(self.out_layer.ff(&mid_1)[0])
+        let incr_layer = normal::clipped_relu(incr_layer);
+        normal::out(self.out_layer.ff(&incr_layer)[0])
     }
 }
