@@ -1,9 +1,10 @@
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use chess::{Board, ChessMove, MoveGen};
+use chess::{Board, BoardBuilder, ChessMove, Color, MoveGen};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::AbRunner;
@@ -276,6 +277,7 @@ impl CecpAdapter {
                     diagnostics::diagnostics_scaling();
                 }
             }
+            CecpCommand::Detail => self.detail(),
         }
         true
     }
@@ -321,6 +323,39 @@ impl CecpAdapter {
             bm_runner.lock().unwrap().search::<Run, XBoardInfo>(threads);
         }));
     }
+
+    fn detail(&mut self) {
+        self.exit();
+        let bm_runner = &mut *self.bm_runner.lock().unwrap();
+
+        let original_board = *bm_runner.get_board();
+        let base_eval = bm_runner.raw_eval().raw();
+
+        let mut sq_values = [None; 64];
+        for sq in *original_board.combined() {
+            let mut board_builder = BoardBuilder::from(original_board);
+            board_builder
+                .castle_rights(Color::White, chess::CastleRights::NoRights)
+                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+            board_builder.clear_square(sq);
+            if let Ok(eval_board) = board_builder.try_into() {
+                bm_runner.set_board(eval_board);
+                sq_values[sq.to_index()] = Some(base_eval - bm_runner.raw_eval().raw());
+            }
+        }
+        for rank in 0_usize..8 {
+            for file in 0_usize..8 {
+                let index = rank * 8 + file;
+                let value = if let Some(value) = sq_values[index] {
+                    value.to_string()
+                } else {
+                    "Unknown".to_string()
+                };
+                print!("{:>8}", value);
+            }
+            println!()
+        }
+    }
 }
 
 enum CecpCommand {
@@ -342,6 +377,7 @@ enum CecpCommand {
     Quit,
     Bench,
     Diagnostics,
+    Detail,
     Empty,
 }
 
@@ -430,6 +466,7 @@ impl CecpCommand {
             "eval" => CecpCommand::Eval,
             "bench" => CecpCommand::Bench,
             "diagnostics" => CecpCommand::Diagnostics,
+            "detail" => CecpCommand::Detail,
             _ => CecpCommand::Empty,
         }
     }
