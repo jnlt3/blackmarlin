@@ -104,13 +104,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     }
 }
 
-/*
-TODO:
-Move ordering via learned pairwise ranking
-Use positional encoding to represent moves
-[from][to][promotion]
-*/
-
 #[cfg(feature = "advanced_move_gen")]
 impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
     type Item = ChessMove;
