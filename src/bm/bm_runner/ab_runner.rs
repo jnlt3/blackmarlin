@@ -27,8 +27,11 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     fail_cnt: FAIL_CNT,
     iid_depth: IID_DEPTH,
     f_prune_depth: F_PRUNE_DEPTH,
+    rev_f_prune_depth: REV_F_PRUNE_DEPTH,
     fp: Threshold::new(F_PRUNE_THRESHOLD_BASE, F_PRUNE_THRESHOLD_FACTOR),
     do_fp: DO_F_PRUNE,
+    rev_fp: Threshold::new(REV_F_PRUNE_THRESHOLD_BASE, REV_F_PRUNE_THRESHOLD_FACTOR),
+    do_rev_fp: DO_REV_F_PRUNE,
     nmp: Reduction::new(
         NULL_MOVE_REDUCTION_BASE,
         NULL_MOVE_REDUCTION_FACTOR,
@@ -57,6 +60,9 @@ pub struct SearchParams {
     f_prune_depth: u32,
     fp: Threshold,
     do_fp: bool,
+    rev_f_prune_depth: u32,
+    rev_fp: Threshold,
+    do_rev_fp: bool,
     nmp: Reduction,
     do_nmp: bool,
     iid: Reduction,
@@ -106,6 +112,21 @@ impl SearchParams {
     #[inline]
     pub const fn do_f_prune(&self, depth: u32) -> bool {
         depth < self.f_prune_depth
+    }
+
+    #[inline]
+    pub const fn do_rev_f_prune(&self, depth: u32) -> bool {
+        depth < self.rev_f_prune_depth
+    }
+
+    #[inline]
+    pub const fn get_rev_fp(&self) -> &Threshold {
+        &self.rev_fp
+    }
+
+    #[inline]
+    pub const fn do_rev_fp(&self) -> bool {
+        self.do_rev_fp
     }
 
     #[inline]
@@ -258,7 +279,7 @@ impl AbRunner {
         std::thread::spawn(move || {
             let start_time = Instant::now();
             let mut best_move = None;
-            let mut eval = None;
+            let mut eval: Option<Evaluation> = None;
             let mut depth = 1_u32;
             'outer: loop {
                 let mut fail_cnt = 0;
@@ -266,7 +287,9 @@ impl AbRunner {
                 search_options.window.reset();
                 let mut search_depth;
                 loop {
-                    let (alpha, beta) = if depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt {
+                    let (alpha, beta) = if (eval.is_some() && eval.unwrap().raw().abs() < 1000)
+                        || (depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt)
+                    {
                         search_options.window.get()
                     } else {
                         (Evaluation::min(), Evaluation::max())

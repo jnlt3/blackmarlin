@@ -193,18 +193,20 @@ pub fn search<Search: SearchType>(
         best_move = iid_move;
     }
 
+    let do_rev_f_prune =
+        !Search::IS_PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
     let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
 
-    let eval = if do_f_prune {
+    let eval = if do_rev_f_prune || do_f_prune {
         Some(search_options.eval().evaluate(position.board()))
     } else {
         None
     };
 
-    if !in_check && do_f_prune {
-        let f_margin = SEARCH_PARAMS.get_fp().threshold(depth);
+    if !in_check && do_rev_f_prune {
+        let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
         if eval.unwrap() - f_margin >= beta {
-            return (None, eval.unwrap() - f_margin);
+            return (None, eval.unwrap());
         }
     }
     {
@@ -361,12 +363,7 @@ pub fn search<Search: SearchType>(
                 search_options
                     .get_t_table()
                     .set(position.board(), &analysis);
-
-                if score.is_mate() {
-                    beta = score;
-                } else {
-                    return (Some(make_move), score);
-                }
+                return (Some(make_move), score);
             }
             alpha = score;
         }

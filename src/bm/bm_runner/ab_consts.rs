@@ -3,10 +3,15 @@ pub const THREAT_MOVE_CNT: usize = 1;
 
 pub const IID_DEPTH: u32 = 5;
 
-pub const F_PRUNE_DEPTH: u32 = 6;
-pub const F_PRUNE_THRESHOLD_BASE: i16 = 200;
+pub const F_PRUNE_DEPTH: u32 = 2;
+pub const F_PRUNE_THRESHOLD_BASE: i16 = 0;
 pub const F_PRUNE_THRESHOLD_FACTOR: i16 = 200;
 pub const DO_F_PRUNE: bool = true;
+
+pub const REV_F_PRUNE_DEPTH: u32 = 7;
+pub const REV_F_PRUNE_THRESHOLD_BASE: i16 = 0;
+pub const REV_F_PRUNE_THRESHOLD_FACTOR: i16 = 100;
+pub const DO_REV_F_PRUNE: bool = true;
 
 pub const NULL_MOVE_REDUCTION_BASE: u32 = 3;
 pub const NULL_MOVE_REDUCTION_FACTOR: u32 = 1;
