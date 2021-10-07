@@ -195,6 +195,7 @@ pub struct SearchOptions {
     tt_hits: u32,
     tt_misses: u32,
     eval: Evaluation,
+    eval_stack: Vec<Evaluation>,
 }
 
 impl SearchOptions {
@@ -255,6 +256,22 @@ impl SearchOptions {
     #[inline]
     pub fn tt_misses(&mut self) -> &mut u32 {
         &mut self.tt_misses
+    }
+
+    pub fn get_last_eval(&self, ply: u32) -> Option<Evaluation> {
+        if ply > 1 {
+            Some(self.eval_stack[ply as usize - 2])
+        } else {
+            None
+        }
+    }
+
+    pub fn push_eval(&mut self, eval: Evaluation, ply: u32) {
+        if ply as usize >= self.eval_stack.len() {
+            self.eval_stack.push(eval);
+        } else {
+            self.eval_stack[ply as usize] = eval;
+        }
     }
 }
 
@@ -381,7 +398,7 @@ impl AbRunner {
             search_options: SearchOptions {
                 time_manager,
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
-                t_table: Arc::new(TranspositionTable::new(2_usize.pow(21))),
+                t_table: Arc::new(TranspositionTable::new(2_usize.pow(25))),
                 h_table: Arc::new(HistoryTable::new()),
                 killer_moves: Vec::new(),
                 threat_moves: Vec::new(),
@@ -401,6 +418,7 @@ impl AbRunner {
                 start: Instant::now(),
                 counter: 0,
                 evaluator,
+                eval_stack: vec![],
             },
             position,
         }

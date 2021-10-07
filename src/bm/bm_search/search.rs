@@ -1,3 +1,5 @@
+use std::slice::SliceIndex;
+
 use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
@@ -141,6 +143,15 @@ pub fn search<Search: SearchType>(
 
     let in_check = *position.board().checkers() != EMPTY;
 
+    let eval = search_options.eval().evaluate(position.board());
+    search_options.push_eval(eval, ply);
+    let improving = if let Some(prev_eval) = search_options.get_last_eval(ply) {
+        !in_check && eval > prev_eval
+    } else {
+        false
+    };
+
+
     let do_null_move = !Search::IS_PV
         && SEARCH_PARAMS.do_nmp()
         && !in_check
@@ -197,16 +208,10 @@ pub fn search<Search: SearchType>(
         !Search::IS_PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
     let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
 
-    let eval = if do_rev_f_prune || do_f_prune {
-        Some(search_options.eval().evaluate(position.board()))
-    } else {
-        None
-    };
-
     if !in_check && do_rev_f_prune {
         let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
-        if eval.unwrap() - f_margin >= beta {
-            return (None, eval.unwrap());
+        if eval - f_margin >= beta {
+            return (None, eval);
         }
     }
     {
@@ -276,7 +281,7 @@ pub fn search<Search: SearchType>(
 
             let do_fp = !Search::IS_PV && is_quiet && do_f_prune;
 
-            if do_fp && eval.unwrap() + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {
+            if do_fp && eval + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {
                 continue;
             }
             position.make_move(make_move);
@@ -293,9 +298,12 @@ pub fn search<Search: SearchType>(
                 } else {
                     lmr_reduce.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
                 };
+                if improving {
+                    reduction = reduction.saturating_sub(1)
+                }
             }
 
-            let lmr_ply = target_ply.max(reduction) - reduction;
+            let lmr_ply = target_ply.saturating_sub(reduction);
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
