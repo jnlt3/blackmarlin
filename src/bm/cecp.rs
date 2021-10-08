@@ -345,7 +345,7 @@ impl CecpAdapter {
         }
         for rank in 0_usize..8 {
             for file in 0_usize..8 {
-                let index = rank * 8 + file;
+                let index = (7 - rank) * 8 + file;
                 let value = if let Some(value) = sq_values[index] {
                     value.to_string()
                 } else {
@@ -355,6 +355,7 @@ impl CecpAdapter {
             }
             println!()
         }
+        bm_runner.set_board(original_board);
     }
 }
 
