@@ -1,5 +1,7 @@
+use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::eval_consts::*;
-use crate::bm::{bm_eval::eval::Evaluation, nnue::Nnue};
+#[cfg(feature = "nnue")]
+use crate::bm::nnue::Nnue;
 #[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_PIECES, EMPTY};
