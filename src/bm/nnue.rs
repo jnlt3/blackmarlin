@@ -1,7 +1,6 @@
 use chess::{BitBoard, Board, Color, Piece, EMPTY};
 
 use self::normal::{Dense, Incremental};
-use serde::{Deserialize, Serialize};
 
 mod normal;
 
