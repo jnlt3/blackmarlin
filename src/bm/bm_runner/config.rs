@@ -163,7 +163,7 @@ impl GuiInfo for XBoardInfo {
 
     fn print_info(
         &self,
-        sel_depth: u32,
+        _: u32,
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,
@@ -179,10 +179,7 @@ impl GuiInfo for XBoardInfo {
             eval.raw() as i32
         };
         let mut buffer = String::new();
-        buffer += &format!(
-            "{}/{} {} {} {}",
-            sel_depth, depth, cecp_score, elapsed, node_cnt
-        );
+        buffer += &format!("{} {} {} {}", depth, cecp_score, elapsed, node_cnt);
         for make_move in pv {
             buffer += &format!(" {}", make_move);
         }
