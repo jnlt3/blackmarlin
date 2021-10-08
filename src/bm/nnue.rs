@@ -1,13 +1,11 @@
 use chess::{BitBoard, Board, Color, Piece, EMPTY};
 
-use self::normal::{Dense, Incremental, NonConstWeights};
+use self::normal::{Dense, Incremental};
 use serde::{Deserialize, Serialize};
 
 mod normal;
 
-const INPUT: usize = 768;
-const MID_0: usize = 128;
-const OUTPUT: usize = 1;
+include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
 
 #[derive(Debug, Clone)]
 pub struct Nnue {
@@ -22,26 +20,15 @@ pub struct Nnue {
 
     inputs: [[i8; 64]; 12],
 
-    w_input_layer: Incremental<INPUT, MID_0>,
-    b_input_layer: Incremental<INPUT, MID_0>,
-    out_layer: Dense<MID_0, OUTPUT>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct W {
-    pub weights: Vec<Vec<Vec<f32>>>,
+    w_input_layer: Incremental<'static, INPUT, MID>,
+    b_input_layer: Incremental<'static, INPUT, MID>,
+    out_layer: Dense<'static, MID, OUTPUT>,
 }
 
 impl Nnue {
-    pub fn new(file: String) -> Self {
-        let weights = std::fs::read_to_string(file).unwrap();
-        let mut weights = serde_json::from_str::<W>(&weights).unwrap().weights;
-
-        let output_weights = NonConstWeights(weights.pop().unwrap());
-        let input_weights = NonConstWeights(weights.pop().unwrap());
-
-        let input_layer = Incremental::new(input_weights.into());
-        let out_layer = Dense::new(output_weights.into());
+    pub fn new() -> Self {
+        let input_layer = Incremental::new(&INCREMENTAL);
+        let out_layer = Dense::new(&OUT);
 
         Self {
             white: EMPTY,

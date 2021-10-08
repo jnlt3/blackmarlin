@@ -1,40 +1,21 @@
-use serde::{Deserialize, Serialize};
-
 const UNITS: i16 = 300_i16;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = SCALE;
 
-#[derive(Serialize, Deserialize)]
-pub struct NonConstWeights(pub Vec<Vec<f32>>);
+#[derive(Debug, Clone)]
+pub struct Weights<'a, const INPUT: usize, const OUTPUT: usize>(&'a [[i8; OUTPUT]; INPUT]);
 
 #[derive(Debug, Clone)]
-pub struct Weights<const INPUT: usize, const OUTPUT: usize>(Box<[[i8; OUTPUT]; INPUT]>);
-
-impl<const INPUT: usize, const OUTPUT: usize> Into<Weights<INPUT, OUTPUT>> for NonConstWeights {
-    fn into(self) -> Weights<INPUT, OUTPUT> {
-        assert_eq!(self.0.len(), OUTPUT);
-        self.0.iter().for_each(|vec| assert_eq!(vec.len(), INPUT));
-        let mut weights = Box::new([[0_i8; OUTPUT]; INPUT]);
-        for i in 0..INPUT {
-            for j in 0..OUTPUT {
-                weights[i][j] = (self.0[j][i] * SCALE as f32).round() as i8;
-            }
-        }
-        Weights(weights)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
-    weights: Weights<INPUT, OUTPUT>,
+pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {
+    weights: Weights<'a, INPUT, OUTPUT>,
     out: [i16; OUTPUT],
 }
 
-impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
-    pub fn new(weights: Weights<INPUT, OUTPUT>) -> Self {
+impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT> {
+    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT]) -> Self {
         Self {
-            weights,
+            weights: Weights(weights),
             out: [0_i16; OUTPUT],
         }
     }
@@ -52,13 +33,15 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Dense<const INPUT: usize, const OUTPUT: usize> {
-    weights: Weights<INPUT, OUTPUT>,
+pub struct Dense<'a, const INPUT: usize, const OUTPUT: usize> {
+    weights: Weights<'a, INPUT, OUTPUT>,
 }
 
-impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
-    pub fn new(weights: Weights<INPUT, OUTPUT>) -> Self {
-        Self { weights }
+impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
+    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT]) -> Self {
+        Self {
+            weights: Weights(weights),
+        }
     }
 
     #[inline]

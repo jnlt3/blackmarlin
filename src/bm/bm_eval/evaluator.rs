@@ -248,9 +248,7 @@ impl StdEvaluator {
             #[cfg(feature = "trace")]
             trace: Default::default(),
             #[cfg(feature = "nnue")]
-            nnue: Nnue::new(
-                "/Users/doruk/ProgrammingProjects/blackmarlin/networks/bmnnue.json".to_string(),
-            ),
+            nnue: Nnue::new(),
         }
     }
 
