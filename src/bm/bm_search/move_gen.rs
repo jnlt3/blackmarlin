@@ -25,45 +25,6 @@ enum GenType {
     Quiet,
 }
 
-#[cfg(not(feature = "advanced_move_gen"))]
-pub struct PvMoveGen {
-    move_gen: MoveGen,
-    board: Board,
-    pv_move: Option<ChessMove>,
-    gen_type: GenType,
-}
-
-#[cfg(not(feature = "advanced_move_gen"))]
-impl PvMoveGen {
-    pub fn new(board: &Board, pv_move: Option<ChessMove>) -> Self {
-        Self {
-            gen_type: GenType::PvMove,
-            move_gen: MoveGen::new_legal(board),
-            board: *board,
-            pv_move,
-        }
-    }
-}
-
-#[cfg(not(feature = "advanced_move_gen"))]
-impl Iterator for PvMoveGen {
-    type Item = ChessMove;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.gen_type == GenType::PvMove {
-            self.gen_type = GenType::Quiet;
-            if let Some(pv_move) = self.pv_move {
-                if self.board.legal(pv_move) {
-                    self.move_gen.remove_move(pv_move);
-                    return Some(pv_move);
-                }
-            }
-        }
-        self.move_gen.next()
-    }
-}
-
-#[cfg(feature = "advanced_move_gen")]
 pub struct OrderedMoveGen<const T: usize, const K: usize> {
     move_gen: MoveGen,
     pv_move: Option<ChessMove>,
@@ -74,12 +35,10 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     board: Board,
 
     queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
-    mask: [bool; MAX_MOVES],
     queen_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
     knight_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
 }
 
-#[cfg(feature = "advanced_move_gen")]
 impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     pub fn new(
         board: &Board,
@@ -99,12 +58,10 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             queue: ArrayVec::new(),
             queen_promo: ArrayVec::new(),
             knight_promo: ArrayVec::new(),
-            mask: [true; MAX_MOVES],
         }
     }
 }
 
-#[cfg(feature = "advanced_move_gen")]
 impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
     type Item = ChessMove;
 
@@ -112,11 +69,11 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
         match self.gen_type {
             GenType::PvMove => {
                 self.gen_type = GenType::CalcCaptures;
-                #[cfg(feature = "pv")]
                 if let Some(pv_move) = self.pv_move {
                     if self.board.legal(pv_move) {
-                        self.move_gen.remove_move(pv_move);
                         return Some(pv_move);
+                    } else {
+                        self.pv_move = None;
                     }
                 }
                 self.next()
@@ -124,12 +81,14 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
             GenType::CalcCaptures => {
                 self.move_gen.set_iterator_mask(*self.board.combined());
                 for make_move in &mut self.move_gen {
-                    let expected_gain = StdEvaluator::see(self.board, make_move);
-                    let pos = self
-                        .queue
-                        .binary_search_by_key(&expected_gain, |(_, score)| *score)
-                        .unwrap_or_else(|pos| pos);
-                    self.queue.insert(pos, (make_move, expected_gain));
+                    if Some(make_move) != self.pv_move {
+                        let expected_gain = StdEvaluator::see(self.board, make_move);
+                        let pos = self
+                            .queue
+                            .binary_search_by_key(&expected_gain, |(_, score)| *score)
+                            .unwrap_or_else(|pos| pos);
+                        self.queue.insert(pos, (make_move, expected_gain));
+                    }
                 }
                 self.gen_type = GenType::Captures;
                 self.next()
@@ -143,30 +102,28 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
             }
             GenType::GenQuiet => {
                 self.move_gen.set_iterator_mask(!EMPTY);
-                let partition = self.queue.len();
                 for make_move in &mut self.move_gen {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
                     #[cfg(feature = "promo_move_ord")]
-                    if let Some(piece) = make_move.get_promotion() {
-                        match piece {
-                            chess::Piece::Queen | chess::Piece::Knight => {}
-                            _ => {
-                                self.queue.insert(partition, (make_move, i16::MIN));
-                                continue;
-                            }
-                        };
+                    {
+                        if let Some(piece) = make_move.get_promotion() {
+                            match piece {
+                                chess::Piece::Queen | chess::Piece::Knight => {}
+                                _ => {
+                                    self.queue.push((make_move, i16::MIN));
+                                    continue;
+                                }
+                            };
+                        }
                     }
                     let mut score = 0;
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();
-                    #[cfg(feature = "hist")]
-                    {
-                        score += self
-                            .hist
-                            .get(self.board.side_to_move(), piece, make_move.get_dest())
-                            .min(i16::MAX as u32) as i16;
-                    }
+                    score += self
+                        .hist
+                        .get(self.board.side_to_move(), piece, make_move.get_dest())
+                        .min(i16::MAX as u32) as i16;
                     self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::QPromotions;
@@ -188,7 +145,6 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
             }
             //Assumes Killer Moves won't repeat
             GenType::Killer => {
-                #[cfg(feature = "killer")]
                 for make_move in &mut self.killer_entry {
                     if Some(make_move) != self.pv_move {
                         let position = self
@@ -196,7 +152,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                             .iter()
                             .position(|(cmp_move, _)| make_move == *cmp_move);
                         if let Some(position) = position {
-                            self.mask[position] = false;
+                            self.queue.remove(position);
                             return Some(make_move);
                         }
                     }
@@ -205,7 +161,6 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                 self.next()
             }
             GenType::ThreatMove => {
-                #[cfg(feature = "threat")]
                 for make_move in &mut self.threat_move_entry {
                     if Some(make_move) != self.pv_move {
                         let position = self
@@ -213,7 +168,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                             .iter()
                             .position(|(cmp_move, _)| make_move == *cmp_move);
                         if let Some(position) = position {
-                            self.mask[position] = false;
+                            self.queue.remove(position);
                             return Some(make_move);
                         }
                     }
@@ -223,18 +178,15 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
             }
             GenType::Quiet => {
                 let mut max = 0;
-                let mut best_index = 0;
-                let mut best_move = None;
-                for (index, &(make_move, score)) in self.queue.iter().enumerate() {
-                    if best_move.is_none() || score > max {
-                        best_move = Some(make_move);
+                let mut best_index = None;
+                for (index, &(_, score)) in self.queue.iter().enumerate() {
+                    if best_index.is_none() || score > max {
                         max = score;
-                        best_index = index;
+                        best_index = Some(index);
                     }
                 }
-                if let Some(_) = best_move {
-                    self.queue.remove(best_index);
-                    best_move
+                if let Some(index) = best_index {
+                    Some(self.queue.remove(index).0)
                 } else {
                     None
                 }
@@ -243,7 +195,6 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
     }
 }
 
-#[cfg(feature = "q_search_move_ord")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum QSearchGenType {
     CalcCaptures,
@@ -251,7 +202,6 @@ pub enum QSearchGenType {
     Quiet,
 }
 
-#[cfg(feature = "q_search_move_ord")]
 pub struct QuiescenceSearchMoveGen<const SEE_PRUNE: bool> {
     move_gen: MoveGen,
     board: Board,
@@ -259,7 +209,6 @@ pub struct QuiescenceSearchMoveGen<const SEE_PRUNE: bool> {
     queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
 }
 
-#[cfg(feature = "q_search_move_ord")]
 impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
     pub fn new(board: &Board) -> Self {
         Self {
@@ -271,7 +220,6 @@ impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
     }
 }
 
-#[cfg(feature = "q_search_move_ord")]
 impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
     type Item = ChessMove;
 

@@ -1,24 +1,19 @@
 use std::slice::SliceIndex;
 
-use chess::{ChessMove, Piece, EMPTY};
+use chess::{ChessMove, MoveGen, Piece, EMPTY};
+use rand_distr::num_traits::SaturatingSub;
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
-#[cfg(not(feature = "advanced_move_gen"))]
-use crate::bm::bm_search::move_gen::PvMoveGen;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
 use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
 
-#[cfg(feature = "advanced_move_gen")]
 use super::move_gen::OrderedMoveGen;
-#[cfg(feature = "q_search_move_ord")]
 use super::move_gen::QuiescenceSearchMoveGen;
-#[cfg(not(feature = "q_search_move_ord"))]
-use chess::MoveGen;
 
 pub trait SearchType {
     const DO_NULL_MOVE: bool;
@@ -231,22 +226,15 @@ pub fn search<Search: SearchType>(
     };
 
     let move_gen;
-    #[cfg(feature = "advanced_move_gen")]
-    {
-        move_gen = OrderedMoveGen::new(
-            position.board(),
-            best_move,
-            threat_move_entry.into_iter(),
-            search_options.get_k_table()[ply as usize].into_iter(),
-            search_options,
-        );
-    }
 
-    #[cfg(not(feature = "advanced_move_gen"))]
-    {
-        move_gen = PvMoveGen::new(position.board(), best_move);
-    }
-
+    move_gen = OrderedMoveGen::new(
+        position.board(),
+        best_move,
+        threat_move_entry.into_iter(),
+        search_options.get_k_table()[ply as usize].into_iter(),
+        search_options,
+    );
+    
     let mut moves_seen = 0;
     let mut move_exists = false;
     let mut sel_depth = 0;
@@ -306,7 +294,7 @@ pub fn search<Search: SearchType>(
                     lmr_reduce.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
                 };
                 if improving {
-                    reduction = reduction.saturating_sub(1)
+                    reduction = reduction.saturating_sub(1);
                 }
             }
 
@@ -443,21 +431,14 @@ pub fn q_search(
         }
     }
 
-    #[cfg(not(feature = "q_search_move_ord"))]
-    let move_gen = MoveGen::new_legal(&board);
-    #[cfg(feature = "q_search_move_ord")]
     let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
 
-        #[cfg(not(feature = "q_search_move_ord"))]
-        {
-            let do_see_prune = SEARCH_PARAMS.do_see_prune() && is_capture && !in_check;
-            if do_see_prune && StdEvaluator::see(board, make_move) < 0 {
-                continue;
-            }
+        let do_see_prune = SEARCH_PARAMS.do_see_prune() && is_capture && !in_check;
+        if do_see_prune && StdEvaluator::see(board, make_move) < 0 {
+            continue;
         }
-
         if in_check || is_capture {
             position.make_move(make_move);
             let search_score = q_search(

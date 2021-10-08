@@ -29,25 +29,5 @@ rand_distr = "0.4.2"
 data = []
 trace = []
 nnue = []
-standard = ["all_hist", "advanced_move_gen", "all_move", "q_search_move_ord"]
-all = [
-    "all_hist",
-    "advanced_move_gen",
-    "q_search_move_ord",
-    "all_move",
-    "promo_move_ord",
-    "jem",
-]
-jem = ["jemallocator"]
 
-advanced_move_gen = [] # more advanced move generation
-q_search_move_ord = [] # use move ordering in quiescence search
 promo_move_ord = []
-
-all_hist = ["hist"]
-hist = []           # counter move history table
-
-all_move = ["pv", "killer", "threat"]
-pv = []                               # use pv in move generation
-killer = []                           # use killer moves in move generation
-threat = []                           # use threat moves from null move search in move generation
