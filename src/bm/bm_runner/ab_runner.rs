@@ -14,7 +14,7 @@ use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_search::threshold::Threshold;
 use crate::bm::bm_util::h_table::HistoryTable;
-use crate::bm::bm_util::lookup::{LookUp, LookUp2d};
+use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
@@ -166,17 +166,17 @@ impl SearchParams {
 
     #[inline]
     pub const fn do_lmr(&self, depth: u32) -> bool {
-        self.do_lmr && depth >= self.lmr_depth
+        self.do_lmr && depth > self.lmr_depth
     }
 
     #[inline]
     pub const fn do_lmp(&self, depth: u32) -> bool {
-        self.do_lmp && depth < self.lmp_depth
+        self.do_lmp
     }
 }
 
 type LmrLookup = LookUp2d<u32, 32, 64>;
-type LmpLookup = LookUp<usize, { LMP_DEPTH as usize }>;
+type LmpLookup = LookUp2d<usize, { LMP_DEPTH as usize }, 2>;
 
 #[derive(Debug, Clone)]
 pub struct SearchOptions {
@@ -409,8 +409,12 @@ impl AbRunner {
                         (LMR_BASE + (depth as f32).ln() * (mv as f32).ln() / LMR_DIV) as u32
                     }
                 })),
-                lmp_lookup: Arc::new(LookUp::new(|depth| {
-                    (LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR) as usize
+                lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
+                    let mut x = LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR;
+                    if improving == 1 {
+                        x /= IMPROVING_DIVISOR;
+                    }
+                    x as usize
                 })),
                 tt_hits: 0,
                 tt_misses: 0,

@@ -247,10 +247,10 @@ pub fn search<Search: SearchType>(
         move_gen = PvMoveGen::new(position.board(), best_move);
     }
 
-    let mut index = 0;
+    let mut moves_seen = 0;
+    let mut move_exists = false;
     for make_move in move_gen {
-        index += 1;
-
+        move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
 
         let gives_check = *position.board().checkers() != EMPTY;
@@ -258,7 +258,8 @@ pub fn search<Search: SearchType>(
 
         let is_quiet = !in_check && !gives_check && !is_capture && !is_promotion;
         let mut score;
-        if index == 1 {
+        if moves_seen == 0 {
+            moves_seen += 1;
             position.make_move(make_move);
             let (_, search_score) = search::<Search>(
                 position,
@@ -271,10 +272,12 @@ pub fn search<Search: SearchType>(
             );
             score = search_score << Next;
         } else {
-            if !Search::IS_PV
-                && SEARCH_PARAMS.do_lmp(depth)
+            if SEARCH_PARAMS.do_lmp(depth)
                 && is_quiet
-                && index > search_options.get_lmp_lookup().get(depth as usize)
+                && moves_seen
+                    > search_options
+                        .get_lmp_lookup()
+                        .get(depth as usize, improving as usize)
             {
                 continue;
             }
@@ -286,13 +289,15 @@ pub fn search<Search: SearchType>(
             }
             position.make_move(make_move);
 
+            moves_seen += 1;
+
             let mut reduction = 0;
             let do_lmr = SEARCH_PARAMS.do_lmr(depth) && is_quiet;
 
             if do_lmr {
                 let lmr_reduce = search_options
                     .get_lmr_lookup()
-                    .get(depth as usize, index - 1);
+                    .get(depth as usize, moves_seen);
                 reduction = if !Search::IS_PV {
                     lmr_reduce
                 } else {
@@ -376,7 +381,7 @@ pub fn search<Search: SearchType>(
             alpha = score;
         }
     }
-    if index == 0 {
+    if !move_exists {
         return if *board.checkers() == EMPTY {
             (None, Evaluation::new(0))
         } else {
