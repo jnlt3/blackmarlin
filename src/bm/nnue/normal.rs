@@ -13,10 +13,10 @@ pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {
 }
 
 impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT]) -> Self {
+    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i16; OUTPUT]) -> Self {
         Self {
             weights: Weights(weights),
-            out: [0_i16; OUTPUT],
+            out: bias,
         }
     }
 
@@ -35,34 +35,36 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
 #[derive(Debug, Clone)]
 pub struct Dense<'a, const INPUT: usize, const OUTPUT: usize> {
     weights: Weights<'a, INPUT, OUTPUT>,
+    bias: [i32; OUTPUT],
 }
 
 impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT]) -> Self {
+    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i16; OUTPUT]) -> Self {
         Self {
             weights: Weights(weights),
+            bias: i16_to_i32(bias),
         }
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[i8; INPUT]) -> [i16; OUTPUT] {
-        let mut out = [0_i16; OUTPUT];
+    pub fn ff(&self, inputs: &[i8; INPUT]) -> [i32; OUTPUT] {
+        let mut out = self.bias;
         for (&input, weights) in inputs.iter().zip(&*self.weights.0) {
             for (out, &weight) in out.iter_mut().zip(weights) {
-                *out += weight as i16 * input as i16;
+                *out += weight as i32 * input as i32;
             }
         }
         out
     }
 
     #[inline]
-    pub fn ff_sym(&self, w_inputs: &[i8; INPUT], b_inputs: &[i8; INPUT]) -> [i16; OUTPUT] {
-        let mut out = [0_i16; OUTPUT];
+    pub fn ff_sym(&self, w_inputs: &[i8; INPUT], b_inputs: &[i8; INPUT]) -> [i32; OUTPUT] {
+        let mut out = self.bias;
         for ((&w_input, &b_input), weights) in
             w_inputs.iter().zip(b_inputs.iter()).zip(&*self.weights.0)
         {
             for (out, &weight) in out.iter_mut().zip(weights) {
-                *out += weight as i16 * (w_input as i16 - b_input as i16) / 2;
+                *out += weight as i32 * (w_input as i32 - b_input as i32) / 2;
             }
         }
         out
@@ -71,6 +73,16 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
 
 pub fn out(x: i16) -> i16 {
     (x as f32 * UNITS as f32 / (SCALE * SCALE) as f32) as i16
+}
+
+const fn i16_to_i32<const N: usize>(array: [i16; N]) -> [i32; N] {
+    let mut out = [0_i32; N];
+    let mut index = 0;
+    while index < N {
+        out[index] = array[index] as i32;
+        index += 1;
+    }
+    out
 }
 
 #[inline]

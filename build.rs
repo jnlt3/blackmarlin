@@ -2,7 +2,7 @@ use std::{env, path::Path};
 
 fn main() {
     let nnue_data = std::fs::read("./nnue.bin").expect("nnue file doesn't exist");
-    let (layers, weights) = from_bytes(nnue_data);
+    let (layers, weights, biases) = from_bytes(nnue_data);
     assert_eq!(
         weights.len(),
         2,
@@ -17,21 +17,37 @@ fn main() {
     let mut def_layers = String::new();
 
     const LAYER_NAMES: [&str; 2] = ["INCREMENTAL", "OUT"];
-    for ((weights, name), shape) in weights.iter().zip(LAYER_NAMES).zip(layers.windows(2)) {
-        let def_const = format!("const {}: [[i8; {}]; {}] = ", name, shape[1], shape[0]);
+    for (((weights, biases), name), shape) in weights
+        .iter()
+        .zip(&biases)
+        .zip(LAYER_NAMES)
+        .zip(layers.windows(2))
+    {
+        let def_weights = format!("const {}: [[i8; {}]; {}] = ", name, shape[1], shape[0]);
         let mut array = "[".to_string();
         for start_range in 0..shape[0] {
             array += "[";
-            for &weight in weights[start_range..].iter().step_by(shape[0]).take(shape[1]) {
+            for &weight in weights[start_range..]
+                .iter()
+                .step_by(shape[0])
+                .take(shape[1])
+            {
                 array += &format!("{}, ", weight);
             }
             array += "],";
         }
-        array += "];";
-
-        def_layers += &def_const;
+        array += "];\n";
+        def_layers += &def_weights;
         def_layers += &array;
-        def_layers += "\n";
+
+        let def_biases = format!("const {}: [i16; {}] = ", name.to_string() + "_BIAS", shape[1]);
+        let mut array = "[".to_string();
+        for &weight in biases {
+            array += &format!("{}, ", weight);
+        }
+        array += "];\n";
+        def_layers += &def_biases;
+        def_layers += &array;
     }
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
@@ -40,7 +56,7 @@ fn main() {
     println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
-pub fn from_bytes(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>) {
+pub fn from_bytes(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
         let layer_size: u32 = unsafe {
@@ -55,12 +71,15 @@ pub fn from_bytes(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>) {
     );
 
     let mut weights = vec![];
+    let mut biases = vec![];
+
     for layer in layers.windows(2) {
         weights.push(vec![0_i8; layer[0] * layer[1]]);
+        biases.push(vec![0_i8; layer[1]]);
     }
 
     let mut bytes_iterator = bytes.iter().skip(layers.len() * std::mem::size_of::<u32>());
-    for layer_weights in &mut weights {
+    for (layer_weights, bias_weights) in weights.iter_mut().zip(&mut biases) {
         let mut index = 0;
         while let Some(&weight) = bytes_iterator.next() {
             let weight: i8 = unsafe { std::mem::transmute(weight) };
@@ -70,7 +89,16 @@ pub fn from_bytes(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>) {
                 break;
             }
         }
+        let mut index = 0;
+        while let Some(&weight) = bytes_iterator.next() {
+            let weight: i8 = unsafe { std::mem::transmute(weight) };
+            bias_weights[index] = weight;
+            index += 1;
+            if index >= bias_weights.len() {
+                break;
+            }
+        }
     }
     assert!(bytes_iterator.next().is_none(), "File not read fully");
-    (layers, weights)
+    (layers, weights, biases)
 }

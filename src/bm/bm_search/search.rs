@@ -1,7 +1,4 @@
-use std::slice::SliceIndex;
-
-use chess::{ChessMove, MoveGen, Piece, EMPTY};
-use rand_distr::num_traits::SaturatingSub;
+use chess::{ChessMove, EMPTY, Piece};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
@@ -234,7 +231,7 @@ pub fn search<Search: SearchType>(
         search_options.get_k_table()[ply as usize].into_iter(),
         search_options,
     );
-    
+
     let mut moves_seen = 0;
     let mut move_exists = false;
     let mut sel_depth = 0;
@@ -262,10 +259,10 @@ pub fn search<Search: SearchType>(
             score = search_score << Next;
             sel_depth = sel_depth.max(d);
         } else {
-            if SEARCH_PARAMS.do_lmp(depth)
+            if SEARCH_PARAMS.do_lmp()
                 && is_quiet
                 && moves_seen
-                    > search_options
+                    >= search_options
                         .get_lmp_lookup()
                         .get(depth as usize, improving as usize)
             {

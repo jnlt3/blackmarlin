@@ -170,7 +170,7 @@ impl SearchParams {
     }
 
     #[inline]
-    pub const fn do_lmp(&self, depth: u32) -> bool {
+    pub const fn do_lmp(&self) -> bool {
         self.do_lmp
     }
 }
@@ -413,8 +413,8 @@ impl AbRunner {
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
                     let mut x = LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR;
-                    if improving == 1 {
-                        x /= IMPROVING_DIVISOR;
+                    if improving == 0 {
+                        x *= IMPROVING_DIVISOR;
                     }
                     x as usize
                 })),
