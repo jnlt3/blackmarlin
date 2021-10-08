@@ -1,23 +1,4 @@
 #[derive(Copy, Clone, Debug)]
-pub struct LookUp<T: Copy + Default, const DEPTH: usize> {
-    table: [T; DEPTH],
-}
-
-impl<T: Copy + Default, const DEPTH: usize> LookUp<T, DEPTH> {
-    pub fn new<F: Fn(usize) -> T>(init: F) -> Self {
-        let mut table: [T; DEPTH] = [Default::default(); DEPTH];
-        for (depth, value) in table.iter_mut().enumerate() {
-            *value = init(depth);
-        }
-        Self { table }
-    }
-
-    pub fn get(&self, depth: usize) -> T {
-        self.table[depth.min(DEPTH - 1)]
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
 pub struct LookUp2d<T: Copy + Default, const DEPTH: usize, const MOVE: usize> {
     table: [[T; MOVE]; DEPTH],
 }
