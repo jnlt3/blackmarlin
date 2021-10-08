@@ -303,6 +303,7 @@ impl AbRunner {
                 let mut fail_high_cnt = 0_u32;
                 search_options.window.reset();
                 let mut search_depth;
+                let mut sel_depth;
                 loop {
                     let (alpha, beta) = if (eval.is_some() && eval.unwrap().raw().abs() < 1000)
                         || (depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt)
@@ -312,7 +313,7 @@ impl AbRunner {
                         (Evaluation::min(), Evaluation::max())
                     };
                     search_depth = (depth - 1).saturating_sub(fail_high_cnt) + 1;
-                    let (make_move, score) = search::search::<Pv>(
+                    let (make_move, score, d) = search::search::<Pv>(
                         &mut position,
                         &mut search_options,
                         0,
@@ -321,6 +322,7 @@ impl AbRunner {
                         beta,
                         &mut nodes,
                     );
+                    sel_depth = d;
                     search_options.window.set(score);
                     if depth > 1 && search_options.abort() {
                         break 'outer;
@@ -362,7 +364,7 @@ impl AbRunner {
                         for _ in 0..pv.len() {
                             position.unmake_move()
                         }
-                        gui_info.print_info(depth, eval, start_time.elapsed(), nodes, &pv);
+                        gui_info.print_info(sel_depth, depth, eval, start_time.elapsed(), nodes, &pv);
                     }
                 }
                 if search_options.eval.is_mate() {

@@ -130,6 +130,7 @@ pub trait GuiInfo {
 
     fn print_info(
         &self,
+        sel_depth: u32,
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,
@@ -149,7 +150,7 @@ impl GuiInfo for NoInfo {
         Self {}
     }
 
-    fn print_info(&self, _: u32, _: Evaluation, _: Duration, _: u32, _: &[ChessMove]) {}
+    fn print_info(&self, _: u32, _: u32, _: Evaluation, _: Duration, _: u32, _: &[ChessMove]) {}
 }
 
 #[derive(Debug, Clone)]
@@ -162,6 +163,7 @@ impl GuiInfo for XBoardInfo {
 
     fn print_info(
         &self,
+        sel_depth: u32,
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,
@@ -177,7 +179,10 @@ impl GuiInfo for XBoardInfo {
             eval.raw() as i32
         };
         let mut buffer = String::new();
-        buffer += &format!("{} {} {} {}", depth, cecp_score, elapsed, node_cnt);
+        buffer += &format!(
+            "{}/{} {} {} {}",
+            sel_depth, depth, cecp_score, elapsed, node_cnt
+        );
         for make_move in pv {
             buffer += &format!(" {}", make_move);
         }
@@ -195,6 +200,7 @@ impl GuiInfo for CliInfo {
 
     fn print_info(
         &self,
+        _: u32,
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,

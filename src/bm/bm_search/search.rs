@@ -78,14 +78,14 @@ pub fn search<Search: SearchType>(
     mut alpha: Evaluation,
     mut beta: Evaluation,
     nodes: &mut u32,
-) -> (Option<ChessMove>, Evaluation) {
+) -> (Option<ChessMove>, Evaluation, u32) {
     if ply != 0 && search_options.abort() {
-        return (None, Evaluation::new(0));
+        return (None, Evaluation::new(0), ply);
     }
 
     if ply != 0 && position.three_fold_repetition() {
         *nodes += 1;
-        return (None, Evaluation::new(0));
+        return (None, Evaluation::new(0), ply);
     }
 
     if ply >= target_ply {
@@ -100,6 +100,7 @@ pub fn search<Search: SearchType>(
                 beta,
                 nodes,
             ),
+            ply,
         );
     }
     let tt_entry = search_options.get_t_table().get(position.board());
@@ -120,7 +121,7 @@ pub fn search<Search: SearchType>(
         if !Search::IS_PV && ply + entry.depth() >= target_ply {
             match entry.score() {
                 Exact(score) => {
-                    return (best_move, score);
+                    return (best_move, score, ply);
                 }
                 LowerBound(score) => {
                     if score > alpha {
@@ -134,7 +135,7 @@ pub fn search<Search: SearchType>(
                 }
             }
             if alpha >= beta {
-                return (best_move, entry.score().value());
+                return (best_move, entry.score().value(), ply);
             }
         }
     } else {
@@ -150,7 +151,6 @@ pub fn search<Search: SearchType>(
     } else {
         false
     };
-
 
     let do_null_move = !Search::IS_PV
         && SEARCH_PARAMS.do_nmp()
@@ -169,7 +169,7 @@ pub fn search<Search: SearchType>(
         let zw = beta >> Next;
         let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
         let r_target_ply = target_ply.max(reduction) - reduction;
-        let (threat_move, search_score) = search::<NullMove>(
+        let (threat_move, search_score, _) = search::<NullMove>(
             position,
             search_options,
             ply + 1,
@@ -184,7 +184,7 @@ pub fn search<Search: SearchType>(
         position.unmake_move();
         let score = search_score << Next;
         if score >= beta {
-            return (None, score);
+            return (None, score, ply);
         }
     }
 
@@ -192,7 +192,7 @@ pub fn search<Search: SearchType>(
     if do_iid && best_move.is_none() {
         let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
         let target_ply = target_ply.max(reduction) - reduction;
-        let (iid_move, _) = search::<Search>(
+        let (iid_move, _, _) = search::<Search>(
             position,
             search_options,
             ply,
@@ -211,7 +211,7 @@ pub fn search<Search: SearchType>(
     if !in_check && do_rev_f_prune {
         let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
         if eval - f_margin >= beta {
-            return (None, eval);
+            return (None, eval, ply);
         }
     }
     {
@@ -249,6 +249,7 @@ pub fn search<Search: SearchType>(
 
     let mut moves_seen = 0;
     let mut move_exists = false;
+    let mut sel_depth = 0;
     for make_move in move_gen {
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
@@ -261,7 +262,7 @@ pub fn search<Search: SearchType>(
         if moves_seen == 0 {
             moves_seen += 1;
             position.make_move(make_move);
-            let (_, search_score) = search::<Search>(
+            let (_, search_score, d) = search::<Search>(
                 position,
                 search_options,
                 ply + 1,
@@ -271,6 +272,7 @@ pub fn search<Search: SearchType>(
                 nodes,
             );
             score = search_score << Next;
+            sel_depth = sel_depth.max(d);
         } else {
             if SEARCH_PARAMS.do_lmp(depth)
                 && is_quiet
@@ -312,7 +314,7 @@ pub fn search<Search: SearchType>(
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
-            let (_, lmr_score) = search::<Search::ZeroWindow>(
+            let (_, lmr_score, _) = search::<Search::ZeroWindow>(
                 position,
                 search_options,
                 ply + 1,
@@ -325,7 +327,7 @@ pub fn search<Search: SearchType>(
 
             //Do Zero Window Search in case reduction wasn't zero
             if !Search::IS_ZW && reduction > 0 && score > alpha {
-                let (_, zw_score) = search::<Search::ZeroWindow>(
+                let (_, zw_score, _) = search::<Search::ZeroWindow>(
                     position,
                     search_options,
                     ply + 1,
@@ -338,7 +340,7 @@ pub fn search<Search: SearchType>(
             }
             //All our attempts at reducing has failed
             if score > alpha {
-                let (_, search_score) = search::<Search::OffPv>(
+                let (_, search_score, d) = search::<Search::OffPv>(
                     position,
                     search_options,
                     ply + 1,
@@ -348,6 +350,7 @@ pub fn search<Search: SearchType>(
                     nodes,
                 );
                 score = search_score << Next;
+                sel_depth = sel_depth.max(d);
             }
         }
         position.unmake_move();
@@ -358,7 +361,7 @@ pub fn search<Search: SearchType>(
         if score > alpha {
             if score >= beta {
                 if ply != 0 && search_options.abort() {
-                    return (None, Evaluation::new(0));
+                    return (None, Evaluation::new(0), ply);
                 }
                 if !is_capture {
                     let killer_table = search_options.get_k_table();
@@ -376,20 +379,20 @@ pub fn search<Search: SearchType>(
                 search_options
                     .get_t_table()
                     .set(position.board(), &analysis);
-                return (Some(make_move), score);
+                return (Some(make_move), score, sel_depth);
             }
             alpha = score;
         }
     }
     if !move_exists {
         return if *board.checkers() == EMPTY {
-            (None, Evaluation::new(0))
+            (None, Evaluation::new(0), ply)
         } else {
-            (None, Evaluation::new_checkmate(-1))
+            (None, Evaluation::new_checkmate(-1), ply)
         };
     }
     if ply != 0 && search_options.abort() {
-        return (None, Evaluation::new(0));
+        return (None, Evaluation::new(0), ply);
     }
     let highest_score = highest_score.unwrap();
 
@@ -405,7 +408,7 @@ pub fn search<Search: SearchType>(
             .get_t_table()
             .set(position.board(), &analysis);
     }
-    (best_move, highest_score)
+    (best_move, highest_score, sel_depth)
 }
 
 pub fn q_search(
