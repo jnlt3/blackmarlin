@@ -117,7 +117,7 @@ impl TimeManager for ConstTime {
     }
 }
 
-const EXPECTED_MOVES: u32 = 80;
+const EXPECTED_MOVES: u32 = 60;
 const MIN_MOVES: u32 = 25;
 
 #[derive(Debug)]
