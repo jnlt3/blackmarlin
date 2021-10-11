@@ -1,7 +1,4 @@
-use std::{str::FromStr, time::Instant};
-
 use crate::bm::bm_console::BmConsole;
-use chess::Board;
 use text_io::read;
 
 mod bm;
