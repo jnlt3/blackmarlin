@@ -1,8 +1,12 @@
 use std::{env, path::Path};
 
 fn main() {
+    parse_bm_net();
+}
+
+fn parse_bm_net() {
     let nnue_data = std::fs::read("./nnue.bin").expect("nnue file doesn't exist");
-    let (layers, weights, biases) = from_bytes(nnue_data);
+    let (layers, weights, biases) = from_bytes_bm(nnue_data);
     assert_eq!(
         weights.len(),
         2,
@@ -40,7 +44,11 @@ fn main() {
         def_layers += &def_weights;
         def_layers += &array;
 
-        let def_biases = format!("const {}: [i16; {}] = ", name.to_string() + "_BIAS", shape[1]);
+        let def_biases = format!(
+            "const {}: [i16; {}] = ",
+            name.to_string() + "_BIAS",
+            shape[1]
+        );
         let mut array = "[".to_string();
         for &weight in biases {
             array += &format!("{}, ", weight);
@@ -56,7 +64,7 @@ fn main() {
     println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
-pub fn from_bytes(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>) {
+pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
         let layer_size: u32 = unsafe {
