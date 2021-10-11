@@ -1,20 +1,25 @@
-use super::{bm_eval, cecp::CecpAdapter};
+use super::{cecp::CecpAdapter, uci::UciAdapter};
 
 #[cfg(feature = "trace")]
 mod gen_fen;
 #[cfg(feature = "trace")]
 mod grad;
-
+#[cfg(feature = "data")]
 mod gen_eval;
 
+enum Adapter {
+    Cecp(CecpAdapter),
+    Uci(UciAdapter),
+}
+
 pub struct BmConsole {
-    cecp: CecpAdapter,
+    adapter: Adapter,
 }
 
 impl BmConsole {
     pub fn new() -> Self {
         Self {
-            cecp: CecpAdapter::new(),
+            adapter: Adapter::Cecp(CecpAdapter::new()),
         }
     }
 
@@ -34,9 +39,18 @@ impl BmConsole {
             }
             return true;
         }
-        self.cecp.input(command)
+        if command.trim() == "xboard" {
+            self.adapter = Adapter::Cecp(CecpAdapter::new());
+        } else if command.trim() == "uci" {
+            self.adapter = Adapter::Uci(UciAdapter::new());
+        }
+        match &mut self.adapter {
+            Adapter::Cecp(adapter) => adapter.input(command),
+            Adapter::Uci(adapter) => adapter.input(command),
+        }
     }
 
+    #[cfg(feature = "data")]
     fn data() {
         gen_eval::gen_eval();
     }
