@@ -47,17 +47,6 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[i8; INPUT]) -> [i32; OUTPUT] {
-        let mut out = self.bias;
-        for (&input, weights) in inputs.iter().zip(&*self.weights.0) {
-            for (out, &weight) in out.iter_mut().zip(weights) {
-                *out += weight as i32 * input as i32;
-            }
-        }
-        out
-    }
-
-    #[inline]
     pub fn ff_sym(&self, w_inputs: &[i8; INPUT], b_inputs: &[i8; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
         for ((&w_input, &b_input), weights) in
@@ -83,13 +72,6 @@ const fn i16_to_i32<const N: usize>(array: [i16; N]) -> [i32; N] {
         index += 1;
     }
     out
-}
-
-#[inline]
-pub fn scale<const N: usize>(array: &mut [i16; N]) {
-    for x in array {
-        *x /= SCALE;
-    }
 }
 
 #[inline]
