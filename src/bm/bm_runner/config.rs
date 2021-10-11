@@ -188,26 +188,31 @@ impl GuiInfo for XBoardInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct CliInfo;
+pub struct UciInfo;
 
-impl GuiInfo for CliInfo {
+impl GuiInfo for UciInfo {
     fn new() -> Self {
         Self {}
     }
 
     fn print_info(
         &self,
-        _: u32,
+        seldepth: u32,
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,
         node_cnt: u32,
         pv: &[ChessMove],
     ) {
+        let eval_str = if eval.is_mate() {
+            format!("mate {}", eval.mate_in().unwrap())
+        } else {
+            format!("cp {}", eval.raw())
+        };
         let mut buffer = String::new();
         buffer += &format!(
-            "depth: {} score: {:?} time: {:?} nodes: {}",
-            depth, eval, elapsed, node_cnt
+            "info depth {} seldepth {} score {} time {} nodes {} pv",
+            depth, seldepth, eval_str, elapsed.as_millis(), node_cnt
         );
         for make_move in pv {
             buffer += &format!(" {}", make_move);
