@@ -196,6 +196,7 @@ pub struct SearchOptions {
     tt_misses: u32,
     eval: Evaluation,
     eval_stack: Vec<Evaluation>,
+    sel_depth: u32,
 }
 
 impl SearchOptions {
@@ -273,6 +274,10 @@ impl SearchOptions {
             self.eval_stack[ply as usize] = eval;
         }
     }
+
+    pub fn update_sel_depth(&mut self, ply: u32) {
+        self.sel_depth = self.sel_depth.max(ply);
+    }
 }
 
 pub struct AbRunner {
@@ -300,10 +305,7 @@ impl AbRunner {
             let mut depth = 1_u32;
             'outer: loop {
                 let mut fail_cnt = 0;
-                let mut fail_high_cnt = 0_u32;
                 search_options.window.reset();
-                let mut search_depth;
-                let mut sel_depth;
                 loop {
                     let (alpha, beta) = if (eval.is_some() && eval.unwrap().raw().abs() < 1000)
                         || (depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt)
@@ -312,22 +314,20 @@ impl AbRunner {
                     } else {
                         (Evaluation::min(), Evaluation::max())
                     };
-                    search_depth = (depth - 1).saturating_sub(fail_high_cnt) + 1;
-                    let (make_move, score, d) = search::search::<Pv>(
+                    let (make_move, score) = search::search::<Pv>(
                         &mut position,
                         &mut search_options,
                         0,
-                        search_depth,
+                        depth,
                         alpha,
                         beta,
                         &mut nodes,
                     );
-                    sel_depth = d;
                     search_options.window.set(score);
                     if depth > 1 && search_options.abort() {
                         break 'outer;
                     }
-                    if (score > alpha && score < beta) || score.is_mate() {
+                    if score > alpha && score < beta {
                         search_options.eval = score;
                         best_move = make_move;
                         eval = Some(score);
@@ -335,17 +335,15 @@ impl AbRunner {
                     } else {
                         fail_cnt += 1;
                         if score <= alpha {
-                            fail_high_cnt = 0;
                             search_options.window.fail_low();
                         } else {
-                            fail_high_cnt += 1;
                             search_options.window.fail_high();
                         }
                     }
                 }
                 debugger.push(SearchStats::new(
                     start_time.elapsed().as_millis(),
-                    search_depth,
+                    depth,
                     eval,
                     best_move,
                 ));
@@ -364,11 +362,15 @@ impl AbRunner {
                         for _ in 0..pv.len() {
                             position.unmake_move()
                         }
-                        gui_info.print_info(sel_depth, depth, eval, start_time.elapsed(), nodes, &pv);
+                        gui_info.print_info(
+                            search_options.sel_depth,
+                            depth,
+                            eval,
+                            start_time.elapsed(),
+                            nodes,
+                            &pv,
+                        );
                     }
-                }
-                if search_options.eval.is_mate() {
-                    break;
                 }
                 depth += 1;
 
@@ -400,7 +402,7 @@ impl AbRunner {
             search_options: SearchOptions {
                 time_manager,
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
-                t_table: Arc::new(TranspositionTable::new(2_usize.pow(25))),
+                t_table: Arc::new(TranspositionTable::new(2_usize.pow(21))),
                 h_table: Arc::new(HistoryTable::new()),
                 killer_moves: Vec::new(),
                 threat_moves: Vec::new(),
@@ -425,6 +427,7 @@ impl AbRunner {
                 counter: 0,
                 evaluator,
                 eval_stack: vec![],
+                sel_depth: 0,
             },
             position,
         }
@@ -475,6 +478,18 @@ impl AbRunner {
         self.search_options
             .evaluator
             .evaluate(self.position.board())
+    }
+
+    pub fn set_board_no_reset(&mut self, board: Board) {
+        self.position = Position::new(board);
+        self.search_options.eval = self
+            .search_options
+            .evaluator
+            .evaluate(self.position.board());
+    }
+
+    pub fn make_move_no_reset(&mut self, make_move: ChessMove) {
+        self.position.make_move(make_move);
     }
 
     pub fn set_board(&mut self, board: Board) {
