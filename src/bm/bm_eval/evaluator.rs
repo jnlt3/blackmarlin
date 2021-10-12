@@ -2,17 +2,16 @@ use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::eval_consts::*;
 #[cfg(feature = "nnue")]
 use crate::bm::nnue::Nnue;
-#[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_PIECES, EMPTY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
-    w_ahead: [BitBoard; 64],
-    b_ahead: [BitBoard; 64],
-    w_protector: [BitBoard; 64],
-    b_protector: [BitBoard; 64],
-    ring: [BitBoard; 64],
+    pub w_ahead: [BitBoard; 64],
+    pub b_ahead: [BitBoard; 64],
+    pub w_protector: [BitBoard; 64],
+    pub b_protector: [BitBoard; 64],
+    pub ring: [BitBoard; 64],
 }
 
 pub const fn get_basic_eval_data() -> EvalData {
@@ -87,7 +86,7 @@ pub const fn get_basic_eval_data() -> EvalData {
     data
 }
 
-const DATA: EvalData = get_basic_eval_data();
+pub const DATA: EvalData = get_basic_eval_data();
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PsqtTrace {
@@ -240,6 +239,7 @@ macro_rules! trace_psqt {
 pub struct StdEvaluator {
     #[cfg(feature = "trace")]
     trace: EvalTrace,
+
     #[cfg(feature = "nnue")]
     nnue: Nnue,
 }
@@ -350,7 +350,7 @@ impl StdEvaluator {
         };
         #[cfg(feature = "nnue")]
         {
-            return Evaluation::new(self.nnue.feed_forward(board) * turn + 15);
+            return Evaluation::new(self.nnue.feed_forward(&board) * turn + 15);
         }
         reset_trace!(&mut self.trace);
         trace_tempo!(&mut self.trace, board.side_to_move());

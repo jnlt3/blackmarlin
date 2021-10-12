@@ -212,7 +212,11 @@ impl GuiInfo for UciInfo {
         let mut buffer = String::new();
         buffer += &format!(
             "info depth {} seldepth {} score {} time {} nodes {} pv",
-            depth, seldepth, eval_str, elapsed.as_millis(), node_cnt
+            depth,
+            seldepth,
+            eval_str,
+            elapsed.as_millis(),
+            node_cnt
         );
         for make_move in pv {
             buffer += &format!(" {}", make_move);

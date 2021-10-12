@@ -181,7 +181,6 @@ type LmpLookup = LookUp2d<usize, { LMP_DEPTH as usize }, 2>;
 #[derive(Debug, Clone)]
 pub struct SearchOptions {
     start: Instant,
-    evaluator: StdEvaluator,
     time_manager: Arc<dyn TimeManager>,
     counter: u8,
 
@@ -197,6 +196,8 @@ pub struct SearchOptions {
     eval: Evaluation,
     eval_stack: Vec<Evaluation>,
     sel_depth: u32,
+
+    singular: bool,
 }
 
 impl SearchOptions {
@@ -217,11 +218,6 @@ impl SearchOptions {
     #[inline]
     pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
         &mut self.threat_moves
-    }
-
-    #[inline]
-    pub fn eval(&mut self) -> &mut StdEvaluator {
-        &mut self.evaluator
     }
 
     #[inline]
@@ -259,6 +255,7 @@ impl SearchOptions {
         &mut self.tt_misses
     }
 
+    #[inline]
     pub fn get_last_eval(&self, ply: u32) -> Option<Evaluation> {
         if ply > 1 {
             Some(self.eval_stack[ply as usize - 2])
@@ -267,6 +264,7 @@ impl SearchOptions {
         }
     }
 
+    #[inline]
     pub fn push_eval(&mut self, eval: Evaluation, ply: u32) {
         if ply as usize >= self.eval_stack.len() {
             self.eval_stack.push(eval);
@@ -275,8 +273,19 @@ impl SearchOptions {
         }
     }
 
+    #[inline]
     pub fn update_sel_depth(&mut self, ply: u32) {
         self.sel_depth = self.sel_depth.max(ply);
+    }
+
+    #[inline]
+    pub fn singular(&self) -> bool {
+        self.singular
+    }
+
+    #[inline]
+    pub fn set_singular(&mut self, singular: bool) {
+        self.singular = singular;
     }
 }
 
@@ -392,12 +401,8 @@ impl AbRunner {
         })
     }
 
-    pub fn new(
-        board: Board,
-        time_manager: Arc<dyn TimeManager>,
-        mut evaluator: StdEvaluator,
-    ) -> Self {
-        let position = Position::new(board);
+    pub fn new(board: Board, time_manager: Arc<dyn TimeManager>) -> Self {
+        let mut position = Position::new(board);
         Self {
             search_options: SearchOptions {
                 time_manager,
@@ -422,12 +427,12 @@ impl AbRunner {
                 })),
                 tt_hits: 0,
                 tt_misses: 0,
-                eval: evaluator.evaluate(position.board()),
+                eval: position.get_eval(),
                 start: Instant::now(),
                 counter: 0,
-                evaluator,
                 eval_stack: vec![],
                 sel_depth: 0,
+                singular: false,
             },
             position,
         }
@@ -475,36 +480,30 @@ impl AbRunner {
     }
 
     pub fn raw_eval(&mut self) -> Evaluation {
-        self.search_options
-            .evaluator
-            .evaluate(self.position.board())
+        self.position.get_eval()
     }
 
     pub fn set_board_no_reset(&mut self, board: Board) {
         self.position = Position::new(board);
-        self.search_options.eval = self
-            .search_options
-            .evaluator
-            .evaluate(self.position.board());
+        self.search_options.eval = self.position.get_eval();
     }
 
     pub fn make_move_no_reset(&mut self, make_move: ChessMove) {
         self.position.make_move(make_move);
+        self.position.eval_reset();
     }
 
     pub fn set_board(&mut self, board: Board) {
         self.search_options.h_table.for_all(|_| 0);
         self.search_options.t_table.clean();
         self.position = Position::new(board);
-        self.search_options.eval = self
-            .search_options
-            .evaluator
-            .evaluate(self.position.board());
+        self.search_options.eval = self.position.get_eval();
     }
 
     pub fn make_move(&mut self, make_move: ChessMove) {
         self.search_options.h_table.for_all(|weight| weight / 8);
         self.position.make_move(make_move);
+        self.position.eval_reset();
     }
 
     pub fn get_board(&self) -> &Board {

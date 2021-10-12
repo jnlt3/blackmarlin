@@ -1,7 +1,8 @@
-use chess::{ChessMove, EMPTY, MoveGen, Piece};
+use chess::{ChessMove, Color, MoveGen, Piece, ALL_COLORS, ALL_PIECES, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_eval::evaluator::DATA;
 use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
@@ -13,6 +14,7 @@ use super::move_gen::QuiescenceSearchMoveGen;
 
 pub trait SearchType {
     const DO_NULL_MOVE: bool;
+    const DO_SINGULAR: bool;
     const IS_PV: bool;
     const IS_ZW: bool;
     type ZeroWindow: SearchType;
@@ -20,11 +22,12 @@ pub trait SearchType {
 
 pub struct Pv;
 pub struct Zw;
-
 pub struct NullMove;
+pub struct Singular;
 
 impl SearchType for Pv {
     const DO_NULL_MOVE: bool = false;
+    const DO_SINGULAR: bool = true;
     const IS_PV: bool = true;
     const IS_ZW: bool = false;
     type ZeroWindow = Zw;
@@ -32,6 +35,7 @@ impl SearchType for Pv {
 
 impl SearchType for Zw {
     const DO_NULL_MOVE: bool = true;
+    const DO_SINGULAR: bool = true;
     const IS_PV: bool = false;
     const IS_ZW: bool = true;
     type ZeroWindow = Zw;
@@ -39,6 +43,15 @@ impl SearchType for Zw {
 
 impl SearchType for NullMove {
     const DO_NULL_MOVE: bool = false;
+    const DO_SINGULAR: bool = true;
+    const IS_PV: bool = false;
+    const IS_ZW: bool = true;
+    type ZeroWindow = NullMove;
+}
+
+impl SearchType for Singular {
+    const DO_NULL_MOVE: bool = false;
+    const DO_SINGULAR: bool = false;
     const IS_PV: bool = false;
     const IS_ZW: bool = true;
     type ZeroWindow = NullMove;
@@ -120,7 +133,7 @@ pub fn search<Search: SearchType>(
 
     let in_check = *position.board().checkers() != EMPTY;
 
-    let eval = search_options.eval().evaluate(position.board());
+    let eval = position.get_eval();
     search_options.push_eval(eval, ply);
     let improving = if let Some(prev_eval) = search_options.get_last_eval(ply) {
         !in_check && eval > prev_eval
@@ -128,11 +141,13 @@ pub fn search<Search: SearchType>(
         false
     };
 
+    let only_pawns =
+        MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() >= board.combined().popcnt();
     let do_null_move = !Search::IS_PV
         && SEARCH_PARAMS.do_nmp()
         && !in_check
         && Search::DO_NULL_MOVE
-        && (MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() < board.combined().popcnt());
+        && !only_pawns;
 
     if do_null_move && position.null_move() {
         {
@@ -190,12 +205,11 @@ pub fn search<Search: SearchType>(
             return (None, eval);
         }
     }
-    {
-        //This guarantees that threat_table.len() <= ply as usize + 1
-        while search_options.get_k_table().len() <= ply as usize {
-            search_options.get_threat_table().push(MoveEntry::new());
-            search_options.get_k_table().push(MoveEntry::new());
-        }
+
+    //This guarantees that threat_table.len() <= ply as usize + 1
+    while search_options.get_k_table().len() <= ply as usize {
+        search_options.get_threat_table().push(MoveEntry::new());
+        search_options.get_k_table().push(MoveEntry::new());
     }
 
     let mut highest_score = None;
@@ -206,51 +220,69 @@ pub fn search<Search: SearchType>(
         MoveEntry::new()
     };
 
-    let move_gen;
-
-    move_gen = OrderedMoveGen::new(
+    let move_gen = OrderedMoveGen::new(
         position.board(),
         best_move,
         threat_move_entry.into_iter(),
         search_options.get_k_table()[ply as usize].into_iter(),
         search_options,
     );
-
-    let m = OrderedMoveGen::new(
-        position.board(),
-        best_move,
-        threat_move_entry.into_iter(),
-        search_options.get_k_table()[ply as usize].into_iter(),
-        search_options,
-    );
-
-    let x = MoveGen::new_legal(position.board());
-    assert_eq!(m.into_iter().count(), x.into_iter().count());
 
     let mut moves_seen = 0;
     let mut move_exists = false;
+
     for make_move in move_gen {
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
-
         let gives_check = *position.board().checkers() != EMPTY;
         let is_promotion = make_move.get_promotion().is_some();
-
         let is_quiet = !in_check && !gives_check && !is_capture && !is_promotion;
+
+        let target_ply = if gives_check {
+            target_ply + 1
+        } else {
+            target_ply
+        };
         let mut score;
         if moves_seen == 0 {
             moves_seen += 1;
+            let mut extension = 0;
+            /*
+            if let Some(entry) = tt_entry {
+                if let LowerBound(tt_score) = entry.score() {
+                    if !tt_score.is_mate() && ply != 0 && depth >= 8 && entry.depth() >= depth - 1 {
+                        let target_ply = ply + depth / 2 + 1;
+                        if let Some(eval) = singular::<Search>(
+                            position,
+                            search_options,
+                            ply,
+                            target_ply,
+                            tt_score,
+                            entry.table_move(),
+                            nodes,
+                        ) {
+                            if eval < tt_score {
+                                extension += 1;
+                            } /*else if tt_score >= beta {
+                                  return (None, tt_score);
+                              }*/
+                        }
+                    }
+                }
+            } */
+
             position.make_move(make_move);
             let (_, search_score) = search::<Search>(
                 position,
                 search_options,
                 ply + 1,
-                target_ply,
+                target_ply + extension,
                 beta >> Next,
                 alpha >> Next,
                 nodes,
             );
             score = search_score << Next;
+            search_options.set_singular(false);
         } else {
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
@@ -267,6 +299,7 @@ pub fn search<Search: SearchType>(
             if do_fp && eval + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {
                 continue;
             }
+
             position.make_move(make_move);
 
             moves_seen += 1;
@@ -399,14 +432,14 @@ pub fn q_search(
 ) -> Evaluation {
     *nodes += 1;
     if ply >= target_ply {
-        return search_options.eval().evaluate(position.board());
+        return position.get_eval();
     }
     let board = *position.board();
     let mut highest_score = None;
     let in_check = *board.checkers() != EMPTY;
 
     if !in_check {
-        let stand_pat = search_options.eval().evaluate(position.board());
+        let stand_pat = position.get_eval();
         let do_dp = SEARCH_PARAMS.do_dp();
         if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
             return stand_pat;
@@ -419,7 +452,7 @@ pub fn q_search(
             }
         }
     }
-    
+
     let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
@@ -449,4 +482,62 @@ pub fn q_search(
         }
     }
     highest_score.unwrap_or(alpha)
+}
+
+pub fn singular<Search: SearchType>(
+    position: &mut Position,
+    search_options: &mut SearchOptions,
+    ply: u32,
+    target_ply: u32,
+    r_beta: Evaluation,
+    best_move: ChessMove,
+    nodes: &mut u32,
+) -> Option<Evaluation> {
+    while search_options.get_k_table().len() <= ply as usize {
+        search_options.get_threat_table().push(MoveEntry::new());
+        search_options.get_k_table().push(MoveEntry::new());
+    }
+
+    let threat_move_entry = if ply > 1 {
+        search_options.get_threat_table()[ply as usize]
+    } else {
+        MoveEntry::new()
+    };
+    let move_gen = OrderedMoveGen::new(
+        position.board(),
+        Some(best_move),
+        threat_move_entry.into_iter(),
+        search_options.get_k_table()[ply as usize].into_iter(),
+        search_options,
+    );
+
+    let mut best_eval = None;
+
+    let r_beta = r_beta >> Next;
+    for make_move in move_gen {
+        if make_move == best_move {
+            continue;
+        }
+        position.make_move(make_move);
+
+        let (_, eval) = search::<Search::ZeroWindow>(
+            position,
+            search_options,
+            ply + 1,
+            target_ply,
+            r_beta - 1,
+            r_beta,
+            nodes,
+        );
+        position.unmake_move();
+
+        let eval = eval << Next;
+        if best_eval.is_none() || eval > best_eval.unwrap() {
+            best_eval = Some(eval);
+        }
+        if eval >= r_beta {
+            return best_eval;
+        }
+    }
+    best_eval
 }

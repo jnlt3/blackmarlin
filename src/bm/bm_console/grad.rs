@@ -735,7 +735,6 @@ pub fn tune(data_points: &[DataPoint]) {
     optim.weights.print();
     println!("err: {}", optim.error(data_points));
 
-
     for _ in 0..ITERS / PRINT_ITERS {
         for _ in 0..PRINT_ITERS {
             for _ in 0..BATCH_SIZE {

@@ -1,11 +1,11 @@
 use super::{cecp::CecpAdapter, uci::UciAdapter};
 
+#[cfg(feature = "data")]
+mod gen_eval;
 #[cfg(feature = "trace")]
 mod gen_fen;
 #[cfg(feature = "trace")]
 mod grad;
-#[cfg(feature = "data")]
-mod gen_eval;
 
 enum Adapter {
     Cecp(CecpAdapter),

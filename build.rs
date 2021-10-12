@@ -1,9 +1,11 @@
 use std::{env, path::Path};
 
 fn main() {
+    #[cfg(feature = "nnue")]
     parse_bm_net();
 }
 
+#[cfg(feature = "nnue")]
 fn parse_bm_net() {
     let nnue_data = std::fs::read("./nnue.bin").expect("nnue file doesn't exist");
     let (layers, weights, biases) = from_bytes_bm(nnue_data);
@@ -64,6 +66,7 @@ fn parse_bm_net() {
     println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
+#[cfg(feature = "nnue")]
 pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {

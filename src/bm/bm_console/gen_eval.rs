@@ -55,7 +55,7 @@ fn play_single(engine: &mut AbRunner, time_manager: &ConstDepth) -> Vec<(Board, 
 
 fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
     let time_manager = Arc::new(ConstDepth::new(8));
-    let mut engine = AbRunner::new(Board::default(), time_manager.clone(), StdEvaluator::new());
+    let mut engine = AbRunner::new(Board::default(), time_manager.clone());
     let mut evals = vec![];
     for i in 0..iter {
         println!("{}", i);

@@ -1,22 +1,19 @@
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
-use std::time::{Duration};
+use std::time::Duration;
 
 use chess::{Board, ChessMove, Color, MoveGen};
 
-use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{Run, UciInfo};
 
-use crate::bm::bm_runner::time::{
-    MainTimeManager, TimeManager,
-};
+use crate::bm::bm_runner::time::{MainTimeManager, TimeManager};
 
 const VERSION: &str = "dev";
 pub struct UciAdapter {
     bm_runner: Arc<Mutex<AbRunner>>,
-    
+
     time_manager: Arc<MainTimeManager>,
 
     analysis: Option<JoinHandle<()>>,
@@ -36,7 +33,6 @@ impl UciAdapter {
         let bm_runner = Arc::new(Mutex::new(AbRunner::new(
             Board::default(),
             time_manager.clone(),
-            StdEvaluator::new(),
         )));
         Self {
             bm_runner,

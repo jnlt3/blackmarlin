@@ -108,12 +108,14 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     }
                     if let Some(piece) = make_move.get_promotion() {
                         match piece {
-                            chess::Piece::Queen | chess::Piece::Knight => {}
+                            chess::Piece::Queen => {
+                                self.queue.push((make_move, i16::MAX));
+                            }
                             _ => {
                                 self.queue.push((make_move, i16::MIN));
-                                continue;
                             }
                         };
+                        continue;
                     }
                     let mut score = 0;
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();

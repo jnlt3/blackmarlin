@@ -51,7 +51,7 @@ pub fn diagnostics_nps() {
     let const_time = Arc::new(ConstTime::new(Duration::from_secs(SECS_FOR_NPS)));
     let timing = Arc::new(Diagnostics::new(const_time.clone()));
     let time_left = Duration::from_secs(SECS_FOR_NPS);
-    let mut runner = AbRunner::new(Board::default(), timing.clone(), StdEvaluator::new());
+    let mut runner = AbRunner::new(Board::default(), timing.clone());
     timing.initiate(time_left, 0);
     const_time.set_duration(time_left);
     runner.set_board(Board::default());
@@ -71,7 +71,7 @@ pub fn diagnostics_scaling() {
     );
     let const_time = Arc::new(ConstTime::new(Duration::from_secs(SECS_FOR_SCALING)));
     let timing = Arc::new(Diagnostics::new(const_time.clone()));
-    let mut runner = AbRunner::new(Board::default(), timing.clone(), StdEvaluator::new());
+    let mut runner = AbRunner::new(Board::default(), timing.clone());
 
     let mut all_data = vec![];
     for (index, position) in POSITIONS.iter().enumerate() {

@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 
 use chess::{Board, BoardBuilder, ChessMove, Color, MoveGen};
 
-use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, XBoardInfo};
 
@@ -114,7 +113,6 @@ impl CecpAdapter {
         let bm_runner = Arc::new(Mutex::new(AbRunner::new(
             Board::default(),
             time_manager.clone(),
-            StdEvaluator::new(),
         )));
         Self {
             bm_runner,
