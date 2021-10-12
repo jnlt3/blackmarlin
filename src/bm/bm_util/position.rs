@@ -1,14 +1,21 @@
 use chess::{Board, ChessMove};
 
+use crate::bm::bm_eval::{eval::Evaluation, evaluator::StdEvaluator};
+
 #[derive(Debug, Clone)]
 pub struct Position {
     board: Vec<Board>,
+    evaluator: StdEvaluator,
 }
 
 //TODO: Counting Bloom Filter for threefold repetition detection
 impl Position {
     pub fn new(board: Board) -> Self {
-        Self { board: vec![board] }
+        let evaluator = StdEvaluator::new();
+        Self {
+            board: vec![board],
+            evaluator,
+        }
     }
 
     #[inline]
@@ -40,7 +47,8 @@ impl Position {
 
     #[inline]
     pub fn make_move(&mut self, make_move: ChessMove) {
-        let board = self.board().make_move_new(make_move);
+        let old_board = *self.board();
+        let board = old_board.make_move_new(make_move);
         self.board.push(board);
     }
 
@@ -52,5 +60,14 @@ impl Position {
     #[inline]
     pub fn hash(&self) -> u64 {
         self.board().get_hash()
+    }
+
+    pub fn get_eval(&mut self) -> Evaluation {
+        let board = *self.board();
+        self.evaluator.evaluate(&board)
+    }
+
+    pub fn eval_reset(&mut self) {
+        let board = *self.board();
     }
 }
