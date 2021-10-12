@@ -21,9 +21,9 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
     }
 
     #[inline]
-    pub fn incr_ff(&mut self, index: usize, change: i8) {
+    pub fn incr_ff<const CHANGE: i16>(&mut self, index: usize) {
         for (out, &weight) in self.out.iter_mut().zip(&self.weights.0[index]) {
-            *out += (weight * change) as i16;
+            *out += weight as i16 * CHANGE;
         }
     }
 
