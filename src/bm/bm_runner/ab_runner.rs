@@ -501,7 +501,6 @@ impl AbRunner {
     }
 
     pub fn make_move(&mut self, make_move: ChessMove) {
-        self.search_options.h_table.for_all(|weight| weight / 8);
         self.position.make_move(make_move);
         self.position.eval_reset();
     }
