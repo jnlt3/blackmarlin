@@ -23,7 +23,7 @@ const RAND_MOVE_PROBABILITY: f32 = 0.1;
 fn play_single(engine: &mut AbRunner, time_manager: &ConstDepth) -> Vec<(Board, Evaluation)> {
     let mut evals = Vec::new();
     engine.set_board(Board::default());
-    for _ in 0..80 {
+    for _ in 0..160 {
         time_manager.initiate(Duration::default(), 0);
         let mut move_gen = MoveGen::new_legal(engine.get_board());
         if move_gen.next().is_none() {

@@ -121,8 +121,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();
                     score += self
                         .hist
-                        .get(self.board.side_to_move(), piece, make_move.get_dest())
-                        .min(i16::MAX as u32) as i16;
+                        .get(self.board.side_to_move(), piece, make_move.get_dest());
                     self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::QPromotions;

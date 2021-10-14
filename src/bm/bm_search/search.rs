@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use chess::{ChessMove, Color, MoveGen, Piece, ALL_COLORS, ALL_PIECES, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
@@ -231,6 +232,8 @@ pub fn search<Search: SearchType>(
     let mut moves_seen = 0;
     let mut move_exists = false;
 
+    let mut quiets = ArrayVec::<ChessMove, 64>::new();
+
     for make_move in move_gen {
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
@@ -378,10 +381,10 @@ pub fn search<Search: SearchType>(
                     killer_table[ply as usize].push(make_move);
                     let moved_piece = board.piece_on(make_move.get_source()).unwrap();
                     search_options.get_h_table().cutoff(
-                        color,
-                        moved_piece,
-                        make_move.get_dest(),
-                        depth * depth,
+                        &board,
+                        make_move,
+                        &quiets,
+                        depth,
                     );
                 }
 
@@ -392,6 +395,11 @@ pub fn search<Search: SearchType>(
                 return (Some(make_move), score);
             }
             alpha = score;
+        }
+        if !is_capture {
+            if !quiets.is_full() {
+                quiets.push(make_move);
+            }
         }
     }
     if !move_exists {
