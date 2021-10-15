@@ -1,4 +1,4 @@
-const UNITS: i16 = 300_i16;
+const UNITS: i16 = 170_i16;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = SCALE;
