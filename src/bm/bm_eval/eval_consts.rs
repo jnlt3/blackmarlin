@@ -103,11 +103,10 @@ const fn add_piece(
     combined
 }
 
-
 macro_rules! E {
     ($x:expr, $y:expr) => {
         TaperedEval($x, $y)
-    }
+    };
 }
 
 type T = TaperedEval;
@@ -731,4 +730,3 @@ pub const BISHOP_TABLE: SquareTable = add_piece(BISHOPS, BISHOP_CNT);
 pub const ROOK_TABLE: SquareTable = add_piece(ROOKS, ROOK_CNT);
 pub const QUEEN_TABLE: SquareTable = add_piece(QUEENS, QUEEN_CNT);
 pub const KING_TABLE: SquareTable = KINGS;
-
