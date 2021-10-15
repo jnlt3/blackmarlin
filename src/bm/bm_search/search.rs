@@ -69,7 +69,7 @@ pub fn search<Search: SearchType>(
     nodes: &mut u32,
 ) -> (Option<ChessMove>, Evaluation) {
     if ply != 0 && search_options.abort() {
-        return (None, Evaluation::new(0));
+        return (None, Evaluation::min());
     }
 
     if ply != 0 && position.three_fold_repetition() {
@@ -98,7 +98,6 @@ pub fn search<Search: SearchType>(
     let mut best_move = None;
 
     let board = *position.board();
-    let color = board.side_to_move();
 
     let initial_alpha = alpha;
 
@@ -349,9 +348,6 @@ pub fn search<Search: SearchType>(
         }
         if score > alpha {
             if score >= beta {
-                if ply != 0 && search_options.abort() {
-                    return (None, Evaluation::new(0));
-                }
                 if !is_capture {
                     let killer_table = search_options.get_k_table();
                     killer_table[ply as usize].push(make_move);
@@ -383,9 +379,6 @@ pub fn search<Search: SearchType>(
         } else {
             (None, Evaluation::new_checkmate(-1))
         };
-    }
-    if ply != 0 && search_options.abort() {
-        return (None, Evaluation::new(0));
     }
     let highest_score = highest_score.unwrap();
 

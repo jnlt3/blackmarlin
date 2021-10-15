@@ -338,11 +338,11 @@ impl AbRunner {
                         beta,
                         &mut nodes,
                     );
-                    search_options.window.set(score);
                     if depth > 1 && search_options.abort_absolute() {
                         break 'outer;
                     }
-                    if score > alpha && score < beta {
+                    search_options.window.set(score);
+                    if (score > alpha && score < beta) || fail_cnt >= SEARCH_PARAMS.fail_cnt {
                         search_options.eval = score;
                         best_move = make_move;
                         eval = Some(score);
@@ -396,7 +396,7 @@ impl AbRunner {
                     search_options.eval,
                     best_move.unwrap(),
                     search_start.elapsed(),
-                )
+                );
             }
             if let Some(evaluation) = eval {
                 debugger.complete();

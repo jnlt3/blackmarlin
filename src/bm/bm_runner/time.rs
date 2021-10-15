@@ -52,7 +52,7 @@ impl ConstDepth {
 
     fn update_abort(&self) {
         self.abort.store(
-            self.current_depth.load(Ordering::SeqCst) > self.depth.load(Ordering::SeqCst),
+            self.current_depth.load(Ordering::SeqCst) >= self.depth.load(Ordering::SeqCst),
             Ordering::SeqCst,
         )
     }
@@ -149,7 +149,7 @@ impl TimeManager for MainTimeManager {
         let current_eval = eval.raw();
         let last_eval = self.last_eval.load(Ordering::SeqCst);
         let mut time = (self.target_duration.load(Ordering::SeqCst) * 1000) as f32;
-        time *= 1.1_f32.powf((current_eval - last_eval).abs() as f32 / 50.0);
+        time *= 1.1_f32.powf((current_eval - last_eval).abs().min(150) as f32 / 50.0);
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.target_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
