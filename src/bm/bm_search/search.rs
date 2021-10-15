@@ -63,7 +63,7 @@ pub fn search<Search: SearchType>(
     position: &mut Position,
     search_options: &mut SearchOptions,
     ply: u32,
-    mut target_ply: u32,
+    target_ply: u32,
     mut alpha: Evaluation,
     mut beta: Evaluation,
     nodes: &mut u32,

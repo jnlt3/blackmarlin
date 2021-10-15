@@ -66,8 +66,4 @@ impl Position {
         let board = *self.board();
         self.evaluator.evaluate(&board)
     }
-
-    pub fn eval_reset(&mut self) {
-        let board = *self.board();
-    }
 }
