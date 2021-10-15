@@ -69,7 +69,7 @@ pub fn search<Search: SearchType>(
     nodes: &mut u32,
 ) -> (Option<ChessMove>, Evaluation) {
     if ply != 0 && search_options.abort() {
-        return (None, Evaluation::min());
+        return (None, Evaluation::max());
     }
 
     if ply != 0 && position.three_fold_repetition() {
@@ -236,9 +236,10 @@ pub fn search<Search: SearchType>(
     for make_move in move_gen {
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
-        let gives_check = *position.board().checkers() != EMPTY;
         let is_promotion = make_move.get_promotion().is_some();
-        let is_quiet = !in_check && !gives_check && !is_capture && !is_promotion;
+        position.make_move(make_move);
+        let gives_check = *position.board().checkers() != EMPTY;
+        let is_quiet = !in_check && !is_capture && !is_promotion;
 
         
         let target_ply = if gives_check {
@@ -250,7 +251,6 @@ pub fn search<Search: SearchType>(
         let mut score;
         if moves_seen == 0 {
             moves_seen += 1;
-            position.make_move(make_move);
             let (_, search_score) = search::<Search>(
                 position,
                 search_options,
@@ -269,16 +269,16 @@ pub fn search<Search: SearchType>(
                         .get_lmp_lookup()
                         .get(depth as usize, improving as usize)
             {
+                position.unmake_move();
                 continue;
             }
 
             let do_fp = !Search::IS_PV && is_quiet && do_f_prune;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {
+                position.unmake_move();
                 continue;
             }
-
-            position.make_move(make_move);
 
             moves_seen += 1;
 

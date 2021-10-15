@@ -342,7 +342,7 @@ impl AbRunner {
                         break 'outer;
                     }
                     search_options.window.set(score);
-                    if (score > alpha && score < beta) || fail_cnt >= SEARCH_PARAMS.fail_cnt {
+                    if score > alpha && score < beta || score.is_mate() {
                         search_options.eval = score;
                         best_move = make_move;
                         eval = Some(score);
