@@ -3,7 +3,6 @@ use chess::{ChessMove, Color, MoveGen, Piece, ALL_COLORS, ALL_PIECES, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_eval::evaluator::DATA;
 use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
@@ -64,7 +63,7 @@ pub fn search<Search: SearchType>(
     position: &mut Position,
     search_options: &mut SearchOptions,
     ply: u32,
-    target_ply: u32,
+    mut target_ply: u32,
     mut alpha: Evaluation,
     mut beta: Evaluation,
     nodes: &mut u32,
@@ -135,6 +134,7 @@ pub fn search<Search: SearchType>(
     let in_check = *position.board().checkers() != EMPTY;
 
     let eval = position.get_eval();
+
     search_options.push_eval(eval, ply);
     let improving = if let Some(prev_eval) = search_options.get_last_eval(ply) {
         !in_check && eval > prev_eval
@@ -241,51 +241,27 @@ pub fn search<Search: SearchType>(
         let is_promotion = make_move.get_promotion().is_some();
         let is_quiet = !in_check && !gives_check && !is_capture && !is_promotion;
 
+        
         let target_ply = if gives_check {
             target_ply + 1
         } else {
             target_ply
         };
+        
         let mut score;
         if moves_seen == 0 {
             moves_seen += 1;
-            let mut extension = 0;
-            /*
-            if let Some(entry) = tt_entry {
-                if let LowerBound(tt_score) = entry.score() {
-                    if !tt_score.is_mate() && ply != 0 && depth >= 8 && entry.depth() >= depth - 1 {
-                        let target_ply = ply + depth / 2 + 1;
-                        if let Some(eval) = singular::<Search>(
-                            position,
-                            search_options,
-                            ply,
-                            target_ply,
-                            tt_score,
-                            entry.table_move(),
-                            nodes,
-                        ) {
-                            if eval < tt_score {
-                                extension += 1;
-                            } /*else if tt_score >= beta {
-                                  return (None, tt_score);
-                              }*/
-                        }
-                    }
-                }
-            } */
-
             position.make_move(make_move);
             let (_, search_score) = search::<Search>(
                 position,
                 search_options,
                 ply + 1,
-                target_ply + extension,
+                target_ply,
                 beta >> Next,
                 alpha >> Next,
                 nodes,
             );
             score = search_score << Next;
-            search_options.set_singular(false);
         } else {
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
