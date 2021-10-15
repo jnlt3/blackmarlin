@@ -149,21 +149,7 @@ impl TimeManager for MainTimeManager {
         let current_eval = eval.raw();
         let last_eval = self.last_eval.load(Ordering::SeqCst);
         let mut time = (self.target_duration.load(Ordering::SeqCst) * 1000) as f32;
-        if last_eval > current_eval + 10 {
-            time *= 1.05;
-        }
-        if last_eval > current_eval + 20 {
-            time *= 1.05;
-        }
-        if last_eval > current_eval + 40 {
-            time *= 1.05;
-        }
-        if last_eval > current_eval + 15 {
-            time *= 1.025;
-        }
-        if last_eval > current_eval + 30 {
-            time *= 1.05;
-        }
+        time *= 1.1_f32.powf((current_eval - last_eval).abs() as f32 / 50.0);
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.target_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
