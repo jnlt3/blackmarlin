@@ -379,7 +379,6 @@ pub fn search<Search: SearchType>(
                 if !is_capture {
                     let killer_table = search_options.get_k_table();
                     killer_table[ply as usize].push(make_move);
-                    let moved_piece = board.piece_on(make_move.get_source()).unwrap();
                     search_options.get_h_table().cutoff(
                         &board,
                         make_move,
