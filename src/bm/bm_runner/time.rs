@@ -52,7 +52,7 @@ impl ConstDepth {
 
     fn update_abort(&self) {
         self.abort.store(
-            self.current_depth.load(Ordering::SeqCst) >= self.depth.load(Ordering::SeqCst),
+            self.current_depth.load(Ordering::SeqCst) > self.depth.load(Ordering::SeqCst),
             Ordering::SeqCst,
         )
     }

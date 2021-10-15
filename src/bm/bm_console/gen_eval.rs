@@ -24,12 +24,13 @@ fn play_single(engine: &mut AbRunner, time_manager: &ConstDepth) -> Vec<(Board, 
     let mut evals = Vec::new();
     engine.set_board(Board::default());
     for _ in 0..160 {
-        time_manager.initiate(Duration::default(), 0);
         let mut move_gen = MoveGen::new_legal(engine.get_board());
         if move_gen.next().is_none() {
             break;
         }
+        time_manager.initiate(Duration::default(), 0);
         let (mut make_move, eval, _, _) = engine.search::<Run, NoInfo>(1);
+        time_manager.clear();
         let turn = match engine.get_board().side_to_move() {
             chess::Color::White => 1,
             chess::Color::Black => -1,
@@ -40,7 +41,6 @@ fn play_single(engine: &mut AbRunner, time_manager: &ConstDepth) -> Vec<(Board, 
         if move_gen.next().is_none() {
             evals.push((*engine.get_board(), eval * turn));
         }
-        time_manager.clear();
 
         if rand::thread_rng().gen::<f32>() < RAND_MOVE_PROBABILITY {
             let moves = MoveGen::new_legal(engine.get_board())
@@ -54,11 +54,11 @@ fn play_single(engine: &mut AbRunner, time_manager: &ConstDepth) -> Vec<(Board, 
 }
 
 fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
-    let time_manager = Arc::new(ConstDepth::new(8));
-    let mut engine = AbRunner::new(Board::default(), time_manager.clone());
     let mut evals = vec![];
     for i in 0..iter {
         println!("{}", i);
+        let time_manager = Arc::new(ConstDepth::new(8));
+        let mut engine = AbRunner::new(Board::default(), time_manager.clone());
         evals.extend(play_single(&mut engine, &time_manager));
     }
     evals
@@ -68,8 +68,8 @@ pub fn gen_eval() {
     for _ in 0.. {
         let mut evals = vec![];
         let mut threads = vec![];
-        for _ in 0..6 {
-            threads.push(std::thread::spawn(move || gen_games(100)))
+        for _ in 0..4 {
+            threads.push(std::thread::spawn(move || gen_games(10)))
         }
         for t in threads {
             evals.extend(t.join().unwrap());
