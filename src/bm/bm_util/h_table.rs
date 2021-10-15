@@ -55,7 +55,7 @@ impl HistoryTable {
             let decay = change * value / MAX_VALUE;
             let decrement = change + decay;
     
-            self.table[piece_index][to_index].fetch_sub(increment, Ordering::SeqCst);
+            self.table[piece_index][to_index].fetch_sub(decrement, Ordering::SeqCst);
         }
     }
 
