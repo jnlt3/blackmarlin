@@ -201,6 +201,12 @@ pub struct SearchOptions {
 }
 
 impl SearchOptions {
+
+    #[inline]
+    pub fn abort_absolute(&mut self) -> bool {
+        self.time_manager.abort(self.start)
+    }
+
     #[inline]
     pub fn abort(&mut self) -> bool {
         // self.time_manager.abort(self.start)
@@ -333,7 +339,7 @@ impl AbRunner {
                         &mut nodes,
                     );
                     search_options.window.set(score);
-                    if depth > 1 && search_options.abort() {
+                    if depth > 1 && search_options.abort_absolute() {
                         break 'outer;
                     }
                     if score > alpha && score < beta {
@@ -490,7 +496,6 @@ impl AbRunner {
 
     pub fn make_move_no_reset(&mut self, make_move: ChessMove) {
         self.position.make_move(make_move);
-        self.position.eval_reset();
     }
 
     pub fn set_board(&mut self, board: Board) {
@@ -502,7 +507,6 @@ impl AbRunner {
 
     pub fn make_move(&mut self, make_move: ChessMove) {
         self.position.make_move(make_move);
-        self.position.eval_reset();
     }
 
     pub fn get_board(&self) -> &Board {
