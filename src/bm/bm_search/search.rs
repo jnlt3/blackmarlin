@@ -241,13 +241,12 @@ pub fn search<Search: SearchType>(
         let gives_check = *position.board().checkers() != EMPTY;
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
-        
         let target_ply = if gives_check {
             target_ply + 1
         } else {
             target_ply
         };
-        
+
         let mut score;
         if moves_seen == 0 {
             let (_, search_score) = search::<Search>(
@@ -350,12 +349,9 @@ pub fn search<Search: SearchType>(
                 if !is_capture {
                     let killer_table = search_options.get_k_table();
                     killer_table[ply as usize].push(make_move);
-                    search_options.get_h_table().cutoff(
-                        &board,
-                        make_move,
-                        &quiets,
-                        depth,
-                    );
+                    search_options
+                        .get_h_table()
+                        .cutoff(&board, make_move, &quiets, depth);
                 }
 
                 let analysis = Analysis::new(depth, LowerBound(score), make_move);

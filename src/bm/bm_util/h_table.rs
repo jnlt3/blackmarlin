@@ -1,7 +1,6 @@
 use chess::{Board, ChessMove, Color, Piece, Square};
 use std::sync::atomic::{AtomicI16, Ordering};
 
-
 const MAX_VALUE: i16 = 512;
 const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
@@ -14,9 +13,7 @@ pub struct HistoryTable {
 impl HistoryTable {
     pub fn new() -> Self {
         Self {
-            table: unsafe {
-                Box::new(std::mem::transmute([[0_i16; SQUARE_COUNT]; PIECE_COUNT]))
-            },
+            table: unsafe { Box::new(std::mem::transmute([[0_i16; SQUARE_COUNT]; PIECE_COUNT])) },
         }
     }
 
@@ -39,7 +36,7 @@ impl HistoryTable {
         let piece = board.piece_on(make_move.get_source()).unwrap();
         let piece_index = Self::piece_index(board.side_to_move(), piece);
         let to_index = make_move.get_dest().to_index();
-        
+
         let value = self.table[piece_index][to_index].load(Ordering::SeqCst);
         let change = (amt * amt) as i16;
         let decay = change * value / MAX_VALUE;
@@ -55,7 +52,7 @@ impl HistoryTable {
             let value = self.table[piece_index][to_index].load(Ordering::SeqCst);
             let decay = change * value / MAX_VALUE;
             let decrement = change + decay;
-    
+
             self.table[piece_index][to_index].fetch_sub(decrement, Ordering::SeqCst);
         }
     }

@@ -5,7 +5,6 @@ use std::time::Instant;
 use chess::{Board, ChessMove};
 
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_consts::*;
 use crate::bm::bm_runner::config::{GuiInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -194,7 +193,6 @@ pub struct SearchOptions {
 }
 
 impl SearchOptions {
-
     #[inline]
     pub fn abort_absolute(&mut self) -> bool {
         self.time_manager.abort(self.start)
