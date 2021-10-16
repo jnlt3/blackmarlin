@@ -26,9 +26,8 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     threat_move_cnt: THREAT_MOVE_CNT,
     fail_cnt: FAIL_CNT,
     iid_depth: IID_DEPTH,
-    f_prune_depth: F_PRUNE_DEPTH,
     rev_f_prune_depth: REV_F_PRUNE_DEPTH,
-    fp: Threshold::new(F_PRUNE_THRESHOLD_BASE, F_PRUNE_THRESHOLD_FACTOR),
+    fp: F_PRUNE_THRESHOLD,
     do_fp: DO_F_PRUNE,
     rev_fp: Threshold::new(REV_F_PRUNE_THRESHOLD_BASE, REV_F_PRUNE_THRESHOLD_FACTOR),
     do_rev_fp: DO_REV_F_PRUNE,
@@ -57,8 +56,7 @@ pub struct SearchParams {
     threat_move_cnt: usize,
     fail_cnt: u8,
     iid_depth: u32,
-    f_prune_depth: u32,
-    fp: Threshold,
+    fp: i16,
     do_fp: bool,
     rev_f_prune_depth: u32,
     rev_fp: Threshold,
@@ -110,11 +108,6 @@ impl SearchParams {
     }
 
     #[inline]
-    pub const fn do_f_prune(&self, depth: u32) -> bool {
-        depth < self.f_prune_depth
-    }
-
-    #[inline]
     pub const fn do_rev_f_prune(&self, depth: u32) -> bool {
         depth < self.rev_f_prune_depth
     }
@@ -130,8 +123,8 @@ impl SearchParams {
     }
 
     #[inline]
-    pub const fn get_fp(&self) -> &Threshold {
-        &self.fp
+    pub const fn get_fp(&self) -> i16 {
+        self.fp
     }
 
     #[inline]

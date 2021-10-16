@@ -10,7 +10,7 @@ use std::sync::Arc;
 use super::move_entry::MoveEntryIterator;
 
 const MAX_MOVES: usize = 218;
-const MAX_PROMO_MOVES: usize = 14;
+const LOSING_CAPTURE: i16 = -(2_i16.pow(10));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -18,8 +18,6 @@ enum GenType {
     CalcCaptures,
     Captures,
     GenQuiet,
-    QPromotions,
-    KPromotions,
     ThreatMove,
     Killer,
     Quiet,
@@ -35,8 +33,6 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     board: Board,
 
     queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
-    queen_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
-    knight_promo: ArrayVec<ChessMove, MAX_PROMO_MOVES>,
 }
 
 impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
@@ -56,8 +52,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             hist: options.get_h_table().clone(),
             board: *board,
             queue: ArrayVec::new(),
-            queen_promo: ArrayVec::new(),
-            knight_promo: ArrayVec::new(),
         }
     }
 }
@@ -82,23 +76,31 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                 self.move_gen.set_iterator_mask(*self.board.combined());
                 for make_move in &mut self.move_gen {
                     if Some(make_move) != self.pv_move {
-                        let expected_gain = StdEvaluator::see(self.board, make_move);
-                        let pos = self
-                            .queue
-                            .binary_search_by_key(&expected_gain, |(_, score)| *score)
-                            .unwrap_or_else(|pos| pos);
-                        self.queue.insert(pos, (make_move, expected_gain));
+                        let mut expected_gain = StdEvaluator::see(self.board, make_move);
+                        if expected_gain < 0 {
+                            expected_gain += LOSING_CAPTURE;
+                        }
+                        self.queue.push((make_move, expected_gain));
                     }
                 }
                 self.gen_type = GenType::Captures;
                 self.next()
             }
             GenType::Captures => {
-                if let Some((make_move, _)) = self.queue.pop() {
-                    return Some(make_move);
+                let mut max = LOSING_CAPTURE;
+                let mut best_index = None;
+                for (index, &(_, score)) in self.queue.iter().enumerate() {
+                    if score >= max {
+                        max = score;
+                        best_index = Some(index);
+                    }
                 }
-                self.gen_type = GenType::GenQuiet;
-                self.next()
+                if let Some(index) = best_index {
+                    Some(self.queue.remove(index).0)
+                } else {
+                    self.gen_type = GenType::GenQuiet;
+                    self.next()
+                }
             }
             GenType::GenQuiet => {
                 self.move_gen.set_iterator_mask(!EMPTY);
@@ -123,20 +125,6 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                         .hist
                         .get(self.board.side_to_move(), piece, make_move.get_dest());
                     self.queue.push((make_move, score));
-                }
-                self.gen_type = GenType::QPromotions;
-                self.next()
-            }
-            GenType::QPromotions => {
-                if let Some(make_move) = self.queen_promo.pop() {
-                    return Some(make_move);
-                }
-                self.gen_type = GenType::KPromotions;
-                self.next()
-            }
-            GenType::KPromotions => {
-                if let Some(make_move) = self.knight_promo.pop() {
-                    return Some(make_move);
                 }
                 self.gen_type = GenType::Killer;
                 self.next()

@@ -3,9 +3,7 @@ pub const THREAT_MOVE_CNT: usize = 1;
 
 pub const IID_DEPTH: u32 = 5;
 
-pub const F_PRUNE_DEPTH: u32 = 2;
-pub const F_PRUNE_THRESHOLD_BASE: i16 = 0;
-pub const F_PRUNE_THRESHOLD_FACTOR: i16 = 200;
+pub const F_PRUNE_THRESHOLD: i16 = 200;
 pub const DO_F_PRUNE: bool = true;
 
 pub const REV_F_PRUNE_DEPTH: u32 = 7;

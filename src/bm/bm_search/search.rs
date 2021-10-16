@@ -197,7 +197,7 @@ pub fn search<Search: SearchType>(
 
     let do_rev_f_prune =
         !Search::IS_PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-    let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp() && SEARCH_PARAMS.do_f_prune(depth);
+    let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp();
 
     if !in_check && do_rev_f_prune {
         let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
@@ -250,7 +250,6 @@ pub fn search<Search: SearchType>(
         
         let mut score;
         if moves_seen == 0 {
-            moves_seen += 1;
             let (_, search_score) = search::<Search>(
                 position,
                 search_options,
@@ -273,14 +272,12 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_fp = !Search::IS_PV && is_quiet && do_f_prune;
+            let do_fp = !Search::IS_PV && is_quiet && do_f_prune && depth == 1;
 
-            if do_fp && eval + SEARCH_PARAMS.get_fp().threshold(depth) < alpha {
+            if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
                 position.unmake_move();
                 continue;
             }
-
-            moves_seen += 1;
 
             let mut reduction = 0;
             let do_lmr = SEARCH_PARAMS.do_lmr(depth) && is_quiet;
@@ -342,6 +339,8 @@ pub fn search<Search: SearchType>(
             }
         }
         position.unmake_move();
+        moves_seen += 1;
+
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
             best_move = Some(make_move);

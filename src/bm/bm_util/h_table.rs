@@ -3,18 +3,19 @@ use std::sync::atomic::{AtomicI16, Ordering};
 
 
 const MAX_VALUE: i16 = 512;
+const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 
 #[derive(Debug)]
 pub struct HistoryTable {
-    table: Box<[[AtomicI16; 64]; PIECE_COUNT]>,
+    table: Box<[[AtomicI16; SQUARE_COUNT]; PIECE_COUNT]>,
 }
 
 impl HistoryTable {
     pub fn new() -> Self {
         Self {
             table: unsafe {
-                Box::new(std::mem::transmute([[0_i16; 64]; PIECE_COUNT]))
+                Box::new(std::mem::transmute([[0_i16; SQUARE_COUNT]; PIECE_COUNT]))
             },
         }
     }
