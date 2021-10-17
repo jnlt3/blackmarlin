@@ -19,7 +19,7 @@ pub const DO_NULL_MOVE_REDUCTION: bool = true;
 pub const IID_BASE: u32 = 1;
 pub const IID_FACTOR: u32 = 1;
 pub const IID_DIVISOR: u32 = 4;
-pub const DO_IID: bool = true;
+pub const DO_IID: bool = false;
 
 pub const LMR_BASE: f32 = 0.75;
 pub const LMR_DIV: f32 = 1.25;
@@ -29,7 +29,7 @@ pub const DO_LMR: bool = true;
 
 pub const LMP_DEPTH: u32 = 64;
 pub const LMP_OFFSET: f32 = 3.0;
-pub const LMP_FACTOR: f32 = 1.0;
+pub const LMP_FACTOR: f32 = 1.5;
 pub const IMPROVING_DIVISOR: f32 = 1.5;
 pub const DO_LMP: bool = false;
 

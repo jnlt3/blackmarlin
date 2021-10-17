@@ -18,7 +18,7 @@ pub trait TimeManager: Debug + Send + Sync {
 
     fn initiate(&self, time_left: Duration, move_cnt: usize);
 
-    fn abort(&self, start: Instant) -> bool;
+    fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool;
 
     fn clear(&self);
 }
@@ -31,51 +31,33 @@ pub struct Percentage {
 
 #[derive(Debug)]
 pub struct ConstDepth {
-    current_depth: AtomicU32,
     depth: AtomicU32,
-    abort: AtomicBool,
 }
 
 impl ConstDepth {
     pub fn new(depth: u32) -> Self {
         Self {
-            current_depth: AtomicU32::new(0),
             depth: AtomicU32::new(depth),
-            abort: AtomicBool::new(false),
         }
     }
 
     pub fn set_depth(&self, depth: u32) {
         self.depth.store(depth, Ordering::SeqCst);
-        self.update_abort();
-    }
-
-    fn update_abort(&self) {
-        self.abort.store(
-            self.current_depth.load(Ordering::SeqCst) >= self.depth.load(Ordering::SeqCst),
-            Ordering::SeqCst,
-        )
     }
 }
 
 impl TimeManager for ConstDepth {
-    fn deepen(&self, _: u8, depth: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {
-        self.current_depth.store(depth, Ordering::SeqCst);
-        self.update_abort();
+    fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {
+        
     }
 
-    fn initiate(&self, _: Duration, _: usize) {
-        self.abort.store(false, Ordering::SeqCst);
+    fn initiate(&self, _: Duration, _: usize) {}
+
+    fn abort(&self, _: Instant, depth: u32, _: u32) -> bool {
+        depth > self.depth.load(Ordering::SeqCst)
     }
 
-    fn abort(&self, _: Instant) -> bool {
-        self.abort.load(Ordering::SeqCst)
-    }
-
-    fn clear(&self) {
-        self.abort.store(false, Ordering::SeqCst);
-        self.current_depth.store(0, Ordering::SeqCst);
-    }
+    fn clear(&self) {}
 }
 
 #[derive(Debug)]
@@ -105,7 +87,7 @@ impl TimeManager for ConstTime {
 
     fn initiate(&self, _: Duration, _: usize) {}
 
-    fn abort(&self, start: Instant) -> bool {
+    fn abort(&self, start: Instant, _: u32, _: u32) -> bool {
         self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
     }
 
@@ -169,7 +151,7 @@ impl TimeManager for MainTimeManager {
         };
     }
 
-    fn abort(&self, start: Instant) -> bool {
+    fn abort(&self, start: Instant, _: u32, _: u32) -> bool {
         self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
     }
 
@@ -203,7 +185,7 @@ impl TimeManager for ManualAbort {
         self.abort.store(false, Ordering::SeqCst);
     }
 
-    fn abort(&self, _: Instant) -> bool {
+    fn abort(&self, _: Instant, _: u32, _: u32) -> bool {
         self.abort.load(Ordering::SeqCst)
     }
 
@@ -247,8 +229,8 @@ impl TimeManager for CompoundTimeManager {
         self.managers[self.mode.load(Ordering::SeqCst)].initiate(time_left, move_cnt);
     }
 
-    fn abort(&self, start: Instant) -> bool {
-        self.managers[self.mode.load(Ordering::SeqCst)].abort(start)
+    fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool {
+        self.managers[self.mode.load(Ordering::SeqCst)].abort(start, depth, nodes)
     }
 
     fn clear(&self) {
@@ -294,8 +276,8 @@ impl<Inner: TimeManager> TimeManager for Diagnostics<Inner> {
         self.manager.initiate(time_left, move_cnt);
     }
 
-    fn abort(&self, start: Instant) -> bool {
-        self.manager.abort(start)
+    fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool {
+        self.manager.abort(start, depth, nodes)
     }
 
     fn clear(&self) {
