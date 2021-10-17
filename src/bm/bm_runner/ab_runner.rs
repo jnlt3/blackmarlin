@@ -194,22 +194,8 @@ pub struct SearchOptions {
 
 impl SearchOptions {
     #[inline]
-    pub fn abort_absolute(&mut self) -> bool {
-        self.time_manager.abort(self.start)
-    }
-
-    #[inline]
-    pub fn abort(&mut self) -> bool {
-        // self.time_manager.abort(self.start)
-        //FIXME: This is ugly code, although it gains 4% nodes per second
-        if self.counter == 0 {
-            let abort = self.time_manager.abort(self.start);
-            if abort {
-                return abort;
-            }
-        }
-        self.counter = self.counter.wrapping_add(1);
-        false
+    pub fn abort_absolute(&mut self, depth: u32, nodes: u32) -> bool {
+        self.time_manager.abort(self.start, depth, nodes)
     }
 
     #[inline]
@@ -313,8 +299,10 @@ impl AbRunner {
                 let mut fail_cnt = 0;
                 search_options.window.reset();
                 loop {
-                    let (alpha, beta) = if (eval.is_some() && eval.unwrap().raw().abs() < 1000)
-                        || (depth > 4 && fail_cnt < SEARCH_PARAMS.fail_cnt)
+                    let (alpha, beta) = if eval.is_some()
+                        && eval.unwrap().raw().abs() < 1000
+                        && depth > 4
+                        && fail_cnt < SEARCH_PARAMS.fail_cnt
                     {
                         search_options.window.get()
                     } else {
@@ -329,7 +317,7 @@ impl AbRunner {
                         beta,
                         &mut nodes,
                     );
-                    if depth > 1 && search_options.abort_absolute() {
+                    if depth > 1 && search_options.abort_absolute(depth, nodes) {
                         break 'outer;
                     }
                     search_options.window.set(score);
