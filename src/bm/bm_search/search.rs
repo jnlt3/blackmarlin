@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use chess::{ChessMove, Color, MoveGen, Piece, ALL_COLORS, ALL_PIECES, EMPTY};
+use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
@@ -14,7 +14,6 @@ use super::move_gen::QuiescenceSearchMoveGen;
 
 pub trait SearchType {
     const DO_NULL_MOVE: bool;
-    const DO_SINGULAR: bool;
     const IS_PV: bool;
     const IS_ZW: bool;
     type ZeroWindow: SearchType;
@@ -27,7 +26,6 @@ pub struct Singular;
 
 impl SearchType for Pv {
     const DO_NULL_MOVE: bool = false;
-    const DO_SINGULAR: bool = true;
     const IS_PV: bool = true;
     const IS_ZW: bool = false;
     type ZeroWindow = Zw;
@@ -35,7 +33,6 @@ impl SearchType for Pv {
 
 impl SearchType for Zw {
     const DO_NULL_MOVE: bool = true;
-    const DO_SINGULAR: bool = true;
     const IS_PV: bool = false;
     const IS_ZW: bool = true;
     type ZeroWindow = Zw;
@@ -43,7 +40,6 @@ impl SearchType for Zw {
 
 impl SearchType for NullMove {
     const DO_NULL_MOVE: bool = false;
-    const DO_SINGULAR: bool = true;
     const IS_PV: bool = false;
     const IS_ZW: bool = true;
     type ZeroWindow = NullMove;
@@ -51,7 +47,6 @@ impl SearchType for NullMove {
 
 impl SearchType for Singular {
     const DO_NULL_MOVE: bool = false;
-    const DO_SINGULAR: bool = false;
     const IS_PV: bool = false;
     const IS_ZW: bool = true;
     type ZeroWindow = NullMove;
@@ -68,7 +63,8 @@ pub fn search<Search: SearchType>(
     mut beta: Evaluation,
     nodes: &mut u32,
 ) -> (Option<ChessMove>, Evaluation) {
-    if ply != 0 && search_options.abort() {
+    let depth = target_ply - ply;
+    if ply != 0 && search_options.abort_absolute(depth, *nodes) {
         return (None, Evaluation::max());
     }
 
@@ -149,6 +145,7 @@ pub fn search<Search: SearchType>(
         && Search::DO_NULL_MOVE
         && !only_pawns;
 
+    //TODO: Depth limit for NMP
     if do_null_move && position.null_move() {
         {
             let threat_table = search_options.get_threat_table();
@@ -159,7 +156,7 @@ pub fn search<Search: SearchType>(
 
         let zw = beta >> Next;
         let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
-        let r_target_ply = target_ply.max(reduction) - reduction;
+        let r_target_ply = target_ply.saturating_sub(reduction);
         let (threat_move, search_score) = search::<NullMove>(
             position,
             search_options,
@@ -279,7 +276,7 @@ pub fn search<Search: SearchType>(
             }
 
             let mut reduction = 0;
-            let do_lmr = SEARCH_PARAMS.do_lmr(depth) && is_quiet;
+            let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
                 let lmr_reduce = search_options
@@ -290,6 +287,9 @@ pub fn search<Search: SearchType>(
                 } else {
                     lmr_reduce.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
                 };
+                if !is_quiet {
+                    reduction = reduction.saturating_sub(1);
+                }
                 if improving {
                     reduction = reduction.saturating_sub(1);
                 }
@@ -337,6 +337,7 @@ pub fn search<Search: SearchType>(
                 score = search_score << Next;
             }
         }
+
         position.unmake_move();
         moves_seen += 1;
 
@@ -405,6 +406,7 @@ pub fn q_search(
     if ply >= target_ply {
         return position.get_eval();
     }
+
     let board = *position.board();
     let mut highest_score = None;
     let in_check = *board.checkers() != EMPTY;
