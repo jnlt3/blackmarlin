@@ -70,10 +70,10 @@ fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
     let mut evals = vec![];
     for i in 0..iter {
         println!("{}", i);
-        let time_manager_0 = Arc::new(ConstDepth::new(8));
+        let time_manager_0 = Arc::new(ConstDepth::new(7));
         let engine_0 = AbRunner::new(Board::default(), time_manager_0.clone());
 
-        let time_manager_1 = Arc::new(ConstDepth::new(8));
+        let time_manager_1 = Arc::new(ConstDepth::new(7));
         let engine_1 = AbRunner::new(Board::default(), time_manager_1.clone());
 
         evals.extend(play_single(
@@ -91,7 +91,7 @@ pub fn gen_eval() {
         let mut evals = vec![];
         let mut threads = vec![];
         for _ in 0..4 {
-            threads.push(std::thread::spawn(move || gen_games(10)))
+            threads.push(std::thread::spawn(move || gen_games(100)))
         }
         for t in threads {
             evals.extend(t.join().unwrap());
