@@ -52,7 +52,7 @@ pub fn diagnostics_nps() {
     let timing = Arc::new(Diagnostics::new(const_time.clone()));
     let time_left = Duration::from_secs(SECS_FOR_NPS);
     let mut runner = AbRunner::new(Board::default(), timing.clone());
-    timing.initiate(time_left, 0);
+    timing.initiate(time_left, &Board::default());
     const_time.set_duration(time_left);
     runner.set_board(Board::default());
 
@@ -76,9 +76,10 @@ pub fn diagnostics_scaling() {
     let mut all_data = vec![];
     for (index, position) in POSITIONS.iter().enumerate() {
         println!("# Measuring Position {}/{}", (index + 1), POSITIONS.len());
-        runner.set_board(Board::from_str(position).unwrap());
+        let board = Board::from_str(position).unwrap();
+        runner.set_board(board);
         let time_left = Duration::from_secs(SECS_FOR_SCALING);
-        timing.initiate(time_left, 0);
+        timing.initiate(time_left, &board);
         const_time.set_duration(time_left);
         runner.search::<Run, NoInfo>(1);
         all_data.extend_from_slice(&*timing.get_data().lock().unwrap());

@@ -74,7 +74,7 @@ fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
         let engine_0 = AbRunner::new(Board::default(), time_manager_0.clone());
 
         let time_manager_1 = Arc::new(ConstDepth::new(8));
-        let engine_1 = AbRunner::new(Board::default(), time_manager_0.clone());
+        let engine_1 = AbRunner::new(Board::default(), time_manager_1.clone());
 
         evals.extend(play_single(
             engine_0,

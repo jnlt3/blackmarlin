@@ -258,7 +258,11 @@ impl StdEvaluator {
         let mut index = 0;
         let mut gains = [0_i16; 16];
         let target_square = make_move.get_dest();
-        gains[0] = Self::piece_pts(board.piece_on(target_square).unwrap());
+        gains[0] = if let Some(piece) = board.piece_on(target_square) {
+            Self::piece_pts(piece)
+        } else {
+            0
+        };
         'outer: for i in 1..16 {
             board = board.make_move_new(make_move);
             gains[i] = Self::piece_pts(board.piece_on(target_square).unwrap()) - gains[i - 1];

@@ -100,7 +100,7 @@ impl UciAdapter {
         self.time_manager.initiate(
             Duration::from_secs_f32(time_left),
             //FIXME: Hacky code
-            MoveGen::new_legal(bm_runner.get_board()).len(),
+            bm_runner.get_board(),
         );
         let (make_move, _, _, _) = bm_runner.search::<Run, UciInfo>(self.threads);
         bm_runner.make_move(make_move);

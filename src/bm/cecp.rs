@@ -219,7 +219,8 @@ impl CecpAdapter {
                 for position in POSITIONS {
                     let board = chess::Board::from_str(position).unwrap();
                     bm_runner.set_board(board);
-                    self.time_manager.initiate(Duration::from_secs_f32(0.25), 0);
+                    self.time_manager
+                        .initiate(Duration::from_secs_f32(0.25), &board);
                     let start = Instant::now();
                     let (make_move, eval, _, node_cnt) =
                         bm_runner.search::<Run, NoInfo>(self.threads);
@@ -287,7 +288,7 @@ impl CecpAdapter {
         self.time_manager.initiate(
             Duration::from_secs_f32(self.time_left),
             //FIXME: Hacky code
-            MoveGen::new_legal(bm_runner.get_board()).len(),
+            bm_runner.get_board(),
         );
         let (make_move, _, _, _) = bm_runner.search::<Run, XBoardInfo>(self.threads);
         bm_runner.make_move(make_move);
@@ -313,7 +314,7 @@ impl CecpAdapter {
         self.time_manager.initiate(
             Duration::from_secs_f32(self.time_left),
             //FIXME: Hacky code
-            MoveGen::new_legal(self.bm_runner.lock().unwrap().get_board()).len(),
+            self.bm_runner.lock().unwrap().get_board(),
         );
         let bm_runner = self.bm_runner.clone();
         let threads = self.threads;
