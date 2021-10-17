@@ -28,7 +28,7 @@ fn play_single(
     let mut evals = Vec::new();
     engine_0.set_board(Board::default());
     engine_1.set_board(Board::default());
-    for i in 0..160 {
+    for i in 0..80 {
         let (engine, time_manager, other_engine) = if i % 2 == 0 {
             (&mut engine_0, time_manager_0, &mut engine_1)
         } else {
