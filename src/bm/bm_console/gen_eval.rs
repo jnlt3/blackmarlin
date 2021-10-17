@@ -40,7 +40,7 @@ fn play_single(
             break;
         }
 
-        time_manager.initiate(Duration::default(), 0);
+        time_manager.initiate(Duration::default(), engine.get_board());
         let (mut make_move, eval, _, _) = engine.search::<Run, NoInfo>(1);
         time_manager.clear();
         let turn = match engine.get_board().side_to_move() {
