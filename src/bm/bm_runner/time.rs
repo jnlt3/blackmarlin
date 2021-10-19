@@ -143,8 +143,6 @@ impl TimeManager for MainTimeManager {
         }
 
         let board = *self.board.lock().unwrap();
-        let see = StdEvaluator::see(board, current_move) as f32;
-        let time_multiplier = 2_f32.powf(see.min(0.0) / -600.0);
 
         let current_eval = eval.raw();
         let last_eval = self.last_eval.load(Ordering::SeqCst);
@@ -165,7 +163,7 @@ impl TimeManager for MainTimeManager {
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.target_duration
-            .store((time * time_multiplier * 0.001) as u32, Ordering::SeqCst);
+            .store((time * 0.001) as u32, Ordering::SeqCst);
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
