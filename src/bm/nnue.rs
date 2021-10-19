@@ -27,7 +27,7 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
-        let out_layer = Dense::new(&OUT, OUT_BIAS);
+        let out_layer = Dense::new(&OUT, [0]);
 
         Self {
             white: EMPTY,
@@ -110,8 +110,6 @@ impl Nnue {
 
         normal::out(
             self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer)[0]
-                .max(i16::MIN as i32)
-                .min(i16::MAX as i32) as i16,
         )
     }
 }
