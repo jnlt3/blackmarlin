@@ -212,7 +212,7 @@ pub fn search<Search: SearchType>(
     if let Some(entry) = search_options.get_k_table().get_mut(ply as usize + 2) {
         entry.clear();
     }
-    if let Some(entry) = search_options.get_threat_table().get_mut(ply as usize + 1) {
+    if let Some(entry) = search_options.get_threat_table().get_mut(ply as usize + 2) {
         entry.clear();
     }
 
