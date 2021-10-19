@@ -62,7 +62,7 @@ pub struct SearchParams {
     rev_fp: Threshold,
     do_rev_fp: bool,
     nmp: Reduction,
-    nmp_depth: u32, 
+    nmp_depth: u32,
     do_nmp: bool,
     iid: Reduction,
     do_iid: bool,

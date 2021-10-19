@@ -108,8 +108,6 @@ impl Nnue {
         let b_incr_layer = *self.b_input_layer.get();
         let b_incr_layer = normal::clipped_relu(b_incr_layer);
 
-        normal::out(
-            self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer)[0]
-        )
+        normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer)[0])
     }
 }
