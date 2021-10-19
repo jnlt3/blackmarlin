@@ -32,7 +32,7 @@ pub const LMP_DEPTH: u32 = 64;
 pub const LMP_OFFSET: f32 = 3.0;
 pub const LMP_FACTOR: f32 = 1.5;
 pub const IMPROVING_DIVISOR: f32 = 1.5;
-pub const DO_LMP: bool = false;
+pub const DO_LMP: bool = true;
 
 pub const QUIESCENCE_SEARCH_DEPTH: u32 = 30;
 pub const DELTA_MARGIN: i16 = 1000;
