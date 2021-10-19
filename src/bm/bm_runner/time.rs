@@ -158,11 +158,7 @@ impl TimeManager for MainTimeManager {
             *prev_move = current_move;
         }
 
-        let bias = if move_changed {
-            0.5
-        } else {
-            -0.2
-        };
+        let bias = if move_changed { 0.5 } else { -0.2 };
         time *= 1.25_f32.powf((current_eval - last_eval).abs().min(150) as f32 / 50.0 + bias);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
