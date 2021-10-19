@@ -19,6 +19,10 @@ impl<const N: usize> MoveEntry<N> {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.size = 0;
+    }
+
     pub fn push(&mut self, killer_move: ChessMove) {
         if N == 0 {
             return;
