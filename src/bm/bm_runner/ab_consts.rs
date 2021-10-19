@@ -29,7 +29,7 @@ pub const LMR_DEPTH: u32 = 0;
 pub const DO_LMR: bool = true;
 
 pub const LMP_DEPTH: u32 = 64;
-pub const LMP_OFFSET: f32 = 2.0;
+pub const LMP_OFFSET: f32 = 3.0;
 pub const LMP_FACTOR: f32 = 1.5;
 pub const IMPROVING_DIVISOR: f32 = 1.5;
 pub const DO_LMP: bool = true;
