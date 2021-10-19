@@ -35,6 +35,7 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
         NULL_MOVE_REDUCTION_FACTOR,
         NULL_MOVE_REDUCTION_DIVISOR,
     ),
+    nmp_depth: NULL_MOVE_PRUNE_DEPTH,
     do_nmp: DO_NULL_MOVE_REDUCTION,
     iid: Reduction::new(IID_BASE, IID_FACTOR, IID_DIVISOR),
     do_iid: DO_IID,
@@ -61,6 +62,7 @@ pub struct SearchParams {
     rev_fp: Threshold,
     do_rev_fp: bool,
     nmp: Reduction,
+    nmp_depth: u32, 
     do_nmp: bool,
     iid: Reduction,
     do_iid: bool,
@@ -137,8 +139,8 @@ impl SearchParams {
     }
 
     #[inline]
-    pub const fn do_nmp(&self) -> bool {
-        self.do_nmp
+    pub const fn do_nmp(&self, depth: u32) -> bool {
+        self.do_nmp && depth >= self.nmp_depth
     }
 
     #[inline]

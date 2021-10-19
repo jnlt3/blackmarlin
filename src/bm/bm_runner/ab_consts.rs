@@ -14,6 +14,7 @@ pub const DO_REV_F_PRUNE: bool = true;
 pub const NULL_MOVE_REDUCTION_BASE: u32 = 3;
 pub const NULL_MOVE_REDUCTION_FACTOR: u32 = 1;
 pub const NULL_MOVE_REDUCTION_DIVISOR: u32 = 4;
+pub const NULL_MOVE_PRUNE_DEPTH: u32 = 5;
 pub const DO_NULL_MOVE_REDUCTION: bool = true;
 
 pub const IID_BASE: u32 = 1;

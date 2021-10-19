@@ -140,7 +140,7 @@ pub fn search<Search: SearchType>(
     let only_pawns =
         MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() >= board.combined().popcnt();
     let do_null_move = !Search::IS_PV
-        && SEARCH_PARAMS.do_nmp()
+        && SEARCH_PARAMS.do_nmp(depth)
         && !in_check
         && Search::DO_NULL_MOVE
         && !only_pawns;
