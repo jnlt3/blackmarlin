@@ -270,13 +270,16 @@ impl CecpAdapter {
             }
             CecpCommand::Diagnostics => {
                 if self.is_analyzing() {
-                    println!("# Diagnostcics should be called when there is no analysis happening");
+                    println!("# Diagnostics should be called when there is no analysis happening");
                 } else {
                     diagnostics::diagnostics_nps();
                     diagnostics::diagnostics_scaling();
                 }
             }
             CecpCommand::Detail => self.detail(),
+            CecpCommand::Hash(table_size) => {
+                self.bm_runner.lock().unwrap().hash(table_size);
+            }
         }
         true
     }
@@ -367,6 +370,7 @@ enum CecpCommand {
     Time(f32),
     SetTime(f32),
     Cores(u8),
+    Hash(usize),
     Eval,
     Go,
     New,
@@ -436,6 +440,14 @@ impl CecpCommand {
                 if let Some(seconds) = split.next() {
                     if let Ok(seconds) = seconds.parse::<f32>() {
                         return CecpCommand::SetTime(seconds);
+                    }
+                }
+                CecpCommand::Empty
+            }
+            "memory" => {
+                if let Some(size) = split.next() {
+                    if let Ok(size) = size.parse::<usize>() {
+                        return CecpCommand::Hash(size);
                     }
                 }
                 CecpCommand::Empty
