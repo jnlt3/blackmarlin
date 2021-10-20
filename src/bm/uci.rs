@@ -3,42 +3,32 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use chess::{Board, ChessMove, Color, MoveGen};
+use chess::{Board, ChessMove, Color};
 
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{Run, UciInfo};
 
-use crate::bm::bm_runner::time::{MainTimeManager, TimeManager};
+use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
 
 const VERSION: &str = "dev";
+
 pub struct UciAdapter {
     bm_runner: Arc<Mutex<AbRunner>>,
-
-    time_manager: Arc<MainTimeManager>,
-
+    time_manager: Arc<TimeManager>,
     analysis: Option<JoinHandle<()>>,
-
     forced: bool,
-
-    w_time_left: f32,
-    b_time_left: f32,
-    time_per_move: f32,
-
     threads: u8,
 }
 
 impl UciAdapter {
     pub fn new() -> Self {
-        let time_manager = Arc::new(MainTimeManager::new());
+        let time_manager = Arc::new(TimeManager::new());
         let bm_runner = Arc::new(Mutex::new(AbRunner::new(
             Board::default(),
             time_manager.clone(),
         )));
         Self {
             bm_runner,
-            w_time_left: 0_f32,
-            b_time_left: 0_f32,
-            time_per_move: 0_f32,
             threads: 1,
             forced: false,
             analysis: None,
@@ -60,24 +50,22 @@ impl UciAdapter {
                 runner.make_move(make_move);
             }
             UciCommand::Empty => {}
+            UciCommand::Stop => {
+                self.time_manager.abort_now();
+                self.exit();
+            }
             UciCommand::Quit => {
                 return false;
             }
-            UciCommand::Eval => todo!(),
-            UciCommand::Diagnostics => todo!(),
-            UciCommand::Detail => todo!(),
-            UciCommand::Go(commands) => {
-                for command in commands {
-                    match command {
-                        GoCommand::WTime(time) => self.w_time_left = time * 0.001,
-                        GoCommand::BTime(time) => self.b_time_left = time * 0.001,
-                        GoCommand::MoveTime(time) => self.time_per_move = time * 0.001,
-                        GoCommand::Empty => {}
-                    }
-                }
-                self.go()
+            UciCommand::Eval => {
+                let runner = &mut *self.bm_runner.lock().unwrap();
+                println!("{}", runner.raw_eval().raw());
             }
-            UciCommand::NewGame => {}
+            UciCommand::Go(commands) => self.go(commands),
+            UciCommand::NewGame => {
+                let runner = &mut *self.bm_runner.lock().unwrap();
+                runner.set_board(Board::default());
+            }
             UciCommand::Position(position, moves) => {
                 let runner = &mut *self.bm_runner.lock().unwrap();
                 runner.set_board_no_reset(position);
@@ -89,23 +77,17 @@ impl UciAdapter {
         true
     }
 
-    fn go(&mut self) {
+    fn go(&mut self, commands: Vec<TimeManagementInfo>) {
         self.exit();
         self.forced = false;
-        let bm_runner = &mut *self.bm_runner.lock().unwrap();
-        let time_left = match bm_runner.get_board().side_to_move() {
-            Color::White => self.w_time_left,
-            Color::Black => self.b_time_left,
-        };
-        self.time_manager.initiate(
-            Duration::from_secs_f32(time_left),
-            //FIXME: Hacky code
-            bm_runner.get_board(),
-        );
-        let (make_move, _, _, _) = bm_runner.search::<Run, UciInfo>(self.threads);
-        bm_runner.make_move(make_move);
-        println!("bestmove {}", make_move);
-        self.time_manager.clear();
+        self.time_manager
+            .initiate(self.bm_runner.lock().unwrap().get_board(), &commands);
+        let bm_runner = self.bm_runner.clone();
+        let threads = self.threads;
+        self.analysis = Some(std::thread::spawn(move || {
+            let (best_move, _, _ , _) = bm_runner.lock().unwrap().search::<Run, UciInfo>(threads);
+            println!("bestmove {}", best_move);
+        }));
     }
 
     fn exit(&mut self) {
@@ -120,20 +102,12 @@ enum UciCommand {
     IsReady,
     NewGame,
     Position(Board, Vec<ChessMove>),
-    Go(Vec<GoCommand>),
+    Go(Vec<TimeManagementInfo>),
     Move(ChessMove),
     Empty,
+    Stop,
     Quit,
     Eval,
-    Diagnostics,
-    Detail,
-}
-
-enum GoCommand {
-    WTime(f32),
-    BTime(f32),
-    MoveTime(f32),
-    Empty,
 }
 
 impl UciCommand {
@@ -194,26 +168,47 @@ impl UciCommand {
                 while let Some(option) = split.next() {
                     commands.push(match option {
                         "wtime" => {
-                            let millis = split.next().unwrap().parse::<u32>().unwrap() as f32;
-                            GoCommand::WTime(millis)
+                            let millis = split.next().unwrap().parse::<i64>().unwrap();
+                            let millis = millis.max(0) as u64;
+                            TimeManagementInfo::WTime(Duration::from_millis(millis))
                         }
                         "btime" => {
-                            let millis = split.next().unwrap().parse::<u32>().unwrap() as f32;
-                            GoCommand::BTime(millis)
+                            let millis = split.next().unwrap().parse::<i64>().unwrap();
+                            let millis = millis.max(0) as u64;
+                            TimeManagementInfo::BTime(Duration::from_millis(millis))
+                        }
+                        "winc" => {
+                            let millis = split.next().unwrap().parse::<u64>().unwrap();
+                            TimeManagementInfo::WInc(Duration::from_millis(millis))
+                        }
+                        "binc" => {
+                            let millis = split.next().unwrap().parse::<u64>().unwrap();
+                            TimeManagementInfo::BInc(Duration::from_millis(millis))
                         }
                         "movetime" => {
-                            let millis = split.next().unwrap().parse::<u32>().unwrap() as f32;
-                            GoCommand::MoveTime(millis)
+                            let millis = split.next().unwrap().parse::<u64>().unwrap();
+                            TimeManagementInfo::MoveTime(Duration::from_millis(millis))
                         }
-                        _ => GoCommand::Empty,
+                        "movestogo" => {
+                            let moves_to_go = split.next().unwrap().parse::<u32>().unwrap();
+                            TimeManagementInfo::MovesToGo(moves_to_go)
+                        }
+                        "depth" => {
+                            let depth = split.next().unwrap().parse::<u32>().unwrap();
+                            TimeManagementInfo::MaxDepth(depth)
+                        }
+                        "nodes" => {
+                            let nodes = split.next().unwrap().parse::<u32>().unwrap();
+                            TimeManagementInfo::MaxNodes(nodes)
+                        }
+                        _ => TimeManagementInfo::Unknown,
                     });
                 }
                 UciCommand::Go(commands)
             }
+            "stop" => UciCommand::Stop,
             "quit" => UciCommand::Quit,
             "eval" => UciCommand::Eval,
-            "diagnostics" => UciCommand::Diagnostics,
-            "detail" => UciCommand::Detail,
             "isready" => UciCommand::IsReady,
             _ => UciCommand::Empty,
         }

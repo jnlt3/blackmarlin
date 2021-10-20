@@ -175,7 +175,7 @@ type LmpLookup = LookUp2d<usize, { LMP_DEPTH as usize }, 2>;
 #[derive(Debug, Clone)]
 pub struct SearchOptions {
     start: Instant,
-    time_manager: Arc<dyn TimeManager>,
+    time_manager: Arc<TimeManager>,
     counter: u8,
 
     window: Window,
@@ -388,7 +388,7 @@ impl AbRunner {
         })
     }
 
-    pub fn new(board: Board, time_manager: Arc<dyn TimeManager>) -> Self {
+    pub fn new(board: Board, time_manager: Arc<TimeManager>) -> Self {
         let mut position = Position::new(board);
         Self {
             search_options: SearchOptions {

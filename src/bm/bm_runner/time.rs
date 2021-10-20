@@ -1,108 +1,41 @@
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_eval::evaluator::StdEvaluator;
 use chess::{Board, ChessMove, MoveGen};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-pub trait TimeManager: Debug + Send + Sync {
-    fn deepen(
-        &self,
-        thread: u8,
-        depth: u32,
-        nodes: u32,
-        eval: Evaluation,
-        best_move: ChessMove,
-        delta_time: Duration,
-    );
+const EXPECTED_MOVES: u32 = 40;
 
-    fn initiate(&self, time_left: Duration, board: &Board);
+const TIME_DEFAULT: Duration = Duration::from_secs(0);
+const INC_DEFAULT: Duration = Duration::from_secs(0);
 
-    fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool;
+//We pretty much solve the position if we calculate this deep :D
+const DEPTH_DEFAULT: u32 = 255;
 
-    fn clear(&self);
-}
+//TODO: consider u64 as more than an hour of analysis will most likely cause an overflow
+const NODES_DEFAULT: u32 = u32::MAX;
+
+const MOVES_TO_GO_DEFAULT: Option<u32> = None;
+
+const TIME: Duration = Duration::from_secs(0);
 
 #[derive(Debug, Copy, Clone)]
-pub struct Percentage {
-    numerator: u32,
-    denominator: u32,
+pub enum TimeManagementInfo {
+    WTime(Duration),
+    BTime(Duration),
+    WInc(Duration),
+    BInc(Duration),
+    MaxDepth(u32),
+    MaxNodes(u32),
+    MovesToGo(u32),
+    MoveTime(Duration),
+    Time(Duration),
+    Unknown,
 }
 
 #[derive(Debug)]
-pub struct ConstDepth {
-    depth: AtomicU32,
-}
-
-impl ConstDepth {
-    pub fn new(depth: u32) -> Self {
-        Self {
-            depth: AtomicU32::new(depth),
-        }
-    }
-
-    pub fn set_depth(&self, depth: u32) {
-        self.depth.store(depth, Ordering::SeqCst);
-    }
-}
-
-impl TimeManager for ConstDepth {
-    fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
-
-    fn initiate(&self, _: Duration, _: &Board) {}
-
-    fn abort(&self, _: Instant, depth: u32, _: u32) -> bool {
-        depth >= self.depth.load(Ordering::SeqCst)
-    }
-
-    fn clear(&self) {}
-}
-
-#[derive(Debug)]
-pub struct ConstTime {
-    start: Instant,
-    target_duration: AtomicU32,
-    std_target_duration: AtomicU32,
-}
-
-impl ConstTime {
-    pub fn new(target_duration: Duration) -> Self {
-        Self {
-            start: Instant::now(),
-            target_duration: AtomicU32::new(target_duration.as_millis() as u32),
-            std_target_duration: AtomicU32::new(target_duration.as_millis() as u32),
-        }
-    }
-
-    pub fn set_duration(&self, duration: Duration) {
-        self.target_duration
-            .store(duration.as_millis() as u32, Ordering::SeqCst);
-    }
-}
-
-impl TimeManager for ConstTime {
-    fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
-
-    fn initiate(&self, _: Duration, _: &Board) {}
-
-    fn abort(&self, start: Instant, _: u32, _: u32) -> bool {
-        self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
-    }
-
-    fn clear(&self) {
-        self.target_duration.store(
-            self.std_target_duration.load(Ordering::SeqCst),
-            Ordering::SeqCst,
-        );
-    }
-}
-
-const EXPECTED_MOVES: u32 = 40;
-const MIN_MOVES: u32 = 40;
-
-#[derive(Debug)]
-pub struct MainTimeManager {
+pub struct TimeManager {
     start: Instant,
     expected_moves: AtomicU32,
     last_eval: AtomicI16,
@@ -111,9 +44,16 @@ pub struct MainTimeManager {
     target_duration: AtomicU32,
     prev_move: Mutex<Option<ChessMove>>,
     board: Mutex<Board>,
+
+    infinite: AtomicBool,
+    abort_now: AtomicBool,
+    no_manage: AtomicBool,
+
+    max_depth: AtomicU32,
+    max_nodes: AtomicU32,
 }
 
-impl MainTimeManager {
+impl TimeManager {
     pub fn new() -> Self {
         Self {
             start: Instant::now(),
@@ -124,12 +64,17 @@ impl MainTimeManager {
             target_duration: AtomicU32::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
+            abort_now: AtomicBool::new(false),
+            infinite: AtomicBool::new(true),
+            no_manage: AtomicBool::new(true),
+            max_depth: AtomicU32::new(DEPTH_DEFAULT),
+            max_nodes: AtomicU32::new(NODES_DEFAULT),
         }
     }
 }
 
-impl TimeManager for MainTimeManager {
-    fn deepen(
+impl TimeManager {
+    pub fn deepen(
         &self,
         _: u8,
         depth: u32,
@@ -138,11 +83,9 @@ impl TimeManager for MainTimeManager {
         current_move: ChessMove,
         _: Duration,
     ) {
-        if depth <= 4 {
+        if depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
             return;
         }
-
-        let board = *self.board.lock().unwrap();
 
         let current_eval = eval.raw();
         let last_eval = self.last_eval.load(Ordering::SeqCst);
@@ -157,7 +100,11 @@ impl TimeManager for MainTimeManager {
         }
 
         let bias = if move_changed { 0.5 } else { -0.2 };
-        time *= 1.25_f32.powf((current_eval - last_eval).abs().min(150) as f32 / 50.0 + bias);
+
+        let eval_diff = (current_eval as f32 - last_eval as f32).abs();
+        if eval_diff > 15.0 || move_changed {
+            time *= 1.25_f32.powf(eval_diff.min(150.0) as f32 / 50.0 + bias);
+        }
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
@@ -167,150 +114,104 @@ impl TimeManager for MainTimeManager {
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
-    fn initiate(&self, time_left: Duration, board: &Board) {
+    pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
+        self.abort_now.store(false, Ordering::SeqCst);
         *self.board.lock().unwrap() = *board;
         let move_cnt = MoveGen::new_legal(board).into_iter().count();
+
+        let mut infinite = true;
+
+        let mut w_time = TIME_DEFAULT;
+        let mut b_time = TIME_DEFAULT;
+        let mut w_inc = INC_DEFAULT;
+        let mut b_inc = INC_DEFAULT;
+        let mut max_depth = DEPTH_DEFAULT;
+        let mut max_nodes = NODES_DEFAULT;
+        let mut moves_to_go = MOVES_TO_GO_DEFAULT;
+        let mut overall_time = TIME;
+        let mut move_time = None;
+
+        for info in info {
+            match info {
+                TimeManagementInfo::WTime(time) => {
+                    w_time = *time;
+                    infinite = false;
+                }
+                TimeManagementInfo::BTime(time) => {
+                    b_time = *time;
+                    infinite = false;
+                }
+                TimeManagementInfo::WInc(time) => {
+                    w_inc = *time;
+                }
+                TimeManagementInfo::BInc(time) => {
+                    b_inc = *time;
+                }
+                TimeManagementInfo::MaxDepth(depth) => {
+                    max_depth = *depth;
+                }
+                TimeManagementInfo::MaxNodes(nodes) => {
+                    max_nodes = *nodes;
+                }
+                TimeManagementInfo::MovesToGo(moves) => {
+                    moves_to_go = Some(*moves);
+                }
+                TimeManagementInfo::Time(time) => {
+                    overall_time = *time;
+                }
+                TimeManagementInfo::MoveTime(time) => {
+                    move_time = Some(*time);
+                    infinite = false;
+                }
+                _ => {}
+            }
+        }
+        self.infinite.store(infinite, Ordering::SeqCst);
+        self.max_depth.store(max_depth, Ordering::SeqCst);
+        self.max_nodes.store(max_nodes, Ordering::SeqCst);
+
+        let (time, inc) = match board.side_to_move() {
+            chess::Color::White => (w_time, w_inc),
+            chess::Color::Black => (b_time, b_inc),
+        };
+
+        let no_manage = infinite || move_time.is_some();
+        self.no_manage.store(no_manage, Ordering::SeqCst);
+
         if move_cnt == 0 {
             self.target_duration.store(0, Ordering::SeqCst);
         } else {
-            let default = time_left.as_millis() as u32 / self.expected_moves.load(Ordering::SeqCst);
+            let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
+            let default = inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves;
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration
-                .store(time_left.as_millis() as u32 * 1 / 3, Ordering::SeqCst);
+                .store(time.as_millis() as u32 * 1 / 3, Ordering::SeqCst);
         };
     }
 
-    fn abort(&self, start: Instant, _: u32, _: u32) -> bool {
-        self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
+    pub fn abort_now(&self) {
+        self.abort_now.store(true, Ordering::SeqCst);
     }
 
-    fn clear(&self) {
-        self.expected_moves.fetch_sub(1, Ordering::SeqCst);
-        self.expected_moves.fetch_max(MIN_MOVES, Ordering::SeqCst);
-    }
-}
-
-#[derive(Debug)]
-pub struct ManualAbort {
-    abort: AtomicBool,
-}
-
-impl ManualAbort {
-    pub fn new() -> Self {
-        Self {
-            abort: AtomicBool::new(false),
+    pub fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool {
+        if self.abort_now.load(Ordering::SeqCst) {
+            true
+        } else {
+            let abort_std = self.target_duration.load(Ordering::SeqCst)
+                < start.elapsed().as_millis() as u32
+                && !self.infinite.load(Ordering::SeqCst);
+            abort_std
+                || self.max_depth.load(Ordering::SeqCst) < depth
+                || self.max_nodes.load(Ordering::SeqCst) <= nodes
         }
     }
 
-    pub fn quick_abort(&self) {
-        self.abort.store(true, Ordering::SeqCst);
-    }
-}
-
-impl TimeManager for ManualAbort {
-    fn deepen(&self, _: u8, _: u32, _: u32, _: Evaluation, _: ChessMove, _: Duration) {}
-
-    fn initiate(&self, _: Duration, _: &Board) {
-        self.abort.store(false, Ordering::SeqCst);
-    }
-
-    fn abort(&self, _: Instant, _: u32, _: u32) -> bool {
-        self.abort.load(Ordering::SeqCst)
-    }
-
-    fn clear(&self) {}
-}
-
-#[derive(Debug)]
-pub struct CompoundTimeManager {
-    managers: Box<[Arc<dyn TimeManager>]>,
-    mode: AtomicUsize,
-}
-
-impl CompoundTimeManager {
-    pub fn new(managers: Box<[Arc<dyn TimeManager>]>, initial_mode: usize) -> Self {
-        Self {
-            managers,
-            mode: AtomicUsize::new(initial_mode),
-        }
-    }
-
-    pub fn set_mode(&self, mode: usize) {
-        self.mode.store(mode, Ordering::SeqCst);
-    }
-}
-
-impl TimeManager for CompoundTimeManager {
-    fn deepen(
-        &self,
-        thread: u8,
-        depth: u32,
-        nodes: u32,
-        eval: Evaluation,
-        best_move: ChessMove,
-        delta_time: Duration,
-    ) {
-        self.managers[self.mode.load(Ordering::SeqCst)]
-            .deepen(thread, depth, nodes, eval, best_move, delta_time);
-    }
-
-    fn initiate(&self, time_left: Duration, board: &Board) {
-        self.managers[self.mode.load(Ordering::SeqCst)].initiate(time_left, board);
-    }
-
-    fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool {
-        self.managers[self.mode.load(Ordering::SeqCst)].abort(start, depth, nodes)
-    }
-
-    fn clear(&self) {
-        self.managers.iter().for_each(|manager| manager.clear());
-    }
-}
-
-#[derive(Debug)]
-pub struct Diagnostics<Inner: TimeManager> {
-    manager: Arc<Inner>,
-    data: Mutex<Vec<(u32, u32)>>,
-}
-
-impl<Inner: TimeManager> Diagnostics<Inner> {
-    pub fn new(manager: Arc<Inner>) -> Diagnostics<Inner> {
-        Self {
-            manager,
-            data: Mutex::new(vec![]),
-        }
-    }
-
-    pub fn get_data(&self) -> &Mutex<Vec<(u32, u32)>> {
-        &self.data
-    }
-}
-
-impl<Inner: TimeManager> TimeManager for Diagnostics<Inner> {
-    fn deepen(
-        &self,
-        thread: u8,
-        depth: u32,
-        nodes: u32,
-        eval: Evaluation,
-        best_move: ChessMove,
-        delta_time: Duration,
-    ) {
-        self.manager
-            .deepen(thread, depth, nodes, eval, best_move, delta_time);
-        self.data.lock().unwrap().push((nodes, depth));
-    }
-
-    fn initiate(&self, time_left: Duration, board: &Board) {
-        self.manager.initiate(time_left, board);
-    }
-
-    fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool {
-        self.manager.abort(start, depth, nodes)
-    }
-
-    fn clear(&self) {
-        self.manager.clear();
+    pub fn clear(&self) {
+        self.abort_now.store(false, Ordering::SeqCst);
+        self.no_manage.store(false, Ordering::SeqCst);
+        let expected_moves = self.expected_moves.load(Ordering::SeqCst);
+        self.expected_moves
+            .store(expected_moves.saturating_sub(1), Ordering::SeqCst);
     }
 }
