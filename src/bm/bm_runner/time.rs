@@ -92,19 +92,20 @@ impl TimeManager {
         let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
 
         let mut move_changed = false;
-        if let Some(prev_move) = &mut *self.prev_move.lock().unwrap() {
+        let prev_move = &mut *self.prev_move.lock().unwrap();
+        if let Some(prev_move) = prev_move {
             if *prev_move != current_move {
                 move_changed = true;
             }
-            *prev_move = current_move;
         }
+        *prev_move = Some(current_move);
 
-        let bias = if move_changed { 0.5 } else { -0.2 };
+        let bias = if move_changed { 0.5 } else { -0.05 };
 
         let eval_diff = (current_eval as f32 - last_eval as f32).abs();
-        if eval_diff > 15.0 || move_changed {
-            time *= 1.25_f32.powf(eval_diff.min(150.0) as f32 / 50.0 + bias);
-        }
+
+        time *= 1.2_f32.powf(eval_diff.min(50.0) as f32 / 50.0 + bias);
+        
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
@@ -208,6 +209,7 @@ impl TimeManager {
     }
 
     pub fn clear(&self) {
+        *self.prev_move.lock().unwrap() = None;
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
