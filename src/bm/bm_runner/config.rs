@@ -138,9 +138,7 @@ pub trait GuiInfo {
         pv: &[ChessMove],
     );
 }
-/*
 
-*/
 
 #[derive(Debug, Clone)]
 pub struct NoInfo;
@@ -151,40 +149,6 @@ impl GuiInfo for NoInfo {
     }
 
     fn print_info(&self, _: u32, _: u32, _: Evaluation, _: Duration, _: u32, _: &[ChessMove]) {}
-}
-
-#[derive(Debug, Clone)]
-pub struct XBoardInfo;
-
-impl GuiInfo for XBoardInfo {
-    fn new() -> Self {
-        Self {}
-    }
-
-    fn print_info(
-        &self,
-        _: u32,
-        depth: u32,
-        eval: Evaluation,
-        elapsed: Duration,
-        node_cnt: u32,
-        pv: &[ChessMove],
-    ) {
-        let elapsed = elapsed.as_millis() / 10;
-
-        let cecp_score = if eval.is_mate() {
-            let mate_in = eval.mate_in().unwrap() as i32;
-            100000 * mate_in.signum() + mate_in
-        } else {
-            eval.raw() as i32
-        };
-        let mut buffer = String::new();
-        buffer += &format!("{} {} {} {}", depth, cecp_score, elapsed, node_cnt);
-        for make_move in pv {
-            buffer += &format!(" {}", make_move);
-        }
-        println!("{}", buffer);
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -209,14 +173,16 @@ impl GuiInfo for UciInfo {
         } else {
             format!("cp {}", eval.raw())
         };
+        let nps = (node_cnt as u128 * 1000) / elapsed.as_millis().max(1);
         let mut buffer = String::new();
         buffer += &format!(
-            "info depth {} seldepth {} score {} time {} nodes {} pv",
+            "info depth {} seldepth {} score {} time {} nodes {} nps {} pv",
             depth,
             seldepth,
             eval_str,
             elapsed.as_millis(),
-            node_cnt
+            node_cnt,
+            nps
         );
         for make_move in pv {
             buffer += &format!(" {}", make_move);

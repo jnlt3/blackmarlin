@@ -45,13 +45,6 @@ impl SearchType for NullMove {
     type ZeroWindow = NullMove;
 }
 
-impl SearchType for Singular {
-    const DO_NULL_MOVE: bool = false;
-    const IS_PV: bool = false;
-    const IS_ZW: bool = true;
-    type ZeroWindow = NullMove;
-}
-
 const MIN_PIECE_CNT: u32 = 2;
 
 pub fn search<Search: SearchType>(
@@ -253,11 +246,41 @@ pub fn search<Search: SearchType>(
 
         let mut score;
         if moves_seen == 0 {
+            let mut extension = 0;
+            /*
+            if depth >= 8 {
+                if let Some(entry) = tt_entry {
+                    let tt_score = entry.score().value();
+                    if matches!(entry.score(), LowerBound(_))
+                        && !tt_score.is_mate()
+                        && entry.depth() >= depth - 2
+                    {
+                        let target_ply = ply + depth / 2 - 1;
+                        position.unmake_move();
+                        if let Some(best_eval) = singular::<Search>(
+                            position,
+                            search_options,
+                            ply,
+                            target_ply,
+                            tt_score >> Next,
+                            entry.table_move(),
+                            nodes,
+                        ) {
+                            let best_eval = best_eval << Next;
+                            if best_eval < tt_score {
+                                extension = 1;
+                            };
+                        }
+                        position.make_move(make_move);
+                    }
+                }
+            } */
+
             let (_, search_score) = search::<Search>(
                 position,
                 search_options,
                 ply + 1,
-                target_ply,
+                target_ply + extension,
                 beta >> Next,
                 alpha >> Next,
                 nodes,
@@ -286,18 +309,17 @@ pub fn search<Search: SearchType>(
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
-                let lmr_reduce = search_options
+                reduction = search_options
                     .get_lmr_lookup()
                     .get(depth as usize, moves_seen);
-                reduction = if !Search::IS_PV {
-                    lmr_reduce
-                } else {
-                    lmr_reduce.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
+
+                if Search::IS_PV {
+                    reduction = reduction.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
                 };
-                if !is_quiet {
+                if improving {
                     reduction = reduction.saturating_sub(1);
                 }
-                if improving {
+                if !is_quiet {
                     reduction = reduction.saturating_sub(1);
                 }
             }
@@ -493,7 +515,6 @@ pub fn singular<Search: SearchType>(
 
     let mut best_eval = None;
 
-    let r_beta = r_beta >> Next;
     for make_move in move_gen {
         if make_move == best_move {
             continue;
@@ -509,9 +530,8 @@ pub fn singular<Search: SearchType>(
             r_beta,
             nodes,
         );
-        position.unmake_move();
-
         let eval = eval << Next;
+        position.unmake_move();
         if best_eval.is_none() || eval > best_eval.unwrap() {
             best_eval = Some(eval);
         }
