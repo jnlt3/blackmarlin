@@ -289,7 +289,7 @@ pub fn search<Search: SearchType>(
         } else {
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
-                && moves_seen
+                && quiets.len()
                     >= search_options
                         .get_lmp_lookup()
                         .get(depth as usize, improving as usize)
@@ -339,6 +339,7 @@ pub fn search<Search: SearchType>(
             );
             score = lmr_score << Next;
 
+            
             //Do Zero Window Search in case reduction wasn't zero
             if !Search::IS_ZW && reduction > 0 && score > alpha {
                 let (_, zw_score) = search::<Search::ZeroWindow>(
