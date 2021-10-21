@@ -42,6 +42,7 @@ impl UciAdapter {
             UciCommand::Uci => {
                 println!("id name Black Marlin {}", VERSION);
                 println!("id author Doruk S.");
+                println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -71,6 +72,16 @@ impl UciAdapter {
                 runner.set_board_no_reset(position);
                 for make_move in moves {
                     runner.make_move_no_reset(make_move);
+                }
+            }
+            UciCommand::SetOption(name, value) => {
+                let name: &str = &name;
+                self.time_manager.abort_now();
+                match name {
+                    "Hash" => {
+                        self.bm_runner.lock().unwrap().hash(value.parse::<usize>().unwrap());
+                    }   
+                    _ => {}
                 }
             }
         }
@@ -103,6 +114,7 @@ enum UciCommand {
     NewGame,
     Position(Board, Vec<ChessMove>),
     Go(Vec<TimeManagementInfo>),
+    SetOption(String, String),
     Move(ChessMove),
     Empty,
     Stop,
@@ -210,6 +222,13 @@ impl UciCommand {
             "quit" => UciCommand::Quit,
             "eval" => UciCommand::Eval,
             "isready" => UciCommand::IsReady,
+            "setoption" => {
+                split.next();
+                let name = split.next().unwrap().to_string();
+                split.next();
+                let value = split.next().unwrap().to_string();
+                UciCommand::SetOption(name, value)
+            }
             _ => UciCommand::Empty,
         }
     }

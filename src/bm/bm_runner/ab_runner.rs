@@ -394,7 +394,7 @@ impl AbRunner {
             search_options: SearchOptions {
                 time_manager,
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
-                t_table: Arc::new(TranspositionTable::new(2_usize.pow(24))),
+                t_table: Arc::new(TranspositionTable::new(2_usize.pow(20))),
                 h_table: Arc::new(HistoryTable::new()),
                 killer_moves: Vec::new(),
                 threat_moves: Vec::new(),
@@ -466,8 +466,9 @@ impl AbRunner {
         )
     }
 
-    pub fn hash(&mut self, hash: usize) {
-        self.search_options.t_table = Arc::new(TranspositionTable::new(hash / 16));
+    pub fn hash(&mut self, hash_mb: usize) {
+        let entry_count = hash_mb * 65536;
+        self.search_options.t_table = Arc::new(TranspositionTable::new(entry_count));
     }
 
     pub fn raw_eval(&mut self) -> Evaluation {
