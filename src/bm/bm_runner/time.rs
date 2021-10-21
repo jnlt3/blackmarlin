@@ -104,7 +104,7 @@ impl TimeManager {
 
         let eval_diff = (current_eval as f32 - last_eval as f32).abs();
 
-        time *= 1.2_f32.powf(eval_diff.min(50.0) as f32 / 50.0 + bias);
+        time *= 1.05_f32.powf(eval_diff.min(100.0) as f32 / 50.0 + bias);
         
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
