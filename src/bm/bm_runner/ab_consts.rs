@@ -11,7 +11,7 @@ pub const REV_F_PRUNE_THRESHOLD_BASE: i16 = 0;
 pub const REV_F_PRUNE_THRESHOLD_FACTOR: i16 = 100;
 pub const DO_REV_F_PRUNE: bool = true;
 
-pub const NULL_MOVE_REDUCTION_BASE: u32 = 3;
+pub const NULL_MOVE_REDUCTION_BASE: u32 = 2;
 pub const NULL_MOVE_REDUCTION_FACTOR: u32 = 1;
 pub const NULL_MOVE_REDUCTION_DIVISOR: u32 = 4;
 pub const NULL_MOVE_PRUNE_DEPTH: u32 = 5;
