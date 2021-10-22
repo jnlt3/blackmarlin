@@ -1,10 +1,11 @@
 use chess::{Board, ChessMove, MoveGen, EMPTY};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
-use crate::bm::bm_runner::ab_runner::SearchOptions;
+use crate::bm::bm_runner::ab_runner::SharedContext;
 
 use crate::bm::bm_util::h_table::HistoryTable;
 use arrayvec::ArrayVec;
+use std::cell::{Ref, RefCell};
 use std::sync::Arc;
 
 use super::move_entry::MoveEntryIterator;
@@ -28,7 +29,6 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     pv_move: Option<ChessMove>,
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
-    hist: Arc<HistoryTable>,
     gen_type: GenType,
     board: Board,
 
@@ -41,7 +41,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         pv_move: Option<ChessMove>,
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
-        options: &SearchOptions,
     ) -> Self {
         Self {
             gen_type: GenType::PvMove,
@@ -49,17 +48,12 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             pv_move,
             threat_move_entry,
             killer_entry,
-            hist: options.get_h_table().clone(),
             board: *board,
             queue: ArrayVec::new(),
         }
     }
-}
 
-impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
-    type Item = ChessMove;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next(&mut self, hist: Ref<HistoryTable>) -> Option<ChessMove> {
         match self.gen_type {
             GenType::PvMove => {
                 self.gen_type = GenType::CalcCaptures;
@@ -70,7 +64,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                         self.pv_move = None;
                     }
                 }
-                self.next()
+                self.next(hist)
             }
             GenType::CalcCaptures => {
                 self.move_gen.set_iterator_mask(*self.board.combined());
@@ -84,7 +78,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     }
                 }
                 self.gen_type = GenType::Captures;
-                self.next()
+                self.next(hist)
             }
             GenType::Captures => {
                 let mut max = LOSING_CAPTURE;
@@ -99,7 +93,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     Some(self.queue.remove(index).0)
                 } else {
                     self.gen_type = GenType::GenQuiet;
-                    self.next()
+                    self.next(hist)
                 }
             }
             GenType::GenQuiet => {
@@ -121,13 +115,12 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     }
                     let mut score = 0;
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();
-                    score += self
-                        .hist
+                    score += hist
                         .get(self.board.side_to_move(), piece, make_move.get_dest());
                     self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::Killer;
-                self.next()
+                self.next(hist)
             }
             //Assumes Killer Moves won't repeat
             GenType::Killer => {
@@ -144,7 +137,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     }
                 }
                 self.gen_type = GenType::ThreatMove;
-                self.next()
+                self.next(hist)
             }
             GenType::ThreatMove => {
                 for make_move in &mut self.threat_move_entry {
@@ -160,7 +153,7 @@ impl<const K: usize, const T: usize> Iterator for OrderedMoveGen<K, T> {
                     }
                 }
                 self.gen_type = GenType::Quiet;
-                self.next()
+                self.next(hist)
             }
             GenType::Quiet => {
                 let mut max = 0;

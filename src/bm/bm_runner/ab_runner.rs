@@ -1,3 +1,4 @@
+use std::cell::{Cell, RefCell, RefMut};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Instant;
@@ -173,51 +174,38 @@ type LmrLookup = LookUp2d<u32, 32, 64>;
 type LmpLookup = LookUp2d<usize, { LMP_DEPTH as usize }, 2>;
 
 #[derive(Debug, Clone)]
-pub struct SearchOptions {
+pub struct SharedContext {
     start: Instant,
     time_manager: Arc<TimeManager>,
-    counter: u8,
 
-    window: Window,
     t_table: Arc<TranspositionTable>,
-    h_table: Arc<HistoryTable>,
-    killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
-    threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalContext {
+    window: Window,
     tt_hits: u32,
     tt_misses: u32,
     eval: Evaluation,
     eval_stack: Vec<Evaluation>,
     sel_depth: u32,
-
-    singular: bool,
+    h_table: RefCell<HistoryTable>,
+    killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
+    threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
+    nodes: u32,
 }
 
-impl SearchOptions {
+impl SharedContext {
     #[inline]
-    pub fn abort_absolute(&mut self, depth: u32, nodes: u32) -> bool {
+    pub fn abort_absolute(&self, depth: u32, nodes: u32) -> bool {
         self.time_manager.abort(self.start, depth, nodes)
-    }
-
-    #[inline]
-    pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
-        &mut self.threat_moves
     }
 
     #[inline]
     pub fn get_t_table(&self) -> &Arc<TranspositionTable> {
         &self.t_table
-    }
-
-    #[inline]
-    pub fn get_h_table(&self) -> &Arc<HistoryTable> {
-        &self.h_table
-    }
-
-    #[inline]
-    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<KILLER_MOVE_CNT>> {
-        &mut self.killer_moves
     }
 
     #[inline]
@@ -228,6 +216,24 @@ impl SearchOptions {
     #[inline]
     pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
         &self.lmp_lookup
+    }
+}
+
+impl LocalContext {
+
+    #[inline]
+    pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
+        &mut self.threat_moves
+    }
+
+    #[inline]
+    pub fn get_h_table(&self) -> &RefCell<HistoryTable> {
+        &self.h_table
+    }
+
+    #[inline]
+    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<KILLER_MOVE_CNT>> {
+        &mut self.killer_moves
     }
 
     #[inline]
@@ -263,19 +269,14 @@ impl SearchOptions {
         self.sel_depth = self.sel_depth.max(ply);
     }
 
-    #[inline]
-    pub fn singular(&self) -> bool {
-        self.singular
-    }
-
-    #[inline]
-    pub fn set_singular(&mut self, singular: bool) {
-        self.singular = singular;
+    pub fn nodes(&mut self) -> &mut u32 {
+        &mut self.nodes
     }
 }
 
 pub struct AbRunner {
-    search_options: SearchOptions,
+    shared_context: SharedContext,
+    local_context: LocalContext,
     position: Position,
 }
 
@@ -287,8 +288,8 @@ impl AbRunner {
     ) -> JoinHandle<(Option<ChessMove>, Evaluation, u32, u32)> {
         let mut nodes = 0;
 
-        let mut search_options = self.search_options.clone();
-        search_options.start = search_start;
+        let shared_context = self.shared_context.clone();
+        let mut local_context = self.local_context.clone();
         let mut position = self.position.clone();
         let mut debugger = SM::new(self.position.board());
         let gui_info = Info::new();
@@ -299,41 +300,43 @@ impl AbRunner {
             let mut depth = 1_u32;
             'outer: loop {
                 let mut fail_cnt = 0;
-                search_options.window.reset();
+                local_context.window.reset();
                 loop {
                     let (alpha, beta) = if eval.is_some()
                         && eval.unwrap().raw().abs() < 1000
                         && depth > 4
                         && fail_cnt < SEARCH_PARAMS.fail_cnt
                     {
-                        search_options.window.get()
+                        local_context.window.get()
                     } else {
                         (Evaluation::min(), Evaluation::max())
                     };
+                    local_context.nodes = 0;
                     let (make_move, score) = search::search::<Pv>(
                         &mut position,
-                        &mut search_options,
+                        &mut local_context,
+                        &shared_context,
                         0,
                         depth,
                         alpha,
                         beta,
-                        &mut nodes,
                     );
-                    if depth > 1 && search_options.abort_absolute(depth, nodes) {
+                    nodes += local_context.nodes;
+                    if depth > 1 && shared_context.abort_absolute(depth, nodes) {
                         break 'outer;
                     }
-                    search_options.window.set(score);
+                    local_context.window.set(score);
                     if score > alpha && score < beta || score.is_mate() {
-                        search_options.eval = score;
+                        local_context.eval = score;
                         best_move = make_move;
                         eval = Some(score);
                         break;
                     } else {
                         fail_cnt += 1;
                         if score <= alpha {
-                            search_options.window.fail_low();
+                            local_context.window.fail_low();
                         } else {
-                            search_options.window.fail_high();
+                            local_context.window.fail_high();
                         }
                     }
                 }
@@ -348,7 +351,7 @@ impl AbRunner {
                         let best_move = best_move;
                         let mut pv = vec![best_move];
                         position.make_move(best_move);
-                        while let Some(analysis) = search_options.t_table.get(position.board()) {
+                        while let Some(analysis) = shared_context.t_table.get(position.board()) {
                             pv.push(analysis.table_move());
                             position.make_move(analysis.table_move());
                             if pv.len() > depth as usize {
@@ -359,7 +362,7 @@ impl AbRunner {
                             position.unmake_move()
                         }
                         gui_info.print_info(
-                            search_options.sel_depth,
+                            local_context.sel_depth,
                             depth,
                             eval,
                             start_time.elapsed(),
@@ -370,11 +373,11 @@ impl AbRunner {
                 }
                 depth += 1;
 
-                search_options.time_manager.deepen(
+                shared_context.time_manager.deepen(
                     thread,
                     depth,
                     nodes,
-                    search_options.eval,
+                    local_context.eval,
                     best_move.unwrap(),
                     search_start.elapsed(),
                 );
@@ -391,13 +394,9 @@ impl AbRunner {
     pub fn new(board: Board, time_manager: Arc<TimeManager>) -> Self {
         let mut position = Position::new(board);
         Self {
-            search_options: SearchOptions {
+            shared_context: SharedContext {
                 time_manager,
-                window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 t_table: Arc::new(TranspositionTable::new(2_usize.pow(20))),
-                h_table: Arc::new(HistoryTable::new()),
-                killer_moves: Vec::new(),
-                threat_moves: Vec::new(),
                 lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
                     if depth == 0 || mv == 0 {
                         0
@@ -412,27 +411,33 @@ impl AbRunner {
                     }
                     x as usize
                 })),
+                start: Instant::now(),
+            },
+            local_context: LocalContext {
+                window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
+                h_table: RefCell::new(HistoryTable::new()),
+                killer_moves: Vec::new(),
+                threat_moves: Vec::new(),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
-                start: Instant::now(),
-                counter: 0,
                 eval_stack: vec![],
                 sel_depth: 0,
-                singular: false,
+                nodes: 0,
             },
             position,
         }
     }
 
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
-        &self,
+        &mut self,
         threads: u8,
     ) -> (ChessMove, Evaluation, u32, u32) {
         let mut node_count = 0;
         let mut join_handlers = vec![];
 
         let search_start = Instant::now();
+        self.shared_context.start = Instant::now();
         //TODO: Research the effects of different depths
         for i in 0..threads {
             join_handlers.push(self.launch_searcher::<SM, Info>(search_start, i));
@@ -468,7 +473,7 @@ impl AbRunner {
 
     pub fn hash(&mut self, hash_mb: usize) {
         let entry_count = hash_mb * 65536;
-        self.search_options.t_table = Arc::new(TranspositionTable::new(entry_count));
+        self.shared_context.t_table = Arc::new(TranspositionTable::new(entry_count));
     }
 
     pub fn raw_eval(&mut self) -> Evaluation {
@@ -477,7 +482,6 @@ impl AbRunner {
 
     pub fn set_board_no_reset(&mut self, board: Board) {
         self.position = Position::new(board);
-        self.search_options.eval = self.position.get_eval();
     }
 
     pub fn make_move_no_reset(&mut self, make_move: ChessMove) {
@@ -485,10 +489,8 @@ impl AbRunner {
     }
 
     pub fn set_board(&mut self, board: Board) {
-        self.search_options.h_table.for_all(|_| 0);
-        self.search_options.t_table.clean();
+        self.shared_context.t_table.clean();
         self.position = Position::new(board);
-        self.search_options.eval = self.position.get_eval();
     }
 
     pub fn make_move(&mut self, make_move: ChessMove) {

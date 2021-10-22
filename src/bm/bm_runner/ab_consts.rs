@@ -1,8 +1,6 @@
 pub const KILLER_MOVE_CNT: usize = 2;
 pub const THREAT_MOVE_CNT: usize = 1;
 
-pub const IID_DEPTH: u32 = 5;
-
 pub const F_PRUNE_THRESHOLD: i16 = 200;
 pub const DO_F_PRUNE: bool = true;
 
@@ -17,6 +15,7 @@ pub const NULL_MOVE_REDUCTION_DIVISOR: u32 = 4;
 pub const NULL_MOVE_PRUNE_DEPTH: u32 = 5;
 pub const DO_NULL_MOVE_REDUCTION: bool = true;
 
+pub const IID_DEPTH: u32 = 5;
 pub const IID_BASE: u32 = 1;
 pub const IID_FACTOR: u32 = 1;
 pub const IID_DIVISOR: u32 = 4;

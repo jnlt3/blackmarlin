@@ -3,7 +3,7 @@ use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_runner::ab_runner::{SearchOptions, SEARCH_PARAMS};
+use crate::bm::bm_runner::ab_runner::{LocalContext, SEARCH_PARAMS, SharedContext};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
@@ -49,40 +49,40 @@ const MIN_PIECE_CNT: u32 = 2;
 
 pub fn search<Search: SearchType>(
     position: &mut Position,
-    search_options: &mut SearchOptions,
+    local_context: &mut LocalContext,
+    shared_context: &SharedContext,
     ply: u32,
     target_ply: u32,
     mut alpha: Evaluation,
     mut beta: Evaluation,
-    nodes: &mut u32,
 ) -> (Option<ChessMove>, Evaluation) {
     let depth = target_ply - ply;
-    if ply != 0 && search_options.abort_absolute(depth, *nodes) {
+    if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
         return (None, Evaluation::max());
     }
 
     if ply != 0 && position.three_fold_repetition() {
-        *nodes += 1;
+        *local_context.nodes() += 1;
         return (None, Evaluation::new(0));
     }
 
-    search_options.update_sel_depth(ply);
+    local_context.update_sel_depth(ply);
     if ply >= target_ply {
         return (
             None,
             q_search(
                 position,
-                search_options,
+                shared_context,
                 0,
                 SEARCH_PARAMS.get_q_search_depth(),
                 alpha,
                 beta,
-                nodes,
+                local_context.nodes(),
             ),
         );
     }
-    let tt_entry = search_options.get_t_table().get(position.board());
-    *nodes += 1;
+    let tt_entry = shared_context.get_t_table().get(position.board());
+    *local_context.nodes() += 1;
 
     let mut best_move = None;
 
@@ -93,7 +93,7 @@ pub fn search<Search: SearchType>(
     let depth = target_ply - ply;
 
     if let Some(entry) = tt_entry {
-        *search_options.tt_hits() += 1;
+        *local_context.tt_hits() += 1;
         best_move = Some(entry.table_move());
         if !Search::IS_PV && ply + entry.depth() >= target_ply {
             match entry.score() {
@@ -116,15 +116,15 @@ pub fn search<Search: SearchType>(
             }
         }
     } else {
-        *search_options.tt_misses() += 1;
+        *local_context.tt_misses() += 1;
     }
 
     let in_check = *position.board().checkers() != EMPTY;
 
     let eval = position.get_eval();
 
-    search_options.push_eval(eval, ply);
-    let improving = if let Some(prev_eval) = search_options.get_last_eval(ply) {
+    local_context.push_eval(eval, ply);
+    let improving = if let Some(prev_eval) = local_context.get_last_eval(ply) {
         !in_check && eval > prev_eval
     } else {
         false
@@ -141,26 +141,27 @@ pub fn search<Search: SearchType>(
     //TODO: Depth limit for NMP
     if do_null_move && position.null_move() {
         {
-            let threat_table = search_options.get_threat_table();
+            let mut threat_table = local_context.get_threat_table();
             while threat_table.len() <= ply as usize + 1 {
                 threat_table.push(MoveEntry::new());
             }
         }
-
+        
         let zw = beta >> Next;
         let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
         let r_target_ply = target_ply.saturating_sub(reduction);
         let (threat_move, search_score) = search::<NullMove>(
             position,
-            search_options,
+            local_context,
+            shared_context,
             ply + 1,
             r_target_ply,
             zw,
             zw + 1,
-            nodes,
         );
         if let Some(threat_move) = threat_move {
-            search_options.get_threat_table()[ply as usize + 1].push(threat_move)
+            let mut threat_table = local_context.get_threat_table();
+            threat_table[ply as usize + 1].push(threat_move)
         }
         position.unmake_move();
         let score = search_score << Next;
@@ -175,12 +176,12 @@ pub fn search<Search: SearchType>(
         let target_ply = target_ply.max(reduction) - reduction;
         let (iid_move, _) = search::<Search>(
             position,
-            search_options,
+            local_context,
+            shared_context,
             ply,
             target_ply,
             alpha,
             beta,
-            nodes,
         );
         best_move = iid_move;
     }
@@ -197,40 +198,39 @@ pub fn search<Search: SearchType>(
     }
 
     //This guarantees that threat_table.len() <= ply as usize + 1
-    while search_options.get_k_table().len() <= ply as usize {
-        search_options.get_threat_table().push(MoveEntry::new());
-        search_options.get_k_table().push(MoveEntry::new());
+    while local_context.get_k_table().len() <= ply as usize {
+        local_context.get_k_table().push(MoveEntry::new());
+        local_context.get_threat_table().push(MoveEntry::new());
     }
 
-    if let Some(entry) = search_options.get_k_table().get_mut(ply as usize + 2) {
+    if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
         entry.clear();
     }
-    if let Some(entry) = search_options.get_threat_table().get_mut(ply as usize + 2) {
+    if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
         entry.clear();
     }
 
     let mut highest_score = None;
 
     let threat_move_entry = if ply > 1 {
-        search_options.get_threat_table()[ply as usize]
+        local_context.get_threat_table()[ply as usize]
     } else {
         MoveEntry::new()
     };
 
-    let move_gen = OrderedMoveGen::new(
+    let mut move_gen = OrderedMoveGen::new(
         position.board(),
         best_move,
         threat_move_entry.into_iter(),
-        search_options.get_k_table()[ply as usize].into_iter(),
-        search_options,
+        local_context.get_k_table()[ply as usize].into_iter(),
     );
-
+    
     let mut moves_seen = 0;
     let mut move_exists = false;
 
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
 
-    for make_move in move_gen {
+    while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
         let is_promotion = make_move.get_promotion().is_some();
@@ -246,51 +246,21 @@ pub fn search<Search: SearchType>(
 
         let mut score;
         if moves_seen == 0 {
-            let mut extension = 0;
-            /*
-            if depth >= 8 {
-                if let Some(entry) = tt_entry {
-                    let tt_score = entry.score().value();
-                    if matches!(entry.score(), LowerBound(_))
-                        && !tt_score.is_mate()
-                        && entry.depth() >= depth - 2
-                    {
-                        let target_ply = ply + depth / 2 - 1;
-                        position.unmake_move();
-                        if let Some(best_eval) = singular::<Search>(
-                            position,
-                            search_options,
-                            ply,
-                            target_ply,
-                            tt_score >> Next,
-                            entry.table_move(),
-                            nodes,
-                        ) {
-                            let best_eval = best_eval << Next;
-                            if best_eval < tt_score {
-                                extension = 1;
-                            };
-                        }
-                        position.make_move(make_move);
-                    }
-                }
-            } */
-
             let (_, search_score) = search::<Search>(
                 position,
-                search_options,
+                local_context,
+                shared_context,
                 ply + 1,
-                target_ply + extension,
+                target_ply,
                 beta >> Next,
                 alpha >> Next,
-                nodes,
             );
             score = search_score << Next;
         } else {
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
                 && quiets.len()
-                    >= search_options
+                    >= shared_context
                         .get_lmp_lookup()
                         .get(depth as usize, improving as usize)
             {
@@ -309,7 +279,7 @@ pub fn search<Search: SearchType>(
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
-                reduction = search_options
+                reduction = shared_context
                     .get_lmr_lookup()
                     .get(depth as usize, moves_seen);
 
@@ -330,12 +300,12 @@ pub fn search<Search: SearchType>(
 
             let (_, lmr_score) = search::<Search::ZeroWindow>(
                 position,
-                search_options,
+                local_context,
+                shared_context,
                 ply + 1,
                 lmr_ply,
                 zw - 1,
                 zw,
-                nodes,
             );
             score = lmr_score << Next;
 
@@ -344,12 +314,12 @@ pub fn search<Search: SearchType>(
             if !Search::IS_ZW && reduction > 0 && score > alpha {
                 let (_, zw_score) = search::<Search::ZeroWindow>(
                     position,
-                    search_options,
+                    local_context,
+                    shared_context,
                     ply + 1,
                     target_ply,
                     zw - 1,
                     zw,
-                    nodes,
                 );
                 score = zw_score << Next;
             }
@@ -357,12 +327,12 @@ pub fn search<Search: SearchType>(
             if score > alpha {
                 let (_, search_score) = search::<Search>(
                     position,
-                    search_options,
+                    local_context,
+                    shared_context,
                     ply + 1,
                     target_ply,
                     beta >> Next,
                     alpha >> Next,
-                    nodes,
                 );
                 score = search_score << Next;
             }
@@ -378,15 +348,16 @@ pub fn search<Search: SearchType>(
         if score > alpha {
             if score >= beta {
                 if !is_capture {
-                    let killer_table = search_options.get_k_table();
+                    let killer_table = local_context.get_k_table();
                     killer_table[ply as usize].push(make_move);
-                    search_options
+                    local_context
                         .get_h_table()
+                        .borrow_mut()
                         .cutoff(&board, make_move, &quiets, depth);
                 }
 
                 let analysis = Analysis::new(depth, LowerBound(score), make_move);
-                search_options
+                shared_context
                     .get_t_table()
                     .set(position.board(), &analysis);
                 return (Some(make_move), score);
@@ -416,7 +387,7 @@ pub fn search<Search: SearchType>(
         };
 
         let analysis = Analysis::new(depth, score, *final_move);
-        search_options
+        shared_context
             .get_t_table()
             .set(position.board(), &analysis);
     }
@@ -425,7 +396,7 @@ pub fn search<Search: SearchType>(
 
 pub fn q_search(
     position: &mut Position,
-    search_options: &mut SearchOptions,
+    search_options: &SharedContext,
     ply: u32,
     target_ply: u32,
     mut alpha: Evaluation,
@@ -485,60 +456,4 @@ pub fn q_search(
         }
     }
     highest_score.unwrap_or(alpha)
-}
-
-pub fn singular<Search: SearchType>(
-    position: &mut Position,
-    search_options: &mut SearchOptions,
-    ply: u32,
-    target_ply: u32,
-    r_beta: Evaluation,
-    best_move: ChessMove,
-    nodes: &mut u32,
-) -> Option<Evaluation> {
-    while search_options.get_k_table().len() <= ply as usize {
-        search_options.get_threat_table().push(MoveEntry::new());
-        search_options.get_k_table().push(MoveEntry::new());
-    }
-
-    let threat_move_entry = if ply > 1 {
-        search_options.get_threat_table()[ply as usize]
-    } else {
-        MoveEntry::new()
-    };
-    let move_gen = OrderedMoveGen::new(
-        position.board(),
-        Some(best_move),
-        threat_move_entry.into_iter(),
-        search_options.get_k_table()[ply as usize].into_iter(),
-        search_options,
-    );
-
-    let mut best_eval = None;
-
-    for make_move in move_gen {
-        if make_move == best_move {
-            continue;
-        }
-        position.make_move(make_move);
-
-        let (_, eval) = search::<Search::ZeroWindow>(
-            position,
-            search_options,
-            ply + 1,
-            target_ply,
-            r_beta - 1,
-            r_beta,
-            nodes,
-        );
-        let eval = eval << Next;
-        position.unmake_move();
-        if best_eval.is_none() || eval > best_eval.unwrap() {
-            best_eval = Some(eval);
-        }
-        if eval >= r_beta {
-            return best_eval;
-        }
-    }
-    best_eval
 }
