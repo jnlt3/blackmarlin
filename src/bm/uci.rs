@@ -97,6 +97,7 @@ impl UciAdapter {
                 println!("id name Black Marlin {}", VERSION);
                 println!("id author Doruk S.");
                 println!("option name Hash type spin default 16 min 1 max 65536");
+                println!("option name Threads type spin default 1 min 1 max 255");
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -137,6 +138,9 @@ impl UciAdapter {
                             .lock()
                             .unwrap()
                             .hash(value.parse::<usize>().unwrap());
+                    }
+                    "Threads" => {
+                        self.threads = value.parse::<u8>().unwrap();
                     }
                     _ => {}
                 }
