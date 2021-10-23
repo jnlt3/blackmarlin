@@ -137,7 +137,6 @@ pub fn search<Search: SearchType>(
         && Search::DO_NULL_MOVE
         && !only_pawns;
 
-    //TODO: Depth limit for NMP
     if do_null_move && position.null_move() {
         {
             let threat_table = local_context.get_threat_table();
