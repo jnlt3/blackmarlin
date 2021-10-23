@@ -1,6 +1,6 @@
 use chess::{Board, ChessMove, Color, Piece, Square};
 
-const MAX_VALUE: i16 = 512;
+const MAX_VALUE: i32 = 512;
 const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 
@@ -29,7 +29,7 @@ impl HistoryTable {
 
         let value = self.table[index][to_index];
         let change = (amt * amt) as i16;
-        let decay = change * value / MAX_VALUE;
+        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
 
@@ -40,7 +40,7 @@ impl HistoryTable {
             let index = piece_index(board.side_to_move(), piece);
             let to_index = quiet.get_dest().to_index();
             let value = self.table[index][to_index];
-            let decay = change * value / MAX_VALUE;
+            let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
             let decrement = change + decay;
 
             self.table[index][to_index] -= decrement;
