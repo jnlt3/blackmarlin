@@ -344,10 +344,24 @@ impl StdEvaluator {
         gains[0]
     }
 
+
+    fn insufficient_material(&self, board: &Board) -> bool {
+        if board.combined().popcnt() == 2 {
+            true
+        } else if board.combined().popcnt() == 3 {
+            (board.pieces(Piece::Rook) | board.pieces(Piece::Queen) | board.pieces(Piece::Pawn)) == EMPTY
+        } else {
+            false
+        }
+    }
+
     /**
     Doesn't handle checkmates or stalemates
      */
     pub fn evaluate(&mut self, board: &Board) -> Evaluation {
+        if self.insufficient_material(board) {
+            return Evaluation::new(0);
+        }
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
