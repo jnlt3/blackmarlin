@@ -1,13 +1,12 @@
 use std::cell::RefCell;
 use std::sync::Arc;
-use std::thread::JoinHandle;
 use std::time::Instant;
 
 use chess::{Board, ChessMove};
 
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_runner::ab_consts::*;
-use crate::bm::bm_runner::config::{GuiInfo, SearchMode, SearchStats};
+use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
@@ -438,14 +437,15 @@ impl AbRunner {
         //TODO: Research the effects of different depths
         for i in 1..threads {
             join_handlers.push(std::thread::spawn(
-                self.launch_searcher::<SM, Info>(search_start, i),
+                self.launch_searcher::<SM, NoInfo>(search_start, i),
             ));
         }
-        let (mut final_move, mut final_eval, mut max_depth, mut node_count) =
+        let (final_move, final_eval, max_depth, mut node_count) =
             self.launch_searcher::<SM, Info>(search_start, 0)();
         for join_handler in join_handlers {
-            let (best_move, eval, depth, nodes) = join_handler.join().unwrap();
+            let (_, _, _, nodes) = join_handler.join().unwrap();
             node_count += nodes;
+            /*
             if let Some(best_move) = best_move {
                 if eval > final_eval {
                     final_move = Some(best_move);
@@ -455,6 +455,7 @@ impl AbRunner {
             } else {
                 println!("# Move generation failed");
             }
+            */
         }
         if final_move.is_none() {
             panic!("# All move generation has failed");
