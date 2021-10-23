@@ -27,7 +27,7 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
-        let out_layer = Dense::new(&OUT, [0]);
+        let out_layer = Dense::new(&OUT, OUT_BIAS);
 
         Self {
             white: EMPTY,
@@ -46,6 +46,7 @@ impl Nnue {
         }
     }
 
+    #[inline]
     pub fn feed_forward(&mut self, board: &Board) -> i16 {
         let white = *board.color_combined(Color::White);
         let black = *board.color_combined(Color::Black);

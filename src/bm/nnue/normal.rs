@@ -60,10 +60,12 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
     }
 }
 
+#[inline]
 pub fn out(x: i32) -> i16 {
     (x as f32 * UNITS as f32 / (SCALE * SCALE) as f32) as i16
 }
 
+#[inline]
 const fn i16_to_i32<const N: usize>(array: [i16; N]) -> [i32; N] {
     let mut out = [0_i32; N];
     let mut index = 0;
