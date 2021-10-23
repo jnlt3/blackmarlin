@@ -1,4 +1,4 @@
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Instant;
@@ -284,7 +284,7 @@ impl AbRunner {
         &self,
         search_start: Instant,
         thread: u8,
-    ) -> JoinHandle<(Option<ChessMove>, Evaluation, u32, u32)> {
+    ) -> impl FnMut() -> (Option<ChessMove>, Evaluation, u32, u32) {
         let mut nodes = 0;
 
         let shared_context = self.shared_context.clone();
@@ -292,7 +292,7 @@ impl AbRunner {
         let mut position = self.position.clone();
         let mut debugger = SM::new(self.position.board());
         let gui_info = Info::new();
-        std::thread::spawn(move || {
+        move || {
             let start_time = Instant::now();
             let mut best_move = None;
             let mut eval: Option<Evaluation> = None;
@@ -387,7 +387,7 @@ impl AbRunner {
             } else {
                 panic!("# Search function has failed to evaluate the position");
             }
-        })
+        }
     }
 
     pub fn new(board: Board, time_manager: Arc<TimeManager>) -> Self {
@@ -432,25 +432,24 @@ impl AbRunner {
         &mut self,
         threads: u8,
     ) -> (ChessMove, Evaluation, u32, u32) {
-        let mut node_count = 0;
         let mut join_handlers = vec![];
-
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
         //TODO: Research the effects of different depths
-        for i in 0..threads {
-            join_handlers.push(self.launch_searcher::<SM, Info>(search_start, i));
+        for i in 1..threads {
+            join_handlers.push(std::thread::spawn(
+                self.launch_searcher::<SM, Info>(search_start, i),
+            ));
         }
-        let mut final_move = None;
-        let mut final_eval = None;
-        let mut max_depth = 0;
+        let (mut final_move, mut final_eval, mut max_depth, mut node_count) =
+            self.launch_searcher::<SM, Info>(search_start, 0)();
         for join_handler in join_handlers {
             let (best_move, eval, depth, nodes) = join_handler.join().unwrap();
             node_count += nodes;
             if let Some(best_move) = best_move {
-                if final_eval.is_none() || eval > final_eval.unwrap() {
+                if eval > final_eval {
                     final_move = Some(best_move);
-                    final_eval = Some(eval);
+                    final_eval = eval;
                     max_depth = u32::max(max_depth, depth);
                 }
             } else {
@@ -459,12 +458,10 @@ impl AbRunner {
         }
         if final_move.is_none() {
             panic!("# All move generation has failed");
-        } else if final_eval.is_none() {
-            panic!("# All evaluations have failed");
         }
         (
             final_move.unwrap(),
-            final_eval.unwrap(),
+            final_eval,
             max_depth,
             node_count,
         )
