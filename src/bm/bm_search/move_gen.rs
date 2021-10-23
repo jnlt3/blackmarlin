@@ -1,12 +1,10 @@
 use chess::{Board, ChessMove, MoveGen, EMPTY};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
-use crate::bm::bm_runner::ab_runner::SharedContext;
 
 use crate::bm::bm_util::h_table::HistoryTable;
 use arrayvec::ArrayVec;
-use std::cell::{Ref, RefCell};
-use std::sync::Arc;
+use std::cell::Ref;
 
 use super::move_entry::MoveEntryIterator;
 
@@ -115,8 +113,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                     let mut score = 0;
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();
-                    score += hist
-                        .get(self.board.side_to_move(), piece, make_move.get_dest());
+                    score += hist.get(self.board.side_to_move(), piece, make_move.get_dest());
                     self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::Killer;
