@@ -158,6 +158,21 @@ fn mate_comparisons() {
     assert_eq!(b_checkmate_in_1.mate_in().unwrap(), -1);
     assert_eq!(b_checkmate_in_2.mate_in().unwrap(), -2);
 
+    assert!(w_checkmate_in_2 >= w_checkmate_in_2);
+    assert!(w_checkmate_in_1 >= w_checkmate_in_1);
+    assert!(b_checkmate_in_1 >= b_checkmate_in_1);
+    assert!(b_checkmate_in_2 >= b_checkmate_in_2);
+
+    assert!(w_checkmate_in_2 <= w_checkmate_in_2);
+    assert!(w_checkmate_in_1 <= w_checkmate_in_1);
+    assert!(b_checkmate_in_1 <= b_checkmate_in_1);
+    assert!(b_checkmate_in_2 <= b_checkmate_in_2);
+
+    assert!(w_checkmate_in_2 == w_checkmate_in_2);
+    assert!(w_checkmate_in_1 == w_checkmate_in_1);
+    assert!(b_checkmate_in_1 == b_checkmate_in_1);
+    assert!(b_checkmate_in_2 == b_checkmate_in_2);
+
     assert!(w_checkmate_in_1 > w_checkmate_in_2);
     assert!(w_checkmate_in_2 > b_checkmate_in_1);
     assert!(w_checkmate_in_2 > b_checkmate_in_2);
