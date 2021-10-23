@@ -139,7 +139,6 @@ pub trait GuiInfo {
     );
 }
 
-
 #[derive(Debug, Clone)]
 pub struct NoInfo;
 
