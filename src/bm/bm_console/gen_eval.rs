@@ -2,7 +2,6 @@ use std::{
     fs::OpenOptions,
     io::{BufWriter, Write},
     sync::Arc,
-    time::Duration,
 };
 
 use chess::{Board, MoveGen};
@@ -20,48 +19,44 @@ use crate::bm::{
 const RAND_MOVE_PROBABILITY: f32 = 0.1;
 
 fn play_single(
-    mut engine_0: AbRunner,
-    mut engine_1: AbRunner,
+    engine_0: &mut AbRunner,
+    engine_1: &mut AbRunner,
     time_manager: &TimeManager,
     time_management_info: &[TimeManagementInfo],
 ) -> Vec<(Board, Evaluation)> {
     let mut evals = Vec::new();
     engine_0.set_board(Board::default());
     engine_1.set_board(Board::default());
-    for i in 0..80 {
-        let (engine, other_engine) = if i % 2 == 0 {
-            (&mut engine_0, &mut engine_1)
-        } else {
-            (&mut engine_1, &mut engine_0)
-        };
-
-        let mut move_gen = MoveGen::new_legal(engine.get_board());
+    for _ in 0..160 {
+        let mut move_gen = MoveGen::new_legal(engine_0.get_board());
         if move_gen.next().is_none() {
             break;
         }
 
-        time_manager.initiate(engine.get_board(), time_management_info);
-        let (mut make_move, eval, _, _) = engine.search::<Run, NoInfo>(1);
+        time_manager.initiate(engine_0.get_board(), time_management_info);
+        let (mut make_move, eval, _, _) = engine_0.search::<Run, NoInfo>(1);
         time_manager.clear();
-        let turn = match engine.get_board().side_to_move() {
+        let turn = match engine_0.get_board().side_to_move() {
             chess::Color::White => 1,
             chess::Color::Black => -1,
         };
 
-        let mut move_gen = MoveGen::new_legal(engine.get_board());
-        move_gen.set_iterator_mask(*engine.get_board().combined());
+        let mut move_gen = MoveGen::new_legal(engine_0.get_board());
+        move_gen.set_iterator_mask(*engine_0.get_board().combined());
         if move_gen.next().is_none() {
-            evals.push((*engine.get_board(), eval * turn));
+            evals.push((*engine_0.get_board(), eval * turn));
         }
 
         if rand::thread_rng().gen::<f32>() < RAND_MOVE_PROBABILITY {
-            let moves = MoveGen::new_legal(engine.get_board())
+            let moves = MoveGen::new_legal(engine_0.get_board())
                 .into_iter()
                 .collect::<Box<_>>();
             make_move = moves[rand::thread_rng().gen_range(0..moves.len())];
         }
-        engine.make_move(make_move);
-        other_engine.make_move(make_move);
+        engine_0.make_move(make_move);
+        engine_1.make_move(make_move);
+
+        std::mem::swap(engine_0, engine_1);
     }
     evals
 }
@@ -70,14 +65,14 @@ fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
     let mut evals = vec![];
     let time_management_options = TimeManagementInfo::MaxDepth(7);
     let time_manager = Arc::new(TimeManager::new());
+    let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
+    let mut engine_1 = AbRunner::new(Board::default(), time_manager.clone());
     for i in 0..iter {
         println!("{}", i);
-        let engine_0 = AbRunner::new(Board::default(), time_manager.clone());
-        let engine_1 = AbRunner::new(Board::default(), time_manager.clone());
 
         evals.extend(play_single(
-            engine_0,
-            engine_1,
+            &mut engine_0,
+            &mut engine_1,
             &time_manager,
             &[time_management_options],
         ));
