@@ -3,7 +3,7 @@ use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_runner::ab_runner::{LocalContext, SEARCH_PARAMS, SharedContext};
+use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
@@ -141,12 +141,12 @@ pub fn search<Search: SearchType>(
     //TODO: Depth limit for NMP
     if do_null_move && position.null_move() {
         {
-            let mut threat_table = local_context.get_threat_table();
+            let threat_table = local_context.get_threat_table();
             while threat_table.len() <= ply as usize + 1 {
                 threat_table.push(MoveEntry::new());
             }
         }
-        
+
         let zw = beta >> Next;
         let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
         let r_target_ply = target_ply.saturating_sub(reduction);
@@ -160,7 +160,7 @@ pub fn search<Search: SearchType>(
             zw + 1,
         );
         if let Some(threat_move) = threat_move {
-            let mut threat_table = local_context.get_threat_table();
+            let threat_table = local_context.get_threat_table();
             threat_table[ply as usize + 1].push(threat_move)
         }
         position.unmake_move();
@@ -224,7 +224,7 @@ pub fn search<Search: SearchType>(
         threat_move_entry.into_iter(),
         local_context.get_k_table()[ply as usize].into_iter(),
     );
-    
+
     let mut moves_seen = 0;
     let mut move_exists = false;
 
@@ -309,7 +309,6 @@ pub fn search<Search: SearchType>(
             );
             score = lmr_score << Next;
 
-            
             //Do Zero Window Search in case reduction wasn't zero
             if !Search::IS_ZW && reduction > 0 && score > alpha {
                 let (_, zw_score) = search::<Search::ZeroWindow>(
