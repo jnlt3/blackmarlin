@@ -16,63 +16,38 @@ impl HistoryTable {
         }
     }
 
-    fn piece_index(color: Color, piece: Piece) -> usize {
-        let color_offset = match color {
-            Color::White => 0,
-            Color::Black => PIECE_COUNT / 2,
-        };
-        let piece_index = piece.to_index();
-        color_offset + piece_index
-    }
-
     pub fn get(&self, color: Color, piece: Piece, to: Square) -> i16 {
-        let piece_index = Self::piece_index(color, piece);
+        let piece_index = piece_index(color, piece);
         let to_index = to.to_index();
         self.table[piece_index][to_index]
     }
 
     pub fn cutoff(&mut self, board: &Board, make_move: ChessMove, quiets: &[ChessMove], amt: u32) {
         let piece = board.piece_on(make_move.get_source()).unwrap();
-        let piece_index = Self::piece_index(board.side_to_move(), piece);
+        let index = piece_index(board.side_to_move(), piece);
         let to_index = make_move.get_dest().to_index();
 
-        let value = self.table[piece_index][to_index];
+        let value = self.table[index][to_index];
         let change = (amt * amt) as i16;
         let decay = change * value / MAX_VALUE;
 
         let increment = change - decay;
 
-        self.table[piece_index][to_index] += increment;
+        self.table[index][to_index] += increment;
 
         for &quiet in quiets {
             let piece = board.piece_on(quiet.get_source()).unwrap();
-            let piece_index = Self::piece_index(board.side_to_move(), piece);
+            let index = piece_index(board.side_to_move(), piece);
             let to_index = quiet.get_dest().to_index();
-            let value = self.table[piece_index][to_index];
+            let value = self.table[index][to_index];
             let decay = change * value / MAX_VALUE;
             let decrement = change + decay;
 
-            self.table[piece_index][to_index] -= decrement;
-        }
-    }
-
-    pub fn for_all<F: Fn(i16) -> i16>(&mut self, func: F) {
-        for piece_table in self.table.iter_mut() {
-            for sq in piece_table {
-                *sq = func(*sq);
-            }
+            self.table[index][to_index] -= decrement;
         }
     }
 }
 
-
-/*
-struct AtomicMove {
-    make_move: ChessMove,
-    fill: u8,
+fn piece_index(color: Color, piece: Piece) -> usize {
+    color.to_index() * PIECE_COUNT / 2 + piece.to_index()
 }
-
-pub struct CounterMoveHistory {
-    table: Box<[[]]>
-}
-*/
