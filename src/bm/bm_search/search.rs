@@ -22,7 +22,6 @@ pub trait SearchType {
 pub struct Pv;
 pub struct Zw;
 pub struct NullMove;
-pub struct Singular;
 
 impl SearchType for Pv {
     const DO_NULL_MOVE: bool = false;
@@ -56,7 +55,7 @@ pub fn search<Search: SearchType>(
     mut alpha: Evaluation,
     mut beta: Evaluation,
 ) -> (Option<ChessMove>, Evaluation) {
-    let depth = target_ply - ply;
+    let depth = target_ply.saturating_sub(ply);
     if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
         return (None, Evaluation::max());
     }
@@ -403,6 +402,7 @@ pub fn q_search(
     nodes: &mut u32,
 ) -> Evaluation {
     *nodes += 1;
+
     if ply >= target_ply {
         return position.get_eval();
     }
