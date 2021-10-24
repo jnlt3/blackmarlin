@@ -121,7 +121,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
                 break;
             }
         }
-        if layer != layers[layers.len() - 1] {
+        if layer != 1 {
             let mut index = 0;
             while let Some(&weight) = bytes_iterator.next() {
                 let weight: i8 = unsafe { std::mem::transmute(weight) };
@@ -133,7 +133,8 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
             }
         }
     }
-    let mut psqt_weights = vec![0_i32; layers[0]];
+    let mut psqt_weights = vec![0_i32; layers[0] * layers[layers.len() - 1]];
+    println!("{}", psqt_weights.len());
     let mut index = 0;
     while index < psqt_weights.len() {
         let weight: i32 = unsafe {

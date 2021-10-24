@@ -22,9 +22,3 @@ fn main() {
     }
     while bm_console.input(read!("{}\n")) {}
 }
-
-/*
-35% HC
-45% NNUE 1st gen
-20% NNUE 2nd gen
-*/
