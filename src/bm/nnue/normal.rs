@@ -86,7 +86,10 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
         for ((&w_input, &b_input), weights) in
             w_inputs.iter().zip(b_inputs.iter()).zip(&*self.weights.0)
         {
-            for (out, &weight) in out[bucket..bucket + 1].iter_mut().zip(weights[bucket..bucket + 1].iter()) {
+            for (out, &weight) in out[bucket..bucket + 1]
+                .iter_mut()
+                .zip(weights[bucket..bucket + 1].iter())
+            {
                 *out += weight as i32 * (w_input as i32 - b_input as i32) / 2;
             }
         }

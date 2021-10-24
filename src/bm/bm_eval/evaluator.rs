@@ -374,7 +374,9 @@ impl StdEvaluator {
             .min(TOTAL_PHASE as u32) as i16;
         #[cfg(feature = "nnue")]
         {
-            return Evaluation::new(self.nnue.feed_forward(&board, phase as usize) * turn + 15);
+            return Evaluation::new(
+                self.nnue.feed_forward(&board, (phase / 12).min(1) as usize) * turn + 15,
+            );
         }
         reset_trace!(&mut self.trace);
         trace_tempo!(&mut self.trace, board.side_to_move());
