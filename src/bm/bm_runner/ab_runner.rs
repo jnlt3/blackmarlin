@@ -460,12 +460,7 @@ impl AbRunner {
         if final_move.is_none() {
             panic!("# All move generation has failed");
         }
-        (
-            final_move.unwrap(),
-            final_eval,
-            max_depth,
-            node_count,
-        )
+        (final_move.unwrap(), final_eval, max_depth, node_count)
     }
 
     pub fn hash(&mut self, hash_mb: usize) {
