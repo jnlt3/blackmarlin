@@ -199,6 +199,9 @@ impl UciAdapter {
                 );
                 println!("{}", buffer);
             }
+            UciCommand::DetailSearch(depth) => {
+                self.detail_search(depth);
+            }
         }
         true
     }
@@ -250,6 +253,41 @@ impl UciAdapter {
         bm_runner.set_board(original_board);
     }
 
+    fn detail_search(&mut self, depth: u32) {
+        self.exit();
+        let bm_runner = &mut *self.bm_runner.lock().unwrap();
+
+        let original_board = *bm_runner.get_board();
+        self.time_manager.initiate(&original_board, &[TimeManagementInfo::MaxDepth(depth)]);
+        let base_eval = bm_runner.search::<Run, NoInfo>(1).1.raw();
+
+        let mut sq_values = [None; 64];
+        for sq in *original_board.combined() {
+            let mut board_builder = BoardBuilder::from(original_board);
+            board_builder
+                .castle_rights(Color::White, chess::CastleRights::NoRights)
+                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+            board_builder.clear_square(sq);
+            if let Ok(eval_board) = board_builder.try_into() {
+                bm_runner.set_board(eval_board);
+                sq_values[sq.to_index()] = Some(base_eval - bm_runner.search::<Run, NoInfo>(1).1.raw());
+            }
+        }
+        for rank in 0_usize..8 {
+            for file in 0_usize..8 {
+                let index = (7 - rank) * 8 + file;
+                let value = if let Some(value) = sq_values[index] {
+                    value.to_string()
+                } else {
+                    "Unknown".to_string()
+                };
+                print!("{:>8}", value);
+            }
+            println!()
+        }
+        bm_runner.set_board(original_board);
+    }
+
     fn exit(&mut self) {
         if let Some(analysis) = self.analysis.take() {
             analysis.join().unwrap();
@@ -267,6 +305,7 @@ enum UciCommand {
     Move(ChessMove),
     Bench,
     Detail,
+    DetailSearch(u32),
     Empty,
     Stop,
     Quit,
@@ -375,6 +414,9 @@ impl UciCommand {
             "isready" => UciCommand::IsReady,
             "bench" => UciCommand::Bench,
             "detail" => UciCommand::Detail,
+            "detailsearch" => {
+                UciCommand::DetailSearch(split.next().unwrap().parse::<u32>().unwrap())
+            },
             "setoption" => {
                 split.next();
                 let name = split.next().unwrap().to_string();
