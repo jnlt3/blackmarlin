@@ -21,12 +21,15 @@ pub struct Nnue {
 
     w_input_layer: Incremental<'static, INPUT, MID>,
     b_input_layer: Incremental<'static, INPUT, MID>,
+    w_res_layer: Incremental<'static, INPUT, OUTPUT>,
+    b_res_layer: Incremental<'static, INPUT, OUTPUT>,
     out_layer: Dense<'static, MID, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
+        let res_layer = Incremental::new(&PSQT, [0]);
         let out_layer = Dense::new(&OUT, OUT_BIAS);
 
         Self {
@@ -42,6 +45,8 @@ impl Nnue {
             inputs: [[0_i8; 64]; 12],
             w_input_layer: input_layer.clone(),
             b_input_layer: input_layer,
+            w_res_layer: res_layer.clone(),
+            b_res_layer: res_layer,
             out_layer,
         }
     }
@@ -96,9 +101,13 @@ impl Nnue {
                 if new == 1 {
                     self.w_input_layer.incr_ff::<1>(64 * w_index + w_sq);
                     self.b_input_layer.incr_ff::<1>(64 * b_index + b_sq);
+                    self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
+                    self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
                 } else {
                     self.w_input_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_input_layer.incr_ff::<-1>(64 * b_index + b_sq);
+                    self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
+                    self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
                 }
             }
         }
@@ -109,6 +118,7 @@ impl Nnue {
         let b_incr_layer = *self.b_input_layer.get();
         let b_incr_layer = normal::clipped_relu(b_incr_layer);
 
-        normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer)[0])
+        let psqt_score = (self.w_res_layer.get()[0] as i32 - self.b_res_layer.get()[0] as i32) / 2;
+        normal::out(psqt_score + self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer)[0])
     }
 }
