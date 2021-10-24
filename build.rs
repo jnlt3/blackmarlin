@@ -136,7 +136,14 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
     let mut psqt_weights = vec![0_i32; layers[0]];
     let mut index = 0;
     while index < psqt_weights.len() {
-        let weight: i32 = unsafe { std::mem::transmute([*bytes_iterator.next().unwrap(), *bytes_iterator.next().unwrap(), *bytes_iterator.next().unwrap(), *bytes_iterator.next().unwrap()]) };
+        let weight: i32 = unsafe {
+            std::mem::transmute([
+                *bytes_iterator.next().unwrap(),
+                *bytes_iterator.next().unwrap(),
+                *bytes_iterator.next().unwrap(),
+                *bytes_iterator.next().unwrap(),
+            ])
+        };
         psqt_weights[index] = weight;
         index += 1;
         if index >= psqt_weights.len() {

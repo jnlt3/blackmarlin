@@ -6,7 +6,6 @@ const MAX: i16 = SCALE;
 #[derive(Debug, Clone)]
 pub struct Weights<'a, const INPUT: usize, const OUTPUT: usize>(&'a [[i8; OUTPUT]; INPUT]);
 
-
 #[derive(Debug, Clone)]
 pub struct WeightsI32<'a, const INPUT: usize, const OUTPUT: usize>(&'a [[i32; OUTPUT]; INPUT]);
 
@@ -35,7 +34,6 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Psqt<'a, INPUT, OUTPUT> {
         &self.out
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {

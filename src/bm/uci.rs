@@ -258,7 +258,8 @@ impl UciAdapter {
         let bm_runner = &mut *self.bm_runner.lock().unwrap();
 
         let original_board = *bm_runner.get_board();
-        self.time_manager.initiate(&original_board, &[TimeManagementInfo::MaxDepth(depth)]);
+        self.time_manager
+            .initiate(&original_board, &[TimeManagementInfo::MaxDepth(depth)]);
         let base_eval = bm_runner.search::<Run, NoInfo>(1).1.raw();
 
         let mut sq_values = [None; 64];
@@ -270,7 +271,8 @@ impl UciAdapter {
             board_builder.clear_square(sq);
             if let Ok(eval_board) = board_builder.try_into() {
                 bm_runner.set_board(eval_board);
-                sq_values[sq.to_index()] = Some(base_eval - bm_runner.search::<Run, NoInfo>(1).1.raw());
+                sq_values[sq.to_index()] =
+                    Some(base_eval - bm_runner.search::<Run, NoInfo>(1).1.raw());
             }
         }
         for rank in 0_usize..8 {
@@ -416,7 +418,7 @@ impl UciCommand {
             "detail" => UciCommand::Detail,
             "detailsearch" => {
                 UciCommand::DetailSearch(split.next().unwrap().parse::<u32>().unwrap())
-            },
+            }
             "setoption" => {
                 split.next();
                 let name = split.next().unwrap().to_string();
