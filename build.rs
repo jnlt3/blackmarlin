@@ -8,7 +8,7 @@ fn main() {
 #[cfg(feature = "nnue")]
 fn parse_bm_net() {
     let nnue_data = std::fs::read("./nnue.bin").expect("nnue file doesn't exist");
-    let (layers, weights, biases) = from_bytes_bm(nnue_data);
+    let (layers, weights, biases, psqt_weights) = from_bytes_bm(nnue_data);
     assert_eq!(
         weights.len(),
         2,
@@ -60,6 +60,27 @@ fn parse_bm_net() {
         def_layers += &array;
     }
 
+    let def_weights = format!(
+        "const PSQT: [[i32; {}]; {}] = ",
+        layers[layers.len() - 1],
+        layers[0],
+    );
+    let mut array = "[".to_string();
+    for start_range in 0..layers[0] {
+        array += "[";
+        for &weight in psqt_weights[start_range..]
+            .iter()
+            .step_by(layers[0])
+            .take(layers[layers.len() - 1])
+        {
+            array += &format!("{}, ", weight);
+        }
+        array += "],";
+    }
+    array += "];\n";
+    def_layers += &def_weights;
+    def_layers += &array;
+
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("nnue_weights.rs");
     std::fs::write(&dest_path, def_nodes + "\n" + &def_layers).unwrap();
@@ -67,7 +88,7 @@ fn parse_bm_net() {
 }
 
 #[cfg(feature = "nnue")]
-pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>) {
+pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>, Vec<i32>) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
         let layer_size: u32 = unsafe {
@@ -90,7 +111,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>)
     }
 
     let mut bytes_iterator = bytes.iter().skip(layers.len() * std::mem::size_of::<u32>());
-    for (layer_weights, bias_weights) in weights.iter_mut().zip(&mut biases) {
+    for (layer, (layer_weights, bias_weights)) in weights.iter_mut().zip(&mut biases).enumerate() {
         let mut index = 0;
         while let Some(&weight) = bytes_iterator.next() {
             let weight: i8 = unsafe { std::mem::transmute(weight) };
@@ -100,16 +121,35 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>)
                 break;
             }
         }
-        let mut index = 0;
-        while let Some(&weight) = bytes_iterator.next() {
-            let weight: i8 = unsafe { std::mem::transmute(weight) };
-            bias_weights[index] = weight;
-            index += 1;
-            if index >= bias_weights.len() {
-                break;
+        if layer != layers[layers.len() - 1] {
+            let mut index = 0;
+            while let Some(&weight) = bytes_iterator.next() {
+                let weight: i8 = unsafe { std::mem::transmute(weight) };
+                bias_weights[index] = weight;
+                index += 1;
+                if index >= bias_weights.len() {
+                    break;
+                }
             }
         }
     }
+    let mut psqt_weights = vec![0_i32; layers[0]];
+    let mut index = 0;
+    while index < psqt_weights.len() {
+        let weight: i32 = unsafe {
+            std::mem::transmute([
+                *bytes_iterator.next().unwrap(),
+                *bytes_iterator.next().unwrap(),
+                *bytes_iterator.next().unwrap(),
+                *bytes_iterator.next().unwrap(),
+            ])
+        };
+        psqt_weights[index] = weight;
+        index += 1;
+        if index >= psqt_weights.len() {
+            break;
+        }
+    }
     assert!(bytes_iterator.next().is_none(), "File not read fully");
-    (layers, weights, biases)
+    (layers, weights, biases, psqt_weights)
 }
