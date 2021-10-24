@@ -244,7 +244,7 @@ impl UciAdapter {
                 let value = if let Some(value) = sq_values[index] {
                     value.to_string()
                 } else {
-                    "Unknown".to_string()
+                    "Empty".to_string()
                 };
                 print!("{:>8}", value);
             }
@@ -281,7 +281,7 @@ impl UciAdapter {
                 let value = if let Some(value) = sq_values[index] {
                     value.to_string()
                 } else {
-                    "Unknown".to_string()
+                    "Empty".to_string()
                 };
                 print!("{:>8}", value);
             }
