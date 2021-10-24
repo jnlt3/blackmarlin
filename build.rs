@@ -61,7 +61,7 @@ fn parse_bm_net() {
     }
 
     let def_weights = format!(
-        "const PSQT: [[i8; {}]; {}] = ",
+        "const PSQT: [[i32; {}]; {}] = ",
         layers[layers.len() - 1],
         layers[0],
     );
@@ -88,7 +88,7 @@ fn parse_bm_net() {
 }
 
 #[cfg(feature = "nnue")]
-pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>, Vec<i8>) {
+pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>, Vec<i32>) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
         let layer_size: u32 = unsafe {
@@ -133,10 +133,10 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
             }
         }
     }
-    let mut psqt_weights = vec![0_i8; layers[0]];
+    let mut psqt_weights = vec![0_i32; layers[0]];
     let mut index = 0;
-    while let Some(&weight) = bytes_iterator.next() {
-        let weight: i8 = unsafe { std::mem::transmute(weight) };
+    while index < psqt_weights.len() {
+        let weight: i32 = unsafe { std::mem::transmute([*bytes_iterator.next().unwrap(), *bytes_iterator.next().unwrap(), *bytes_iterator.next().unwrap(), *bytes_iterator.next().unwrap()]) };
         psqt_weights[index] = weight;
         index += 1;
         if index >= psqt_weights.len() {
