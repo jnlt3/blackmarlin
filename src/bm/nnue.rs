@@ -112,15 +112,13 @@ impl Nnue {
             }
         }
 
-        let w_incr_layer = *self.w_input_layer.get();
-        let w_incr_layer = normal::clipped_relu(w_incr_layer);
+        let (incr_layer, psqt_score) = if board.side_to_move() == Color::White {
+            (normal::clipped_relu(*self.w_input_layer.get()), self.w_res_layer.get()[bucket])
+        } else {
+            (normal::clipped_relu(*self.b_input_layer.get()), self.b_res_layer.get()[bucket])
+        };
 
-        let b_incr_layer = *self.b_input_layer.get();
-        let b_incr_layer = normal::clipped_relu(b_incr_layer);
-
-        let psqt_score = (self.w_res_layer.get()[bucket] - self.b_res_layer.get()[bucket]) / 128;
-
-        psqt_score as i16
-            + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket])
+        (psqt_score / 64) as i16
+            + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
     }
 }
