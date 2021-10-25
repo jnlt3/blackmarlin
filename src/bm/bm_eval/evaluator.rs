@@ -377,8 +377,7 @@ impl StdEvaluator {
             return Evaluation::new(
                 self.nnue
                     .feed_forward(&board, 1 - (phase.saturating_sub(1) / 12) as usize)
-                    * turn
-                    + 15,
+                    * turn,
             );
         }
         reset_trace!(&mut self.trace);
