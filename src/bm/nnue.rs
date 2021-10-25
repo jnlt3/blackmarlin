@@ -113,12 +113,17 @@ impl Nnue {
         }
 
         let (incr_layer, psqt_score) = if board.side_to_move() == Color::White {
-            (normal::clipped_relu(*self.w_input_layer.get()), self.w_res_layer.get()[bucket])
+            (
+                normal::clipped_relu(*self.w_input_layer.get()),
+                self.w_res_layer.get()[bucket],
+            )
         } else {
-            (normal::clipped_relu(*self.b_input_layer.get()), self.b_res_layer.get()[bucket])
+            (
+                normal::clipped_relu(*self.b_input_layer.get()),
+                self.b_res_layer.get()[bucket],
+            )
         };
 
-        (psqt_score / 64) as i16
-            + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
+        (psqt_score / 64) as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
     }
 }
