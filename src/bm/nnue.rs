@@ -52,7 +52,7 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, board: &Board) -> i16 {
+    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
         let white = *board.color_combined(Color::White);
         let black = *board.color_combined(Color::Black);
 
@@ -118,8 +118,9 @@ impl Nnue {
         let b_incr_layer = *self.b_input_layer.get();
         let b_incr_layer = normal::clipped_relu(b_incr_layer);
 
-        let psqt_score = (self.w_res_layer.get()[0] - self.b_res_layer.get()[0]) / 128;
+        let psqt_score = (self.w_res_layer.get()[bucket] - self.b_res_layer.get()[bucket]) / 128;
 
-        psqt_score as i16 + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer)[0])
+        psqt_score as i16
+            + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket])
     }
 }

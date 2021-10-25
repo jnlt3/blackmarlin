@@ -366,19 +366,21 @@ impl StdEvaluator {
             Color::White => 1,
             Color::Black => -1,
         };
-        #[cfg(feature = "nnue")]
-        {
-            return Evaluation::new(self.nnue.feed_forward(&board) * turn + 15);
-        }
-        reset_trace!(&mut self.trace);
-        trace_tempo!(&mut self.trace, board.side_to_move());
-
         let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
             + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
             + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
             + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
             + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
             .min(TOTAL_PHASE as u32) as i16;
+        #[cfg(feature = "nnue")]
+        {
+            return Evaluation::new(
+                self.nnue.feed_forward(&board, 1 - (phase.saturating_sub(1) / 12) as usize) * turn + 15,
+            );
+        }
+        reset_trace!(&mut self.trace);
+        trace_tempo!(&mut self.trace, board.side_to_move());
+
         trace_phase!(&mut self.trace, phase);
 
         let eval = self.evaluate_psqt(board, Piece::Pawn)

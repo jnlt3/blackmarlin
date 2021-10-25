@@ -445,17 +445,6 @@ impl AbRunner {
         for join_handler in join_handlers {
             let (_, _, _, nodes) = join_handler.join().unwrap();
             node_count += nodes;
-            /*
-            if let Some(best_move) = best_move {
-                if eval > final_eval {
-                    final_move = Some(best_move);
-                    final_eval = eval;
-                    max_depth = u32::max(max_depth, depth);
-                }
-            } else {
-                println!("# Move generation failed");
-            }
-            */
         }
         if final_move.is_none() {
             panic!("# All move generation has failed");
