@@ -4,16 +4,17 @@ use crate::bm::bm_eval::{eval::Evaluation, evaluator::StdEvaluator};
 
 #[derive(Debug, Clone)]
 pub struct Position {
-    board: Vec<Board>,
+    current: Board,
+    boards: Vec<Board>,
     evaluator: StdEvaluator,
 }
 
-//TODO: Counting Bloom Filter for threefold repetition detection
 impl Position {
     pub fn new(board: Board) -> Self {
         let evaluator = StdEvaluator::new();
         Self {
-            board: vec![board],
+            current: board,
+            boards: vec![],
             evaluator,
         }
     }
@@ -21,7 +22,7 @@ impl Position {
     #[inline]
     pub fn three_fold_repetition(&self) -> bool {
         let hash = self.hash();
-        self.board
+        self.boards
             .iter()
             .rev()
             .skip(1)
@@ -32,13 +33,14 @@ impl Position {
 
     #[inline]
     pub fn board(&self) -> &Board {
-        &self.board[self.board.len() - 1]
+        &self.current
     }
 
     #[inline]
     pub fn null_move(&mut self) -> bool {
         if let Some(new_board) = self.board().null_move() {
-            self.board.push(new_board);
+            self.boards.push(self.current);
+            self.current = new_board;
             true
         } else {
             false
@@ -48,13 +50,13 @@ impl Position {
     #[inline]
     pub fn make_move(&mut self, make_move: ChessMove) {
         let old_board = *self.board();
-        let board = old_board.make_move_new(make_move);
-        self.board.push(board);
+        self.boards.push(old_board);
+        old_board.make_move(make_move, &mut self.current);
     }
 
     #[inline]
     pub fn unmake_move(&mut self) {
-        self.board.pop();
+        self.current = self.boards.pop().unwrap();
     }
 
     #[inline]
