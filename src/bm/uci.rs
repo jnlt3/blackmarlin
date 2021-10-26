@@ -368,11 +368,9 @@ impl UciCommand {
                     chess_board = Some(Board::from_str(&board).unwrap());
                 }
                 let mut moves = vec![];
-                if board_end < split.len() {
-                    if split[board_end] == "moves" {
-                        for token in &split[board_end + 1..] {
-                            moves.push(ChessMove::from_str(token).unwrap());
-                        }
+                if board_end < split.len() && split[board_end] == "moves" {
+                    for token in &split[board_end + 1..] {
+                        moves.push(ChessMove::from_str(token).unwrap());
                     }
                 }
                 UciCommand::Position(chess_board.unwrap(), moves)

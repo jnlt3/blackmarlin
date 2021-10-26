@@ -361,10 +361,8 @@ pub fn search<Search: SearchType>(
             }
             alpha = score;
         }
-        if !is_capture {
-            if !quiets.is_full() {
-                quiets.push(make_move);
-            }
+        if !is_capture && !quiets.is_full() {
+            quiets.push(make_move);
         }
     }
     if !move_exists {

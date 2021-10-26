@@ -133,7 +133,7 @@ impl BmConsole {
     }
 
     fn parse(command: &str) -> (String, Vec<(String, String)>) {
-        let split = command.split(" ").collect::<Vec<_>>();
+        let split = command.split(' ').collect::<Vec<_>>();
 
         let main_command = split[0].to_string();
 
@@ -143,17 +143,17 @@ impl BmConsole {
         let mut options = vec![];
 
         for token in split.into_iter() {
-            if token.starts_with("-") {
-                if option != "" && param != "" {
+            if let Some(token) = token.strip_prefix('-') {
+                if !option.is_empty() && !param.is_empty() {
                     options.push((option, param.trim().to_string()));
                 }
-                option = token[1..].to_string();
+                option = token.to_string();
                 param = "".to_string();
             } else {
                 param += &(token.to_string() + " ");
             }
         }
-        if option != "" && param != "" {
+        if !option.is_empty() && !param.is_empty() {
             options.push((option, param.trim().to_string()));
         }
         (main_command, options)

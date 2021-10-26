@@ -113,7 +113,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
     let mut bytes_iterator = bytes.iter().skip(layers.len() * std::mem::size_of::<u32>());
     for (layer, (layer_weights, bias_weights)) in weights.iter_mut().zip(&mut biases).enumerate() {
         let mut index = 0;
-        while let Some(&weight) = bytes_iterator.next() {
+        for &weight in &mut bytes_iterator {
             let weight: i8 = unsafe { std::mem::transmute(weight) };
             layer_weights[index] = weight;
             index += 1;
@@ -123,7 +123,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
         }
         if layer != 1 {
             let mut index = 0;
-            while let Some(&weight) = bytes_iterator.next() {
+            for &weight in &mut bytes_iterator {
                 let weight: i8 = unsafe { std::mem::transmute(weight) };
                 bias_weights[index] = weight;
                 index += 1;
