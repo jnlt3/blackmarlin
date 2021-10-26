@@ -461,16 +461,11 @@ impl AbRunner {
         self.position.get_eval()
     }
 
-    pub fn set_board_no_reset(&mut self, board: Board) {
-        self.position = Position::new(board);
-    }
-
-    pub fn make_move_no_reset(&mut self, make_move: ChessMove) {
-        self.position.make_move(make_move);
+    pub fn new_game(&self) {
+        self.shared_context.t_table.clean();
     }
 
     pub fn set_board(&mut self, board: Board) {
-        self.shared_context.t_table.clean();
         self.position = Position::new(board);
     }
 
