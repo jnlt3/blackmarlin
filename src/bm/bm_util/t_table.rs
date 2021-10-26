@@ -64,7 +64,7 @@ impl Entry {
             analysis: std::mem::transmute::<u64, AtomicU64>(0),
         }
     }
-    unsafe fn zero(&self) {
+    fn zero(&self) {
         self.hash.store(u64::MAX, Ordering::SeqCst);
         self.analysis.store(0, Ordering::SeqCst);
     }
@@ -116,11 +116,15 @@ impl TranspositionTable {
         let hash = board.get_hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
-        let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(*entry) };
-        fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
+        let analysis: Analysis =
+            unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::SeqCst)) };
+        if entry.depth > analysis.depth / 2 {
+            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(*entry) };
+            fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
+        }
     }
 
     pub fn clean(&self) {
-        self.table.iter().for_each(|entry| unsafe { entry.zero() });
+        self.table.iter().for_each(|entry| entry.zero());
     }
 }
