@@ -20,7 +20,10 @@ impl Position {
     }
 
     #[inline]
-    pub fn three_fold_repetition(&self) -> bool {
+    pub fn forced_draw(&self) -> bool {
+        if self.evaluator.insufficient_material(self.board()) {
+            return true;
+        }
         let hash = self.hash();
         self.boards
             .iter()

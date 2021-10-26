@@ -344,7 +344,7 @@ impl StdEvaluator {
         gains[0]
     }
 
-    fn insufficient_material(&self, board: &Board) -> bool {
+    pub fn insufficient_material(&self, board: &Board) -> bool {
         if board.combined().popcnt() == 2 {
             true
         } else if board.combined().popcnt() == 3 {

@@ -60,7 +60,7 @@ pub fn search<Search: SearchType>(
         return (None, Evaluation::max());
     }
 
-    if ply != 0 && position.three_fold_repetition() {
+    if ply != 0 && position.forced_draw() {
         *local_context.nodes() += 1;
         return (None, Evaluation::new(0));
     }
