@@ -3,4 +3,5 @@ target/
 flamegraph.svg
 out/
 data/
+data_zero/
 networks/

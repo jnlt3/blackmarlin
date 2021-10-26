@@ -231,7 +231,7 @@ impl UciAdapter {
         let original_board = *bm_runner.get_board();
         let mut nnue = Nnue::new();
 
-        for i in 0..2 {
+        for i in 0..1 {
             println!();
             println!("bucket {}", i);
             let base_eval = nnue.feed_forward(&original_board, i);

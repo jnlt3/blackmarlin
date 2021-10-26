@@ -63,7 +63,7 @@ fn play_single(
 
 fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
     let mut evals = vec![];
-    let time_management_options = TimeManagementInfo::MaxDepth(7);
+    let time_management_options = TimeManagementInfo::MaxDepth(5);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
     let mut engine_1 = AbRunner::new(Board::default(), time_manager.clone());
@@ -84,7 +84,7 @@ pub fn gen_eval() {
     for _ in 0.. {
         let mut evals = vec![];
         let mut threads = vec![];
-        for _ in 0..4 {
+        for _ in 0..8 {
             threads.push(std::thread::spawn(move || gen_games(100)))
         }
         for t in threads {
@@ -98,7 +98,7 @@ pub fn gen_eval() {
             .read(true)
             .append(true)
             .create(true)
-            .open("./data/quiet_01.txt")
+            .open("./data_zero/quiet_zero_d5.txt")
             .unwrap();
         let mut write = BufWriter::new(file);
         write.write(output.as_bytes()).unwrap();

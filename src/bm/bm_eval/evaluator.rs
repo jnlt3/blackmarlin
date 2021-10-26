@@ -361,7 +361,8 @@ impl StdEvaluator {
     pub fn evaluate(&mut self, board: &Board) -> Evaluation {
         if self.insufficient_material(board) {
             return Evaluation::new(0);
-        }
+        } 
+        return Evaluation::new(1);
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
@@ -376,7 +377,7 @@ impl StdEvaluator {
         {
             return Evaluation::new(
                 self.nnue
-                    .feed_forward(board, 1 - (phase.saturating_sub(1) / 12) as usize)
+                    .feed_forward(board, 0)
                     * turn
                     + 15,
             );
