@@ -12,7 +12,7 @@ use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
 use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
 use crate::bm::nnue::Nnue;
 
-const VERSION: &str = "dev";
+const VERSION: &str = "2.0dev";
 
 const POSITIONS: &[&str] = &[
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -124,13 +124,14 @@ impl UciAdapter {
             UciCommand::Go(commands) => self.go(commands),
             UciCommand::NewGame => {
                 let runner = &mut *self.bm_runner.lock().unwrap();
+                runner.new_game();
                 runner.set_board(Board::default());
             }
             UciCommand::Position(position, moves) => {
                 let runner = &mut *self.bm_runner.lock().unwrap();
-                runner.set_board_no_reset(position);
+                runner.set_board(position);
                 for make_move in moves {
-                    runner.make_move_no_reset(make_move);
+                    runner.make_move(make_move);
                 }
             }
             UciCommand::SetOption(name, value) => {
