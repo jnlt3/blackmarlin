@@ -3,10 +3,6 @@ use text_io::read;
 
 mod bm;
 
-#[global_allocator]
-#[cfg(feature = "jem")]
-static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
 //TODO: Increase mate finding capabilities and prevent draws by three-fold repetition.
 //TODO: Search & Evaluation
 //TODO: OpenBench
