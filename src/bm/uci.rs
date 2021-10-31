@@ -10,6 +10,7 @@ use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
 
 use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
+#[cfg(feature = "nnue")]
 use crate::bm::nnue::Nnue;
 
 const VERSION: &str = "2.0dev";
@@ -116,10 +117,14 @@ impl UciAdapter {
             }
             UciCommand::Eval => {
                 let runner = &mut *self.bm_runner.lock().unwrap();
-                let mut nnue = Nnue::new();
+
                 println!("eval    : {}", runner.raw_eval().raw());
-                println!("bucket 0: {}", nnue.feed_forward(runner.get_board(), 0));
-                println!("bucket 1: {}", nnue.feed_forward(runner.get_board(), 1));
+                #[cfg(feature = "nnue")]
+                {
+                    let mut nnue = Nnue::new();
+                    println!("bucket 0: {}", nnue.feed_forward(runner.get_board(), 0));
+                    println!("bucket 1: {}", nnue.feed_forward(runner.get_board(), 1));
+                }
             }
             UciCommand::Go(commands) => self.go(commands),
             UciCommand::NewGame => {
@@ -224,6 +229,46 @@ impl UciAdapter {
         }));
     }
 
+    #[cfg(not(feature = "nnue"))]
+    fn detail(&mut self) {
+        use super::bm_eval::evaluator::StdEvaluator;
+
+        self.exit();
+        let bm_runner = &mut *self.bm_runner.lock().unwrap();
+
+        let original_board = *bm_runner.get_board();
+        let mut eval = StdEvaluator::new();
+
+        let base_eval = eval.evaluate(&original_board);
+
+        let mut sq_values = [None; 64];
+        for sq in *original_board.combined() {
+            let mut board_builder = BoardBuilder::from(original_board);
+            board_builder
+                .castle_rights(Color::White, chess::CastleRights::NoRights)
+                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+            board_builder.clear_square(sq);
+            if let Ok(eval_board) = board_builder.try_into() {
+                sq_values[sq.to_index()] = Some((base_eval - eval.evaluate(&eval_board)).raw());
+            }
+        }
+        for rank in 0_usize..8 {
+            for file in 0_usize..8 {
+                let index = (7 - rank) * 8 + file;
+                let value = if let Some(value) = sq_values[index] {
+                    value.to_string()
+                } else {
+                    "Empty".to_string()
+                };
+                print!("{:>8}", value);
+            }
+            println!();
+        }
+
+        bm_runner.set_board(original_board);
+    }
+
+    #[cfg(feature = "nnue")]
     fn detail(&mut self) {
         self.exit();
         let bm_runner = &mut *self.bm_runner.lock().unwrap();
