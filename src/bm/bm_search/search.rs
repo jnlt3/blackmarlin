@@ -101,18 +101,15 @@ pub fn search<Search: SearchType>(
                     return (best_move, score);
                 }
                 LowerBound => {
-                    if score > alpha {
-                        alpha = score;
+                    if score >= beta {
+                        return (best_move, score);
                     }
                 }
                 UpperBound => {
-                    if score < beta {
-                        beta = score;
+                    if score <= alpha {
+                        return (best_move, score);
                     }
                 }
-            }
-            if alpha >= beta {
-                return (best_move, entry.score());
             }
         }
     } else {
@@ -355,9 +352,7 @@ pub fn search<Search: SearchType>(
                 }
 
                 let analysis = Analysis::new(depth, LowerBound, score, make_move);
-                shared_context
-                    .get_t_table()
-                    .set(position.board(), analysis);
+                shared_context.get_t_table().set(position.board(), analysis);
                 return (Some(make_move), score);
             }
             alpha = score;
@@ -383,9 +378,7 @@ pub fn search<Search: SearchType>(
         };
 
         let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
-        shared_context
-            .get_t_table()
-            .set(position.board(), analysis);
+        shared_context.get_t_table().set(position.board(), analysis);
     }
     (best_move, highest_score)
 }
