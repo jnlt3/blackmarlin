@@ -14,16 +14,21 @@ pub enum EntryType {
 #[derive(Debug, Copy, Clone)]
 pub struct Analysis {
     depth: u8,
-    entry_type: EntryType,
+    entry_type: Option<EntryType>,
     score: Evaluation,
     table_move: ChessMove,
 }
 
 impl Analysis {
-    pub fn new(depth: u32, entry_type: EntryType, score: Evaluation, table_move: ChessMove) -> Self {
+    pub fn new(
+        depth: u32,
+        entry_type: EntryType,
+        score: Evaluation,
+        table_move: ChessMove,
+    ) -> Self {
         Self {
             depth: depth as u8,
-            entry_type,
+            entry_type: Some(entry_type),
             score,
             table_move,
         }
@@ -36,7 +41,7 @@ impl Analysis {
 
     #[inline]
     pub fn entry_type(&self) -> EntryType {
-        self.entry_type
+        self.entry_type.unwrap()
     }
 
     #[inline]
@@ -60,7 +65,12 @@ impl Entry {
     unsafe fn zeroed() -> Self {
         Self {
             hash: std::mem::transmute::<u64, AtomicU64>(u64::MAX),
-            analysis: std::mem::transmute::<u64, AtomicU64>(0),
+            analysis: std::mem::transmute::<Analysis, AtomicU64>(Analysis {
+                depth: 0,
+                entry_type: None,
+                score: Evaluation::new(0),
+                table_move: ChessMove::default(),
+            }),
         }
     }
     fn zero(&self) {
@@ -105,20 +115,25 @@ impl TranspositionTable {
         let hash_u64 = entry.hash.load(Ordering::SeqCst);
         let entry_u64 = entry.analysis.load(Ordering::SeqCst);
         if entry_u64 ^ hash == hash_u64 {
-            unsafe { Some(std::mem::transmute::<u64, Analysis>(entry_u64)) }
+            let analysis = unsafe { std::mem::transmute::<u64, Analysis>(entry_u64) };
+            if analysis.entry_type.is_some() {
+                Some(analysis)
+            } else {
+                None
+            }
         } else {
             None
         }
     }
 
-    pub fn set(&self, board: &Board, entry: &Analysis) {
+    pub fn set(&self, board: &Board, entry: Analysis) {
         let hash = board.get_hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::SeqCst)) };
-        if entry.depth > analysis.depth / 2 {
-            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(*entry) };
+        if analysis.entry_type.is_none() || entry.depth > analysis.depth / 2 {
+            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
     }

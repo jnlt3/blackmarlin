@@ -357,7 +357,7 @@ pub fn search<Search: SearchType>(
                 let analysis = Analysis::new(depth, LowerBound, score, make_move);
                 shared_context
                     .get_t_table()
-                    .set(position.board(), &analysis);
+                    .set(position.board(), analysis);
                 return (Some(make_move), score);
             }
             alpha = score;
@@ -385,7 +385,7 @@ pub fn search<Search: SearchType>(
         let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
         shared_context
             .get_t_table()
-            .set(position.board(), &analysis);
+            .set(position.board(), analysis);
     }
     (best_move, highest_score)
 }
