@@ -7,7 +7,7 @@ use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, SEARCH_PARAMS
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Analysis;
-use crate::bm::bm_util::t_table::Score::{Exact, LowerBound, UpperBound};
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -95,23 +95,24 @@ pub fn search<Search: SearchType>(
         *local_context.tt_hits() += 1;
         best_move = Some(entry.table_move());
         if !Search::IS_PV && ply + entry.depth() >= target_ply {
-            match entry.score() {
-                Exact(score) => {
+            let score = entry.score();
+            match entry.entry_type() {
+                Exact => {
                     return (best_move, score);
                 }
-                LowerBound(score) => {
+                LowerBound => {
                     if score > alpha {
                         alpha = score;
                     }
                 }
-                UpperBound(score) => {
+                UpperBound => {
                     if score < beta {
                         beta = score;
                     }
                 }
             }
             if alpha >= beta {
-                return (best_move, entry.score().value());
+                return (best_move, entry.score());
             }
         }
     } else {
@@ -353,7 +354,7 @@ pub fn search<Search: SearchType>(
                         .cutoff(&board, make_move, &quiets, depth);
                 }
 
-                let analysis = Analysis::new(depth, LowerBound(score), make_move);
+                let analysis = Analysis::new(depth, LowerBound, score, make_move);
                 shared_context
                     .get_t_table()
                     .set(position.board(), &analysis);
@@ -375,13 +376,13 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
 
     if let Some(final_move) = &best_move {
-        let score = if highest_score > initial_alpha {
-            Exact(highest_score)
+        let entry_type = if highest_score > initial_alpha {
+            Exact
         } else {
-            UpperBound(highest_score)
+            UpperBound
         };
 
-        let analysis = Analysis::new(depth, score, *final_move);
+        let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
         shared_context
             .get_t_table()
             .set(position.board(), &analysis);

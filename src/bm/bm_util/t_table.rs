@@ -5,31 +5,25 @@ use chess::{Board, ChessMove};
 use crate::bm::bm_eval::eval::Evaluation;
 
 #[derive(Debug, Copy, Clone)]
-pub enum Score {
-    LowerBound(Evaluation),
-    Exact(Evaluation),
-    UpperBound(Evaluation),
-}
-
-impl Score {
-    pub fn value(&self) -> Evaluation {
-        match self {
-            Score::LowerBound(score) | Score::Exact(score) | Score::UpperBound(score) => *score,
-        }
-    }
+pub enum EntryType {
+    LowerBound,
+    Exact,
+    UpperBound,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Analysis {
     depth: u8,
-    score: Score,
+    entry_type: EntryType,
+    score: Evaluation,
     table_move: ChessMove,
 }
 
 impl Analysis {
-    pub fn new(depth: u32, score: Score, table_move: ChessMove) -> Self {
+    pub fn new(depth: u32, entry_type: EntryType, score: Evaluation, table_move: ChessMove) -> Self {
         Self {
             depth: depth as u8,
+            entry_type,
             score,
             table_move,
         }
@@ -41,7 +35,12 @@ impl Analysis {
     }
 
     #[inline]
-    pub fn score(&self) -> Score {
+    pub fn entry_type(&self) -> EntryType {
+        self.entry_type
+    }
+
+    #[inline]
+    pub fn score(&self) -> Evaluation {
         self.score
     }
 
