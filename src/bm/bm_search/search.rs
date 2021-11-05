@@ -53,7 +53,7 @@ pub fn search<Search: SearchType>(
     ply: u32,
     target_ply: u32,
     mut alpha: Evaluation,
-    mut beta: Evaluation,
+    beta: Evaluation,
 ) -> (Option<ChessMove>, Evaluation) {
     let depth = target_ply.saturating_sub(ply);
     if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
