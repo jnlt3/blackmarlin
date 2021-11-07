@@ -71,12 +71,12 @@ pub fn search<Search: SearchType>(
             None,
             q_search(
                 position,
+                local_context,
                 shared_context,
                 0,
                 SEARCH_PARAMS.get_q_search_depth(),
                 alpha,
                 beta,
-                local_context.nodes(),
             ),
         );
     }
@@ -385,15 +385,15 @@ pub fn search<Search: SearchType>(
 
 pub fn q_search(
     position: &mut Position,
-    search_options: &SharedContext,
+    local_context: &mut LocalContext,
+    shared_context: &SharedContext,
     ply: u32,
     target_ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
-    nodes: &mut u32,
 ) -> Evaluation {
-    *nodes += 1;
-
+    *local_context.nodes() += 1;
+    
     if ply >= target_ply {
         return position.get_eval();
     }
@@ -424,12 +424,12 @@ pub fn q_search(
             position.make_move(make_move);
             let search_score = q_search(
                 position,
-                search_options,
+                local_context,
+                shared_context,
                 ply + 1,
                 target_ply,
                 beta >> Next,
                 alpha >> Next,
-                nodes,
             );
             let score = search_score << Next;
             if highest_score.is_none() || score > highest_score.unwrap() {
