@@ -10,4 +10,6 @@ Blackmarlin doesn't come with a built-in GUI. The recommended way of playing aga
 
 Blackmarlin also includes an optional Neural Network as a replacement for hand crafted evaluation. In order to enable this feature, add "nnue" to the feature flags: `cargo build --release --features 'nnue'`
 
-Using the neural network results in stronger play overall.
+Using the neural network results in much stronger play.
+
+The repository used for NN training is [NNUE Marlin](https://github.com/dsekercioglu/nnue_marlin)
