@@ -6,8 +6,8 @@ use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::Analysis;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
+use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -80,7 +80,13 @@ pub fn search<Search: SearchType>(
             ),
         );
     }
-    let tt_entry = shared_context.get_t_table().get(position.board());
+    let skip_move = local_context.get_skip_move(ply);
+    let tt_entry = if skip_move.is_some() {
+        None
+    } else {
+        shared_context.get_t_table().get(position.board())
+    };
+
     *local_context.nodes() += 1;
 
     let mut best_move = None;
@@ -118,7 +124,11 @@ pub fn search<Search: SearchType>(
 
     let in_check = *position.board().checkers() != EMPTY;
 
-    let eval = position.get_eval();
+    let eval = if skip_move.is_none() {
+        position.get_eval()
+    } else {
+        local_context.get_last_eval(ply + 2).unwrap()
+    };
 
     local_context.push_eval(eval, ply);
     let improving = if let Some(prev_eval) = local_context.get_last_eval(ply) {
@@ -135,7 +145,7 @@ pub fn search<Search: SearchType>(
         && Search::DO_NULL_MOVE
         && !only_pawns;
 
-    if do_null_move && position.null_move() {
+    if do_null_move && skip_move.is_none() && position.null_move() {
         {
             let threat_table = local_context.get_threat_table();
             while threat_table.len() <= ply as usize + 1 {
@@ -186,7 +196,7 @@ pub fn search<Search: SearchType>(
         !Search::IS_PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
     let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp();
 
-    if !in_check && do_rev_f_prune {
+    if !in_check && skip_move.is_none() && do_rev_f_prune {
         let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
         if eval - f_margin >= beta {
             return (None, eval);
@@ -194,16 +204,18 @@ pub fn search<Search: SearchType>(
     }
 
     //This guarantees that threat_table.len() <= ply as usize + 1
-    while local_context.get_k_table().len() <= ply as usize {
-        local_context.get_k_table().push(MoveEntry::new());
-        local_context.get_threat_table().push(MoveEntry::new());
-    }
+    if skip_move.is_none() {
+        while local_context.get_k_table().len() <= ply as usize {
+            local_context.get_k_table().push(MoveEntry::new());
+            local_context.get_threat_table().push(MoveEntry::new());
+        }
 
-    if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
-        entry.clear();
-    }
-    if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
-        entry.clear();
+        if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
+            entry.clear();
+        }
+        if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
+            entry.clear();
+        }
     }
 
     let mut highest_score = None;
@@ -227,6 +239,9 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
 
     while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
+        if Some(make_move) == skip_move {
+            continue;
+        }
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
         let is_promotion = make_move.get_promotion().is_some();
@@ -234,20 +249,51 @@ pub fn search<Search: SearchType>(
         let gives_check = *position.board().checkers() != EMPTY;
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
-        let target_ply = if gives_check {
-            target_ply + 1
-        } else {
-            target_ply
-        };
+        let mut extension = 0;
+
+        if gives_check {
+            extension = 1;
+        }
 
         let mut score;
         if moves_seen == 0 {
+            if let Some(entry) = tt_entry {
+                if entry.table_move() == make_move
+                    && ply != 0
+                    && depth >= 7
+                    && !entry.score().is_mate()
+                    && entry.depth() >= depth - 2
+                    && (entry.entry_type() == EntryType::LowerBound
+                        || entry.entry_type() == EntryType::Exact)
+                {
+                    let reduced_plies = ply + depth / 2 - 1;
+                    let s_beta = entry.score() - depth as i16 * 3;
+                    position.unmake_move();
+                    local_context.set_skip_move(ply, make_move);
+                    let (_, s_score) = search::<Search::ZeroWindow>(
+                        position,
+                        local_context,
+                        shared_context,
+                        ply,
+                        reduced_plies,
+                        s_beta - 1,
+                        s_beta,
+                    );
+                    local_context.reset_skip_move(ply);
+                    if s_score < s_beta {
+                        extension += 1;
+                    } else if s_beta >= beta {
+                        return (Some(make_move), s_beta);
+                    }
+                    position.make_move(make_move);
+                }
+            }
             let (_, search_score) = search::<Search>(
                 position,
                 local_context,
                 shared_context,
                 ply + 1,
-                target_ply,
+                target_ply + extension,
                 beta >> Next,
                 alpha >> Next,
             );
@@ -299,7 +345,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                lmr_ply,
+                lmr_ply + extension,
                 zw - 1,
                 zw,
             );
@@ -312,7 +358,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply,
+                    target_ply + extension,
                     zw - 1,
                     zw,
                 );
@@ -325,7 +371,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply,
+                    target_ply + extension,
                     beta >> Next,
                     alpha >> Next,
                 );
@@ -342,17 +388,19 @@ pub fn search<Search: SearchType>(
         }
         if score > alpha {
             if score >= beta {
-                if !is_capture {
-                    let killer_table = local_context.get_k_table();
-                    killer_table[ply as usize].push(make_move);
-                    local_context
-                        .get_h_table()
-                        .borrow_mut()
-                        .cutoff(&board, make_move, &quiets, depth);
-                }
+                if skip_move.is_none() {
+                    if !is_capture {
+                        let killer_table = local_context.get_k_table();
+                        killer_table[ply as usize].push(make_move);
+                        local_context
+                            .get_h_table()
+                            .borrow_mut()
+                            .cutoff(&board, make_move, &quiets, depth);
+                    }
 
-                let analysis = Analysis::new(depth, LowerBound, score, make_move);
-                shared_context.get_t_table().set(position.board(), analysis);
+                    let analysis = Analysis::new(depth, LowerBound, score, make_move);
+                    shared_context.get_t_table().set(position.board(), analysis);
+                }
                 return (Some(make_move), score);
             }
             alpha = score;
@@ -370,15 +418,17 @@ pub fn search<Search: SearchType>(
     }
     let highest_score = highest_score.unwrap();
 
-    if let Some(final_move) = &best_move {
-        let entry_type = if highest_score > initial_alpha {
-            Exact
-        } else {
-            UpperBound
-        };
+    if skip_move.is_none() {
+        if let Some(final_move) = &best_move {
+            let entry_type = if highest_score > initial_alpha {
+                Exact
+            } else {
+                UpperBound
+            };
 
-        let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
-        shared_context.get_t_table().set(position.board(), analysis);
+            let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
+            shared_context.get_t_table().set(position.board(), analysis);
+        }
     }
     (best_move, highest_score)
 }
@@ -393,7 +443,7 @@ pub fn q_search(
     beta: Evaluation,
 ) -> Evaluation {
     *local_context.nodes() += 1;
-    
+
     if ply >= target_ply {
         return position.get_eval();
     }

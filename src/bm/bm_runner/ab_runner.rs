@@ -189,6 +189,7 @@ pub struct LocalContext {
     tt_misses: u32,
     eval: Evaluation,
     eval_stack: Vec<Evaluation>,
+    skip_moves: Vec<Option<ChessMove>>,
     sel_depth: u32,
     h_table: RefCell<HistoryTable>,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
@@ -260,6 +261,24 @@ impl LocalContext {
         } else {
             self.eval_stack[ply as usize] = eval;
         }
+    }
+
+    #[inline]
+    pub fn set_skip_move(&mut self, ply: u32, skip_move: ChessMove) {
+        while ply as usize >= self.skip_moves.len() {
+            self.skip_moves.push(None);
+        }
+        self.skip_moves[ply as usize] = Some(skip_move);
+    }
+
+    #[inline]
+    pub fn reset_skip_move(&mut self, ply: u32) {
+        self.skip_moves[ply as usize] = None;
+    }
+
+    #[inline]
+    pub fn get_skip_move(&mut self, ply: u32) -> Option<ChessMove> {
+        self.skip_moves.get(ply as usize).copied().unwrap_or(None)
     }
 
     #[inline]
@@ -414,12 +433,13 @@ impl AbRunner {
             local_context: LocalContext {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 h_table: RefCell::new(HistoryTable::new()),
-                killer_moves: Vec::new(),
-                threat_moves: Vec::new(),
+                killer_moves: vec![],
+                threat_moves: vec![],
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
                 eval_stack: vec![],
+                skip_moves: vec![],
                 sel_depth: 0,
                 nodes: 0,
             },

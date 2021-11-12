@@ -4,7 +4,7 @@ use chess::{Board, ChessMove};
 
 use crate::bm::bm_eval::eval::Evaluation;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
     LowerBound,
     Exact,
