@@ -334,6 +334,7 @@ pub fn search<Search: SearchType>(
                 if !is_quiet {
                     reduction = reduction.saturating_sub(1);
                 }
+                reduction = reduction.min(depth - 1);
             }
 
             let lmr_ply = target_ply.saturating_sub(reduction);
