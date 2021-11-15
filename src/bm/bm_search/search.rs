@@ -331,7 +331,7 @@ pub fn search<Search: SearchType>(
                     make_move.get_dest(),
                 );
 
-                reduction -= h_score / 192;
+                reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
 
                 if Search::IS_PV {
                     reduction -= SEARCH_PARAMS.get_lmr_pv() as i16;
@@ -342,7 +342,6 @@ pub fn search<Search: SearchType>(
                 if !is_quiet {
                     reduction -= 1;
                 }
-
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
 

@@ -48,6 +48,7 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     delta_margin: DELTA_MARGIN,
     do_dp: DO_DELTA_PRUNE,
     do_see_prune: DO_SEE_PRUNE,
+    h_reduce_divisor: HISTORY_REDUCTION_DIVISOR,
 };
 
 #[derive(Debug, Clone)]
@@ -75,6 +76,7 @@ pub struct SearchParams {
     delta_margin: i16,
     do_dp: bool,
     do_see_prune: bool,
+    h_reduce_divisor: i16,
 }
 
 impl SearchParams {
@@ -166,6 +168,10 @@ impl SearchParams {
     #[inline]
     pub const fn do_lmp(&self) -> bool {
         self.do_lmp
+    }
+
+    pub fn get_h_reduce_div(&self) -> i16 {
+        self.h_reduce_divisor
     }
 }
 
