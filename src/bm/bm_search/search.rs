@@ -257,7 +257,6 @@ pub fn search<Search: SearchType>(
 
         let mut score;
         if moves_seen == 0 {
-            let mut reduce = 0;
             if let Some(entry) = tt_entry {
                 if entry.table_move() == make_move
                     && ply != 0
@@ -294,7 +293,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                target_ply + extension - reduce,
+                target_ply + extension,
                 beta >> Next,
                 alpha >> Next,
             );
@@ -318,27 +317,36 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let mut reduction = 0;
+            let mut reduction = 0_i16;
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
                 reduction = shared_context
                     .get_lmr_lookup()
-                    .get(depth as usize, moves_seen);
+                    .get(depth as usize, moves_seen) as i16;
+
+                let h_score = local_context.get_h_table().borrow().get(
+                    board.side_to_move(),
+                    board.piece_on(make_move.get_source()).unwrap(),
+                    make_move.get_dest(),
+                );
+
+                reduction -= h_score / 192;
 
                 if Search::IS_PV {
-                    reduction = reduction.saturating_sub(SEARCH_PARAMS.get_lmr_pv())
+                    reduction -= SEARCH_PARAMS.get_lmr_pv() as i16;
                 };
                 if improving {
-                    reduction = reduction.saturating_sub(1);
+                    reduction -= 1;
                 }
                 if !is_quiet {
-                    reduction = reduction.saturating_sub(1);
+                    reduction -= 1;
                 }
-                reduction = reduction.min(depth - 1);
+
+                reduction = reduction.min(depth as i16 - 1).max(0);
             }
 
-            let lmr_ply = target_ply.saturating_sub(reduction);
+            let lmr_ply = (target_ply as i16 - reduction).max(0) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
