@@ -138,7 +138,7 @@ pub fn search<Search: SearchType>(
     };
 
     let only_pawns =
-        MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() >= board.combined().popcnt();
+        MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
     let do_null_move = !Search::IS_PV
         && SEARCH_PARAMS.do_nmp(depth)
         && !in_check
@@ -257,6 +257,7 @@ pub fn search<Search: SearchType>(
 
         let mut score;
         if moves_seen == 0 {
+            let mut reduce = 0;
             if let Some(entry) = tt_entry {
                 if entry.table_move() == make_move
                     && ply != 0
@@ -293,7 +294,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                target_ply + extension,
+                target_ply + extension - reduce,
                 beta >> Next,
                 alpha >> Next,
             );
@@ -353,7 +354,7 @@ pub fn search<Search: SearchType>(
             score = lmr_score << Next;
 
             //Do Zero Window Search in case reduction wasn't zero
-            if !Search::IS_ZW && reduction > 0 && score > alpha {
+            if reduction > 0 && score > alpha {
                 let (_, zw_score) = search::<Search::ZeroWindow>(
                     position,
                     local_context,
@@ -366,7 +367,7 @@ pub fn search<Search: SearchType>(
                 score = zw_score << Next;
             }
             //All our attempts at reducing has failed
-            if score > alpha {
+            if Search::IS_PV && score > alpha {
                 let (_, search_score) = search::<Search>(
                     position,
                     local_context,
