@@ -13,35 +13,31 @@ use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 
 pub trait SearchType {
-    const DO_NULL_MOVE: bool;
-    const IS_PV: bool;
-    const IS_ZW: bool;
-    type ZeroWindow: SearchType;
+    const NM: bool;
+    const PV: bool;
+    type Zw: SearchType;
 }
 
 pub struct Pv;
 pub struct Zw;
-pub struct NullMove;
+pub struct NoNm;
 
 impl SearchType for Pv {
-    const DO_NULL_MOVE: bool = false;
-    const IS_PV: bool = true;
-    const IS_ZW: bool = false;
-    type ZeroWindow = Zw;
+    const NM: bool = false;
+    const PV: bool = true;
+    type Zw = Zw;
 }
 
 impl SearchType for Zw {
-    const DO_NULL_MOVE: bool = true;
-    const IS_PV: bool = false;
-    const IS_ZW: bool = true;
-    type ZeroWindow = Zw;
+    const NM: bool = true;
+    const PV: bool = false;
+    type Zw = Zw;
 }
 
-impl SearchType for NullMove {
-    const DO_NULL_MOVE: bool = false;
-    const IS_PV: bool = false;
-    const IS_ZW: bool = true;
-    type ZeroWindow = NullMove;
+impl SearchType for NoNm {
+    const NM: bool = false;
+    const PV: bool = false;
+    type Zw = NoNm;
 }
 
 const MIN_PIECE_CNT: u32 = 2;
@@ -100,7 +96,7 @@ pub fn search<Search: SearchType>(
     if let Some(entry) = tt_entry {
         *local_context.tt_hits() += 1;
         best_move = Some(entry.table_move());
-        if !Search::IS_PV && ply + entry.depth() >= target_ply {
+        if !Search::PV && ply + entry.depth() >= target_ply {
             let score = entry.score();
             match entry.entry_type() {
                 Exact => {
@@ -139,11 +135,8 @@ pub fn search<Search: SearchType>(
 
     let only_pawns =
         MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
-    let do_null_move = !Search::IS_PV
-        && SEARCH_PARAMS.do_nmp(depth)
-        && !in_check
-        && Search::DO_NULL_MOVE
-        && !only_pawns;
+    let do_null_move =
+        !Search::PV && SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
 
     if do_null_move && skip_move.is_none() && position.null_move() {
         {
@@ -156,7 +149,7 @@ pub fn search<Search: SearchType>(
         let zw = beta >> Next;
         let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
         let r_target_ply = target_ply.saturating_sub(reduction);
-        let (threat_move, search_score) = search::<NullMove>(
+        let (threat_move, search_score) = search::<NoNm>(
             position,
             local_context,
             shared_context,
@@ -176,7 +169,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    let do_iid = SEARCH_PARAMS.do_iid(depth) && Search::IS_PV && !in_check;
+    let do_iid = SEARCH_PARAMS.do_iid(depth) && Search::PV && !in_check;
     if do_iid && best_move.is_none() {
         let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
         let target_ply = target_ply.max(reduction) - reduction;
@@ -192,10 +185,10 @@ pub fn search<Search: SearchType>(
         best_move = iid_move;
     }
 
-    let do_rev_f_prune =
-        !Search::IS_PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-    let do_f_prune = !Search::IS_PV && SEARCH_PARAMS.do_fp();
+    let do_f_prune = !Search::PV && SEARCH_PARAMS.do_fp();
 
+    let do_rev_f_prune =
+        !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
     if !in_check && skip_move.is_none() && do_rev_f_prune {
         let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
         if eval - f_margin >= beta {
@@ -270,7 +263,7 @@ pub fn search<Search: SearchType>(
                     let s_beta = entry.score() - depth as i16 * 3;
                     position.unmake_move();
                     local_context.set_skip_move(ply, make_move);
-                    let (_, s_score) = search::<Search::ZeroWindow>(
+                    let (_, s_score) = search::<Search::Zw>(
                         position,
                         local_context,
                         shared_context,
@@ -310,7 +303,7 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_fp = !Search::IS_PV && is_quiet && do_f_prune && depth == 1;
+            let do_fp = !Search::PV && is_quiet && do_f_prune && depth == 1;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
                 position.unmake_move();
@@ -333,7 +326,7 @@ pub fn search<Search: SearchType>(
 
                 reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
 
-                if Search::IS_PV {
+                if Search::PV {
                     reduction -= SEARCH_PARAMS.get_lmr_pv() as i16;
                 };
                 if improving {
@@ -349,7 +342,7 @@ pub fn search<Search: SearchType>(
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
-            let (_, lmr_score) = search::<Search::ZeroWindow>(
+            let (_, lmr_score) = search::<Search::Zw>(
                 position,
                 local_context,
                 shared_context,
@@ -362,7 +355,7 @@ pub fn search<Search: SearchType>(
 
             //Do Zero Window Search in case reduction wasn't zero
             if reduction > 0 && score > alpha {
-                let (_, zw_score) = search::<Search::ZeroWindow>(
+                let (_, zw_score) = search::<Search::Zw>(
                     position,
                     local_context,
                     shared_context,
@@ -374,7 +367,7 @@ pub fn search<Search: SearchType>(
                 score = zw_score << Next;
             }
             //All our attempts at reducing has failed
-            if Search::IS_PV && score > alpha {
+            if Search::PV && score > alpha {
                 let (_, search_score) = search::<Search>(
                     position,
                     local_context,
