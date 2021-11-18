@@ -133,39 +133,62 @@ pub fn search<Search: SearchType>(
         false
     };
 
-    let only_pawns =
-        MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
-    let do_null_move =
-        !Search::PV && SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
+    if skip_move.is_none() {
+        let only_pawns =
+            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
+        let do_null_move = SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
 
-    if do_null_move && skip_move.is_none() && position.null_move() {
-        {
-            let threat_table = local_context.get_threat_table();
-            while threat_table.len() <= ply as usize + 1 {
-                threat_table.push(MoveEntry::new());
+        if do_null_move && skip_move.is_none() && position.null_move() {
+            {
+                let threat_table = local_context.get_threat_table();
+                while threat_table.len() <= ply as usize + 1 {
+                    threat_table.push(MoveEntry::new());
+                }
+            }
+
+            let zw = beta >> Next;
+            let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
+            let r_target_ply = target_ply.saturating_sub(reduction);
+            let (threat_move, search_score) = search::<NoNm>(
+                position,
+                local_context,
+                shared_context,
+                ply + 1,
+                r_target_ply,
+                zw,
+                zw + 1,
+            );
+            if let Some(threat_move) = threat_move {
+                let threat_table = local_context.get_threat_table();
+                threat_table[ply as usize + 1].push(threat_move)
+            }
+            position.unmake_move();
+            let score = search_score << Next;
+            if score >= beta {
+                return (None, score);
             }
         }
 
-        let zw = beta >> Next;
-        let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
-        let r_target_ply = target_ply.saturating_sub(reduction);
-        let (threat_move, search_score) = search::<NoNm>(
-            position,
-            local_context,
-            shared_context,
-            ply + 1,
-            r_target_ply,
-            zw,
-            zw + 1,
-        );
-        if let Some(threat_move) = threat_move {
-            let threat_table = local_context.get_threat_table();
-            threat_table[ply as usize + 1].push(threat_move)
+        let do_rev_f_prune =
+            !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
+        if !in_check && skip_move.is_none() && do_rev_f_prune {
+            let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
+            if eval - f_margin >= beta {
+                return (None, eval);
+            }
         }
-        position.unmake_move();
-        let score = search_score << Next;
-        if score >= beta {
-            return (None, score);
+
+        //This guarantees that threat_table.len() <= ply as usize + 1
+        while local_context.get_k_table().len() <= ply as usize {
+            local_context.get_k_table().push(MoveEntry::new());
+            local_context.get_threat_table().push(MoveEntry::new());
+        }
+
+        if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
+            entry.clear();
+        }
+        if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
+            entry.clear();
         }
     }
 
@@ -183,32 +206,6 @@ pub fn search<Search: SearchType>(
             beta,
         );
         best_move = iid_move;
-    }
-
-    let do_f_prune = !Search::PV && SEARCH_PARAMS.do_fp();
-
-    let do_rev_f_prune =
-        !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-    if !in_check && skip_move.is_none() && do_rev_f_prune {
-        let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
-        if eval - f_margin >= beta {
-            return (None, eval);
-        }
-    }
-
-    //This guarantees that threat_table.len() <= ply as usize + 1
-    if skip_move.is_none() {
-        while local_context.get_k_table().len() <= ply as usize {
-            local_context.get_k_table().push(MoveEntry::new());
-            local_context.get_threat_table().push(MoveEntry::new());
-        }
-
-        if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
-            entry.clear();
-        }
-        if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
-            entry.clear();
-        }
     }
 
     let mut highest_score = None;
@@ -241,6 +238,13 @@ pub fn search<Search: SearchType>(
         position.make_move(make_move);
         let gives_check = *position.board().checkers() != EMPTY;
         let is_quiet = !in_check && !is_capture && !is_promotion;
+
+        let h_score = local_context.get_h_table().borrow().get(
+            board.side_to_move(),
+            board.piece_on(make_move.get_source()).unwrap(),
+            make_move.get_dest(),
+        );
+
 
         let mut extension = 0;
 
@@ -303,7 +307,7 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_fp = !Search::PV && is_quiet && do_f_prune && depth == 1;
+            let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth == 1;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
                 position.unmake_move();
@@ -317,12 +321,6 @@ pub fn search<Search: SearchType>(
                 reduction = shared_context
                     .get_lmr_lookup()
                     .get(depth as usize, moves_seen) as i16;
-
-                let h_score = local_context.get_h_table().borrow().get(
-                    board.side_to_move(),
-                    board.piece_on(make_move.get_source()).unwrap(),
-                    make_move.get_dest(),
-                );
 
                 reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
 
