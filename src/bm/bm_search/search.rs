@@ -245,7 +245,6 @@ pub fn search<Search: SearchType>(
             make_move.get_dest(),
         );
 
-
         let mut extension = 0;
 
         if gives_check {
@@ -301,7 +300,7 @@ pub fn search<Search: SearchType>(
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
-                        .get(depth as usize, improving as usize)
+                        .get((depth + extension) as usize, improving as usize)
             {
                 position.unmake_move();
                 continue;
@@ -325,7 +324,7 @@ pub fn search<Search: SearchType>(
                 reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
 
                 if Search::PV {
-                    reduction -= SEARCH_PARAMS.get_lmr_pv() as i16;
+                    reduction -= 1;
                 };
                 if improving {
                     reduction -= 1;
@@ -352,7 +351,7 @@ pub fn search<Search: SearchType>(
             score = lmr_score << Next;
 
             //Do Zero Window Search in case reduction wasn't zero
-            if reduction > 0 && score > alpha {
+            if lmr_ply < target_ply && score > alpha {
                 let (_, zw_score) = search::<Search::Zw>(
                     position,
                     local_context,
