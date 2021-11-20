@@ -321,8 +321,9 @@ pub fn search<Search: SearchType>(
                     .get_lmr_lookup()
                     .get(depth as usize, moves_seen) as i16;
 
-                reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
-
+                if is_quiet {
+                    reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
+                }
                 if Search::PV {
                     reduction -= 1;
                 };
