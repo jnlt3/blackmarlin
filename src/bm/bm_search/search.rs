@@ -134,6 +134,15 @@ pub fn search<Search: SearchType>(
     };
 
     if skip_move.is_none() {
+        let do_rev_f_prune =
+            !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
+        if !in_check && skip_move.is_none() && do_rev_f_prune {
+            let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
+            if eval - f_margin >= beta {
+                return (None, eval);
+            }
+        }
+
         let only_pawns =
             MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
@@ -166,15 +175,6 @@ pub fn search<Search: SearchType>(
             let score = search_score << Next;
             if score >= beta {
                 return (None, score);
-            }
-        }
-
-        let do_rev_f_prune =
-            !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-        if !in_check && skip_move.is_none() && do_rev_f_prune {
-            let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
-            if eval - f_margin >= beta {
-                return (None, eval);
             }
         }
 
