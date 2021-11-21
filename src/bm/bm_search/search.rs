@@ -62,6 +62,10 @@ pub fn search<Search: SearchType>(
     }
 
     local_context.update_sel_depth(ply);
+
+    /* 
+    At depth 0, we run Quiescence Search
+    */
     if ply >= target_ply {
         return (
             None,
@@ -76,6 +80,7 @@ pub fn search<Search: SearchType>(
             ),
         );
     }
+
     let skip_move = local_context.get_skip_move(ply);
     let tt_entry = if skip_move.is_some() {
         None
@@ -93,6 +98,14 @@ pub fn search<Search: SearchType>(
 
     let depth = target_ply - ply;
 
+    /*
+    Transposition Table
+
+    If we get a TT hit and the search is deep enough,
+    we can use the score from TT to cause an early cutoff
+    We also use the best move from the transposition table 
+    to help with move ordering
+    */
     if let Some(entry) = tt_entry {
         *local_context.tt_hits() += 1;
         best_move = Some(entry.table_move());
@@ -134,6 +147,12 @@ pub fn search<Search: SearchType>(
     };
 
     if skip_move.is_none() {
+        /*
+        Reverse Futility Pruning:
+
+        If in a non PV node and evaluation is higher than beta + a depth dependent margin 
+        we assume we can at least achieve beta
+        */
         let do_rev_f_prune =
             !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
         if !in_check && skip_move.is_none() && do_rev_f_prune {
@@ -146,7 +165,17 @@ pub fn search<Search: SearchType>(
         let only_pawns =
             MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
+        
+        /*
+        Null Move Pruning:
 
+        If in a non PV node and we can still achieve beta at a reduced depth after
+        giving the opponent the side to move we can prune this node and return the evaluation
+
+        While doing null move pruning, we also get the "best move" for the opponent in case 
+        This is seen as the major threat in the current position and can be used in 
+        move ordering for the next ply
+        */
         if do_null_move && skip_move.is_none() && position.null_move() {
             {
                 let threat_table = local_context.get_threat_table();
@@ -192,6 +221,14 @@ pub fn search<Search: SearchType>(
         }
     }
 
+    /*
+    Internal Iterative Deepening
+
+    In PV nodes, if we don't have a move from the transposition table, we do a reduced
+    depth search to get a good estimation on what the best move is
+
+    This is currently disabled
+    */
     let do_iid = SEARCH_PARAMS.do_iid(depth) && Search::PV && !in_check;
     if do_iid && best_move.is_none() {
         let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
@@ -253,6 +290,13 @@ pub fn search<Search: SearchType>(
 
         let mut score;
         if moves_seen == 0 {
+            /*
+            Singular Extensions:
+
+            If a move can't be beaten by any other move, we assume the move 
+            is singular (only solution) and extend in order to get a more accurate
+            estimation of best move/eval
+            */
             if let Some(entry) = tt_entry {
                 if entry.table_move() == make_move
                     && ply != 0
@@ -279,11 +323,20 @@ pub fn search<Search: SearchType>(
                     if s_score < s_beta {
                         extension += 1;
                     } else if s_beta >= beta {
+                        /*
+                        Multi-cut: 
+
+                        If a move isn't singular and the move that disproves the singularity
+                        our singular beta is above beta, we assume the move is good enough to beat beta
+                        */
                         return (Some(make_move), s_beta);
                     }
                     position.make_move(make_move);
                 }
             }
+            /*
+            First moves don't get reduced
+            */
             let (_, search_score) = search::<Search>(
                 position,
                 local_context,
@@ -295,6 +348,9 @@ pub fn search<Search: SearchType>(
             );
             score = search_score << Next;
         } else {
+            /*
+            If a move is placed late in move ordering, we can safely prune it based on a depth related margin
+            */
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
                 && quiets.len()
@@ -306,6 +362,10 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            /*
+            In non-PV nodes If a move isn't good enough to beat alpha - a static margin
+            we assume it's safe to prune this move
+            */
             let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth == 1;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
@@ -313,6 +373,12 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            /* 
+            LMR
+            We try to prove a move is worse than alpha at a reduced depth
+            If the move proves to be worse than alpha, we don't have to do a 
+            full depth search
+            */
             let mut reduction = 0_i16;
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
@@ -321,6 +387,11 @@ pub fn search<Search: SearchType>(
                     .get_lmr_lookup()
                     .get(depth as usize, moves_seen) as i16;
 
+                /*
+                If a move is quiet, we already have information on this move
+                in the history table. If history score is high, we reduce
+                less and if history score is low we reduce more.
+                */
                 if is_quiet {
                     reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
                 }
@@ -351,7 +422,10 @@ pub fn search<Search: SearchType>(
             );
             score = lmr_score << Next;
 
-            //Do Zero Window Search in case reduction wasn't zero
+            /*
+            If no reductions occured in LMR we don't waste time re-searching
+            otherwise, we run a full depth search to attempt a fail low
+            */
             if lmr_ply < target_ply && score > alpha {
                 let (_, zw_score) = search::<Search::Zw>(
                     position,
@@ -364,7 +438,9 @@ pub fn search<Search: SearchType>(
                 );
                 score = zw_score << Next;
             }
-            //All our attempts at reducing has failed
+            /*
+            If we don't get a fail low, this means the move has to be searched fully
+            */
             if Search::PV && score > alpha {
                 let (_, search_score) = search::<Search>(
                     position,
@@ -433,6 +509,11 @@ pub fn search<Search: SearchType>(
     (best_move, highest_score)
 }
 
+/*
+Quiescence Search is a form of search that only searches tactical moves to achieve a quiet position.
+This is done as the static evaluation function isn't suited to detecting tactical aspects of the position.
+*/
+
 pub fn q_search(
     position: &mut Position,
     local_context: &mut LocalContext,
@@ -452,8 +533,16 @@ pub fn q_search(
     let mut highest_score = None;
     let in_check = *board.checkers() != EMPTY;
 
+    /*
+    If not in check, we have a stand pat score which is the static eval of the current position.
+    This is done as captures aren't necessarily the best moves.
+    */
     if !in_check {
         let stand_pat = position.get_eval();
+
+        /*
+        If stand pat is way below alpha, assume it can't be beaten.
+        */
         let do_dp = SEARCH_PARAMS.do_dp();
         if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
             return stand_pat;
