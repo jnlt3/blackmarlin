@@ -74,6 +74,8 @@ impl_tapered_eval_i16_op_assign!(AddAssign, add_assign);
 impl_tapered_eval_i16_op_assign!(SubAssign, sub_assign);
 impl_tapered_eval_i16_op_assign!(MulAssign, mul_assign);
 
+pub const NNUE_TEMPO: i16 = 15;
+
 //Parameters
 pub const PAWN_PHASE: u32 = 0;
 pub const KNIGHT_PHASE: u32 = 1;

@@ -378,7 +378,7 @@ impl StdEvaluator {
                 self.nnue
                     .feed_forward(board, phase)
                     * turn
-                    + 15,
+                    + NNUE_TEMPO,
             );
         }
         reset_trace!(&mut self.trace);
