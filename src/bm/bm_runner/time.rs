@@ -182,7 +182,11 @@ impl TimeManager {
             self.target_duration.store(0, Ordering::SeqCst);
         } else {
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
-            let default = inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves;
+            let default = if MoveGen::new_legal(board).len() > 1 {
+                inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves
+            } else {
+                0
+            };
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration

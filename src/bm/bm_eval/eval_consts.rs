@@ -5,7 +5,8 @@ impl TaperedEval {
     #[inline]
     pub fn convert(&self, phase: i16) -> i16 {
         let phase = phase as i32;
-        ((self.0 as i32 * phase + self.1 as i32 * (TOTAL_PHASE - phase)) / TOTAL_PHASE) as i16
+        ((self.0 as i32 * phase + self.1 as i32 * (TOTAL_PHASE as i32 - phase)) / TOTAL_PHASE as i32)
+            as i16
     }
 }
 
@@ -82,9 +83,8 @@ pub const KNIGHT_PHASE: u32 = 1;
 pub const BISHOP_PHASE: u32 = 1;
 pub const ROOK_PHASE: u32 = 2;
 pub const QUEEN_PHASE: u32 = 4;
-pub const TOTAL_PHASE: i32 =
-    (PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2)
-        as i32;
+pub const TOTAL_PHASE: u32 =
+    PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2;
 
 const fn add_piece(
     table: [[TaperedEval; 8]; 8],

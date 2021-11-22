@@ -362,21 +362,22 @@ impl StdEvaluator {
         if self.insufficient_material(board) {
             return Evaluation::new(0);
         }
+        let phase = (TOTAL_PHASE
+            - ((board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
+                + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
+                + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
+                + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
+                + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
+                .min(TOTAL_PHASE))) as i16;
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
         };
-        let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
-            + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
-            + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
-            + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
-            + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
-            .min(TOTAL_PHASE as u32) as i16;
         #[cfg(feature = "nnue")]
         {
             return Evaluation::new(
                 self.nnue
-                    .feed_forward(board, phase)
+                    .feed_forward(board, ((TOTAL_PHASE as usize - phase as usize) / 12).min(1))
                     * turn
                     + NNUE_TEMPO,
             );

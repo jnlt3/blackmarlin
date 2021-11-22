@@ -52,8 +52,7 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, board: &Board, phase: i16) -> i16 {
-        let bucket = 1 - (phase.saturating_sub(1) / 12) as usize;
+    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
         let white = *board.color_combined(Color::White);
         let black = *board.color_combined(Color::Black);
 
