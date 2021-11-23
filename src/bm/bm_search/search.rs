@@ -63,7 +63,7 @@ pub fn search<Search: SearchType>(
 
     local_context.update_sel_depth(ply);
 
-    /* 
+    /*
     At depth 0, we run Quiescence Search
     */
     if ply >= target_ply {
@@ -103,7 +103,7 @@ pub fn search<Search: SearchType>(
 
     If we get a TT hit and the search is deep enough,
     we can use the score from TT to cause an early cutoff
-    We also use the best move from the transposition table 
+    We also use the best move from the transposition table
     to help with move ordering
     */
     if let Some(entry) = tt_entry {
@@ -136,12 +136,14 @@ pub fn search<Search: SearchType>(
     let eval = if skip_move.is_none() {
         position.get_eval()
     } else {
-        local_context.get_last_eval(ply + 2).unwrap()
+        local_context.get_eval(ply).unwrap()
     };
 
     local_context.push_eval(eval, ply);
-    let improving = if let Some(prev_eval) = local_context.get_last_eval(ply) {
-        !in_check && eval > prev_eval
+    let improving = if ply < 2 || in_check {
+        false
+    } else if let Some(prev_eval) = local_context.get_eval(ply - 2) {
+        eval > prev_eval
     } else {
         false
     };
@@ -150,7 +152,7 @@ pub fn search<Search: SearchType>(
         /*
         Reverse Futility Pruning:
 
-        If in a non PV node and evaluation is higher than beta + a depth dependent margin 
+        If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
         let do_rev_f_prune =
@@ -165,15 +167,15 @@ pub fn search<Search: SearchType>(
         let only_pawns =
             MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
-        
+
         /*
         Null Move Pruning:
 
         If in a non PV node and we can still achieve beta at a reduced depth after
         giving the opponent the side to move we can prune this node and return the evaluation
 
-        While doing null move pruning, we also get the "best move" for the opponent in case 
-        This is seen as the major threat in the current position and can be used in 
+        While doing null move pruning, we also get the "best move" for the opponent in case
+        This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
         if do_null_move && skip_move.is_none() && position.null_move() {
@@ -293,7 +295,7 @@ pub fn search<Search: SearchType>(
             /*
             Singular Extensions:
 
-            If a move can't be beaten by any other move, we assume the move 
+            If a move can't be beaten by any other move, we assume the move
             is singular (only solution) and extend in order to get a more accurate
             estimation of best move/eval
             */
@@ -324,7 +326,7 @@ pub fn search<Search: SearchType>(
                         extension += 1;
                     } else if s_beta >= beta {
                         /*
-                        Multi-cut: 
+                        Multi-cut:
 
                         If a move isn't singular and the move that disproves the singularity
                         our singular beta is above beta, we assume the move is good enough to beat beta
@@ -373,10 +375,10 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            /* 
+            /*
             LMR
             We try to prove a move is worse than alpha at a reduced depth
-            If the move proves to be worse than alpha, we don't have to do a 
+            If the move proves to be worse than alpha, we don't have to do a
             full depth search
             */
             let mut reduction = 0_i16;

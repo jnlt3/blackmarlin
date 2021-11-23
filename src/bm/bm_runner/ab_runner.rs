@@ -252,12 +252,8 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_last_eval(&self, ply: u32) -> Option<Evaluation> {
-        if ply > 1 {
-            Some(self.eval_stack[ply as usize - 2])
-        } else {
-            None
-        }
+    pub fn get_eval(&self, ply: u32) -> Option<Evaluation> {
+        self.eval_stack.get(ply as usize).copied()
     }
 
     #[inline]

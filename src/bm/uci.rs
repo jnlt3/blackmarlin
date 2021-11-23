@@ -122,8 +122,9 @@ impl UciAdapter {
                 #[cfg(feature = "nnue")]
                 {
                     let mut nnue = Nnue::new();
-                    println!("bucket 0: {}", nnue.feed_forward(runner.get_board(), 0));
-                    println!("bucket 1: {}", nnue.feed_forward(runner.get_board(), 1));
+                    for i in 0..2 {
+                        println!("bucket {}: {}", i, nnue.feed_forward(runner.get_board(), i));
+                    }
                 }
             }
             UciCommand::Go(commands) => self.go(commands),
