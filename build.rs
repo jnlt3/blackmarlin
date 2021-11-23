@@ -134,7 +134,6 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
         }
     }
     let mut psqt_weights = vec![0_i32; layers[0] * layers[layers.len() - 1]];
-    println!("{}", psqt_weights.len());
     let mut index = 0;
     while index < psqt_weights.len() {
         let weight: i32 = unsafe {
