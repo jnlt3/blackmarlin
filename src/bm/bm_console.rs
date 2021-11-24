@@ -19,6 +19,9 @@ impl BmConsole {
     }
 
     pub fn input(&mut self, command: String) -> bool {
+        if command.is_empty() {
+            return false;
+        }
         #[cfg(any(feature = "trace", feature = "data"))]
         if command.starts_with("!") {
             let (command, options) = Self::parse(&command[1..]);
