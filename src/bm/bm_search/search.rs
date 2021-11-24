@@ -156,7 +156,7 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-        if !in_check && do_rev_f_prune {
+        if do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
             if eval - f_margin >= beta {
                 return (None, eval);
