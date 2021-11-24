@@ -171,7 +171,7 @@ impl UciAdapter {
                 for position in POSITIONS {
                     let board = chess::Board::from_str(position).unwrap();
                     bm_runner.set_board(board);
-                    let options = [TimeManagementInfo::MaxDepth(13)];
+                    let options = [TimeManagementInfo::MaxDepth(12)];
                     let start = Instant::now();
 
                     self.time_manager.initiate(&board, &options);
