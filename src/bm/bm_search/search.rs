@@ -380,7 +380,7 @@ pub fn search<Search: SearchType>(
             If the move proves to be worse than alpha, we don't have to do a
             full depth search
             */
-            let mut reduction = 0_i16;
+            let mut reduction = 1_i16;
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
