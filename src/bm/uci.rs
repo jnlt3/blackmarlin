@@ -204,7 +204,7 @@ impl UciAdapter {
                 }
                 buffer += &("=".repeat(line_len) + "\n");
                 buffer += &format!(
-                    "OVERALL {:>30} nodes {:>8} nps",
+                    "{:>38} nodes {:>8} nps",
                     sum_node_cnt,
                     (sum_node_cnt as f32 / sum_time.as_secs_f32()) as u32
                 );
