@@ -148,25 +148,20 @@ pub fn search<Search: SearchType>(
         false
     };
 
-    if skip_move.is_none() {
+    if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
 
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        let do_rev_f_prune =
-            !Search::PV && SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-        if !in_check && skip_move.is_none() && do_rev_f_prune {
+        let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
+        if !in_check && do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
             if eval - f_margin >= beta {
                 return (None, eval);
             }
         }
-
-        let only_pawns =
-            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
-        let do_null_move = SEARCH_PARAMS.do_nmp(depth) && !in_check && Search::NM && !only_pawns;
 
         /*
         Null Move Pruning:
@@ -178,7 +173,12 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_null_move && skip_move.is_none() && position.null_move() {
+
+        let only_pawns =
+            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
+        let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
+
+        if do_null_move && position.null_move() {
             {
                 let threat_table = local_context.get_threat_table();
                 while threat_table.len() <= ply as usize + 1 {
@@ -208,19 +208,6 @@ pub fn search<Search: SearchType>(
                 return (None, score);
             }
         }
-
-        //This guarantees that threat_table.len() <= ply as usize + 1
-        while local_context.get_k_table().len() <= ply as usize {
-            local_context.get_k_table().push(MoveEntry::new());
-            local_context.get_threat_table().push(MoveEntry::new());
-        }
-
-        if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
-            entry.clear();
-        }
-        if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
-            entry.clear();
-        }
     }
 
     /*
@@ -245,6 +232,18 @@ pub fn search<Search: SearchType>(
             beta,
         );
         best_move = iid_move;
+    }
+
+    while local_context.get_k_table().len() <= ply as usize {
+        local_context.get_k_table().push(MoveEntry::new());
+        local_context.get_threat_table().push(MoveEntry::new());
+    }
+
+    if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
+        entry.clear();
+    }
+    if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
+        entry.clear();
     }
 
     let mut highest_score = None;
