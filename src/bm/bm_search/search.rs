@@ -3,6 +3,7 @@ use chess::{ChessMove, Piece, EMPTY};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::position::Position;
@@ -370,6 +371,22 @@ pub fn search<Search: SearchType>(
             let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth == 1;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
+                position.unmake_move();
+                continue;
+            }
+
+            let do_see_prune = !Search::PV && is_capture && !in_check && depth <= 2;
+
+            /*
+            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a depth dependent margin
+            we assume it's safe to prune this move
+            */
+            if do_see_prune
+                && eval
+                    + StdEvaluator::see(board, make_move)
+                    + SEARCH_PARAMS.get_fp() * (depth as i16)
+                    < alpha
+            {
                 position.unmake_move();
                 continue;
             }
