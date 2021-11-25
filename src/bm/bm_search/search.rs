@@ -133,7 +133,7 @@ pub fn search<Search: SearchType>(
 
     let in_check = *position.board().checkers() != EMPTY;
 
-    let eval = if skip_move.is_none() {
+    let mut eval = if skip_move.is_none() {
         position.get_eval()
     } else {
         local_context.get_eval(ply).unwrap()
@@ -147,6 +147,22 @@ pub fn search<Search: SearchType>(
     } else {
         false
     };
+
+    if let Some(entry) = tt_entry {
+        match entry.entry_type() {
+            LowerBound => {
+                if entry.score() > eval {
+                    eval = entry.score()
+                }
+            }
+            Exact => eval = entry.score(),
+            UpperBound => {
+                if entry.score() < eval {
+                    eval = entry.score()
+                }
+            }
+        }
+    }
 
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
