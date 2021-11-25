@@ -190,7 +190,7 @@ pub fn search<Search: SearchType>(
             let reduction =
                 SEARCH_PARAMS.get_nmp().reduction(depth) + ((eval - beta).raw() / 200) as u32;
             let r_target_ply = target_ply.saturating_sub(reduction);
-            let (threat_move, search_score) = search::<NoNm>(
+            let (threat_move, search_score) = search::<Zw>(
                 position,
                 local_context,
                 shared_context,
