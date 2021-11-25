@@ -148,17 +148,19 @@ pub fn search<Search: SearchType>(
         false
     };
 
-    if let Some(entry) = tt_entry {
-        match entry.entry_type() {
-            LowerBound => {
-                if entry.score() > eval {
-                    eval = entry.score()
+    if skip_move.is_none() {
+        if let Some(entry) = tt_entry {
+            match entry.entry_type() {
+                LowerBound => {
+                    if entry.score() > eval {
+                        eval = entry.score()
+                    }
                 }
-            }
-            Exact => eval = entry.score(),
-            UpperBound => {
-                if entry.score() < eval {
-                    eval = entry.score()
+                Exact => eval = entry.score(),
+                UpperBound => {
+                    if entry.score() < eval {
+                        eval = entry.score()
+                    }
                 }
             }
         }
