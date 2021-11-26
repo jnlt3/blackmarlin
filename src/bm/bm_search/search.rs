@@ -375,7 +375,7 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_see_prune = !Search::PV && is_capture && !in_check && depth <= 2;
+            let do_see_prune = !Search::PV && !in_check && depth <= 2;
 
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
