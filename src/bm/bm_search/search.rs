@@ -559,7 +559,7 @@ pub fn q_search(
     let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
-        if in_check || is_capture {
+        if is_capture {
             position.make_move(make_move);
             let search_score = q_search(
                 position,
