@@ -530,36 +530,54 @@ pub fn q_search(
         return position.get_eval();
     }
 
+    let tt_entry = shared_context.get_t_table().get(position.board());
+    if let Some(entry) = tt_entry {
+        match entry.entry_type() {
+            LowerBound => {
+                if entry.score() >= beta {
+                    return entry.score();
+                }
+            }
+            Exact => return entry.score(),
+            UpperBound => {
+                if entry.score() <= alpha {
+                    return entry.score();
+                }
+            }
+        }
+    }
+
     let board = *position.board();
     let mut highest_score = None;
     let in_check = *board.checkers() != EMPTY;
 
     /*
-    We have a stand pat score which is the static eval of the current position.
+    If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
+    if !in_check {
+        let stand_pat = position.get_eval();
 
-    let stand_pat = position.get_eval();
-
-    /*
-    If stand pat is way below alpha, assume it can't be beaten.
-    */
-    let do_dp = SEARCH_PARAMS.do_dp();
-    if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
-        return stand_pat;
-    }
-    if stand_pat > alpha {
-        alpha = stand_pat;
-        highest_score = Some(stand_pat);
-        if stand_pat >= beta {
+        /*
+        If stand pat is way below alpha, assume it can't be beaten.
+        */
+        let do_dp = SEARCH_PARAMS.do_dp();
+        if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
             return stand_pat;
+        }
+        if stand_pat > alpha {
+            alpha = stand_pat;
+            highest_score = Some(stand_pat);
+            if stand_pat >= beta {
+                return stand_pat;
+            }
         }
     }
 
     let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
-        if is_capture {
+        if in_check || is_capture {
             position.make_move(make_move);
             let search_score = q_search(
                 position,
