@@ -535,25 +535,24 @@ pub fn q_search(
     let in_check = *board.checkers() != EMPTY;
 
     /*
-    If not in check, we have a stand pat score which is the static eval of the current position.
+    We have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check {
-        let stand_pat = position.get_eval();
 
-        /*
-        If stand pat is way below alpha, assume it can't be beaten.
-        */
-        let do_dp = SEARCH_PARAMS.do_dp();
-        if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
+    let stand_pat = position.get_eval();
+
+    /*
+    If stand pat is way below alpha, assume it can't be beaten.
+    */
+    let do_dp = SEARCH_PARAMS.do_dp();
+    if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
+        return stand_pat;
+    }
+    if stand_pat > alpha {
+        alpha = stand_pat;
+        highest_score = Some(stand_pat);
+        if stand_pat >= beta {
             return stand_pat;
-        }
-        if stand_pat > alpha {
-            alpha = stand_pat;
-            highest_score = Some(stand_pat);
-            if stand_pat >= beta {
-                return stand_pat;
-            }
         }
     }
 
