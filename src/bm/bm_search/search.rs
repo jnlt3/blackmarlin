@@ -530,8 +530,27 @@ pub fn q_search(
         return position.get_eval();
     }
 
+    let initial_alpha = alpha;
+    let tt_entry = shared_context.get_t_table().get(position.board());
+    if let Some(entry) = tt_entry {
+        match entry.entry_type() {
+            LowerBound => {
+                if entry.score() >= beta {
+                    return entry.score();
+                }
+            }
+            Exact => return entry.score(),
+            UpperBound => {
+                if entry.score() <= alpha {
+                    return entry.score();
+                }
+            }
+        }
+    }
+
     let board = *position.board();
     let mut highest_score = None;
+    let mut best_move = None;
     let in_check = *board.checkers() != EMPTY;
 
     /*
@@ -574,16 +593,30 @@ pub fn q_search(
             let score = search_score << Next;
             if highest_score.is_none() || score > highest_score.unwrap() {
                 highest_score = Some(score);
+                best_move = Some(make_move);
             }
             if score > alpha {
                 alpha = score;
                 if score >= beta {
                     position.unmake_move();
+
+                    let analysis = Analysis::new(0, LowerBound, score, make_move);
+                    shared_context.get_t_table().set(position.board(), analysis);
                     return score;
                 }
             }
             position.unmake_move();
         }
+    }
+    if let (Some(best_move), Some(highest_score)) = (best_move, highest_score) {
+        let entry_type = if highest_score > initial_alpha {
+            Exact
+        } else {
+            UpperBound
+        };
+
+        let analysis = Analysis::new(0, entry_type, highest_score, best_move);
+        shared_context.get_t_table().set(position.board(), analysis);
     }
     highest_score.unwrap_or(alpha)
 }
