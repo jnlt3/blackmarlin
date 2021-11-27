@@ -267,6 +267,8 @@ pub fn search<Search: SearchType>(
 
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
 
+    let mut max_see = i16::MIN;
+
     while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
         if Some(make_move) == skip_move {
             continue;
@@ -375,17 +377,18 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_see_prune = !Search::PV && !in_check && depth <= 2;
+            if !Search::PV && !in_check && depth <= 2 {
+                let see = StdEvaluator::see(board, make_move);
 
-            /*
-            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
-            we assume it's safe to prune this move
-            */
-            if do_see_prune
-                && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
-            {
-                position.unmake_move();
-                continue;
+                /*
+                In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
+                we assume it's safe to prune this move
+                */
+                if see < max_see && eval + see + SEARCH_PARAMS.get_fp() < alpha {
+                    position.unmake_move();
+                    continue;
+                }
+                max_see = see.max(max_see);
             }
 
             /*
