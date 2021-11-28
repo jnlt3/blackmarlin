@@ -392,7 +392,7 @@ pub fn search<Search: SearchType>(
                     0
                 };
 
-                if see < max_see && eval + see + margin < alpha {
+                if eval + see + margin < alpha {
                     position.unmake_move();
                     continue;
                 }
