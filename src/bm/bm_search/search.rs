@@ -546,6 +546,7 @@ pub fn q_search(
 
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(position.board());
+    let mut table_move = None;
     if let Some(entry) = tt_entry {
         match entry.entry_type() {
             LowerBound => {
@@ -560,6 +561,7 @@ pub fn q_search(
                 }
             }
         }
+        table_move = Some(entry.table_move());
     }
 
     let board = *position.board();
@@ -593,7 +595,7 @@ pub fn q_search(
     let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
-        if in_check || is_capture {
+        if in_check || is_capture || Some(make_move) == table_move {
             position.make_move(make_move);
             let search_score = q_search(
                 position,
