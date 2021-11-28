@@ -356,7 +356,6 @@ impl StdEvaluator {
         for i in (1..index).rev() {
             gains[i - 1] = -i16::max(-gains[i - 1], gains[i]);
         }
-        println!("{:?}", gains);
         gains[0]
     }
 
