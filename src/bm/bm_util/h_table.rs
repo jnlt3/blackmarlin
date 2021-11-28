@@ -1,6 +1,6 @@
 use chess::{Board, ChessMove, Color, Piece, Square};
 
-const MAX_VALUE: i32 = 512;
+pub const MAX_VALUE: i32 = 512;
 const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 
