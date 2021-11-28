@@ -382,7 +382,7 @@ pub fn search<Search: SearchType>(
             */
             let do_hp = !Search::PV && is_quiet;
 
-            if do_hp && h_score <= -(h_table::MAX_VALUE as i16) * (depth as i16) / 5 {
+            if do_hp && h_score <= -(h_table::MAX_VALUE as i16) * (depth.saturating_sub(3) as i16) / 7 {
                 position.unmake_move();
                 continue;
             }
