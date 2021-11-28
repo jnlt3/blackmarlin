@@ -384,7 +384,15 @@ pub fn search<Search: SearchType>(
                 In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
                 we assume it's safe to prune this move
                 */
-                if see < max_see && eval + see + SEARCH_PARAMS.get_fp() < alpha {
+
+                let margin = if see >= max_see {
+                    max_see = see;
+                    SEARCH_PARAMS.get_fp()
+                } else {
+                    0
+                };
+
+                if see < max_see && eval + see + margin < alpha {
                     position.unmake_move();
                     continue;
                 }
