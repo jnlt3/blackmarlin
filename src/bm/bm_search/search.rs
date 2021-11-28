@@ -11,8 +11,8 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
-use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
+use super::move_gen::{MoveType, OrderedMoveGen};
 
 pub trait SearchType {
     const NM: bool;
@@ -268,7 +268,7 @@ pub fn search<Search: SearchType>(
 
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
 
-    while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
+    while let Some((make_move, move_type)) = move_gen.next(local_context.get_h_table().borrow()) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -377,26 +377,20 @@ pub fn search<Search: SearchType>(
             }
 
             /*
-            In low depth, non-PV nodes, we assume it's safe to prune a move
-            if it has very low history
-            */
-            let do_hp = !Search::PV && is_quiet;
-
-            if do_hp && h_score < -(h_table::MAX_VALUE as i16) * (depth.saturating_sub(3) as i16) / 7 {
-                position.unmake_move();
-                continue;
-            }
-
-            /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 2;
-            if do_see_prune
-                && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
-            {
-                position.unmake_move();
-                continue;
+            if do_see_prune {
+                let see = if let MoveType::Capture(see) = move_type {
+                    see
+                } else {
+                    StdEvaluator::see(board, make_move)
+                };
+                if eval + see + SEARCH_PARAMS.get_fp() < alpha {
+                    position.unmake_move();
+                    continue;
+                }
             }
 
             /*

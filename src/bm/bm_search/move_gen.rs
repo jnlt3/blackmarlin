@@ -1,4 +1,4 @@
-use chess::{Board, ChessMove, MoveGen, EMPTY};
+use chess::{Board, ChessMove, MoveGen, Piece, EMPTY};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 
@@ -10,6 +10,11 @@ use super::move_entry::MoveEntryIterator;
 
 const MAX_MOVES: usize = 218;
 const LOSING_CAPTURE: i16 = -(2_i16.pow(10));
+
+pub enum MoveType {
+    Other,
+    Capture(i16),
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -51,13 +56,13 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         }
     }
 
-    pub fn next(&mut self, hist: Ref<HistoryTable>) -> Option<ChessMove> {
+    pub fn next(&mut self, hist: Ref<HistoryTable>) -> Option<(ChessMove, MoveType)> {
         match self.gen_type {
             GenType::PvMove => {
                 self.gen_type = GenType::CalcCaptures;
                 if let Some(pv_move) = self.pv_move {
                     if self.board.legal(pv_move) {
-                        return Some(pv_move);
+                        return Some((pv_move, MoveType::Other));
                     } else {
                         self.pv_move = None;
                     }
@@ -79,7 +84,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 self.next(hist)
             }
             GenType::Captures => {
-                let mut max = LOSING_CAPTURE;
+                let mut max = 0;
                 let mut best_index = None;
                 for (index, &(_, score)) in self.queue.iter().enumerate() {
                     if score >= max {
@@ -88,7 +93,8 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 if let Some(index) = best_index {
-                    Some(self.queue.remove(index).0)
+                    let capture = self.queue.remove(index);
+                    Some((capture.0, MoveType::Capture(capture.1)))
                 } else {
                     self.gen_type = GenType::GenQuiet;
                     self.next(hist)
@@ -129,7 +135,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                             .position(|(cmp_move, _)| make_move == *cmp_move);
                         if let Some(position) = position {
                             self.queue.remove(position);
-                            return Some(make_move);
+                            return Some((make_move, MoveType::Other));
                         }
                     }
                 }
@@ -145,7 +151,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                             .position(|(cmp_move, _)| make_move == *cmp_move);
                         if let Some(position) = position {
                             self.queue.remove(position);
-                            return Some(make_move);
+                            return Some((make_move, MoveType::Other));
                         }
                     }
                 }
@@ -162,7 +168,12 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 if let Some(index) = best_index {
-                    Some(self.queue.remove(index).0)
+                    let move_type = if max != i16::MIN && max <= LOSING_CAPTURE {
+                        MoveType::Capture(max - LOSING_CAPTURE)
+                    } else {
+                        MoveType::Other
+                    };
+                    Some((self.queue.remove(index).0, move_type))
                 } else {
                     None
                 }

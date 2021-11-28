@@ -363,11 +363,11 @@ impl StdEvaluator {
             return Evaluation::new(0);
         }
         let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
-                + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
-                + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
-                + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
-                + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
-                .min(TOTAL_PHASE) as i16;
+            + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
+            + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
+            + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
+            + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
+            .min(TOTAL_PHASE) as i16;
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
@@ -375,10 +375,7 @@ impl StdEvaluator {
         #[cfg(feature = "nnue")]
         {
             return Evaluation::new(
-                self.nnue
-                    .feed_forward(board, (phase as usize / 12).min(1))
-                    * turn
-                    + NNUE_TEMPO,
+                self.nnue.feed_forward(board, (phase as usize / 12).min(1)) * turn + NNUE_TEMPO,
             );
         }
         reset_trace!(&mut self.trace);
@@ -400,7 +397,7 @@ impl StdEvaluator {
     }
 
     //TODO: investigate tapered evaluation
-    fn piece_pts(piece: Piece) -> i16 {
+    const fn piece_pts(piece: Piece) -> i16 {
         match piece {
             Piece::Pawn => 100,
             Piece::Knight => 300,
