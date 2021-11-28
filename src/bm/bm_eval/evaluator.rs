@@ -1,9 +1,11 @@
+use std::str::FromStr;
+
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::eval_consts::*;
 #[cfg(feature = "nnue")]
 use crate::bm::nnue::Nnue;
 use arrayvec::ArrayVec;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_PIECES, EMPTY};
+use chess::{BitBoard, Board, ChessMove, Color, Piece, Square, ALL_FILES, ALL_PIECES, EMPTY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
@@ -235,6 +237,31 @@ macro_rules! trace_psqt {
     };
 }
 
+#[test]
+fn test_see() {
+    let board = Board::from_str("8/2r1n3/5P2/8/8/7k/8/7K w - - 0 1").unwrap();
+    let value = StdEvaluator::see(board, ChessMove::new(Square::F6, Square::E7, None));
+    assert_eq!(value, 200);
+
+    let board = Board::from_str("2r1n3/5P2/8/8/8/7k/8/7K w - - 0 1").unwrap();
+    let value = StdEvaluator::see(
+        board,
+        ChessMove::new(Square::F7, Square::E8, Some(Piece::Queen)),
+    );
+    assert_eq!(value, 200);
+
+    let board = Board::from_str("4q3/2r1n3/5P2/8/8/B6k/8/7K w - - 0 1").unwrap();
+    let value = StdEvaluator::see(board, ChessMove::new(Square::F6, Square::E7, None));
+    assert_eq!(value, 300);
+
+    let board = Board::from_str("5n2/3n2P1/8/8/1Q6/7k/8/7K w - - 0 1").unwrap();
+    let value = StdEvaluator::see(
+        board,
+        ChessMove::new(Square::B4, Square::E8, Some(Piece::Queen)),
+    );
+    assert_eq!(value, 800);
+}
+
 #[derive(Debug, Clone)]
 pub struct StdEvaluator {
     #[cfg(feature = "trace")]
@@ -258,11 +285,15 @@ impl StdEvaluator {
         let mut index = 0;
         let mut gains = [0_i16; 16];
         let target_square = make_move.get_dest();
+        let target_bb = BitBoard::from_square(target_square);
         gains[0] = if let Some(piece) = board.piece_on(target_square) {
             Self::piece_pts(piece)
         } else {
             0
         };
+        if let Some(promo) = make_move.get_promotion() {
+            gains[0] += Self::piece_pts(promo) - Self::piece_pts(Piece::Pawn);
+        }
         'outer: for i in 1..16 {
             board = board.make_move_new(make_move);
             gains[i] = Self::piece_pts(board.piece_on(target_square).unwrap()) - gains[i - 1];
@@ -270,69 +301,53 @@ impl StdEvaluator {
             let defenders = *board.color_combined(color);
             let blockers = *board.combined();
             for piece in &ALL_PIECES {
-                match piece {
+                let mut promotion = None;
+                let mut potential = match piece {
                     Piece::Pawn => {
-                        let mut potential =
-                            chess::get_pawn_attacks(target_square, !color, blockers)
-                                & defenders
-                                & board.pieces(Piece::Pawn);
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
+                        let rank = match !color {
+                            Color::White => chess::get_rank(chess::Rank::Eighth),
+                            Color::Black => chess::get_rank(chess::Rank::First),
+                        };
+                        if rank & target_bb != EMPTY {
+                            promotion = Some(Piece::Queen);
                         }
+
+                        chess::get_pawn_attacks(target_square, !color, blockers)
+                            & defenders
+                            & board.pieces(Piece::Pawn)
                     }
                     Piece::Knight => {
-                        let mut potential = chess::get_knight_moves(target_square)
+                        chess::get_knight_moves(target_square)
                             & board.pieces(Piece::Knight)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
                     Piece::Bishop => {
-                        let mut potential = chess::get_bishop_moves(target_square, blockers)
+                        chess::get_bishop_moves(target_square, blockers)
                             & defenders
-                            & board.pieces(Piece::Bishop);
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & board.pieces(Piece::Bishop)
                     }
                     Piece::Rook => {
-                        let mut potential = chess::get_rook_moves(target_square, blockers)
+                        chess::get_rook_moves(target_square, blockers)
                             & board.pieces(Piece::Rook)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
                     Piece::Queen => {
-                        let mut potential = chess::get_rook_moves(target_square, blockers)
+                        chess::get_rook_moves(target_square, blockers)
                             & chess::get_bishop_moves(target_square, blockers)
                             & board.pieces(Piece::Queen)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
                     Piece::King => {
-                        let mut potential = chess::get_king_moves(target_square)
-                            & board.pieces(Piece::King)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                        chess::get_king_moves(target_square) & board.pieces(Piece::King) & defenders
                     }
+                };
+                if potential != EMPTY {
+                    let attacker = potential.next().unwrap();
+                    if promotion.is_some() {
+                        gains[i] += Self::piece_pts(Piece::Queen) - Self::piece_pts(Piece::Pawn);
+                    }
+                    make_move = ChessMove::new(attacker, target_square, promotion);
+                    continue 'outer;
                 }
             }
             index = i;
@@ -341,6 +356,7 @@ impl StdEvaluator {
         for i in (1..index).rev() {
             gains[i - 1] = -i16::max(-gains[i - 1], gains[i]);
         }
+        println!("{:?}", gains);
         gains[0]
     }
 
@@ -363,11 +379,11 @@ impl StdEvaluator {
             return Evaluation::new(0);
         }
         let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
-                + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
-                + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
-                + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
-                + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
-                .min(TOTAL_PHASE) as i16;
+            + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
+            + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
+            + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
+            + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
+            .min(TOTAL_PHASE) as i16;
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
@@ -375,10 +391,7 @@ impl StdEvaluator {
         #[cfg(feature = "nnue")]
         {
             return Evaluation::new(
-                self.nnue
-                    .feed_forward(board, (phase as usize / 12).min(1))
-                    * turn
-                    + NNUE_TEMPO,
+                self.nnue.feed_forward(board, (phase as usize / 12).min(1)) * turn + NNUE_TEMPO,
             );
         }
         reset_trace!(&mut self.trace);
