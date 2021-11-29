@@ -275,8 +275,6 @@ pub fn search<Search: SearchType>(
         move_exists = true;
         let is_capture = board.piece_on(make_move.get_dest()).is_some();
         let is_promotion = make_move.get_promotion().is_some();
-        position.make_move(make_move);
-        let gives_check = *position.board().checkers() != EMPTY;
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
         let h_score = local_context.get_h_table().borrow().get(
@@ -286,11 +284,6 @@ pub fn search<Search: SearchType>(
         );
 
         let mut extension = 0;
-
-        if gives_check {
-            extension = 1;
-        }
-
         let mut score;
         if moves_seen == 0 {
             /*
@@ -311,7 +304,6 @@ pub fn search<Search: SearchType>(
                 {
                     let reduced_plies = ply + depth / 2 - 1;
                     let s_beta = entry.score() - depth as i16 * 3;
-                    position.unmake_move();
                     local_context.set_skip_move(ply, make_move);
                     let (_, s_score) = search::<Search::Zw>(
                         position,
@@ -334,9 +326,14 @@ pub fn search<Search: SearchType>(
                         */
                         return (Some(make_move), s_beta);
                     }
-                    position.make_move(make_move);
                 }
             }
+            position.make_move(make_move);
+            let gives_check = *position.board().checkers() != EMPTY;
+            if gives_check {
+                extension += 1;
+            }
+
             /*
             First moves don't get reduced
             */
@@ -352,27 +349,12 @@ pub fn search<Search: SearchType>(
             score = search_score << Next;
         } else {
             /*
-            If a move is placed late in move ordering, we can safely prune it based on a depth related margin
-            */
-            if SEARCH_PARAMS.do_lmp()
-                && is_quiet
-                && quiets.len()
-                    >= shared_context
-                        .get_lmp_lookup()
-                        .get((depth + extension) as usize, improving as usize)
-            {
-                position.unmake_move();
-                continue;
-            }
-
-            /*
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
             let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth == 1;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
-                position.unmake_move();
                 continue;
             }
 
@@ -383,7 +365,6 @@ pub fn search<Search: SearchType>(
             let do_hp = !Search::PV && is_quiet && depth <= 8 && eval <= alpha;
 
             if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
-                position.unmake_move();
                 continue;
             }
 
@@ -394,6 +375,24 @@ pub fn search<Search: SearchType>(
             let do_see_prune = !Search::PV && !in_check && depth <= 2;
             if do_see_prune
                 && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
+            {
+                continue;
+            }
+
+            position.make_move(make_move);
+            let gives_check = *position.board().checkers() != EMPTY;
+            if gives_check {
+                extension += 1;
+            }
+            /*
+            If a move is placed late in move ordering, we can safely prune it based on a depth related margin
+            */
+            if SEARCH_PARAMS.do_lmp()
+                && is_quiet
+                && quiets.len()
+                    >= shared_context
+                        .get_lmp_lookup()
+                        .get((depth + extension) as usize, improving as usize)
             {
                 position.unmake_move();
                 continue;
