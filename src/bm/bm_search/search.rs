@@ -6,6 +6,7 @@ use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
+use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
@@ -375,12 +376,22 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_see_prune = !Search::PV && !in_check && depth <= 2;
+            /*
+            In low depth, non-PV nodes, we assume it's safe to prune a move
+            if it has very low history
+            */
+            let do_hp = !Search::PV && is_quiet && depth <= 8 && eval <= alpha;
+
+            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+                position.unmake_move();
+                continue;
+            }
 
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
+            let do_see_prune = !Search::PV && !in_check && depth <= 2;
             if do_see_prune
                 && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
             {
