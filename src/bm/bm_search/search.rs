@@ -380,9 +380,9 @@ pub fn search<Search: SearchType>(
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
-            let do_hp = !Search::PV && is_quiet && depth <= 10 && eval <= alpha;
+            let do_hp = !Search::PV && is_quiet && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 100) {
+            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
                 position.unmake_move();
                 continue;
             }
