@@ -22,7 +22,7 @@ impl Position {
     }
 
     #[inline]
-    pub fn forced_draw(&self, depth: u32) -> bool {
+    pub fn forced_draw(&self, ply: u32) -> bool {
         if self.evaluator.insufficient_material(self.board()) || self.half_ply() >= 100 {
             return true;
         }
@@ -31,13 +31,13 @@ impl Position {
             .iter()
             .rev()
             .skip(1)
-            .take(depth as usize)
+            .take(ply as usize)
             .any(|board| board.0.get_hash() == hash)
             || self
                 .boards
                 .iter()
                 .rev()
-                .skip(depth as usize + 1)
+                .skip(ply as usize + 1)
                 .filter(|board| board.0.get_hash() == hash)
                 .count()
                 >= 2
