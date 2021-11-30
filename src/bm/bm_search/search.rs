@@ -400,7 +400,7 @@ pub fn search<Search: SearchType>(
             let in_check_e3 = in_check as i32 * 736;
             let tactical_e3 = (is_capture || is_promotion) as i32 * 788;
 
-            let scale_e5 = eval.raw() as i32 * 50 - h_score as i32 * 6 + see as i32 * 83;
+            let scale_e5 = eval.raw() as i32 * 500 - h_score as i32 * 56 + see as i32 * 830;
             let depth_e3 = depth as i32 * 809;
             let bias_e3 = 728;
             let alpha_e3 = alpha.raw() as i32 * -10;
