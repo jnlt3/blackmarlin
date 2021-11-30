@@ -403,8 +403,11 @@ pub fn search<Search: SearchType>(
             let scale_e5 = eval.raw() as i32 * 50 - h_score as i32 * 6 + see as i32 * 83;
             let depth_e3 = depth as i32 * 809;
             let bias_e3 = 728;
+            let alpha_e3 = alpha.raw() as i32 * -10;
 
-            if !Search::PV && in_check_e3 + tactical_e3 + scale_e5 / 100 + depth_e3 + bias_e3 < 1000 {
+            if !Search::PV
+                && in_check_e3 + tactical_e3 + scale_e5 / 100 + depth_e3 + bias_e3 + alpha_e3 < 0
+            {
                 position.unmake_move();
                 continue;
             }
