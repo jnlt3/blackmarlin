@@ -384,8 +384,6 @@ pub fn search<Search: SearchType>(
             if gives_check {
                 extension += 1;
             }
-
-            let depth = depth + extension;
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
@@ -394,7 +392,7 @@ pub fn search<Search: SearchType>(
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
-                        .get(depth as usize, improving as usize)
+                        .get((depth + extension) as usize, improving as usize)
             {
                 position.unmake_move();
                 continue;
@@ -443,7 +441,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                ply + lmr_depth,
+                ply + lmr_depth + extension,
                 zw - 1,
                 zw,
             );
@@ -459,7 +457,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    ply + depth,
+                    ply + depth + extension,
                     zw - 1,
                     zw,
                 );
@@ -474,7 +472,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    ply + depth,
+                    ply + depth + extension,
                     beta >> Next,
                     alpha >> Next,
                 );
