@@ -404,7 +404,7 @@ pub fn search<Search: SearchType>(
             let depth_e3 = depth as i32 * 809;
             let bias_e3 = 728;
 
-            if !Search::PV && in_check_e3 + tactical_e3 + scale_e5 / 100 + depth_e3 + bias_e3 < 0 {
+            if !Search::PV && in_check_e3 + tactical_e3 + scale_e5 / 100 + depth_e3 + bias_e3 < 1000 {
                 position.unmake_move();
                 continue;
             }
