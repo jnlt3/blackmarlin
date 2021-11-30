@@ -92,6 +92,12 @@ impl Position {
 
     pub fn get_eval(&mut self) -> Evaluation {
         let board = *self.board();
-        self.evaluator.evaluate(&board)
+        let eval = self.evaluator.evaluate(&board);
+        if !eval.is_mate() {
+            let eval = eval.raw() as i32 * (200 - self.half_ply) as i32 / 200;
+            Evaluation::new(eval as i16)
+        } else {
+            eval
+        }
     }
 }
