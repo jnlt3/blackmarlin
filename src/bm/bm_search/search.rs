@@ -368,14 +368,13 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            let see = StdEvaluator::see(board, make_move);
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 2;
-            if do_see_prune
-                && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
-            {
+            if do_see_prune && eval + see + SEARCH_PARAMS.get_fp() < alpha {
                 continue;
             }
 
@@ -394,6 +393,18 @@ pub fn search<Search: SearchType>(
                         .get_lmp_lookup()
                         .get((depth + extension) as usize, improving as usize)
             {
+                position.unmake_move();
+                continue;
+            }
+
+            let in_check_e3 = in_check as i32 * 736;
+            let tactical_e3 = (is_capture || is_promotion) as i32 * 788;
+
+            let scale_e5 = eval.raw() as i32 * 50 - h_score as i32 * 6 + see as i32 * 83;
+            let depth_e3 = depth as i32 * 809;
+            let bias_e3 = 728;
+
+            if !Search::PV && in_check_e3 + tactical_e3 + scale_e5 / 100 + depth_e3 + bias_e3 < 0 {
                 position.unmake_move();
                 continue;
             }
