@@ -375,10 +375,7 @@ pub fn search<Search: SearchType>(
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune {
                 let see = StdEvaluator::see(board, make_move);
-                if depth <= 2 && eval + see + SEARCH_PARAMS.get_fp() < alpha {
-                    continue;
-                }
-                if see < -70 * (depth as i16) {
+                if eval + see + 70 * (depth as i16) < alpha {
                     continue;
                 }
             }
