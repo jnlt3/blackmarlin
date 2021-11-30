@@ -378,7 +378,7 @@ pub fn search<Search: SearchType>(
                 if depth <= 2 && eval + see + SEARCH_PARAMS.get_fp() < alpha {
                     continue;
                 }
-                if see < -50 * (depth as i16) {
+                if see < -70 * (depth as i16) {
                     continue;
                 }
             }
