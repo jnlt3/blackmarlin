@@ -384,6 +384,8 @@ pub fn search<Search: SearchType>(
             if gives_check {
                 extension += 1;
             }
+
+            let depth = depth + extension;
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
@@ -392,7 +394,7 @@ pub fn search<Search: SearchType>(
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
-                        .get((depth + extension) as usize, improving as usize)
+                        .get(depth as usize, improving as usize)
             {
                 position.unmake_move();
                 continue;
@@ -432,7 +434,7 @@ pub fn search<Search: SearchType>(
                 reduction = reduction.min(depth as i16 - 1).max(1);
             }
 
-            let lmr_ply = (target_ply as i16 - reduction).max(0) as u32;
+            let lmr_depth = (depth as i16 - reduction).max(1) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
@@ -441,7 +443,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                lmr_ply + extension,
+                ply + lmr_depth,
                 zw - 1,
                 zw,
             );
@@ -451,13 +453,13 @@ pub fn search<Search: SearchType>(
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
-            if lmr_ply < target_ply && score > alpha {
+            if lmr_depth < target_ply && score > alpha {
                 let (_, zw_score) = search::<Search::Zw>(
                     position,
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply + extension,
+                    ply + depth,
                     zw - 1,
                     zw,
                 );
@@ -472,7 +474,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply + extension,
+                    ply + depth,
                     beta >> Next,
                     alpha >> Next,
                 );
