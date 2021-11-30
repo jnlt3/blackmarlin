@@ -429,7 +429,7 @@ pub fn search<Search: SearchType>(
                 if !is_quiet {
                     reduction -= 1;
                 }
-                reduction = reduction.min(depth as i16 - 1).max(1);
+                reduction = reduction.min(depth as i16 - 2).max(1);
             }
 
             let lmr_depth = (depth as i16 - reduction).max(1) as u32;
