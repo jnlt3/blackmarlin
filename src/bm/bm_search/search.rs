@@ -406,6 +406,7 @@ pub fn search<Search: SearchType>(
             let alpha_e3 = alpha.raw() as i32 * -10;
 
             if !Search::PV
+                && eval.raw().abs() < 1000
                 && in_check_e3 + tactical_e3 + scale_e5 / 100 + depth_e3 + bias_e3 + alpha_e3
                     < -2944
             {
