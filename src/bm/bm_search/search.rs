@@ -397,19 +397,18 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let in_check_e2 = in_check as i32 * 736;
-            let tactical_e2 = (is_capture || is_promotion) as i32 * 788;
+            let in_check_e2 = in_check as i32 * 454;
+            let tactical_e2 = (is_capture || is_promotion) as i32 * 494;
 
-            let scale_e5 = eval.raw() as i32 * 500 - h_score as i32 * 56 + see as i32 * 830;
-            let depth_e2 = depth as i32 * 809;
-            let bias_e2 = 728;
-            let alpha_e2 = alpha.raw() as i32 * -10;
+            let scale_e4 = -eval.raw() as i32 * 65
+                + h_score as i32 * 154
+                + see as i32 * 21
+                + alpha.raw() as i32 * 48;
+            let depth_e2 = depth as i32 * 498;
+            let bias_e2 = 476;
 
-            if !Search::PV
-                && eval.raw().abs() < 1000
-                && in_check_e2 + tactical_e2 + scale_e5 / 1000 + depth_e2 + bias_e2 + alpha_e2
-                    < -294
-            {
+            let prune_value = in_check_e2 + tactical_e2 + scale_e4 / 100 + depth_e2 + bias_e2;
+            if !Search::PV && eval.raw().abs() < 1000 && depth <= 5 && prune_value < -294 {                
                 position.unmake_move();
                 continue;
             }
