@@ -427,7 +427,7 @@ pub fn search<Search: SearchType>(
                 if is_quiet {
                     reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
                 } else {
-                    reduction -= ch_score / SEARCH_PARAMS.get_h_reduce_div();
+                    reduction -= (ch_score / SEARCH_PARAMS.get_h_reduce_div()).max(0);
                 }
                 if Search::PV {
                     reduction -= 1;
