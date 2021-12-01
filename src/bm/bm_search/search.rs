@@ -350,6 +350,7 @@ pub fn search<Search: SearchType>(
         } else {
             if !Search::PV
                 && depth <= 8
+                && is_quiet
                 && !local_context
                     .get_p_table()
                     .borrow()
@@ -487,7 +488,7 @@ pub fn search<Search: SearchType>(
                 );
                 score = search_score << Next;
             }
-            if depth <= 8 {
+            if !Search::PV && depth <= 8 && is_quiet {
                 local_context.get_p_table().borrow_mut().visit(
                     eval,
                     alpha,

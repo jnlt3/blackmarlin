@@ -19,7 +19,7 @@ impl QuietPruneTable {
     pub fn new() -> Self {
         let stats = Stats {
             success: 100,
-            visits: 100,
+            visits: 1,
         };
         Self {
             table: [[[[stats; EVAL_SEGMENTS]; HISTORY_SEGMENTS]; IN_CHECK_SEGMENTS];
@@ -61,7 +61,9 @@ impl QuietPruneTable {
         let eval_index = ((eval - alpha).raw() / EVAL_DIV + (EVAL_SEGMENTS / 2) as i16)
             .max(0)
             .min(EVAL_SEGMENTS as i16 - 1) as usize;
-        let history_index = (history / HISTORY_DIV + (HISTORY_SEGMENTS / 2) as i16) as usize;
+        let history_index = (history / HISTORY_DIV + (HISTORY_SEGMENTS / 2) as i16)
+            .max(0)
+            .min(HISTORY_SEGMENTS as i16 - 1) as usize;
         let in_check_index = in_check as usize;
         let stats = &self.table[depth - 1][in_check_index][history_index][eval_index];
         /*
