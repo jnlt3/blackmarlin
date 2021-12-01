@@ -22,7 +22,7 @@ impl HistoryTable {
         self.table[piece_index][to_index]
     }
 
-    pub fn cutoff(&mut self, board: &Board, make_move: ChessMove, quiets: &[ChessMove], amt: u32) {
+    pub fn cutoff(&mut self, board: &Board, make_move: ChessMove, fails: &[ChessMove], amt: u32) {
         let piece = board.piece_on(make_move.get_source()).unwrap();
         let index = piece_index(board.side_to_move(), piece);
         let to_index = make_move.get_dest().to_index();
@@ -35,7 +35,7 @@ impl HistoryTable {
 
         self.table[index][to_index] += increment;
 
-        for &quiet in quiets {
+        for &quiet in fails {
             let piece = board.piece_on(quiet.get_source()).unwrap();
             let index = piece_index(board.side_to_move(), piece);
             let to_index = quiet.get_dest().to_index();

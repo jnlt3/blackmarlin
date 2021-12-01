@@ -267,6 +267,7 @@ pub fn search<Search: SearchType>(
     let mut move_exists = false;
 
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
+    let mut captures = ArrayVec::<ChessMove, 64>::new();
 
     while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
         if Some(make_move) == skip_move {
@@ -278,6 +279,12 @@ pub fn search<Search: SearchType>(
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
         let h_score = local_context.get_h_table().borrow().get(
+            board.side_to_move(),
+            board.piece_on(make_move.get_source()).unwrap(),
+            make_move.get_dest(),
+        );
+
+        let ch_score = local_context.get_ch_table().borrow().get(
             board.side_to_move(),
             board.piece_on(make_move.get_source()).unwrap(),
             make_move.get_dest(),
@@ -419,14 +426,13 @@ pub fn search<Search: SearchType>(
                 */
                 if is_quiet {
                     reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
+                } else {
+                    reduction -= ch_score / SEARCH_PARAMS.get_h_reduce_div();
                 }
                 if Search::PV {
                     reduction -= 1;
                 };
                 if improving {
-                    reduction -= 1;
-                }
-                if !is_quiet {
                     reduction -= 1;
                 }
                 reduction = reduction.min(depth as i16 - 1).max(0);
@@ -497,6 +503,11 @@ pub fn search<Search: SearchType>(
                             .get_h_table()
                             .borrow_mut()
                             .cutoff(&board, make_move, &quiets, depth);
+                    } else {
+                        local_context
+                            .get_ch_table()
+                            .borrow_mut()
+                            .cutoff(&board, make_move, &captures, depth);
                     }
 
                     let analysis = Analysis::new(depth, LowerBound, score, make_move);
@@ -506,7 +517,11 @@ pub fn search<Search: SearchType>(
             }
             alpha = score;
         }
-        if !is_capture && !quiets.is_full() {
+        if is_capture {
+            if !captures.is_full() {
+                captures.push(make_move);
+            }
+        } else if !quiets.is_full() {
             quiets.push(make_move);
         }
     }
