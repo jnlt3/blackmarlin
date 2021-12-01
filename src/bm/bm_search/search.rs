@@ -278,17 +278,19 @@ pub fn search<Search: SearchType>(
         let is_promotion = make_move.get_promotion().is_some();
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
-        let h_score = local_context.get_h_table().borrow().get(
-            board.side_to_move(),
-            board.piece_on(make_move.get_source()).unwrap(),
-            make_move.get_dest(),
-        );
-
-        let ch_score = local_context.get_ch_table().borrow().get(
-            board.side_to_move(),
-            board.piece_on(make_move.get_source()).unwrap(),
-            make_move.get_dest(),
-        );
+        let h_score = if is_capture {
+            local_context.get_ch_table().borrow().get(
+                board.side_to_move(),
+                board.piece_on(make_move.get_source()).unwrap(),
+                make_move.get_dest(),
+            )
+        } else {
+            local_context.get_h_table().borrow().get(
+                board.side_to_move(),
+                board.piece_on(make_move.get_source()).unwrap(),
+                make_move.get_dest(),
+            )
+        };
 
         let mut extension = 0;
         let mut score;
@@ -369,7 +371,7 @@ pub fn search<Search: SearchType>(
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
-            let do_hp = !Search::PV && is_quiet && depth <= 8 && eval <= alpha;
+            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
             if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
                 continue;
@@ -424,11 +426,8 @@ pub fn search<Search: SearchType>(
                 in the history table. If history score is high, we reduce
                 less and if history score is low we reduce more.
                 */
-                if is_quiet {
-                    reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
-                } else {
-                    reduction -= ch_score / SEARCH_PARAMS.get_h_reduce_div();
-                }
+
+                reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
                 if Search::PV {
                     reduction -= 1;
                 };
