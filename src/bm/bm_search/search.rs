@@ -348,6 +348,14 @@ pub fn search<Search: SearchType>(
             );
             score = search_score << Next;
         } else {
+            if depth <= 8
+                && !local_context
+                    .get_p_table()
+                    .borrow()
+                    .predict_success(eval, alpha, h_score, in_check, depth, 5)
+            {
+                continue;
+            }
             /*
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
@@ -477,6 +485,16 @@ pub fn search<Search: SearchType>(
                     alpha >> Next,
                 );
                 score = search_score << Next;
+            }
+            if depth <= 8 {
+                local_context.get_p_table().borrow_mut().visit(
+                    eval,
+                    alpha,
+                    h_score,
+                    in_check,
+                    depth,
+                    score > alpha,
+                );
             }
         }
 

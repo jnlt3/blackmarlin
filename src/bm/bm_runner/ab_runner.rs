@@ -15,6 +15,7 @@ use crate::bm::bm_search::threshold::Threshold;
 use crate::bm::bm_util::h_table::HistoryTable;
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
+use crate::bm::bm_util::prune_table::QuietPruneTable;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
 
@@ -198,6 +199,7 @@ pub struct LocalContext {
     skip_moves: Vec<Option<ChessMove>>,
     sel_depth: u32,
     h_table: RefCell<HistoryTable>,
+    p_table: RefCell<QuietPruneTable>,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
@@ -234,6 +236,11 @@ impl LocalContext {
     #[inline]
     pub fn get_h_table(&self) -> &RefCell<HistoryTable> {
         &self.h_table
+    }
+
+    #[inline]
+    pub fn get_p_table(&self) -> &RefCell<QuietPruneTable> {
+        &self.p_table
     }
 
     #[inline]
@@ -435,6 +442,7 @@ impl AbRunner {
             local_context: LocalContext {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 h_table: RefCell::new(HistoryTable::new()),
+                p_table: RefCell::new(QuietPruneTable::new()),
                 killer_moves: vec![],
                 threat_moves: vec![],
                 tt_hits: 0,
