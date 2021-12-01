@@ -348,7 +348,8 @@ pub fn search<Search: SearchType>(
             );
             score = search_score << Next;
         } else {
-            if depth <= 8
+            if !Search::PV
+                && depth <= 8
                 && !local_context
                     .get_p_table()
                     .borrow()
