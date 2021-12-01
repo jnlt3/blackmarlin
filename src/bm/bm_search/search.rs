@@ -348,14 +348,14 @@ pub fn search<Search: SearchType>(
             );
             score = search_score << Next;
         } else {
-            if !Search::PV
-                && depth <= 8
+            let likely_fail = depth <= 8
                 && is_quiet
                 && !local_context
                     .get_p_table()
                     .borrow()
-                    .predict_success(eval, alpha, h_score, in_check, depth, 5)
-            {
+                    .predict_success(eval, alpha, h_score, in_check, depth, 5);
+
+            if !Search::PV && likely_fail {
                 continue;
             }
             /*
