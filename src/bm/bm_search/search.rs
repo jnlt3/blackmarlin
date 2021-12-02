@@ -371,9 +371,16 @@ pub fn search<Search: SearchType>(
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            let h_prune_depth = if is_capture { 5 } else { 8 };
+
+            let do_hp = !Search::PV && depth <= h_prune_depth && eval <= alpha;
+
+            if do_hp
+                && (h_score as i32)
+                    < (-h_table::MAX_VALUE * ((depth * depth) as i32)
+                        / (h_prune_depth * h_prune_depth) as i32)
+            {
                 continue;
             }
 
@@ -426,8 +433,8 @@ pub fn search<Search: SearchType>(
                 in the history table. If history score is high, we reduce
                 less and if history score is low we reduce more.
                 */
-
                 reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
+
                 if Search::PV {
                     reduction -= 1;
                 };
