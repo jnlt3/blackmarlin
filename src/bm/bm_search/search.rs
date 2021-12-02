@@ -292,6 +292,8 @@ pub fn search<Search: SearchType>(
             )
         };
 
+        let strong_move = h_score > (h_table::MAX_VALUE * 2 / 3) as i16 && eval > beta;
+
         let mut extension = 0;
         let mut score;
         if moves_seen == 0 {
@@ -398,6 +400,7 @@ pub fn search<Search: SearchType>(
             */
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
+                && !strong_move
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
