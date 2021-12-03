@@ -357,11 +357,16 @@ pub fn search<Search: SearchType>(
             );
             score = search_score << Next;
         } else {
+            let lmr_reduce = shared_context
+                .get_lmr_lookup()
+                .get(depth as usize, moves_seen) as i16;
+            let lmr_depth = (depth as i16 - lmr_reduce).max(0) as u32;
+
             /*
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth == 1;
+            let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && lmr_depth == 1;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
                 continue;
@@ -371,9 +376,11 @@ pub fn search<Search: SearchType>(
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
+            let do_hp = !Search::PV && lmr_depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            if do_hp
+                && (h_score as i32) < (-h_table::MAX_VALUE * ((lmr_depth * lmr_depth) as i32) / 64)
+            {
                 continue;
             }
 
@@ -381,7 +388,7 @@ pub fn search<Search: SearchType>(
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_see_prune = !Search::PV && !in_check && depth <= 2;
+            let do_see_prune = !Search::PV && !in_check && lmr_depth <= 2;
             if do_see_prune
                 && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
             {
@@ -417,9 +424,7 @@ pub fn search<Search: SearchType>(
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
-                reduction = shared_context
-                    .get_lmr_lookup()
-                    .get(depth as usize, moves_seen) as i16;
+                reduction = lmr_reduce;
 
                 /*
                 If a move is quiet, we already have information on this move
