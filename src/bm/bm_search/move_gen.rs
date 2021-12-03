@@ -133,7 +133,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         }
                     }
                 }
-                self.gen_type = GenType::ThreatMove;
+                self.gen_type = GenType::Quiet;
                 self.next(hist)
             }
             GenType::ThreatMove => {
