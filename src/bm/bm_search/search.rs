@@ -368,16 +368,6 @@ pub fn search<Search: SearchType>(
             }
 
             /*
-            In low depth, non-PV nodes, we assume it's safe to prune a move
-            if it has very low history
-            */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
-
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
-                continue;
-            }
-
-            /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
@@ -392,6 +382,17 @@ pub fn search<Search: SearchType>(
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {
                 extension += 1;
+            }
+
+            /*
+            In low depth, non-PV nodes, we assume it's safe to prune a move
+            if it has very low history
+            */
+            let do_hp = !Search::PV && !gives_check && depth <= 8 && eval <= alpha;
+
+            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+                position.unmake_move();
+                continue;
             }
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
