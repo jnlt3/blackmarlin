@@ -368,7 +368,7 @@ pub fn search<Search: SearchType>(
             }
 
             /*
-            In low depth, non-PV nodes, we assume it's safe to prune a move
+            At low depth, in non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
@@ -377,6 +377,10 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            /*
+            At low depth, in non-PV nodes, we assume it's safe to prune a move
+            if evaluation "corrected" by history doesn't beat alpha
+            */
             let do_hist_fut = !Search::PV && !in_check && depth <= 2;
             if do_hist_fut && eval + h_score + SEARCH_PARAMS.get_fp() < alpha {
                 continue;
