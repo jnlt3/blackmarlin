@@ -373,7 +373,10 @@ pub fn search<Search: SearchType>(
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            if skip_move.is_none()
+                && do_hp
+                && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64)
+            {
                 continue;
             }
 
