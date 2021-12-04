@@ -1,6 +1,2 @@
 .gitignore
 target/
-flamegraph.svg
-out/
-data/
-networks/
