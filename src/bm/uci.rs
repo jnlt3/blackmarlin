@@ -68,6 +68,17 @@ const POSITIONS: &[&str] = &[
     "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93",
 ];
 
+macro_rules! add_instruction {
+    ($instruction:tt, $name:expr) => {
+        #[cfg(target_feature = $instruction)]
+        {
+            let instruction: &str = $instruction;
+            name += " ";
+            name += instruction;
+        }
+    };
+}
+
 pub struct UciAdapter {
     bm_runner: Arc<Mutex<AbRunner>>,
     time_manager: Arc<TimeManager>,
@@ -93,10 +104,16 @@ impl UciAdapter {
     }
 
     pub fn input(&mut self, input: String) -> bool {
+        let mut name = "Black Marlin".to_string();
+        add_instruction!("ssse3", name);
+        add_instruction!("avx", name);
+        add_instruction!("avx2", name);
+        add_instruction!("avx512f", name);
+        add_instruction!("popcnt", name);
         let command = UciCommand::new(&input);
         match command {
             UciCommand::Uci => {
-                println!("id name Black Marlin {}", VERSION);
+                println!("id name {} {}", name, VERSION);
                 println!("id author Doruk S.");
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
