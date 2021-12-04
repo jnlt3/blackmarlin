@@ -350,20 +350,21 @@ impl AbRunner {
                     if depth > 1 && shared_context.abort_absolute(depth, nodes) {
                         break 'outer;
                     }
-                    if best_move.is_none() {
-                        best_move = make_move;
-                    }
                     eval = Some(score);
                     local_context.window.set(score);
                     local_context.eval = score;
-                    shared_context.time_manager.deepen(
-                        thread,
-                        depth,
-                        nodes,
-                        local_context.eval,
-                        best_move.unwrap(),
-                        search_start.elapsed(),
-                    );
+                    let mut break_aspiration = false;
+                    if best_move.is_none() || (score > alpha && score < beta) || score.is_mate() {
+                        best_move = make_move;
+                        break_aspiration = true;
+                    } else {
+                        fail_cnt += 1;
+                        if score <= alpha {
+                            local_context.window.fail_low();
+                        } else {
+                            local_context.window.fail_high();
+                        }
+                    }
                     if let Some(eval) = eval {
                         if let Some(best_move) = best_move {
                             let best_move = best_move;
@@ -390,16 +391,16 @@ impl AbRunner {
                             );
                         }
                     }
-                    if (score > alpha && score < beta) || score.is_mate() {
-                        best_move = make_move;
+                    shared_context.time_manager.deepen(
+                        thread,
+                        depth,
+                        nodes,
+                        local_context.eval,
+                        best_move.unwrap(),
+                        search_start.elapsed(),
+                    );
+                    if break_aspiration {
                         break;
-                    } else {
-                        fail_cnt += 1;
-                        if score <= alpha {
-                            local_context.window.fail_low();
-                        } else {
-                            local_context.window.fail_high();
-                        }
                     }
                 }
                 debugger.push(SearchStats::new(
