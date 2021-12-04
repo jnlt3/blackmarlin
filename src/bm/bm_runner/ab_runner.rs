@@ -350,11 +350,48 @@ impl AbRunner {
                     if depth > 1 && shared_context.abort_absolute(depth, nodes) {
                         break 'outer;
                     }
+                    if best_move.is_none() {
+                        best_move = make_move;
+                    }
+                    eval = Some(score);
                     local_context.window.set(score);
                     local_context.eval = score;
+                    shared_context.time_manager.deepen(
+                        thread,
+                        depth,
+                        nodes,
+                        local_context.eval,
+                        best_move.unwrap(),
+                        search_start.elapsed(),
+                    );
+                    if let Some(eval) = eval {
+                        if let Some(best_move) = best_move {
+                            let best_move = best_move;
+                            let mut pv = vec![best_move];
+                            position.make_move(best_move);
+                            while let Some(analysis) = shared_context.t_table.get(position.board())
+                            {
+                                pv.push(analysis.table_move());
+                                position.make_move(analysis.table_move());
+                                if pv.len() > depth as usize {
+                                    break;
+                                }
+                            }
+                            for _ in 0..pv.len() {
+                                position.unmake_move()
+                            }
+                            gui_info.print_info(
+                                local_context.sel_depth,
+                                depth,
+                                eval,
+                                start_time.elapsed(),
+                                nodes,
+                                &pv,
+                            );
+                        }
+                    }
                     if (score > alpha && score < beta) || score.is_mate() {
                         best_move = make_move;
-                        eval = Some(score);
                         break;
                     } else {
                         fail_cnt += 1;
@@ -371,41 +408,7 @@ impl AbRunner {
                     eval,
                     best_move,
                 ));
-                if let Some(eval) = eval {
-                    if let Some(best_move) = best_move {
-                        let best_move = best_move;
-                        let mut pv = vec![best_move];
-                        position.make_move(best_move);
-                        while let Some(analysis) = shared_context.t_table.get(position.board()) {
-                            pv.push(analysis.table_move());
-                            position.make_move(analysis.table_move());
-                            if pv.len() > depth as usize {
-                                break;
-                            }
-                        }
-                        for _ in 0..pv.len() {
-                            position.unmake_move()
-                        }
-                        gui_info.print_info(
-                            local_context.sel_depth,
-                            depth,
-                            eval,
-                            start_time.elapsed(),
-                            nodes,
-                            &pv,
-                        );
-                    }
-                }
                 depth += 1;
-
-                shared_context.time_manager.deepen(
-                    thread,
-                    depth,
-                    nodes,
-                    local_context.eval,
-                    best_move.unwrap(),
-                    search_start.elapsed(),
-                );
             }
             if let Some(evaluation) = eval {
                 debugger.complete();
