@@ -105,11 +105,6 @@ impl UciAdapter {
 
     pub fn input(&mut self, input: String) -> bool {
         let mut name = "Black Marlin".to_string();
-        add_instruction!("ssse3", name);
-        add_instruction!("avx", name);
-        add_instruction!("avx2", name);
-        add_instruction!("avx512f", name);
-        add_instruction!("popcnt", name);
         let command = UciCommand::new(&input);
         match command {
             UciCommand::Uci => {
