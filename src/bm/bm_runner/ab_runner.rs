@@ -351,8 +351,8 @@ impl AbRunner {
                         break 'outer;
                     }
                     local_context.window.set(score);
-                    if score > alpha && score < beta || score.is_mate() {
-                        local_context.eval = score;
+                    local_context.eval = score;
+                    if (score > alpha && score < beta) || score.is_mate() {
                         best_move = make_move;
                         eval = Some(score);
                         break;
