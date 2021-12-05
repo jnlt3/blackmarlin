@@ -2,6 +2,8 @@
 
 WIP UCI Chess Engine
 
+![](logo.jpg?raw=true "Black Marlin")
+
 Blackmarlin is a chess engine fully written in Rust.
 
 Make sure to compile the chess engine with `cargo build --release` or run it with `cargo run --release` in order to get the maximum strength out of the engine. If build fails, remove the jem option and try again.
