@@ -2,7 +2,10 @@
 
 WIP UCI Chess Engine
 
-![](logo.jpg?raw=true "Black Marlin")
+|![](logo.jpg?raw=true "Black Marlin")|
+|:--:|
+|*Logo by Alex Brunetti*|
+
 
 Blackmarlin is a chess engine fully written in Rust.
 
