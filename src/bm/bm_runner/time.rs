@@ -86,7 +86,7 @@ impl TimeManager {
         if eval_diff < 0.0 {
             eval_diff *= 1.5;
         };
-        eval_diff = eval_diff.max(-1.0).min(1.0).abs();
+        eval_diff = eval_diff.abs().min(1.5) - 0.5;
 
         time *= 1.05_f32.powf(eval_diff);
 
