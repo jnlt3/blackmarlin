@@ -81,12 +81,12 @@ impl TimeManager {
         let last_eval = self.last_eval.load(Ordering::SeqCst);
         let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
 
-        let mut eval_diff = (current_eval as f32 - last_eval as f32) / 25.0;
+        let mut eval_diff = (current_eval as f32 - last_eval as f32) / 20.0;
 
         if eval_diff < 0.0 {
             eval_diff *= 1.5;
         };
-        eval_diff = eval_diff.abs().min(1.5) - 0.5;
+        eval_diff = eval_diff.min(1.0).abs();
 
         time *= 1.05_f32.powf(eval_diff);
 
