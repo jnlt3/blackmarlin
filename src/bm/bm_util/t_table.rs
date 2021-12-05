@@ -108,6 +108,7 @@ impl TranspositionTable {
     }
 
     pub fn get(&self, board: &Board) -> Option<Analysis> {
+        return None;
         let hash = board.get_hash();
         let index = self.index(hash);
 
@@ -127,6 +128,7 @@ impl TranspositionTable {
     }
 
     pub fn set(&self, board: &Board, entry: Analysis) {
+        return;
         let hash = board.get_hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
