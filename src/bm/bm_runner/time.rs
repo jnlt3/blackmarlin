@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-const EXPECTED_MOVES: u32 = 50;
+const EXPECTED_MOVES: u32 = 40;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -86,7 +86,7 @@ impl TimeManager {
         if eval_diff < 0.0 {
             eval_diff *= 1.5;
         };
-        eval_diff = eval_diff.min(1.0).abs();
+        eval_diff = eval_diff.abs().min(1.0);
 
         time *= 1.025_f32.powf(eval_diff);
 
