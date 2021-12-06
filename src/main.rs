@@ -8,6 +8,12 @@ mod bm;
 //TODO: OpenBench
 //TODO: Time Management
 
+
+/*
+This is a work around version to compare two versions on even time control
+The tt_fix branch was made from fail_tm causing multiple differences between the main branch
+*/
+
 fn main() {
     let mut bm_console = BmConsole::new();
     for arg in std::env::args() {
