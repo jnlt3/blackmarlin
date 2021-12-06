@@ -8,6 +8,10 @@ mod bm;
 //TODO: OpenBench
 //TODO: Time Management
 
+/*
+This is the main version for the tt_fix branch due to problems caused by previously made mistakes
+*/
+
 fn main() {
     let mut bm_console = BmConsole::new();
     for arg in std::env::args() {
