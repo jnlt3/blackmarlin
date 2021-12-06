@@ -42,7 +42,6 @@ pub struct TimeManager {
     max_duration: AtomicU32,
     normal_duration: AtomicU32,
     target_duration: AtomicU32,
-    prev_move: Mutex<Option<ChessMove>>,
     board: Mutex<Board>,
 
     infinite: AtomicBool,
@@ -62,7 +61,6 @@ impl TimeManager {
             max_duration: AtomicU32::new(0),
             normal_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
-            prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
             infinite: AtomicBool::new(true),
@@ -74,15 +72,7 @@ impl TimeManager {
 }
 
 impl TimeManager {
-    pub fn deepen(
-        &self,
-        _: u8,
-        depth: u32,
-        _: u32,
-        eval: Evaluation,
-        current_move: ChessMove,
-        _: Duration,
-    ) {
+    pub fn deepen(&self, _: u8, depth: u32, _: u32, eval: Evaluation, _: ChessMove, _: Duration) {
         if depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
             return;
         }
@@ -91,25 +81,11 @@ impl TimeManager {
         let last_eval = self.last_eval.load(Ordering::SeqCst);
         let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
 
-        let mut move_changed = false;
-        let prev_move = &mut *self.prev_move.lock().unwrap();
-        if let Some(prev_move) = prev_move {
-            if *prev_move != current_move {
-                move_changed = true;
-            }
-        }
-        *prev_move = Some(current_move);
-
-        let move_factor = if move_changed { 3.0 } else { -1.0 };
-
         let mut eval_diff = (current_eval as f32 - last_eval as f32) / 25.0;
 
-        if eval_diff < 0.0 {
-            eval_diff *= 2.0;
-        };
-        eval_diff = eval_diff.max(-4.0).min(2.0).abs();
+        eval_diff = eval_diff.abs().min(1.0);
 
-        time *= 1.05_f32.powf(eval_diff + move_factor);
+        time *= 1.05_f32.powf(eval_diff);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
@@ -217,7 +193,6 @@ impl TimeManager {
     }
 
     pub fn clear(&self) {
-        *self.prev_move.lock().unwrap() = None;
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
