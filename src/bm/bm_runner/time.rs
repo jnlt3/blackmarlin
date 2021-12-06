@@ -88,7 +88,7 @@ impl TimeManager {
         };
         eval_diff = eval_diff.abs().min(1.0);
 
-        time *= 1.025_f32.powf(eval_diff);
+        time *= 1.05_f32.powf(eval_diff);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
