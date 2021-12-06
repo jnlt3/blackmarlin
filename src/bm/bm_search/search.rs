@@ -55,7 +55,7 @@ pub fn search<Search: SearchType>(
 ) -> (Option<ChessMove>, Evaluation) {
     let depth = target_ply.saturating_sub(ply);
     if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
-        return (None, Evaluation::max());
+        return (None, Evaluation::min());
     }
 
     if ply != 0 && position.forced_draw(ply) {
