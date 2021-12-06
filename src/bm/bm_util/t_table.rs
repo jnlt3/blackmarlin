@@ -130,8 +130,12 @@ impl TranspositionTable {
         let hash = board.get_hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
-        let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
-        fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
+        let analysis: Analysis =
+            unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::SeqCst)) };
+        if analysis.entry_type.is_none() || entry.depth >= analysis.depth / 2 {
+            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
+            fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
+        }
     }
 
     pub fn clean(&self) {
