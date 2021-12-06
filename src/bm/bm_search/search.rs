@@ -55,6 +55,7 @@ pub fn search<Search: SearchType>(
 ) -> (Option<ChessMove>, Evaluation) {
     let depth = target_ply.saturating_sub(ply);
     if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
+        local_context.trigger_abort();
         return (None, Evaluation::min());
     }
 
@@ -494,7 +495,7 @@ pub fn search<Search: SearchType>(
         }
         if score > alpha {
             if score >= beta {
-                if skip_move.is_none() {
+                if skip_move.is_none() && !local_context.abort() {
                     if !is_capture {
                         let killer_table = local_context.get_k_table();
                         killer_table[ply as usize].push(make_move);
@@ -533,7 +534,7 @@ pub fn search<Search: SearchType>(
     }
     let highest_score = highest_score.unwrap();
 
-    if skip_move.is_none() {
+    if skip_move.is_none() && !local_context.abort() {
         if let Some(final_move) = &best_move {
             let entry_type = if highest_score > initial_alpha {
                 Exact
