@@ -414,6 +414,7 @@ pub fn search<Search: SearchType>(
             full depth search
             */
             let mut reduction = 0_i16;
+            /*
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
             if do_lmr {
@@ -436,6 +437,7 @@ pub fn search<Search: SearchType>(
                 }
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
+            */
 
             let lmr_ply = (target_ply as i16 - reduction).max(0) as u32;
             //Reduced Search/Zero Window if no reduction
