@@ -55,7 +55,8 @@ pub fn search<Search: SearchType>(
 ) -> (Option<ChessMove>, Evaluation) {
     let depth = target_ply.saturating_sub(ply);
     if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
-        return (None, Evaluation::max());
+        local_context.trigger_abort();
+        return (None, Evaluation::min());
     }
 
     if ply != 0 && position.forced_draw(ply) {
@@ -102,7 +103,6 @@ pub fn search<Search: SearchType>(
 
     /*
     Transposition Table
-
     If we get a TT hit and the search is deep enough,
     we can use the score from TT to cause an early cutoff
     We also use the best move from the transposition table
@@ -153,7 +153,6 @@ pub fn search<Search: SearchType>(
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
-
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
@@ -167,10 +166,8 @@ pub fn search<Search: SearchType>(
 
         /*
         Null Move Pruning:
-
         If in a non PV node and we can still achieve beta at a reduced depth after
         giving the opponent the side to move we can prune this node and return the evaluation
-
         While doing null move pruning, we also get the "best move" for the opponent in case
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
@@ -214,10 +211,8 @@ pub fn search<Search: SearchType>(
 
     /*
     Internal Iterative Deepening
-
     In PV nodes, if we don't have a move from the transposition table, we do a reduced
     depth search to get a good estimation on what the best move is
-
     This is currently disabled
     */
     let do_iid = SEARCH_PARAMS.do_iid(depth) && Search::PV && !in_check;
@@ -297,7 +292,6 @@ pub fn search<Search: SearchType>(
         if moves_seen == 0 {
             /*
             Singular Extensions:
-
             If a move can't be beaten by any other move, we assume the move
             is singular (only solution) and extend in order to get a more accurate
             estimation of best move/eval
@@ -329,7 +323,6 @@ pub fn search<Search: SearchType>(
                     } else if s_beta >= beta {
                         /*
                         Multi-cut:
-
                         If a move isn't singular and the move that disproves the singularity
                         our singular beta is above beta, we assume the move is good enough to beat beta
                         */
@@ -494,7 +487,7 @@ pub fn search<Search: SearchType>(
         }
         if score > alpha {
             if score >= beta {
-                if skip_move.is_none() {
+                if skip_move.is_none() && !local_context.abort() {
                     if !is_capture {
                         let killer_table = local_context.get_k_table();
                         killer_table[ply as usize].push(make_move);
@@ -533,7 +526,7 @@ pub fn search<Search: SearchType>(
     }
     let highest_score = highest_score.unwrap();
 
-    if skip_move.is_none() {
+    if skip_move.is_none() && !local_context.abort() {
         if let Some(final_move) = &best_move {
             let entry_type = if highest_score > initial_alpha {
                 Exact

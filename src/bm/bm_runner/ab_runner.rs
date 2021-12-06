@@ -202,6 +202,7 @@ pub struct LocalContext {
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
+    abort: bool,
 }
 
 impl SharedContext {
@@ -296,6 +297,14 @@ impl LocalContext {
 
     pub fn nodes(&mut self) -> &mut u32 {
         &mut self.nodes
+    }
+
+    pub fn trigger_abort(&mut self) {
+        self.abort = true;
+    }
+
+    pub fn abort(&self) -> bool {
+        self.abort
     }
 }
 
@@ -451,6 +460,7 @@ impl AbRunner {
                 skip_moves: vec![],
                 sel_depth: 0,
                 nodes: 0,
+                abort: false,
             },
             position,
         }
