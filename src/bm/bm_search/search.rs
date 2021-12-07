@@ -177,6 +177,7 @@ pub fn search<Search: SearchType>(
             MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
 
+        /*
         if do_null_move && position.null_move() {
             {
                 let threat_table = local_context.get_threat_table();
@@ -207,6 +208,7 @@ pub fn search<Search: SearchType>(
                 return (None, score);
             }
         }
+        */
     }
 
     /*
