@@ -7,14 +7,10 @@ WIP UCI Chess Engine
 |*Logo by Alex Brunetti*|
 
 
-Blackmarlin is a chess engine fully written in Rust.
+Blackmarlin is a UCI compliant chess engine fully written in Rust.
 
-Make sure to compile the chess engine with `cargo build --release` or run it with `cargo run --release` in order to get the maximum strength out of the engine. If build fails, remove the jem option and try again.
+Make sure to compile the chess engine with `cargo build --release --features 'nnue'` or run it with `cargo run --release --features 'nnue'` in order to get the maximum strength out of the engine.
 
-Blackmarlin doesn't come with a built-in GUI. The recommended way of playing against the engine is to compile it locally and use it along with a Chess GUI that supports the UCI protocol. 
-
-Blackmarlin also includes an optional Neural Network as a replacement for hand crafted evaluation. In order to enable this feature, add "nnue" to the feature flags: `cargo build --release --features 'nnue'`
-
-Using the neural network results in much stronger play.
+Blackmarlin doesn't come with a built-in GUI. The recommended way of playing against the engine is to get the latest release or compile it locally and use it along with a Chess GUI that supports the UCI protocol. 
 
 The repository used for NN training is [NNUE Marlin](https://github.com/dsekercioglu/nnue_marlin)
