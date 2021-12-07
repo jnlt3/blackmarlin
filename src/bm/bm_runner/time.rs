@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-const EXPECTED_MOVES: u32 = 50;
+const EXPECTED_MOVES: u32 = 40;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -84,8 +84,6 @@ impl TimeManager {
         let mut eval_diff = (current_eval as f32 - last_eval as f32) / 25.0;
 
         eval_diff = eval_diff.abs().min(1.0);
-
-        time *= 1.05_f32.powf(eval_diff);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
@@ -195,7 +193,10 @@ impl TimeManager {
     pub fn clear(&self) {
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
-        let expected_moves = self.expected_moves.load(Ordering::SeqCst);
+        let expected_moves = self
+            .expected_moves
+            .load(Ordering::SeqCst)
+            .min(EXPECTED_MOVES);
         self.expected_moves
             .store(expected_moves.saturating_sub(1), Ordering::SeqCst);
     }
