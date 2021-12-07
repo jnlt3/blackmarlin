@@ -389,6 +389,7 @@ pub fn search<Search: SearchType>(
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
+            /*
             if SEARCH_PARAMS.do_lmp()
                 && is_quiet
                 && quiets.len()
@@ -399,6 +400,7 @@ pub fn search<Search: SearchType>(
                 position.unmake_move();
                 continue;
             }
+            */
 
             /*
             LMR
