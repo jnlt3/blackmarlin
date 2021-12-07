@@ -105,10 +105,10 @@ impl TimeManager {
         *prev_move = Some(current_move);
 
         let move_change_depth = if move_changed {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
-        } else {
             self.same_move_depth.store(0, Ordering::SeqCst);
             0
+        } else {
+            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
         };
 
         let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
