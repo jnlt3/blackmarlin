@@ -361,6 +361,15 @@ impl AbRunner {
                     }
                     local_context.window.set(score);
                     local_context.eval = score;
+
+                    shared_context.time_manager.deepen(
+                        thread,
+                        depth,
+                        nodes,
+                        local_context.eval,
+                        best_move.unwrap_or(make_move.unwrap()),
+                        search_start.elapsed(),
+                    );
                     if (score > alpha && score < beta) || score.is_mate() {
                         best_move = make_move;
                         eval = Some(score);
@@ -406,15 +415,6 @@ impl AbRunner {
                     }
                 }
                 depth += 1;
-
-                shared_context.time_manager.deepen(
-                    thread,
-                    depth,
-                    nodes,
-                    local_context.eval,
-                    best_move.unwrap(),
-                    search_start.elapsed(),
-                );
             }
             if let Some(evaluation) = eval {
                 debugger.complete();
