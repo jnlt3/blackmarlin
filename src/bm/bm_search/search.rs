@@ -156,6 +156,7 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
+        /*
         let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
         if do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
@@ -163,6 +164,7 @@ pub fn search<Search: SearchType>(
                 return (None, eval);
             }
         }
+        */
 
         /*
         Null Move Pruning:
