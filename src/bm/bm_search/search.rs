@@ -296,6 +296,7 @@ pub fn search<Search: SearchType>(
             is singular (only solution) and extend in order to get a more accurate
             estimation of best move/eval
             */
+            /*
             if let Some(entry) = tt_entry {
                 if entry.table_move() == make_move
                     && ply != 0
@@ -329,7 +330,7 @@ pub fn search<Search: SearchType>(
                         return (Some(make_move), s_beta);
                     }
                 }
-            }
+            } */
             position.make_move(make_move);
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {
