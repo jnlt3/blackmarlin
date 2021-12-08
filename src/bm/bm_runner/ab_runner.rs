@@ -512,6 +512,10 @@ impl AbRunner {
         self.position.make_move(make_move);
     }
 
+    pub fn get_position(&self) -> &Position {
+        &self.position
+    }
+
     pub fn get_board(&self) -> &Board {
         self.position.board()
     }

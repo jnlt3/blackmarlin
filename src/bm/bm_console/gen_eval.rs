@@ -16,20 +16,20 @@ use crate::bm::{
     },
 };
 
-const RAND_MOVE_PROBABILITY: f32 = 0.1;
-
 fn play_single(
     engine_0: &mut AbRunner,
     engine_1: &mut AbRunner,
     time_manager: &TimeManager,
     time_management_info: &[TimeManagementInfo],
-) -> Vec<(Board, Evaluation)> {
+) -> Vec<(Board, Evaluation, f32)> {
     let mut evals = Vec::new();
     engine_0.set_board(Board::default());
     engine_1.set_board(Board::default());
-    for _ in 0..160 {
+    let mut result = 0.5;
+    for ply in 0..160 {
         let mut move_gen = MoveGen::new_legal(engine_0.get_board());
         if move_gen.next().is_none() {
+            result = (ply % 2) as f32;
             break;
         }
 
@@ -47,7 +47,7 @@ fn play_single(
             evals.push((*engine_0.get_board(), eval * turn));
         }
 
-        if rand::thread_rng().gen::<f32>() < RAND_MOVE_PROBABILITY {
+        if ply < 8 {
             let moves = MoveGen::new_legal(engine_0.get_board())
                 .into_iter()
                 .collect::<Box<_>>();
@@ -55,15 +55,21 @@ fn play_single(
         }
         engine_0.make_move(make_move);
         engine_1.make_move(make_move);
-
+        if engine_0.get_position().forced_draw(0) {
+            result = 0.5;
+            break;
+        }
         std::mem::swap(engine_0, engine_1);
     }
     evals
+        .into_iter()
+        .map(|(b, e)| (b, e, result))
+        .collect::<Vec<_>>()
 }
 
-fn gen_games(iter: usize) -> Vec<(Board, Evaluation)> {
+fn gen_games(iter: usize) -> Vec<(Board, Evaluation, f32)> {
     let mut evals = vec![];
-    let time_management_options = TimeManagementInfo::MaxDepth(7);
+    let time_management_options = TimeManagementInfo::MaxDepth(6);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
     let mut engine_1 = AbRunner::new(Board::default(), time_manager.clone());
@@ -91,8 +97,8 @@ pub fn gen_eval() {
             evals.extend(t.join().unwrap());
         }
         let mut output = String::new();
-        for (board, eval) in evals {
-            output += &format!("{} [{}]\n", &board.to_string(), eval.raw());
+        for (board, eval, wdl) in evals {
+            output += &format!("{} | {} | {}\n", &board.to_string(), eval.raw(), wdl);
         }
         let file = OpenOptions::new()
             .read(true)
