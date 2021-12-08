@@ -264,7 +264,10 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
     let mut captures = ArrayVec::<ChessMove, 64>::new();
 
-    while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
+    while let Some(make_move) = move_gen.next(
+        local_context.get_h_table().borrow(),
+        local_context.get_ch_table().borrow(),
+    ) {
         if Some(make_move) == skip_move {
             continue;
         }
