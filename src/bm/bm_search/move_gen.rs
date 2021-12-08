@@ -9,7 +9,7 @@ use std::cell::Ref;
 use super::move_entry::MoveEntryIterator;
 
 const MAX_MOVES: usize = 218;
-const LOSING_CAPTURE: i16 = -(2_i16.pow(10));
+const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
