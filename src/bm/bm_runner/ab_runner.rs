@@ -441,7 +441,7 @@ impl AbRunner {
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
                     let mut x = LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR;
                     if improving == 0 {
-                        x *= IMPROVING_DIVISOR;
+                        x /= IMPROVING_DIVISOR;
                     }
                     x as usize
                 })),
