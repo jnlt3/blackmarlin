@@ -23,6 +23,9 @@ impl HistoryTable {
     }
 
     pub fn cutoff(&mut self, board: &Board, make_move: ChessMove, fails: &[ChessMove], amt: u32) {
+        if amt > 20 {
+            return;
+        }
         let piece = board.piece_on(make_move.get_source()).unwrap();
         let index = piece_index(board.side_to_move(), piece);
         let to_index = make_move.get_dest().to_index();
