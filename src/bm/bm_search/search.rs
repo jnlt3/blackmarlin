@@ -207,6 +207,45 @@ pub fn search<Search: SearchType>(
                 return (None, score);
             }
         }
+
+        let probcut_beta = beta + 100;
+        if depth > 4
+            && eval >= probcut_beta
+            && !(tt_entry.is_some()
+                && tt_entry.unwrap().depth() >= depth - 3
+                && tt_entry.unwrap().score() < probcut_beta)
+        {
+            let q_move_gen = QuiescenceSearchMoveGen::<true>::new(&board);
+            let probcut_zw = probcut_beta >> Next;
+            for make_move in q_move_gen {
+                position.make_move(make_move);
+                let mut score = q_search(
+                    position,
+                    local_context,
+                    shared_context,
+                    ply,
+                    target_ply,
+                    probcut_zw,
+                    probcut_zw + 1,
+                );
+                if score >= probcut_beta {
+                    let (_, search_score) = search::<Search::Zw>(
+                        position,
+                        local_context,
+                        shared_context,
+                        ply,
+                        target_ply - 4,
+                        probcut_zw,
+                        probcut_zw + 1,
+                    );
+                    score = search_score << Next;
+                }
+                position.unmake_move();
+                if score >= probcut_beta {
+                    return (None, score);
+                }
+            }
+        }
     }
 
     /*
