@@ -251,11 +251,12 @@ pub fn search<Search: SearchType>(
         MoveEntry::new()
     };
 
+    let killers = local_context.get_k_table()[ply as usize];
     let mut move_gen = OrderedMoveGen::new(
         position.board(),
         best_move,
         threat_move_entry.into_iter(),
-        local_context.get_k_table()[ply as usize].into_iter(),
+        killers.into_iter(),
     );
 
     let mut moves_seen = 0;
@@ -364,7 +365,7 @@ pub fn search<Search: SearchType>(
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
+            let do_hp = !Search::PV && depth <= 8 && eval <= alpha && !killers.contains(make_move);
 
             if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
                 continue;

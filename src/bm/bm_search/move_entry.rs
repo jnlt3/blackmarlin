@@ -33,6 +33,19 @@ impl<const N: usize> MoveEntry<N> {
             self.index = (self.index + 1) % N;
         }
     }
+
+    pub fn contains(&self, make_move: ChessMove) -> bool {
+        if N == 0 {
+            return false;
+        }
+        for i in 0..self.size {
+            let index = (i + self.index) % N;
+            if self.moves[index] == make_move {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 pub type MoveEntryIterator<const N: usize> = Take<IntoIter<ChessMove, N>>;
