@@ -223,8 +223,8 @@ pub fn search<Search: SearchType>(
                     position,
                     local_context,
                     shared_context,
-                    ply,
-                    target_ply,
+                    0,
+                    SEARCH_PARAMS.get_q_search_depth(),
                     probcut_zw,
                     probcut_zw + 1,
                 );
