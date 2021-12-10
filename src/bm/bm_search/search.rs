@@ -164,6 +164,25 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        if !improving && ply >= 4 && depth <= 3 && eval < alpha {
+            if let Some(prev_eval) = local_context.get_eval(ply - 4) {
+                if prev_eval > eval + 500 {
+                    return (
+                        None,
+                        q_search(
+                            position,
+                            local_context,
+                            shared_context,
+                            0,
+                            SEARCH_PARAMS.get_q_search_depth(),
+                            alpha,
+                            beta,
+                        ),
+                    );
+                }
+            }
+        }
+
         /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
