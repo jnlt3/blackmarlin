@@ -218,6 +218,9 @@ pub fn search<Search: SearchType>(
             let q_move_gen = QuiescenceSearchMoveGen::<true>::new(&board);
             let probcut_zw = probcut_beta >> Next;
             for make_move in q_move_gen {
+                if board.piece_on(make_move.get_dest()).is_none() {
+                    break;
+                }
                 position.make_move(make_move);
                 let mut score = q_search(
                     position,
