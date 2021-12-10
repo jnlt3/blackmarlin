@@ -56,7 +56,8 @@ impl Window {
     }
 
     fn set_bounds(&mut self) {
-        self.alpha = self.center - self.window;
-        self.beta = self.center + self.window;
+        let bias = self.center.raw() / 10;
+        self.alpha = self.center - self.window + bias.min(0);
+        self.beta = self.center + self.window + bias.max(0);
     }
 }
