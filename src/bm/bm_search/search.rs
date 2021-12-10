@@ -208,9 +208,8 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        let probcut_beta = beta + 100;
+        let probcut_beta = beta + 200;
         if depth > 4
-            && eval >= probcut_beta
             && !(tt_entry.is_some()
                 && tt_entry.unwrap().depth() >= depth - 3
                 && tt_entry.unwrap().score() < probcut_beta)
