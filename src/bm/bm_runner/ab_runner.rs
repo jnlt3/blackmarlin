@@ -12,7 +12,7 @@ use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_search::threshold::Threshold;
-use crate::bm::bm_util::h_table::HistoryTable;
+use crate::bm::bm_util::h_table::{HistoryTable, KingHistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
@@ -199,6 +199,8 @@ pub struct LocalContext {
     sel_depth: u32,
     h_table: RefCell<HistoryTable>,
     ch_table: RefCell<HistoryTable>,
+    kh_table: RefCell<KingHistoryTable>,
+    kch_table: RefCell<KingHistoryTable>,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
@@ -242,6 +244,17 @@ impl LocalContext {
     pub fn get_ch_table(&self) -> &RefCell<HistoryTable> {
         &self.ch_table
     }
+
+    #[inline]
+    pub fn get_kh_table(&self) -> &RefCell<KingHistoryTable> {
+        &self.kh_table
+    }
+
+    #[inline]
+    pub fn get_kch_table(&self) -> &RefCell<KingHistoryTable> {
+        &self.kch_table
+    }
+
 
     #[inline]
     pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<KILLER_MOVE_CNT>> {
@@ -451,6 +464,8 @@ impl AbRunner {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 h_table: RefCell::new(HistoryTable::new()),
                 ch_table: RefCell::new(HistoryTable::new()),
+                kh_table: RefCell::new(KingHistoryTable::new()),
+                kch_table: RefCell::new(KingHistoryTable::new()),
                 killer_moves: vec![],
                 threat_moves: vec![],
                 tt_hits: 0,

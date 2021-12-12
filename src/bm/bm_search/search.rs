@@ -273,7 +273,7 @@ pub fn search<Search: SearchType>(
         let is_promotion = make_move.get_promotion().is_some();
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
-        let h_score = if is_capture {
+        let mut h_score = if is_capture {
             local_context.get_ch_table().borrow().get(
                 board.side_to_move(),
                 board.piece_on(make_move.get_source()).unwrap(),
@@ -282,6 +282,19 @@ pub fn search<Search: SearchType>(
         } else {
             local_context.get_h_table().borrow().get(
                 board.side_to_move(),
+                board.piece_on(make_move.get_source()).unwrap(),
+                make_move.get_dest(),
+            )
+        };
+        let kh_score = if !is_capture {
+            local_context.get_kh_table().borrow().get(
+                &board,
+                board.piece_on(make_move.get_source()).unwrap(),
+                make_move.get_dest(),
+            )
+        } else {
+            local_context.get_kch_table().borrow().get(
+                &board,
                 board.piece_on(make_move.get_source()).unwrap(),
                 make_move.get_dest(),
             )
@@ -367,6 +380,10 @@ pub fn search<Search: SearchType>(
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
             if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+                continue;
+            }
+
+            if do_hp && (kh_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
                 continue;
             }
 
@@ -495,9 +512,17 @@ pub fn search<Search: SearchType>(
                             .get_h_table()
                             .borrow_mut()
                             .cutoff(&board, make_move, &quiets, depth);
+                        local_context
+                            .get_kh_table()
+                            .borrow_mut()
+                            .cutoff(&board, make_move, &quiets, depth);
                     } else {
                         local_context
                             .get_ch_table()
+                            .borrow_mut()
+                            .cutoff(&board, make_move, &captures, depth);
+                        local_context
+                            .get_kch_table()
                             .borrow_mut()
                             .cutoff(&board, make_move, &captures, depth);
                     }
