@@ -69,8 +69,8 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
     #[inline]
     pub fn ff_sym(
         &self,
-        w_inputs: &[i8; INPUT],
-        b_inputs: &[i8; INPUT],
+        w_inputs: &[u8; INPUT],
+        b_inputs: &[u8; INPUT],
         bucket: usize,
     ) -> [i32; OUTPUT] {
         let mut out = self.bias;
@@ -102,10 +102,10 @@ const fn i16_to_i32<const N: usize>(array: [i16; N]) -> [i32; N] {
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N]) -> [i8; N] {
-    let mut out = [0_i8; N];
+pub fn clipped_relu<const N: usize>(array: [i16; N]) -> [u8; N] {
+    let mut out = [0_u8; N];
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        *clipped = x.max(MIN).min(MAX) as i8;
+        *clipped = x.max(MIN).min(MAX) as u8;
     }
     out
 }
