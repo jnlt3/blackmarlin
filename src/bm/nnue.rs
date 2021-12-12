@@ -6,6 +6,22 @@ mod normal;
 
 include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
 
+const OUT_T: [[i8; OUT.len()]; OUT[0].len()] = transpose(OUT);
+
+const fn transpose<const N: usize, const M: usize>(array: [[i16; N]; M]) -> [[i8; M]; N] {
+    let mut out_array = [[0; M]; N];
+    let mut n = 0;
+    while n < N {
+        let mut m = 0;
+        while m < M {
+            out_array[n][m] = array[m][n] as i8;
+            m += 1;
+        }
+        n += 1;
+    }
+    out_array
+}
+
 #[derive(Debug, Clone)]
 pub struct Nnue {
     white: BitBoard,
@@ -30,7 +46,7 @@ impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
         let res_layer = Psqt::new(&PSQT);
-        let out_layer = Dense::new(&OUT, OUT_BIAS);
+        let out_layer = Dense::new(&OUT_T, OUT_BIAS);
 
         Self {
             white: EMPTY,

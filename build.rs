@@ -23,13 +23,15 @@ fn parse_bm_net() {
     let mut def_layers = String::new();
 
     const LAYER_NAMES: [&str; 2] = ["INCREMENTAL", "OUT"];
-    for (((weights, biases), name), shape) in weights
+    const LAYER_TYPES: [&str; 2] = ["i8", "i16"];
+    for ((((weights, biases), name), ty), shape) in weights
         .iter()
         .zip(&biases)
         .zip(LAYER_NAMES)
+        .zip(LAYER_TYPES)
         .zip(layers.windows(2))
     {
-        let def_weights = format!("const {}: [[i8; {}]; {}] = ", name, shape[1], shape[0]);
+        let def_weights = format!("const {}: [[{}; {}]; {}] = ", name, ty, shape[1], shape[0]);
         let mut array = "[".to_string();
         for start_range in 0..shape[0] {
             array += "[";
