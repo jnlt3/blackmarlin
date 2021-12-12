@@ -306,7 +306,7 @@ pub fn search<Search: SearchType>(
                         || entry.entry_type() == EntryType::Exact)
                 {
                     let reduced_plies = ply + depth / 2 - 1;
-                    let s_beta = entry.score() - depth as i16 * 3;
+                    let s_beta = entry.score() - depth as i16 * 5;
                     local_context.set_skip_move(ply, make_move);
                     let (_, s_score) = search::<Search::Zw>(
                         position,
