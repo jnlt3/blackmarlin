@@ -354,9 +354,9 @@ pub fn search<Search: SearchType>(
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth == 1;
+            let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth <= 7;
 
-            if do_fp && eval + SEARCH_PARAMS.get_fp() < alpha {
+            if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
                 continue;
             }
 
