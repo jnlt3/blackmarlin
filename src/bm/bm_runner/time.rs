@@ -80,14 +80,14 @@ impl TimeManager {
 impl TimeManager {
     pub fn deepen(
         &self,
-        _: u8,
+        thread: u8,
         depth: u32,
         _: u32,
         eval: Evaluation,
         current_move: ChessMove,
         _: Duration,
     ) {
-        if depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
+        if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
             return;
         }
 
