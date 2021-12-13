@@ -101,13 +101,13 @@ impl Nnue {
                 if new == 1 {
                     self.w_input_layer.incr_ff::<1>(64 * w_index + w_sq);
                     self.b_input_layer.incr_ff::<1>(64 * b_index + b_sq);
-                    self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
-                    self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
+                    //self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
+                    //self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
                 } else {
                     self.w_input_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_input_layer.incr_ff::<-1>(64 * b_index + b_sq);
-                    self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
-                    self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
+                    //self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
+                    //self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
                 }
             }
         }
