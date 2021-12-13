@@ -375,7 +375,7 @@ pub fn search<Search: SearchType>(
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
-            if do_see_prune && StdEvaluator::see(board, make_move) < (-100 * depth as i16) {
+            if do_see_prune && StdEvaluator::see(board, make_move) <= -50 + (-50 * depth as i16) {
                 continue;
             }
 
