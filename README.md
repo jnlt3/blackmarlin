@@ -92,3 +92,56 @@ History Based Pruning is the idea of using the history table to see which moves 
 ### SEE Assisted Futility Pruning
 Doing Futility Pruning at higher depths by correcting the evaluation based on static exchange evaluation (SEE).
 
+### Late Move Reductions
+Late Move Reductions (LMR) are a way of proving if a move is lower than alpha quickly. This is done by searching moves that are expected to underperform at a lower depth.
+
+### History Based Reductions
+History Based Reductions are the idea of adjusting LMR reductions based on the history score of a move.
+
+### Extensions
+Usually the search algortihm is optimized by pruning or reducing where moves aren't promising. However, it can also be done by executing a deeper search on promising moves.
+
+### Check Extensions
+We don't want to miss three-fold repetition lines or forcing sequences, so we extend moves that give a check.
+
+### Singular Extensions
+If a move is better than all other moves by a margin, we can extend the search on this move. Candidate singular moves are usually decided based on the transposition table.
+
+
+### Move Ordering
+In order to maximize the efficiency of alpha beta search, we optimally want to try the best moves first.
+
+### Move from Transposition Table
+The Transposition Table (TT) gives us the move we have found to be the best in case we have visited the position previously. TT moves are one of the most crucial ways of improving move ordering.
+
+### Winning Captures
+We can evaluate each move by using SEE and put winning captures first in move ordering.
+
+### Killer Heuristic
+Killer Heuristic is the idea of using quiet moves that produced a beta cutoff in sibling nodes. This is based on the assumption that a move doesn't change the position a lot and we can benefit from moves that worked in very similar positions.
+
+### Null Move Threats
+A Null Move Threat is the best move we get after executing a search for Null Move Pruning. This move can later be used to augment move ordering as it'll likely eliminate moves that don't defend a threat.
+
+### History Based Quiet Ordering
+We can order quiet moves based on their history scores in order to search quiets that historically performed better than others first.
+
+### Bad Captures
+Bad Captures are moves that most likely make the position worse. They are usually put last as they rarely improve the position.
+
+### Underpromotions
+There isn't really a reason to promote to a piece other than the queen in most positions. All promotions other than queen promotions are put to the very last of the move ordering list.
+
+
+### Lazy SMP
+Lazy SMP stands for Lazy Simulatenous Multi Processing. The idea behind Lazy SMP is to execute the search function on N many threads and share the hash table. This allows for faster filling of the hash table, resulting in a faster and wider search.
+
+### Atomic Keys and Entries
+In order to prevent data races and data corruption, we can use the "XOR Trick". Instead of saving the hash of the position directlly, we XOR it with the related entry. When we access the table later on, we can revert the hash back with the corresponding entry. This ensures a different hash will be produced in case the entry was corrupted.
+
+
+### Hand Crafted Evaluation (HCE)
+Prior to NNUE, most engines used a hand crafted evaluation function. HCE included hand picked features such as material, pawn structure, piece squares and similar. These values quickly get overwhelming to tune, in order to solve this problem, most engines employ a strategy called "Texel Tuning". The idea behind Texel Tuning is to optimize the evaluation function in such a way that it'll reflect the result of the game the best. Once we obtain a loss function, we can use metaheuristics such as genetic algorithms or gradient based algorithms such as AdaGrad to tune the hand crafted evaluation function.
+
+
+
