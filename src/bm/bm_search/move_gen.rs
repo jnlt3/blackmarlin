@@ -51,7 +51,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         }
     }
 
-    pub fn next(&mut self, hist: Ref<HistoryTable>) -> Option<ChessMove> {
+    pub fn next(&mut self, hist: &HistoryTable) -> Option<ChessMove> {
         match self.gen_type {
             GenType::PvMove => {
                 self.gen_type = GenType::CalcCaptures;

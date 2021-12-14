@@ -264,7 +264,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
     let mut captures = ArrayVec::<ChessMove, 64>::new();
 
-    while let Some(make_move) = move_gen.next(local_context.get_h_table().borrow()) {
+    while let Some(make_move) = move_gen.next(local_context.get_h_table()) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -274,13 +274,13 @@ pub fn search<Search: SearchType>(
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
         let h_score = if is_capture {
-            local_context.get_ch_table().borrow().get(
+            local_context.get_ch_table().get(
                 board.side_to_move(),
                 board.piece_on(make_move.get_source()).unwrap(),
                 make_move.get_dest(),
             )
         } else {
-            local_context.get_h_table().borrow().get(
+            local_context.get_h_table().get(
                 board.side_to_move(),
                 board.piece_on(make_move.get_source()).unwrap(),
                 make_move.get_dest(),
@@ -492,13 +492,11 @@ pub fn search<Search: SearchType>(
                         let killer_table = local_context.get_k_table();
                         killer_table[ply as usize].push(make_move);
                         local_context
-                            .get_h_table()
-                            .borrow_mut()
+                            .get_h_table_mut()
                             .cutoff(&board, make_move, &quiets, depth);
                     } else {
                         local_context
-                            .get_ch_table()
-                            .borrow_mut()
+                            .get_ch_table_mut()
                             .cutoff(&board, make_move, &captures, depth);
                     }
 

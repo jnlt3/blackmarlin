@@ -197,8 +197,8 @@ pub struct LocalContext {
     eval_stack: Vec<Evaluation>,
     skip_moves: Vec<Option<ChessMove>>,
     sel_depth: u32,
-    h_table: RefCell<HistoryTable>,
-    ch_table: RefCell<HistoryTable>,
+    h_table: HistoryTable,
+    ch_table: HistoryTable,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
@@ -234,13 +234,23 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_h_table(&self) -> &RefCell<HistoryTable> {
+    pub fn get_h_table(&self) -> &HistoryTable {
         &self.h_table
     }
 
     #[inline]
-    pub fn get_ch_table(&self) -> &RefCell<HistoryTable> {
+    pub fn get_ch_table(&self) -> &HistoryTable {
         &self.ch_table
+    }
+
+    #[inline]
+    pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
+        &mut self.h_table
+    }
+
+    #[inline]
+    pub fn get_ch_table_mut(&mut self) -> &mut HistoryTable {
+        &mut self.ch_table
     }
 
     #[inline]
@@ -449,8 +459,8 @@ impl AbRunner {
             },
             local_context: LocalContext {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
-                h_table: RefCell::new(HistoryTable::new()),
-                ch_table: RefCell::new(HistoryTable::new()),
+                h_table: HistoryTable::new(),
+                ch_table: HistoryTable::new(),
                 killer_moves: vec![],
                 threat_moves: vec![],
                 tt_hits: 0,
