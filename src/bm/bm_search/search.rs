@@ -371,15 +371,16 @@ pub fn search<Search: SearchType>(
             }
 
             /*
-            In non-PV nodes If a move evaluated by SEE isn't good enough to beat a static margin
+            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_see_prune = !Search::PV && !in_check && depth <= 6;
-            let factor = if is_capture { -100 } else { -50 };
-            if do_see_prune && StdEvaluator::see(board, make_move) <= (factor * depth as i16) {
+            let do_see_prune = !Search::PV && !in_check && depth <= 2;
+            if do_see_prune
+                && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
+            {
                 continue;
             }
-
+            
             position.make_move(make_move);
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {
