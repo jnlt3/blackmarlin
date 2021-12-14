@@ -380,7 +380,7 @@ pub fn search<Search: SearchType>(
             {
                 continue;
             }
-
+            
             position.make_move(make_move);
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {
