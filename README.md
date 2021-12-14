@@ -144,4 +144,7 @@ In order to prevent data races and data corruption, we can use the "XOR Trick". 
 Prior to NNUE, most engines used a hand crafted evaluation function. HCE included hand picked features such as material, pawn structure, piece squares and similar. These values quickly get overwhelming to tune, in order to solve this problem, most engines employ a strategy called "Texel Tuning". The idea behind Texel Tuning is to optimize the evaluation function in such a way that it'll reflect the result of the game the best. Once we obtain a loss function, we can use metaheuristics such as genetic algorithms or gradient based algorithms such as AdaGrad to tune the hand crafted evaluation function.
 
 
+### Efficiently Updatable Neural Networks (NNUE)
+Neural Networks are the state of the art machine learning models. Although they have one problem: they are usually very slow in execution.
+
 
