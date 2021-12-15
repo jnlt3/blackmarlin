@@ -128,7 +128,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
         }
     }
     let mut psqt_weights = vec![0_i32; layers[0] * layers[layers.len() - 1]];
-    /*
+
     let mut index = 0;
     while index < psqt_weights.len() {
         let weight: i32 = unsafe {
@@ -145,7 +145,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
             break;
         }
     }
-    */
+
     assert!(bytes_iterator.next().is_none(), "File not read fully");
     (layers, weights, biases, psqt_weights)
 }
