@@ -72,7 +72,7 @@ Aspiration Windows are a way of reducing the search space by making the assumpti
 In Principal Variation Search (PVS), we do a search with the window `[alpha - 1, alpha]` for each move to see if it is worse than alpha efficiently. If so, we don't need to execute a full search on the given move.
 
 ### Reverse Futility Pruning
-Reverse Futility Pruning (RFP) is the idea of returning the evaluation of the current position if it is above beta by a margin. This 
+Reverse Futility Pruning (RFP) is the idea of returning the evaluation of the current position if it is above beta by a margin.
 
 ### Null Move Pruning
 Null Move Pruning (NMP) is based on the assumption that, if we can reach beta by not making a move at lower depths, we will most likely be able to reach it anyway.
