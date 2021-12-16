@@ -41,7 +41,7 @@ pub const DO_SEE_PRUNE: bool = true;
 pub const FAIL_CNT: u8 = 10;
 pub const WINDOW_START: i16 = 25;
 pub const WINDOW_FACTOR: i16 = 1;
-pub const WINDOW_DIVISOR: i16 = 4;
+pub const WINDOW_DIVISOR: i16 = 2;
 pub const WINDOW_ADD: i16 = 5;
 
 pub const HISTORY_REDUCTION_DIVISOR: i16 = 192;
