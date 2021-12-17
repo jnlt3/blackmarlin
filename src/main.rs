@@ -3,11 +3,6 @@ use text_io::read;
 
 mod bm;
 
-//TODO: Increase mate finding capabilities and prevent draws by three-fold repetition.
-//TODO: Search & Evaluation
-//TODO: OpenBench
-//TODO: Time Management
-
 fn main() {
     let mut bm_console = BmConsole::new();
     for arg in std::env::args() {
