@@ -17,8 +17,9 @@ enum GenType {
     CalcCaptures,
     Captures,
     GenQuiet,
-    ThreatMove,
+    CounterMove,
     Killer,
+    ThreatMove,
     Quiet,
 }
 
@@ -27,6 +28,7 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     pv_move: Option<ChessMove>,
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
+    counter_move: Option<ChessMove>,
     gen_type: GenType,
     board: Board,
 
@@ -37,12 +39,14 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     pub fn new(
         board: &Board,
         pv_move: Option<ChessMove>,
+        counter_move: Option<ChessMove>,
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
         Self {
             gen_type: GenType::PvMove,
             move_gen: MoveGen::new_legal(board),
+            counter_move,
             pv_move,
             threat_move_entry,
             killer_entry,
@@ -133,7 +137,18 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         }
                     }
                 }
+                self.gen_type = GenType::CounterMove;
+                self.next(hist)
+            }
+            GenType::CounterMove => {
                 self.gen_type = GenType::ThreatMove;
+                if let Some(pv_move) = self.counter_move {
+                    if self.board.legal(pv_move) {
+                        return Some(pv_move);
+                    } else {
+                        self.pv_move = None;
+                    }
+                }
                 self.next(hist)
             }
             GenType::ThreatMove => {

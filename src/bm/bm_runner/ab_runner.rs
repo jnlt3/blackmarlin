@@ -12,7 +12,7 @@ use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_search::threshold::Threshold;
-use crate::bm::bm_util::h_table::HistoryTable;
+use crate::bm::bm_util::h_table::{CounterMoveTable, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
@@ -196,9 +196,11 @@ pub struct LocalContext {
     eval: Evaluation,
     eval_stack: Vec<Evaluation>,
     skip_moves: Vec<Option<ChessMove>>,
+    variation: Vec<Option<ChessMove>>,
     sel_depth: u32,
     h_table: HistoryTable,
     ch_table: HistoryTable,
+    cm_table: CounterMoveTable,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
@@ -244,6 +246,11 @@ impl LocalContext {
     }
 
     #[inline]
+    pub fn get_cm_table(&self) -> &CounterMoveTable {
+        &self.cm_table
+    }
+
+    #[inline]
     pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
         &mut self.h_table
     }
@@ -251,6 +258,11 @@ impl LocalContext {
     #[inline]
     pub fn get_ch_table_mut(&mut self) -> &mut HistoryTable {
         &mut self.ch_table
+    }
+
+    #[inline]
+    pub fn get_cm_table_mut(&mut self) -> &mut CounterMoveTable {
+        &mut self.cm_table
     }
 
     #[inline]
@@ -271,6 +283,20 @@ impl LocalContext {
     #[inline]
     pub fn get_eval(&self, ply: u32) -> Option<Evaluation> {
         self.eval_stack.get(ply as usize).copied()
+    }
+
+    #[inline]
+    pub fn push_move(&mut self, make_move: Option<ChessMove>, ply: u32) {
+        if ply as usize >= self.variation.len() {
+            self.variation.push(make_move);
+        } else {
+            self.variation[ply as usize] = make_move;
+        }
+    }
+
+    #[inline]
+    pub fn get_move(&self, ply: u32) -> Option<Option<ChessMove>> {
+        self.variation.get(ply as usize).copied()
     }
 
     #[inline]
@@ -461,6 +487,7 @@ impl AbRunner {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
                 h_table: HistoryTable::new(),
                 ch_table: HistoryTable::new(),
+                cm_table: CounterMoveTable::new(),
                 killer_moves: vec![],
                 threat_moves: vec![],
                 tt_hits: 0,
@@ -468,6 +495,7 @@ impl AbRunner {
                 eval: position.get_eval(),
                 eval_stack: vec![],
                 skip_moves: vec![],
+                variation: vec![],
                 sel_depth: 0,
                 nodes: 0,
                 abort: false,

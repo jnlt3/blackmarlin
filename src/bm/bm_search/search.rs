@@ -184,6 +184,7 @@ pub fn search<Search: SearchType>(
                     threat_table.push(MoveEntry::new());
                 }
             }
+            local_context.push_move(None, ply);
 
             let zw = beta >> Next;
             let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
@@ -251,9 +252,26 @@ pub fn search<Search: SearchType>(
         MoveEntry::new()
     };
 
+    let prev_move = if ply != 0 {
+        local_context.get_move(ply - 1)
+    } else {
+        None
+    };
+
+    let counter_move = if let Some(Some(prev_move)) = prev_move {
+        local_context.get_cm_table().get(
+            board.side_to_move(),
+            board.piece_on(prev_move.get_dest()).unwrap(),
+            prev_move.get_dest(),
+        )
+    } else {
+        None
+    };
+
     let mut move_gen = OrderedMoveGen::new(
         position.board(),
         best_move,
+        counter_move,
         threat_move_entry.into_iter(),
         local_context.get_k_table()[ply as usize].into_iter(),
     );
@@ -331,6 +349,8 @@ pub fn search<Search: SearchType>(
                 }
             }
             position.make_move(make_move);
+            local_context.push_move(Some(make_move), ply);
+
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {
                 extension += 1;
@@ -380,8 +400,10 @@ pub fn search<Search: SearchType>(
             {
                 continue;
             }
-            
+
             position.make_move(make_move);
+            local_context.push_move(Some(make_move), ply);
+
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {
                 extension += 1;
@@ -494,6 +516,11 @@ pub fn search<Search: SearchType>(
                         local_context
                             .get_h_table_mut()
                             .cutoff(&board, make_move, &quiets, depth);
+                        if let Some(Some(prev_move)) = prev_move {
+                            local_context
+                                .get_cm_table_mut()
+                                .cutoff(&board, prev_move, make_move, depth);
+                        }
                     } else {
                         local_context
                             .get_ch_table_mut()
