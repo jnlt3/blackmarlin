@@ -264,7 +264,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
     let mut captures = ArrayVec::<ChessMove, 64>::new();
 
-    while let Some(make_move) = move_gen.next(local_context.get_h_table()) {
+    while let Some(make_move) = move_gen.next(local_context.get_h_table(), local_context.get_ch_table()) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -380,7 +380,7 @@ pub fn search<Search: SearchType>(
             {
                 continue;
             }
-            
+
             position.make_move(make_move);
             let gives_check = *position.board().checkers() != EMPTY;
             if gives_check {

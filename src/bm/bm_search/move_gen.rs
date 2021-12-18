@@ -9,7 +9,7 @@ use std::cell::Ref;
 use super::move_entry::MoveEntryIterator;
 
 const MAX_MOVES: usize = 218;
-const LOSING_CAPTURE: i16 = -(2_i16.pow(10));
+const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -51,7 +51,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         }
     }
 
-    pub fn next(&mut self, hist: &HistoryTable) -> Option<ChessMove> {
+    pub fn next(&mut self, hist: &HistoryTable, c_hist: &HistoryTable) -> Option<ChessMove> {
         match self.gen_type {
             GenType::PvMove => {
                 self.gen_type = GenType::CalcCaptures;
@@ -62,7 +62,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         self.pv_move = None;
                     }
                 }
-                self.next(hist)
+                self.next(hist, c_hist)
             }
             GenType::CalcCaptures => {
                 self.move_gen.set_iterator_mask(*self.board.combined());
@@ -70,13 +70,18 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     if Some(make_move) != self.pv_move {
                         let mut expected_gain = StdEvaluator::see(self.board, make_move);
                         if expected_gain < 0 {
-                            expected_gain += LOSING_CAPTURE;
+                            expected_gain = LOSING_CAPTURE
+                                + c_hist.get(
+                                    self.board.side_to_move(),
+                                    self.board.piece_on(make_move.get_source()).unwrap(),
+                                    make_move.get_dest(),
+                                );
                         }
                         self.queue.push((make_move, expected_gain));
                     }
                 }
                 self.gen_type = GenType::Captures;
-                self.next(hist)
+                self.next(hist, c_hist)
             }
             GenType::Captures => {
                 let mut max = LOSING_CAPTURE;
@@ -91,7 +96,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     Some(self.queue.remove(index).0)
                 } else {
                     self.gen_type = GenType::GenQuiet;
-                    self.next(hist)
+                    self.next(hist, c_hist)
                 }
             }
             GenType::GenQuiet => {
@@ -117,7 +122,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::Killer;
-                self.next(hist)
+                self.next(hist, c_hist)
             }
             //Assumes Killer Moves won't repeat
             GenType::Killer => {
@@ -134,7 +139,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 self.gen_type = GenType::ThreatMove;
-                self.next(hist)
+                self.next(hist, c_hist)
             }
             GenType::ThreatMove => {
                 for make_move in &mut self.threat_move_entry {
@@ -150,7 +155,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 self.gen_type = GenType::Quiet;
-                self.next(hist)
+                self.next(hist, c_hist)
             }
             GenType::Quiet => {
                 let mut max = 0;
