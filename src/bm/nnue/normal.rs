@@ -55,29 +55,11 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
 #[derive(Debug, Clone)]
 pub struct Dense<'a, const INPUT: usize, const OUTPUT: usize> {
     weights: &'a [[i8; OUTPUT]; INPUT],
-    bias: [i32; OUTPUT],
 }
 
 impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i16; OUTPUT]) -> Self {
-        Self {
-            weights,
-            bias: i16_to_i32(bias),
-        }
-    }
-
-    #[inline]
-    pub fn ff(&self, inputs: &[i8; INPUT], bucket: usize) -> [i32; OUTPUT] {
-        let mut out = self.bias;
-        for (&input, weights) in inputs.iter().zip(&*self.weights) {
-            for (out, &weight) in out[bucket..bucket + 1]
-                .iter_mut()
-                .zip(weights[bucket..bucket + 1].iter())
-            {
-                *out += weight as i32 * input as i32;
-            }
-        }
-        out
+    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT]) -> Self {
+        Self { weights }
     }
 
     #[inline]
@@ -105,17 +87,6 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
 #[inline]
 pub fn out(x: i32) -> i16 {
     (x as f32 * UNITS as f32 / (SCALE * SCALE) as f32) as i16
-}
-
-#[inline]
-const fn i16_to_i32<const N: usize>(array: [i16; N]) -> [i32; N] {
-    let mut out = [0_i32; N];
-    let mut index = 0;
-    while index < N {
-        out[index] = array[index] as i32;
-        index += 1;
-    }
-    out
 }
 
 #[inline]

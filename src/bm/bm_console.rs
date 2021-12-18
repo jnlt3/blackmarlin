@@ -24,13 +24,13 @@ impl BmConsole {
         }
         #[cfg(any(feature = "trace", feature = "data"))]
         if command.starts_with("!") {
-            let (command, options) = Self::parse(&command[1..]);
+            let (command, _options) = Self::parse(&command[1..]);
             let command: &str = &command;
             match command {
                 #[cfg(feature = "trace")]
-                "gen" => Self::gen(options),
+                "gen" => Self::gen(_options),
                 #[cfg(feature = "trace")]
-                "tune" => Self::tune(options),
+                "tune" => Self::tune(_options),
                 #[cfg(feature = "data")]
                 "data" => Self::data(),
                 _ => {}
@@ -135,6 +135,7 @@ impl BmConsole {
         std::fs::write(output_file, all_fens).unwrap();
     }
 
+    #[cfg(any(feature = "trace", feature = "data"))]
     fn parse(command: &str) -> (String, Vec<(String, String)>) {
         let split = command.split(' ').collect::<Vec<_>>();
 

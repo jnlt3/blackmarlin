@@ -19,8 +19,6 @@ const NODES_DEFAULT: u32 = u32::MAX;
 
 const MOVES_TO_GO_DEFAULT: Option<u32> = None;
 
-const TIME: Duration = Duration::from_secs(0);
-
 #[derive(Debug, Copy, Clone)]
 pub enum TimeManagementInfo {
     WTime(Duration),
@@ -31,13 +29,11 @@ pub enum TimeManagementInfo {
     MaxNodes(u32),
     MovesToGo(u32),
     MoveTime(Duration),
-    Time(Duration),
     Unknown,
 }
 
 #[derive(Debug)]
 pub struct TimeManager {
-    start: Instant,
     expected_moves: AtomicU32,
     last_eval: AtomicI16,
     max_duration: AtomicU32,
@@ -59,7 +55,6 @@ pub struct TimeManager {
 impl TimeManager {
     pub fn new() -> Self {
         Self {
-            start: Instant::now(),
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
             last_eval: AtomicI16::new(0),
             max_duration: AtomicU32::new(0),
@@ -115,7 +110,9 @@ impl TimeManager {
 
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
-        let move_change_factor = 1.05_f32.powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32).max(0.4);
+        let move_change_factor = 1.05_f32
+            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
+            .max(0.4);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
@@ -139,7 +136,6 @@ impl TimeManager {
         let mut max_depth = DEPTH_DEFAULT;
         let mut max_nodes = NODES_DEFAULT;
         let mut moves_to_go = MOVES_TO_GO_DEFAULT;
-        let mut overall_time = TIME;
         let mut move_time = None;
 
         for info in info {
@@ -166,9 +162,6 @@ impl TimeManager {
                 }
                 TimeManagementInfo::MovesToGo(moves) => {
                     moves_to_go = Some(*moves);
-                }
-                TimeManagementInfo::Time(time) => {
-                    overall_time = *time;
                 }
                 TimeManagementInfo::MoveTime(time) => {
                     move_time = Some(*time);

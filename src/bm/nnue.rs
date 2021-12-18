@@ -30,7 +30,7 @@ impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
         let res_layer = Psqt::new(&PSQT);
-        let out_layer = Dense::new(&OUT, OUT_BIAS);
+        let out_layer = Dense::new(&OUT);
 
         Self {
             white: EMPTY,

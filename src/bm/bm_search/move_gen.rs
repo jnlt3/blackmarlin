@@ -4,7 +4,6 @@ use crate::bm::bm_eval::evaluator::StdEvaluator;
 
 use crate::bm::bm_util::h_table::HistoryTable;
 use arrayvec::ArrayVec;
-use std::cell::Ref;
 
 use super::move_entry::MoveEntryIterator;
 

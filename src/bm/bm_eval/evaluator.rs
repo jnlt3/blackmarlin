@@ -1,9 +1,13 @@
 use crate::bm::bm_eval::eval::Evaluation;
+#[cfg(not(feature = "nnue"))]
 use crate::bm::bm_eval::eval_consts::*;
 #[cfg(feature = "nnue")]
 use crate::bm::nnue::Nnue;
+#[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_FILES, ALL_PIECES, EMPTY};
+#[cfg(not(feature = "nnue"))]
+use chess::ALL_FILES;
+use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_PIECES, EMPTY};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
@@ -14,6 +18,7 @@ pub struct EvalData {
     pub ring: [BitBoard; 64],
 }
 
+#[cfg(not(feature = "nnue"))]
 pub const fn get_basic_eval_data() -> EvalData {
     let mut data = EvalData {
         w_ahead: [BitBoard(0); 64],
@@ -86,6 +91,7 @@ pub const fn get_basic_eval_data() -> EvalData {
     data
 }
 
+#[cfg(not(feature = "nnue"))]
 pub const DATA: EvalData = get_basic_eval_data();
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
@@ -149,6 +155,7 @@ pub struct Indices<const CAP: usize, const SIZE: usize>(
     pub ArrayVec<u8, CAP>,
 );
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! reset_trace {
     ($trace: expr) => {
         #[cfg(feature = "trace")]
@@ -159,6 +166,7 @@ macro_rules! reset_trace {
     };
 }
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! trace_tempo {
     ($trace: expr, $color: expr) => {
         #[cfg(feature = "trace")]
@@ -171,6 +179,7 @@ macro_rules! trace_tempo {
     };
 }
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! trace_phase {
     ($trace: expr, $phase: expr) => {
         #[cfg(feature = "trace")]
@@ -180,6 +189,7 @@ macro_rules! trace_phase {
     };
 }
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! trace_eval {
     ($trace: expr, $field: ident) => {
         #[cfg(feature = "trace")]
@@ -196,6 +206,7 @@ macro_rules! trace_eval {
     }
 }
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! trace_index {
     ($trace: expr, $field: ident, $color: expr, $index: expr) => {
         #[cfg(feature = "trace")]
@@ -210,6 +221,7 @@ macro_rules! trace_index {
     };
 }
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! trace_ranks_pair {
     ($trace: expr, $field: ident, $bb_0: expr, $bb_1: expr) => {
         #[cfg(feature = "trace")]
@@ -222,6 +234,7 @@ macro_rules! trace_ranks_pair {
     };
 }
 
+#[cfg(not(feature = "nnue"))]
 macro_rules! trace_psqt {
     ($trace: expr, $piece: ident, $piece_cnt: ident, $bitboard_0: expr, $bitboard_1: expr) => {
         #[cfg(feature = "trace")]
@@ -243,6 +256,9 @@ pub struct StdEvaluator {
     #[cfg(feature = "nnue")]
     nnue: Nnue,
 }
+
+#[cfg(feature = "nnue")]
+const NNUE_TEMPO: i16 = 15;
 
 impl StdEvaluator {
     pub fn new() -> Self {
@@ -354,7 +370,6 @@ impl StdEvaluator {
             false
         }
     }
-
     /**
     Doesn't handle checkmates or stalemates
      */
@@ -362,12 +377,6 @@ impl StdEvaluator {
         if self.insufficient_material(board) {
             return Evaluation::new(0);
         }
-        let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
-            + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
-            + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
-            + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
-            + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
-            .min(TOTAL_PHASE) as i16;
         let turn = match board.side_to_move() {
             Color::White => 1,
             Color::Black => -1,
@@ -376,22 +385,31 @@ impl StdEvaluator {
         {
             return Evaluation::new(self.nnue.feed_forward(board, 0) * turn + NNUE_TEMPO);
         }
-        reset_trace!(&mut self.trace);
-        trace_tempo!(&mut self.trace, board.side_to_move());
+        #[cfg(not(feature = "nnue"))]
+        {
+            let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
+                + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
+                + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
+                + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
+                + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
+                .min(TOTAL_PHASE) as i16;
+            reset_trace!(&mut self.trace);
+            trace_tempo!(&mut self.trace, board.side_to_move());
 
-        trace_phase!(&mut self.trace, phase);
+            trace_phase!(&mut self.trace, phase);
 
-        let eval = self.evaluate_psqt(board, Piece::Pawn)
-            + self.evaluate_psqt(board, Piece::Knight)
-            + self.evaluate_psqt(board, Piece::Bishop)
-            + self.evaluate_psqt(board, Piece::Rook)
-            + self.evaluate_psqt(board, Piece::Queen)
-            + self.evaluate_psqt(board, Piece::King)
-            + self.evaluate_pawns(board)
-            + self.evaluate_bishops(board)
-            + self.evaluate_threats(board);
+            let eval = self.evaluate_psqt(board, Piece::Pawn)
+                + self.evaluate_psqt(board, Piece::Knight)
+                + self.evaluate_psqt(board, Piece::Bishop)
+                + self.evaluate_psqt(board, Piece::Rook)
+                + self.evaluate_psqt(board, Piece::Queen)
+                + self.evaluate_psqt(board, Piece::King)
+                + self.evaluate_pawns(board)
+                + self.evaluate_bishops(board)
+                + self.evaluate_threats(board);
 
-        Evaluation::new((eval * turn + TEMPO).convert(phase))
+            Evaluation::new((eval * turn + TEMPO).convert(phase))
+        }
     }
 
     //TODO: investigate tapered evaluation
@@ -411,6 +429,7 @@ impl StdEvaluator {
         &self.trace
     }
 
+    #[cfg(not(feature = "nnue"))]
     fn evaluate_threats(&mut self, board: &Board) -> TaperedEval {
         let blockers = *board.combined();
 
@@ -604,6 +623,7 @@ impl StdEvaluator {
             + attackers
     }
 
+    #[cfg(not(feature = "nnue"))]
     fn evaluate_bishops(&mut self, board: &Board) -> TaperedEval {
         let bishops = *board.pieces(Piece::Bishop);
         let w_bishops = bishops & *board.color_combined(Color::White);
@@ -615,6 +635,7 @@ impl StdEvaluator {
         bishop_pair * BISHOP_PAIR
     }
 
+    #[cfg(not(feature = "nnue"))]
     fn evaluate_pawns(&mut self, board: &Board) -> TaperedEval {
         let white_pawns = *board.pieces(Piece::Pawn) & board.color_combined(Color::White);
         let black_pawns = *board.pieces(Piece::Pawn) & board.color_combined(Color::Black);
@@ -707,6 +728,7 @@ impl StdEvaluator {
             + phalanx * PHALANX
     }
 
+    #[cfg(not(feature = "nnue"))]
     #[inline]
     pub fn get_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
         let mut psqt_score = TaperedEval(0, 0);
@@ -718,6 +740,7 @@ impl StdEvaluator {
         psqt_score
     }
 
+    #[cfg(not(feature = "nnue"))]
     fn evaluate_psqt(&mut self, board: &Board, piece: Piece) -> TaperedEval {
         let pieces_white = board.pieces(piece) & board.color_combined(Color::White);
         let pieces_black = board.pieces(piece) & board.color_combined(Color::Black);
