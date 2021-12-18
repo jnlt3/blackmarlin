@@ -125,7 +125,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             }
             //Assumes Killer Moves won't repeat
             GenType::Killer => {
-                for make_move in &mut self.killer_entry {
+                for make_move in self.killer_entry.clone() {
                     if Some(make_move) != self.pv_move {
                         let position = self
                             .queue
@@ -142,18 +142,23 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             }
             GenType::CounterMove => {
                 self.gen_type = GenType::ThreatMove;
-                if let Some(pv_move) = self.counter_move {
-                    if self.board.legal(pv_move) {
-                        return Some(pv_move);
-                    } else {
-                        self.pv_move = None;
+                if let Some(counter_move) = self.counter_move {
+                    if !self.killer_entry.any(|cmp_move| cmp_move == counter_move) {
+                        let position = self
+                            .queue
+                            .iter()
+                            .position(|(cmp_move, _)| counter_move == *cmp_move);
+                        if let Some(position) = position {
+                            self.queue.remove(position);
+                            return Some(counter_move);
+                        }
                     }
                 }
                 self.next(hist)
             }
             GenType::ThreatMove => {
                 for make_move in &mut self.threat_move_entry {
-                    if Some(make_move) != self.pv_move {
+                    if Some(make_move) != self.pv_move && Some(make_move) != self.counter_move {
                         let position = self
                             .queue
                             .iter()
