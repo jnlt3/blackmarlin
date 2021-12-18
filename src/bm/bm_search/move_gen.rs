@@ -75,7 +75,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                                 make_move.get_dest(),
                             ) / 16 + 512 / 16;
                         if expected_gain < 0 {
-                            expected_gain = LOSING_CAPTURE
+                            expected_gain += LOSING_CAPTURE
                         }
                         self.queue.push((make_move, expected_gain));
                     }
