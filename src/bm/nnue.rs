@@ -21,16 +21,25 @@ pub struct Nnue {
 
     w_input_layer: Incremental<'static, INPUT, MID>,
     b_input_layer: Incremental<'static, INPUT, MID>,
+
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
     out_layer: Dense<'static, MID, OUTPUT>,
+
+    s_w_res_layer: Psqt<'static, INPUT, OUTPUT>,
+    s_b_res_layer: Psqt<'static, INPUT, OUTPUT>,
+    s_out_layer: Dense<'static, MID, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
+
         let res_layer = Psqt::new(&PSQT);
         let out_layer = Dense::new(&OUT, OUT_BIAS);
+
+        let s_res_layer = Psqt::new(&S_PSQT);
+        let s_out_layer = Dense::new(&S_OUT, S_OUT_BIAS);
 
         Self {
             white: EMPTY,
@@ -48,11 +57,15 @@ impl Nnue {
             w_res_layer: res_layer.clone(),
             b_res_layer: res_layer,
             out_layer,
+
+            s_w_res_layer: s_res_layer.clone(),
+            s_b_res_layer: s_res_layer,
+            s_out_layer,
         }
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
+    pub fn feed_forward(&mut self, board: &Board) -> i16 {
         let white = *board.color_combined(Color::White);
         let black = *board.color_combined(Color::Black);
 
@@ -103,11 +116,15 @@ impl Nnue {
                     self.b_input_layer.incr_ff::<1>(64 * b_index + b_sq);
                     self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
                     self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
+                    self.s_w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
+                    self.s_b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
                 } else {
                     self.w_input_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_input_layer.incr_ff::<-1>(64 * b_index + b_sq);
                     self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
+                    self.s_w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
+                    self.s_b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
                 }
             }
         }
@@ -118,9 +135,28 @@ impl Nnue {
         let b_incr_layer = *self.b_input_layer.get();
         let b_incr_layer = normal::clipped_relu(b_incr_layer);
 
-        let psqt_score = (self.w_res_layer.get()[bucket] - self.b_res_layer.get()[bucket]) / 128;
+        let mut best_bucket = 0;
+        let mut best_score = i32::MIN;
+        for bucket in 0..OUTPUT {
+            let s_psqt_score =
+                (self.s_w_res_layer.get()[bucket] - self.s_b_res_layer.get()[bucket]) / 128;
+            let net_score = self
+                .s_out_layer
+                .ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket];
+            let bucket_score = net_score + s_psqt_score;
+            if bucket_score > best_score {
+                best_score = bucket_score;
+                best_bucket = bucket
+            }
+        }
+
+        let psqt_score =
+            (self.w_res_layer.get()[best_bucket] - self.b_res_layer.get()[best_bucket]) / 128;
 
         psqt_score as i16
-            + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket])
+            + normal::out(
+                self.out_layer
+                    .ff_sym(&w_incr_layer, &b_incr_layer, best_bucket)[best_bucket],
+            )
     }
 }

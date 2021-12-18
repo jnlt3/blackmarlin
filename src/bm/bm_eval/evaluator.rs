@@ -374,7 +374,7 @@ impl StdEvaluator {
         };
         #[cfg(feature = "nnue")]
         {
-            return Evaluation::new(self.nnue.feed_forward(board, 0) * turn + NNUE_TEMPO);
+            return Evaluation::new(self.nnue.feed_forward(board) * turn + NNUE_TEMPO);
         }
         reset_trace!(&mut self.trace);
         trace_tempo!(&mut self.trace, board.side_to_move());

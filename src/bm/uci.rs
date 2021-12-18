@@ -131,13 +131,6 @@ impl UciAdapter {
                 let runner = &mut *self.bm_runner.lock().unwrap();
 
                 println!("eval    : {}", runner.raw_eval().raw());
-                #[cfg(feature = "nnue")]
-                {
-                    let mut nnue = Nnue::new();
-                    for i in 0..1 {
-                        println!("bucket {}: {}", i, nnue.feed_forward(runner.get_board(), i));
-                    }
-                }
             }
             UciCommand::Go(commands) => self.go(commands),
             UciCommand::NewGame => {
@@ -289,35 +282,33 @@ impl UciAdapter {
         let original_board = *bm_runner.get_board();
         let mut nnue = Nnue::new();
 
-        for i in 0..1 {
-            println!();
-            println!("bucket {}", i);
-            let base_eval = nnue.feed_forward(&original_board, i);
+        println!();
+        let base_eval = nnue.feed_forward(&original_board);
 
-            let mut sq_values = [None; 64];
-            for sq in *original_board.combined() {
-                let mut board_builder = BoardBuilder::from(original_board);
-                board_builder
-                    .castle_rights(Color::White, chess::CastleRights::NoRights)
-                    .castle_rights(Color::Black, chess::CastleRights::NoRights);
-                board_builder.clear_square(sq);
-                if let Ok(eval_board) = board_builder.try_into() {
-                    sq_values[sq.to_index()] = Some(base_eval - nnue.feed_forward(&eval_board, i));
-                }
-            }
-            for rank in 0_usize..8 {
-                for file in 0_usize..8 {
-                    let index = (7 - rank) * 8 + file;
-                    let value = if let Some(value) = sq_values[index] {
-                        value.to_string()
-                    } else {
-                        "Empty".to_string()
-                    };
-                    print!("{:>8}", value);
-                }
-                println!();
+        let mut sq_values = [None; 64];
+        for sq in *original_board.combined() {
+            let mut board_builder = BoardBuilder::from(original_board);
+            board_builder
+                .castle_rights(Color::White, chess::CastleRights::NoRights)
+                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+            board_builder.clear_square(sq);
+            if let Ok(eval_board) = board_builder.try_into() {
+                sq_values[sq.to_index()] = Some(base_eval - nnue.feed_forward(&eval_board));
             }
         }
+        for rank in 0_usize..8 {
+            for file in 0_usize..8 {
+                let index = (7 - rank) * 8 + file;
+                let value = if let Some(value) = sq_values[index] {
+                    value.to_string()
+                } else {
+                    "Empty".to_string()
+                };
+                print!("{:>8}", value);
+            }
+            println!();
+        }
+
         bm_runner.set_board(original_board);
     }
 

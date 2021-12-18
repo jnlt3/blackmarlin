@@ -9,11 +9,13 @@ fn main() {
 fn parse_bm_net() {
     let nnue_data = std::fs::read("./nnue.bin").expect("nnue file doesn't exist");
     let (layers, weights, biases, psqt_weights) = from_bytes_bm(nnue_data);
-    assert_eq!(
-        weights.len(),
-        2,
-        "Blackmarlin only supports NNUEs with a single hidden layer"
-    );
+
+    let mut shapes = vec![[layers[0], layers[1]]];
+    for layer in layers.windows(2).skip(1) {
+        for _ in 0..2 {
+            shapes.push([layer[0], layer[1]]);
+        }
+    }
 
     let mut def_nodes = String::new();
     const NODE_NAMES: [&str; 3] = ["INPUT", "MID", "OUTPUT"];
@@ -22,12 +24,9 @@ fn parse_bm_net() {
     }
     let mut def_layers = String::new();
 
-    const LAYER_NAMES: [&str; 2] = ["INCREMENTAL", "OUT"];
-    for (((weights, biases), name), shape) in weights
-        .iter()
-        .zip(&biases)
-        .zip(LAYER_NAMES)
-        .zip(layers.windows(2))
+    const LAYER_NAMES: [&str; 3] = ["INCREMENTAL", "OUT", "S_OUT"];
+    for (((weights, biases), name), shape) in
+        weights.iter().zip(&biases).zip(LAYER_NAMES).zip(shapes)
     {
         let def_weights = format!("const {}: [[i8; {}]; {}] = ", name, shape[1], shape[0]);
         let mut array = "[".to_string();
@@ -56,27 +55,30 @@ fn parse_bm_net() {
         def_layers += &array;
     }
 
-    let def_weights = format!(
-        "const PSQT: [[i32; {}]; {}] = ",
-        layers[layers.len() - 1],
-        layers[0],
-    );
-    let mut array = "[".to_string();
-    for start_range in 0..layers[0] {
-        array += "[";
-        for &weight in psqt_weights[start_range..]
-            .iter()
-            .step_by(layers[0])
-            .take(layers[layers.len() - 1])
-        {
-            array += &format!("{}, ", weight);
+    const PSQT_NAMES: [&str; 2] = ["PSQT", "S_PSQT"];
+    for (psqt_weights, name) in psqt_weights.iter().zip(PSQT_NAMES) {
+        let def_weights = format!(
+            "const {}: [[i32; {}]; {}] = ",
+            name,
+            layers[layers.len() - 1],
+            layers[0],
+        );
+        let mut array = "[".to_string();
+        for start_range in 0..layers[0] {
+            array += "[";
+            for &weight in psqt_weights[start_range..]
+                .iter()
+                .step_by(layers[0])
+                .take(layers[layers.len() - 1])
+            {
+                array += &format!("{}, ", weight);
+            }
+            array += "],";
         }
-        array += "],";
+        array += "];\n";
+        def_layers += &def_weights;
+        def_layers += &array;
     }
-    array += "];\n";
-    def_layers += &def_weights;
-    def_layers += &array;
-
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("nnue_weights.rs");
     std::fs::write(&dest_path, def_nodes + "\n" + &def_layers).unwrap();
@@ -84,7 +86,7 @@ fn parse_bm_net() {
 }
 
 #[cfg(feature = "nnue")]
-pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>, Vec<i32>) {
+pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>, Vec<Vec<i32>>) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
         let layer_size: u32 = unsafe {
@@ -101,9 +103,12 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
     let mut weights = vec![];
     let mut biases = vec![];
 
-    for layer in layers.windows(2) {
-        weights.push(vec![0_i8; layer[0] * layer[1]]);
-        biases.push(vec![0_i8; layer[1]]);
+    for (index, layer) in layers.windows(2).enumerate() {
+        let push_cnt = if index == 0 { 1 } else { 2 };
+        for _ in 0..push_cnt {
+            weights.push(vec![0_i8; layer[0] * layer[1]]);
+            biases.push(vec![0_i8; layer[1]]);
+        }
     }
 
     let mut bytes_iterator = bytes.iter().skip(layers.len() * std::mem::size_of::<u32>());
@@ -127,25 +132,26 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
             }
         }
     }
-    let mut psqt_weights = vec![0_i32; layers[0] * layers[layers.len() - 1]];
+    let mut psqt_weights = vec![vec![0_i32; layers[0] * layers[layers.len() - 1]]; 2];
 
-    let mut index = 0;
-    while index < psqt_weights.len() {
-        let weight: i32 = unsafe {
-            std::mem::transmute([
-                *bytes_iterator.next().unwrap(),
-                *bytes_iterator.next().unwrap(),
-                *bytes_iterator.next().unwrap(),
-                *bytes_iterator.next().unwrap(),
-            ])
-        };
-        psqt_weights[index] = weight;
-        index += 1;
-        if index >= psqt_weights.len() {
-            break;
+    for psqt_weights in &mut psqt_weights {
+        let mut index = 0;
+        while index < psqt_weights.len() {
+            let weight: i32 = unsafe {
+                std::mem::transmute([
+                    *bytes_iterator.next().unwrap(),
+                    *bytes_iterator.next().unwrap(),
+                    *bytes_iterator.next().unwrap(),
+                    *bytes_iterator.next().unwrap(),
+                ])
+            };
+            psqt_weights[index] = weight;
+            index += 1;
+            if index >= psqt_weights.len() {
+                break;
+            }
         }
     }
-
     assert!(bytes_iterator.next().is_none(), "File not read fully");
     (layers, weights, biases, psqt_weights)
 }
