@@ -68,12 +68,15 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 self.move_gen.set_iterator_mask(*self.board.combined());
                 for make_move in &mut self.move_gen {
                     if Some(make_move) != self.pv_move {
-                        let expected_gain = StdEvaluator::see(self.board, make_move)
+                        let mut expected_gain = StdEvaluator::see(self.board, make_move)
                             + c_hist.get(
                                 self.board.side_to_move(),
                                 self.board.piece_on(make_move.get_source()).unwrap(),
                                 make_move.get_dest(),
-                            ) / 8 + 512 / 8;
+                            ) / 16 + 512 / 16;
+                        if expected_gain < 0 {
+                            expected_gain = LOSING_CAPTURE
+                        }
                         self.queue.push((make_move, expected_gain));
                     }
                 }
