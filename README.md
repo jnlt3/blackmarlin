@@ -20,48 +20,47 @@ The above repo has been replaced by [Marlinflow](https://github.com/dsekercioglu
 
 ## Black Marlin Search
 
-- Iterative Deepening
-- Aspiration Windows
-- Principal Variation Search
-  - Pruning
-    - Reverse Futility Pruning
-    - Null Move Pruning
-    - Late Move Pruning
-    - Futility Pruning
-    - History Based Pruning
-    - SEE Assisted Futility Pruning
-  - Reductions
-    - History Based Reductions
-    - Reduce Tactical Moves Less
-    - Reduce Principal Variation Nodes Less
-  - Extensions
-    - Singular Extensions
-    - Check Extensions
-  - Move Ordering
-    - Move from Transposition Table
-    - Winning Captures
-    - Killer Heuristic
-    - Null Move Threats
-    - History Heuristic
-    - Bad Captures
-    - Under Promotions
-- Lazy SMP
-  - Shared Transposition Table
-  - Atomic Entries
+- [Iterative Deepening](#iterative-deepening)
+- [Aspiration Windows](#aspiration-windows)
+- [Principal Variation Search](#principal-variation-search)
+  - [Pruning](#pruning)
+    - [Reverse Futility Pruning](#reverse-futility-pruning)
+    - [Null Move Pruning](#null-move-pruning)
+    - [Late Move Pruning](#late-move-pruning)
+    - [Futility Pruning](#futility-pruning)
+    - [History Based Pruning](#history-based-pruning)
+    - [SEE Assisted Futility Pruning](#see-assisted-futility-pruning)
+  - [Reductions](#late-move-reductions)
+    - [History Based Reductions](#history-based-reductions)
+    - [Reduce Tactical Moves Less](#other-reductions)
+    - [Reduce Principal Variation Nodes Less](#other-reductions)
+  - [Extensions](#extensions)
+    - [Singular Extensions](#singular-extensions)
+    - [Check Extensions](#check-extensions)
+  - [Move Ordering](#move-ordering)
+    - [Move from Transposition Table](#move-from-transposition-table)
+    - [Winning Captures](#winning-captures)
+    - [Killer Heuristic](#killer-heuristic)
+    - [Null Move Threats](#null-move-threats)
+    - [History Heuristic](#history-heuristic)
+    - [Bad Captures](#bad-captures)
+    - [Under Promotions](#under-promotions)
+- [Lazy SMP](#lazy-smp)
+  - [Atomic Entries](#atomic-keys-and-entries)
 
 ## Black Marlin Evaluation
 
-- Hand Crafted Eval
-  - Gradient Descent Based Tuning System
-- NNUE
-  - Skipped Connections
-  - Buckets
+- [Hand Crafted Evaluation](#hand-crafted-evaluation)
+- [NNUE](#efficiently-updatable-neural-networks)
+  - [Skipped Connections](#skipped-connections)
+  - [Buckets](#buckets)
 
 ## Black Marlin Time Management
 
 - Search Evaluation Instability
 - Failed Searches at Root
 - Best Move consistency
+
 
 
 ### Iterative Deepening
@@ -72,6 +71,9 @@ Aspiration Windows are a way of reducing the search space by making the assumpti
 
 ### Principal Variation Search
 In Principal Variation Search (PVS), we do a search with the window `[alpha - 1, alpha]` for each move to see if it is worse than alpha efficiently. If so, we don't need to execute a full search on the given move.
+
+### Pruning
+Pruning in general is the idea of ignoring certain parts of the search tree in order to reduce the amount of time it takes to execute a search.
 
 ### Reverse Futility Pruning
 Reverse Futility Pruning (RFP) is the idea of returning the evaluation of the current position if it is above beta by a margin.
@@ -99,6 +101,9 @@ Late Move Reductions (LMR) are a way of proving if a move is lower than alpha qu
 
 ### History Based Reductions
 History Based Reductions are the idea of adjusting LMR reductions based on the history score of a move.
+
+### Other Reductions
+Black Marlin additionally reduces less in principal variation nodes and when a move is tactical.
 
 ### Extensions
 Usually the search algortihm is optimized by pruning or reducing where moves aren't promising. However, it can also be done by executing a deeper search on promising moves.
@@ -131,7 +136,7 @@ We can order quiet moves based on their history scores in order to search quiets
 ### Bad Captures
 Bad Captures are moves that most likely make the position worse. They are usually put last as they rarely improve the position.
 
-### Underpromotions
+### Under Promotions
 There isn't really a reason to promote to a piece other than the queen in most positions. All promotions other than queen promotions are put to the very last of the move ordering list.
 
 
@@ -142,8 +147,8 @@ Lazy SMP stands for Lazy Simulatenous Multi Processing. The idea behind Lazy SMP
 In order to prevent data races and data corruption, we can use the "XOR Trick". Instead of saving the hash of the position directlly, we XOR it with the related entry. When we access the table later on, we can revert the hash back with the corresponding entry. This ensures a different hash will be produced in case the entry was corrupted.
 
 
-### Hand Crafted Evaluation (HCE)
-Prior to NNUE, most engines used a hand crafted evaluation function. HCE included hand picked features such as material, pawn structure, piece squares and similar. These values quickly get overwhelming to tune, in order to solve this problem, most engines employ a strategy called "Texel Tuning". The idea behind Texel Tuning is to optimize the evaluation function in such a way that it'll reflect the result of the game the best. Once we obtain a loss function, we can use metaheuristics such as genetic algorithms or gradient based algorithms such as AdaGrad to tune the hand crafted evaluation function.
+### Hand Crafted Evaluation
+Prior to NNUE, most engines used a hand crafted evaluation function. Hand crafted evaluation (HCE) included hand picked features such as material, pawn structure, piece squares and similar. These values quickly get overwhelming to tune, in order to solve this problem, most engines employ a strategy called "Texel Tuning". The idea behind Texel Tuning is to optimize the evaluation function in such a way that it'll reflect the result of the game the best. Once we obtain a loss function, we can use metaheuristics such as genetic algorithms or gradient based algorithms such as AdaGrad to tune the hand crafted evaluation function.
 
 
 ### Neural Networks
@@ -159,8 +164,15 @@ Data is usually generated by self-play where the engine plays against itself at 
 In order keep the weights low and make the neural network more aware of evaluations close to 0, the evaluation score is usually scaled and passed through sigmoid. Usually using a formula along the lines of  `sigmoid(eval * SCALE)`. We can also add a WDL term to our train set in order to make the networ more aware of how winnable positions are. This can be done by taking the weighted average of WDL and evaluation. 
 
 
-### Efficiently Updatable Neural Networks (NNUE)
-Neural Networks are the state of the art machine learning models. Although they have one problem: they are usually very slow in execution. NNUE solves this problem by doing incremental updates.
+### Efficiently Updatable Neural Networks
+Neural Networks are the state of the art machine learning models. Although they have one problem: they are usually very slow in execution. Efficietly Updatable Neural Networks (NNUE) solves this problem by doing incremental updates.
 
 #### Incremental Updates
 Alpha-Beta Search has one feature that allows us to efficiently update our neural networks. Since a depth first search is employed, a series of moves are played one after the other only causing slight changes in the actual input. It is possible to take advantage of this and only calculate what has changed in the network than propogate forward completely.
+
+#### Skipped Connections
+Skipped connections are the idea of connecting a layer to a layer other than the next. This increases learning speed and the strength of the resulting model.
+
+#### Buckets
+A Neural Network might have sub networks that it picks from based on a condition. This enables the network to better distinguish between different types of positions, usually decided by game phase(mid game, end game). Buckets cause almost no slow down in the resulting neural network while increasing the representative power of the model.
+
