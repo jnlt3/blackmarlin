@@ -75,14 +75,6 @@ impl_tapered_eval_i16_op_assign!(AddAssign, add_assign);
 impl_tapered_eval_i16_op_assign!(SubAssign, sub_assign);
 impl_tapered_eval_i16_op_assign!(MulAssign, mul_assign);
 
-pub const PAWN_PHASE: u32 = 0;
-pub const KNIGHT_PHASE: u32 = 1;
-pub const BISHOP_PHASE: u32 = 1;
-pub const ROOK_PHASE: u32 = 2;
-pub const QUEEN_PHASE: u32 = 4;
-pub const TOTAL_PHASE: u32 =
-    PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2;
-
 const fn add_piece(
     table: [[TaperedEval; 8]; 8],
     piece_value: TaperedEval,

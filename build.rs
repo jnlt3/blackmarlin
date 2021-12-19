@@ -19,7 +19,7 @@ fn parse_bm_net() {
     let mut def_nodes = String::new();
     const NODE_NAMES: [&str; 3] = ["INPUT", "MID", "OUTPUT"];
     for (&size, name) in layers.iter().zip(NODE_NAMES) {
-        def_nodes += &format!("const {}: usize = {};\n", name, size);
+        def_nodes += &format!("pub const {}: usize = {};\n", name, size);
     }
     let mut def_layers = String::new();
 

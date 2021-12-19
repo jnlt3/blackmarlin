@@ -9,6 +9,14 @@ use arrayvec::ArrayVec;
 use chess::ALL_FILES;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_PIECES, EMPTY};
 
+pub const PAWN_PHASE: u32 = 0;
+pub const KNIGHT_PHASE: u32 = 1;
+pub const BISHOP_PHASE: u32 = 1;
+pub const ROOK_PHASE: u32 = 2;
+pub const QUEEN_PHASE: u32 = 4;
+pub const TOTAL_PHASE: u32 =
+    PAWN_PHASE * 16 + KNIGHT_PHASE * 4 + BISHOP_PHASE * 4 + ROOK_PHASE * 4 + QUEEN_PHASE * 2;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
     pub w_ahead: [BitBoard; 64],
@@ -381,18 +389,26 @@ impl StdEvaluator {
             Color::White => 1,
             Color::Black => -1,
         };
+        let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
+            + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
+            + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
+            + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
+            + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
+            .min(TOTAL_PHASE) as i16;
         #[cfg(feature = "nnue")]
         {
-            return Evaluation::new(self.nnue.feed_forward(board, 0) * turn + NNUE_TEMPO);
+            use crate::bm::nnue;
+            return Evaluation::new(
+                self.nnue.feed_forward(
+                    board,
+                    ((phase as usize) * nnue::OUTPUT / (TOTAL_PHASE as usize))
+                        .min(nnue::OUTPUT - 1),
+                ) * turn
+                    + NNUE_TEMPO,
+            );
         }
         #[cfg(not(feature = "nnue"))]
         {
-            let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
-                + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
-                + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
-                + board.pieces(Piece::Rook).popcnt() * ROOK_PHASE
-                + board.pieces(Piece::Queen).popcnt() * QUEEN_PHASE)
-                .min(TOTAL_PHASE) as i16;
             reset_trace!(&mut self.trace);
             trace_tempo!(&mut self.trace, board.side_to_move());
 

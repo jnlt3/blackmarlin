@@ -122,8 +122,9 @@ impl UciAdapter {
                 println!("eval    : {}", runner.raw_eval().raw());
                 #[cfg(feature = "nnue")]
                 {
+                    use super::nnue;
                     let mut nnue = Nnue::new();
-                    for i in 0..1 {
+                    for i in 0..nnue::OUTPUT {
                         println!("bucket {}: {}", i, nnue.feed_forward(runner.get_board(), i));
                     }
                 }
@@ -278,7 +279,8 @@ impl UciAdapter {
         let original_board = *bm_runner.get_board();
         let mut nnue = Nnue::new();
 
-        for i in 0..1 {
+        use super::nnue;
+        for i in 0..nnue::OUTPUT {
             println!();
             println!("bucket {}", i);
             let base_eval = nnue.feed_forward(&original_board, i);
