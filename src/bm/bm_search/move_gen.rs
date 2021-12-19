@@ -141,17 +141,15 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 self.next(hist)
             }
             GenType::CounterMove => {
-                self.gen_type = GenType::ThreatMove;
+                self.gen_type = GenType::Quiet;
                 if let Some(counter_move) = self.counter_move {
-                    if !self.killer_entry.any(|cmp_move| cmp_move == counter_move) {
-                        let position = self
-                            .queue
-                            .iter()
-                            .position(|(cmp_move, _)| counter_move == *cmp_move);
-                        if let Some(position) = position {
-                            self.queue.remove(position);
-                            return Some(counter_move);
-                        }
+                    let position = self
+                        .queue
+                        .iter()
+                        .position(|(cmp_move, _)| counter_move == *cmp_move);
+                    if let Some(position) = position {
+                        self.queue.remove(position);
+                        return Some(counter_move);
                     }
                 }
                 self.next(hist)
