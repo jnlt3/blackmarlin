@@ -141,7 +141,7 @@ There isn't really a reason to promote to a piece other than the queen in most p
 
 
 ### Lazy SMP
-Lazy SMP stands for Lazy Simulatenous Multi Processing. The idea behind Lazy SMP is to execute the search function on N many threads and share the hash table. This allows for faster filling of the hash table, resulting in a faster and wider search.
+Lazy SMP stands for Lazy Symmetric Multi Processing. The idea behind Lazy SMP is to execute the search function on N many threads and share the hash table. This allows for faster filling of the hash table, resulting in a faster and wider search.
 
 ### Atomic Keys and Entries
 In order to prevent data races and data corruption, we can use the "XOR Trick". Instead of saving the hash of the position directlly, we XOR it with the related entry. When we access the table later on, we can revert the hash back with the corresponding entry. This ensures a different hash will be produced in case the entry was corrupted.
