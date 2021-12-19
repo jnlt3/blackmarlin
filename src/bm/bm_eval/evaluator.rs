@@ -398,14 +398,9 @@ impl StdEvaluator {
         #[cfg(feature = "nnue")]
         {
             use crate::bm::nnue;
-            return Evaluation::new(
-                self.nnue.feed_forward(
-                    board,
-                    ((phase as usize) * nnue::OUTPUT / (TOTAL_PHASE as usize))
-                        .min(nnue::OUTPUT - 1),
-                ) * turn
-                    + NNUE_TEMPO,
-            );
+            let bucket =
+                ((phase as usize) * nnue::OUTPUT / (TOTAL_PHASE as usize)).min(nnue::OUTPUT - 1);
+            return Evaluation::new(self.nnue.feed_forward(board, bucket) * turn + NNUE_TEMPO);
         }
         #[cfg(not(feature = "nnue"))]
         {
