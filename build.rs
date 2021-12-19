@@ -66,13 +66,9 @@ fn parse_bm_net() {
         layers[0],
     );
     let mut array = "[".to_string();
-    for start_range in 0..layers[0] {
+    for weights in psqt_weights.chunks(layers[2]) {
         array += "[";
-        for &weight in psqt_weights[start_range..]
-            .iter()
-            .step_by(layers[0])
-            .take(layers[layers.len() - 1])
-        {
+        for &weight in weights.iter() {
             array += &format!("{}, ", weight);
         }
         array += "],";
