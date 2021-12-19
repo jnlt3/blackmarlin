@@ -13,7 +13,9 @@ Make sure to compile the chess engine with `cargo build --release --features nnu
 
 Blackmarlin doesn't come with a built-in GUI. The recommended way of playing against the engine is to get the latest release or compile it locally and use it along with a Chess GUI that supports the UCI protocol. 
 
-The repository used for NN training is [NNUE Marlin](https://github.com/dsekercioglu/nnue_marlin)
+<strike>The repository used for NN training is [NNUE Marlin](https://github.com/dsekercioglu/nnue_marlin).</strike>
+
+The above repo has been replaced by [Marlinflow](https://github.com/dsekercioglu/marlinflow).
 
 
 ## Black Marlin Search
