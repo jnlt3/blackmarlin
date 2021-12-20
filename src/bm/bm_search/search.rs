@@ -272,6 +272,7 @@ pub fn search<Search: SearchType>(
         position.board(),
         best_move,
         counter_move,
+        prev_move.unwrap_or(None),
         threat_move_entry.into_iter(),
         local_context.get_k_table()[ply as usize].into_iter(),
     );
@@ -282,7 +283,9 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<ChessMove, 64>::new();
     let mut captures = ArrayVec::<ChessMove, 64>::new();
 
-    while let Some(make_move) = move_gen.next(local_context.get_h_table()) {
+    while let Some(make_move) =
+        move_gen.next(local_context.get_h_table(), local_context.get_cm_hist())
+    {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -520,6 +523,9 @@ pub fn search<Search: SearchType>(
                             local_context
                                 .get_cm_table_mut()
                                 .cutoff(&board, prev_move, make_move, depth);
+                            local_context
+                                .get_cm_hist_mut()
+                                .cutoff(&board, prev_move, make_move, &quiets, depth);
                         }
                     } else {
                         local_context

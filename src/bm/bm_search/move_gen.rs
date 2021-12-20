@@ -2,7 +2,7 @@ use chess::{Board, ChessMove, MoveGen, EMPTY};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 
-use crate::bm::bm_util::h_table::HistoryTable;
+use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
 use std::cell::Ref;
 
@@ -29,6 +29,7 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<ChessMove>,
+    prev_move: Option<ChessMove>,
     gen_type: GenType,
     board: Board,
 
@@ -40,6 +41,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         board: &Board,
         pv_move: Option<ChessMove>,
         counter_move: Option<ChessMove>,
+        prev_move: Option<ChessMove>,
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
@@ -47,6 +49,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             gen_type: GenType::PvMove,
             move_gen: MoveGen::new_legal(board),
             counter_move,
+            prev_move,
             pv_move,
             threat_move_entry,
             killer_entry,
@@ -55,7 +58,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         }
     }
 
-    pub fn next(&mut self, hist: &HistoryTable) -> Option<ChessMove> {
+    pub fn next(&mut self, hist: &HistoryTable, cm_hist: &DoubleMoveHistory) -> Option<ChessMove> {
         match self.gen_type {
             GenType::PvMove => {
                 self.gen_type = GenType::CalcCaptures;
@@ -66,7 +69,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         self.pv_move = None;
                     }
                 }
-                self.next(hist)
+                self.next(hist, cm_hist)
             }
             GenType::CalcCaptures => {
                 self.move_gen.set_iterator_mask(*self.board.combined());
@@ -80,7 +83,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 self.gen_type = GenType::Captures;
-                self.next(hist)
+                self.next(hist, cm_hist)
             }
             GenType::Captures => {
                 let mut max = LOSING_CAPTURE;
@@ -95,7 +98,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     Some(self.queue.remove(index).0)
                 } else {
                     self.gen_type = GenType::GenQuiet;
-                    self.next(hist)
+                    self.next(hist, cm_hist)
                 }
             }
             GenType::GenQuiet => {
@@ -117,11 +120,23 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                     let mut score = 0;
                     let piece = self.board.piece_on(make_move.get_source()).unwrap();
+
                     score += hist.get(self.board.side_to_move(), piece, make_move.get_dest());
+                    if let Some(prev_move) = self.prev_move {
+                        let prev_move_piece = self.board.piece_on(prev_move.get_dest()).unwrap();
+                        score += cm_hist.get(
+                            self.board.side_to_move(),
+                            prev_move_piece,
+                            prev_move.get_dest(),
+                            piece,
+                            make_move.get_dest(),
+                        );
+                    }
+
                     self.queue.push((make_move, score));
                 }
                 self.gen_type = GenType::Killer;
-                self.next(hist)
+                self.next(hist, cm_hist)
             }
             //Assumes Killer Moves won't repeat
             GenType::Killer => {
@@ -138,7 +153,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 self.gen_type = GenType::CounterMove;
-                self.next(hist)
+                self.next(hist, cm_hist)
             }
             GenType::CounterMove => {
                 self.gen_type = GenType::ThreatMove;
@@ -154,7 +169,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         }
                     }
                 }
-                self.next(hist)
+                self.next(hist, cm_hist)
             }
             GenType::ThreatMove => {
                 for make_move in &mut self.threat_move_entry {
@@ -170,7 +185,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                 }
                 self.gen_type = GenType::Quiet;
-                self.next(hist)
+                self.next(hist, cm_hist)
             }
             GenType::Quiet => {
                 let mut max = 0;
