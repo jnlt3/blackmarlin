@@ -16,8 +16,9 @@ enum GenType {
     CalcCaptures,
     Captures,
     GenQuiet,
-    ThreatMove,
+    CounterMove,
     Killer,
+    ThreatMove,
     Quiet,
 }
 
@@ -26,6 +27,7 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     pv_move: Option<ChessMove>,
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
+    counter_move: Option<ChessMove>,
     gen_type: GenType,
     board: Board,
 
@@ -36,12 +38,14 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     pub fn new(
         board: &Board,
         pv_move: Option<ChessMove>,
+        counter_move: Option<ChessMove>,
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
         Self {
             gen_type: GenType::PvMove,
             move_gen: MoveGen::new_legal(board),
+            counter_move,
             pv_move,
             threat_move_entry,
             killer_entry,
@@ -120,7 +124,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             }
             //Assumes Killer Moves won't repeat
             GenType::Killer => {
-                for make_move in &mut self.killer_entry {
+                for make_move in self.killer_entry.clone() {
                     if Some(make_move) != self.pv_move {
                         let position = self
                             .queue
@@ -132,12 +136,26 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         }
                     }
                 }
-                self.gen_type = GenType::ThreatMove;
+                self.gen_type = GenType::CounterMove;
+                self.next(hist)
+            }
+            GenType::CounterMove => {
+                self.gen_type = GenType::Quiet;
+                if let Some(counter_move) = self.counter_move {
+                    let position = self
+                        .queue
+                        .iter()
+                        .position(|(cmp_move, _)| counter_move == *cmp_move);
+                    if let Some(position) = position {
+                        self.queue.remove(position);
+                        return Some(counter_move);
+                    }
+                }
                 self.next(hist)
             }
             GenType::ThreatMove => {
                 for make_move in &mut self.threat_move_entry {
-                    if Some(make_move) != self.pv_move {
+                    if Some(make_move) != self.pv_move && Some(make_move) != self.counter_move {
                         let position = self
                             .queue
                             .iter()
