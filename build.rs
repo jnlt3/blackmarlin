@@ -24,10 +24,12 @@ fn parse_bm_net() {
     let mut def_layers = String::new();
 
     const LAYER_NAMES: [&str; 2] = ["INCREMENTAL", "OUT"];
-    for (((weights, biases), name), shape) in weights
+    const BIAS_TYPES: [&str; 2] = ["i16", "i32"];
+    for ((((weights, biases), name), bias_type), shape) in weights
         .iter()
         .zip(&biases)
         .zip(LAYER_NAMES)
+        .zip(BIAS_TYPES)
         .zip(layers.windows(2))
     {
         let def_weights = format!(
@@ -47,8 +49,9 @@ fn parse_bm_net() {
         def_layers += &array;
 
         let def_biases = format!(
-            "#[allow(dead_code)]\nconst {}: [i16; {}] = ",
+            "#[allow(dead_code)]\nconst {}: [{}; {}] = ",
             name.to_string() + "_BIAS",
+            bias_type,
             shape[1]
         );
         let mut array = "[".to_string();

@@ -55,29 +55,23 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
 #[derive(Debug, Clone)]
 pub struct Dense<'a, const INPUT: usize, const OUTPUT: usize> {
     weights: &'a [[i8; OUTPUT]; INPUT],
+    bias: [i32; OUTPUT],
 }
 
 impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT]) -> Self {
-        Self { weights }
+    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i32; OUTPUT]) -> Self {
+        Self { weights, bias }
     }
 
     #[inline]
-    pub fn ff_sym(
-        &self,
-        w_inputs: &[i8; INPUT],
-        b_inputs: &[i8; INPUT],
-        bucket: usize,
-    ) -> [i32; OUTPUT] {
-        let mut out = [0; OUTPUT];
-        for ((&w_input, &b_input), weights) in
-            w_inputs.iter().zip(b_inputs.iter()).zip(&*self.weights)
-        {
+    pub fn ff(&self, inputs: &[i8; INPUT], bucket: usize) -> [i32; OUTPUT] {
+        let mut out = self.bias;
+        for (&input, weights) in inputs.iter().zip(&*self.weights) {
             for (out, &weight) in out[bucket..bucket + 1]
                 .iter_mut()
                 .zip(weights[bucket..bucket + 1].iter())
             {
-                *out += weight as i32 * (w_input as i32 - b_input as i32) / 2;
+                *out += weight as i32 * input as i32;
             }
         }
         out
@@ -85,8 +79,8 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
 }
 
 #[inline]
-pub fn out(x: i32) -> i16 {
-    (x as f32 * UNITS as f32 / (SCALE * SCALE) as f32) as i16
+pub fn out(x: f32) -> i16 {
+    (x * UNITS as f32 / (SCALE * SCALE) as f32) as i16
 }
 
 #[inline]

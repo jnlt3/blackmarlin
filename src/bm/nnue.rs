@@ -6,6 +6,9 @@ mod normal;
 
 include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
 
+const TEMPO: f32 = 0.2;
+const STM_WEIGHT: f32 = (1.0 + TEMPO) * 0.5;
+
 #[derive(Debug, Clone)]
 pub struct Nnue {
     white: BitBoard,
@@ -30,7 +33,7 @@ impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
         let res_layer = Psqt::new(&PSQT);
-        let out_layer = Dense::new(&OUT);
+        let out_layer = Dense::new(&OUT, OUT_BIAS);
 
         Self {
             white: EMPTY,
@@ -118,9 +121,19 @@ impl Nnue {
         let b_incr_layer = *self.b_input_layer.get();
         let b_incr_layer = normal::clipped_relu(b_incr_layer);
 
-        let psqt_score = (self.w_res_layer.get()[bucket] - self.b_res_layer.get()[bucket]) / 128;
+        let w_res_out = self.w_res_layer.get()[bucket] as f32;
+        let b_res_out = self.b_res_layer.get()[bucket] as f32;
 
-        psqt_score as i16
-            + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket])
+        let w_out = self.out_layer.ff(&w_incr_layer, bucket)[bucket] as f32;
+        let b_out = self.out_layer.ff(&b_incr_layer, bucket)[bucket] as f32;
+
+        let (w_out, b_out, w_res_out, b_res_out) = match board.side_to_move() {
+            Color::White => (w_out, b_out, w_res_out, b_res_out),
+            Color::Black => (b_out, w_out, b_res_out, w_res_out),
+        };
+
+        let out = w_out * STM_WEIGHT - b_out * (1.0 - STM_WEIGHT);
+        let res_out = (w_res_out * STM_WEIGHT - b_res_out * (1.0 - STM_WEIGHT)) / 64.0;
+        res_out as i16 + normal::out(out)
     }
 }
