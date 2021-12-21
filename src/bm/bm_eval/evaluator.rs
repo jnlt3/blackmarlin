@@ -385,7 +385,9 @@ impl StdEvaluator {
         let piece_cnt = pieces.popcnt();
         let queen_cnt = queens.popcnt();
 
-        let ocb = if piece_cnt - pawn_cnt - 2 == board.pieces(Piece::Bishop).popcnt() {
+        let ocb = if piece_cnt - pawn_cnt - 2 == board.pieces(Piece::Bishop).popcnt()
+            && Self::ocb(board)
+        {
             -0.4
         } else {
             0.0
