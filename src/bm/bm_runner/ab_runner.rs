@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -39,10 +38,8 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     do_nmp: DO_NULL_MOVE_REDUCTION,
     iid: Reduction::new(IID_BASE, IID_FACTOR, IID_DIVISOR),
     do_iid: DO_IID,
-    lmr_pv: LMR_PV,
     lmr_depth: LMR_DEPTH,
     do_lmr: DO_LMR,
-    lmp_depth: LMP_DEPTH,
     do_lmp: DO_LMP,
     q_search_depth: QUIESCENCE_SEARCH_DEPTH,
     delta_margin: DELTA_MARGIN,
@@ -67,10 +64,8 @@ pub struct SearchParams {
     do_nmp: bool,
     iid: Reduction,
     do_iid: bool,
-    lmr_pv: u32,
     lmr_depth: u32,
     do_lmr: bool,
-    lmp_depth: u32,
     do_lmp: bool,
     q_search_depth: u32,
     delta_margin: i16,
@@ -153,11 +148,6 @@ impl SearchParams {
     #[inline]
     pub const fn do_iid(&self, depth: u32) -> bool {
         self.do_iid && depth > self.iid_depth
-    }
-
-    #[inline]
-    pub const fn get_lmr_pv(&self) -> u32 {
-        self.lmr_pv
     }
 
     #[inline]
@@ -562,6 +552,7 @@ impl AbRunner {
         self.position.make_move(make_move);
     }
 
+    #[cfg(feature = "data")]
     pub fn get_position(&self) -> &Position {
         &self.position
     }

@@ -1,3 +1,4 @@
+#[cfg(feature = "nnue")]
 use std::{env, path::Path};
 
 fn main() {
@@ -29,7 +30,10 @@ fn parse_bm_net() {
         .zip(LAYER_NAMES)
         .zip(layers.windows(2))
     {
-        let def_weights = format!("const {}: [[i8; {}]; {}] = ", name, shape[1], shape[0]);
+        let def_weights = format!(
+            "#[allow(dead_code)]\nconst {}: [[i8; {}]; {}] = ",
+            name, shape[1], shape[0]
+        );
         let mut array = "[".to_string();
         for weights in weights.chunks(shape[1]) {
             array += "[";
@@ -43,7 +47,7 @@ fn parse_bm_net() {
         def_layers += &array;
 
         let def_biases = format!(
-            "const {}: [i16; {}] = ",
+            "#[allow(dead_code)]\nconst {}: [i16; {}] = ",
             name.to_string() + "_BIAS",
             shape[1]
         );
@@ -57,7 +61,7 @@ fn parse_bm_net() {
     }
 
     let def_weights = format!(
-        "const PSQT: [[i32; {}]; {}] = ",
+        "#[allow(dead_code)]\nconst PSQT: [[i32; {}]; {}] = ",
         layers[layers.len() - 1],
         layers[0],
     );
@@ -107,7 +111,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>,
     }
 
     let mut bytes_iterator = bytes.iter().skip(layers.len() * std::mem::size_of::<u32>());
-    for (layer, (layer_weights, bias_weights)) in weights.iter_mut().zip(&mut biases).enumerate() {
+    for (layer_weights, bias_weights) in weights.iter_mut().zip(&mut biases) {
         let mut index = 0;
         for &weight in &mut bytes_iterator {
             let weight: i8 = unsafe { std::mem::transmute(weight) };

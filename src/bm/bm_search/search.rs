@@ -260,7 +260,7 @@ pub fn search<Search: SearchType>(
 
     let counter_move = if let Some(Some(prev_move)) = prev_move {
         local_context.get_cm_table().get(
-            !board.side_to_move(),
+            board.side_to_move(),
             board.piece_on(prev_move.get_dest()).unwrap(),
             prev_move.get_dest(),
         )

@@ -23,7 +23,6 @@ pub const DO_IID: bool = false;
 
 pub const LMR_BASE: f32 = 0.75;
 pub const LMR_DIV: f32 = 1.25;
-pub const LMR_PV: u32 = 1;
 pub const LMR_DEPTH: u32 = 1;
 pub const DO_LMR: bool = true;
 

@@ -4,7 +4,6 @@ use crate::bm::bm_eval::evaluator::StdEvaluator;
 
 use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
-use std::cell::Ref;
 
 use super::move_entry::MoveEntryIterator;
 
@@ -156,17 +155,15 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 self.next(hist, cm_hist)
             }
             GenType::CounterMove => {
-                self.gen_type = GenType::ThreatMove;
+                self.gen_type = GenType::Quiet;
                 if let Some(counter_move) = self.counter_move {
-                    if !self.killer_entry.any(|cmp_move| cmp_move == counter_move) {
-                        let position = self
-                            .queue
-                            .iter()
-                            .position(|(cmp_move, _)| counter_move == *cmp_move);
-                        if let Some(position) = position {
-                            self.queue.remove(position);
-                            return Some(counter_move);
-                        }
+                    let position = self
+                        .queue
+                        .iter()
+                        .position(|(cmp_move, _)| counter_move == *cmp_move);
+                    if let Some(position) = position {
+                        self.queue.remove(position);
+                        return Some(counter_move);
                     }
                 }
                 self.next(hist, cm_hist)
