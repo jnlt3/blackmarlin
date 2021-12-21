@@ -377,7 +377,10 @@ impl StdEvaluator {
         let pawns = *board.pieces(Piece::Pawn);
         let pieces = board.combined() & !pawns;
         let queens = *board.pieces(Piece::Queen);
-        let pawn_cnt = pawns.popcnt();
+        let mut pawn_cnt = pawns.popcnt() as i16;
+        if pawn_cnt == 0 {
+            pawn_cnt = -16;
+        }
         let piece_cnt = pieces.popcnt();
         let queen_cnt = queens.popcnt();
         0.8 + pawn_cnt as f32 * (1.0 / 64.0)
