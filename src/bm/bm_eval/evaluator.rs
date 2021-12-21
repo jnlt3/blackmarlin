@@ -370,6 +370,21 @@ impl StdEvaluator {
             false
         }
     }
+
+    //TODO: Later to be removed with new NNUE versions
+    #[cfg(feature = "nnue")]
+    fn eval_scale(board: &Board) -> f32 {
+        let pawns = *board.pieces(Piece::Pawn);
+        let pieces = board.combined() & !pawns;
+        let queens = *board.pieces(Piece::Queen);
+        let pawn_cnt = pawns.popcnt();
+        let piece_cnt = pieces.popcnt();
+        let queen_cnt = queens.popcnt();
+        pawn_cnt as f32 * (1.0 / 24.0)
+            + piece_cnt as f32 * (1.0 / 16.0)
+            + queen_cnt as f32 * (1.0 / 8.0)
+    }
+
     /**
     Doesn't handle checkmates or stalemates
      */
@@ -383,7 +398,10 @@ impl StdEvaluator {
         };
         #[cfg(feature = "nnue")]
         {
-            return Evaluation::new(self.nnue.feed_forward(board, 0) * turn + NNUE_TEMPO);
+            let scale = Self::eval_scale(board);
+            let nnue_out = self.nnue.feed_forward(board, 0);
+            let scaled = (nnue_out as f32 * scale) as i16;
+            return Evaluation::new(scaled * turn + NNUE_TEMPO);
         }
         #[cfg(not(feature = "nnue"))]
         {
