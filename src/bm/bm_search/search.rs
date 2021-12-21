@@ -142,6 +142,15 @@ pub fn search<Search: SearchType>(
     };
 
     local_context.push_eval(eval, ply);
+
+    let piece_cnt = board.combined().popcnt();
+    let prev_piece_cnt = if ply > 0 {
+        local_context.get_piece_cnt(ply - 1)
+    } else {
+        None
+    };
+    local_context.push_piece_cnt(piece_cnt, ply);
+
     let improving = if ply < 2 || in_check {
         false
     } else if let Some(prev_eval) = local_context.get_eval(ply - 2) {
@@ -309,6 +318,17 @@ pub fn search<Search: SearchType>(
         };
 
         let mut extension = 0;
+
+        if let Some(prev_piece_cnt) = prev_piece_cnt {
+            if ply != 0
+                && Search::PV
+                && board.piece_on(make_move.get_dest()).is_some()
+                && piece_cnt < prev_piece_cnt
+            {
+                extension += 1;
+            }
+        }
+
         let mut score;
         if moves_seen == 0 {
             /*

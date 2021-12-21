@@ -187,6 +187,7 @@ pub struct LocalContext {
     eval_stack: Vec<Evaluation>,
     skip_moves: Vec<Option<ChessMove>>,
     variation: Vec<Option<ChessMove>>,
+    pieces: Vec<u32>,
     sel_depth: u32,
     h_table: HistoryTable,
     ch_table: HistoryTable,
@@ -282,6 +283,15 @@ impl LocalContext {
     }
 
     #[inline]
+    pub fn push_eval(&mut self, eval: Evaluation, ply: u32) {
+        if ply as usize >= self.eval_stack.len() {
+            self.eval_stack.push(eval);
+        } else {
+            self.eval_stack[ply as usize] = eval;
+        }
+    }
+
+    #[inline]
     pub fn get_eval(&self, ply: u32) -> Option<Evaluation> {
         self.eval_stack.get(ply as usize).copied()
     }
@@ -301,12 +311,17 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn push_eval(&mut self, eval: Evaluation, ply: u32) {
-        if ply as usize >= self.eval_stack.len() {
-            self.eval_stack.push(eval);
+    pub fn push_piece_cnt(&mut self, piece_cnt: u32, ply: u32) {
+        if ply as usize >= self.pieces.len() {
+            self.pieces.push(piece_cnt);
         } else {
-            self.eval_stack[ply as usize] = eval;
+            self.pieces[ply as usize] = piece_cnt;
         }
+    }
+
+    #[inline]
+    pub fn get_piece_cnt(&self, ply: u32) -> Option<u32> {
+        self.pieces.get(ply as usize).copied()
     }
 
     #[inline]
@@ -498,6 +513,7 @@ impl AbRunner {
                 eval_stack: vec![],
                 skip_moves: vec![],
                 variation: vec![],
+                pieces: vec![],
                 sel_depth: 0,
                 nodes: 0,
                 abort: false,
