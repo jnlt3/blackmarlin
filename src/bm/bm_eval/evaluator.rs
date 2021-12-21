@@ -383,9 +383,9 @@ impl StdEvaluator {
         }
         let piece_cnt = pieces.popcnt();
         let queen_cnt = queens.popcnt();
-        0.8 + pawn_cnt as f32 * (1.0 / 64.0)
-            + piece_cnt as f32 * (1.0 / 32.0)
-            + queen_cnt as f32 * (1.0 / 16.0)
+        0.8 + pawn_cnt as f32 * (1.0 / 96.0)
+            + piece_cnt as f32 * (1.0 / 48.0)
+            + queen_cnt as f32 * (1.0 / 24.0)
     }
 
     /**
