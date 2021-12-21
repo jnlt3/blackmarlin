@@ -221,6 +221,9 @@ impl SharedContext {
 }
 
 impl LocalContext {
+    pub fn root_eval(&self) -> Evaluation {
+        self.eval
+    }
     #[inline]
     pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
         &mut self.threat_moves

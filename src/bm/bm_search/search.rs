@@ -61,7 +61,13 @@ pub fn search<Search: SearchType>(
 
     if ply != 0 && position.forced_draw(ply) {
         *local_context.nodes() += 1;
-        return (None, Evaluation::new(0));
+        let root_eval = local_context.root_eval().raw();
+        let dislike = if ply % 2 == 0 {
+            -root_eval / 5
+        } else {
+            root_eval / 5
+        };
+        return (None, Evaluation::new(dislike));
     }
 
     local_context.update_sel_depth(ply);
