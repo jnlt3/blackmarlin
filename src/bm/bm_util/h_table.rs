@@ -74,7 +74,11 @@ impl CounterMoveTable {
         board: &Board,
         prev_move: ChessMove,
         cutoff_move: ChessMove,
+        amt: u32,
     ) {
+        if amt > 20 {
+            return;
+        }
         let piece = board.piece_on(prev_move.get_dest()).unwrap();
         let piece_index = piece_index(board.side_to_move(), piece);
         let to_index = prev_move.get_dest().to_index();
