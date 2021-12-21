@@ -339,6 +339,7 @@ pub fn search<Search: SearchType>(
             */
             if let Some(entry) = tt_entry {
                 if entry.table_move() == make_move
+                    && extension == 0
                     && ply != 0
                     && depth >= 7
                     && !entry.score().is_mate()
@@ -375,7 +376,7 @@ pub fn search<Search: SearchType>(
             local_context.push_move(Some(make_move), ply);
 
             let gives_check = *position.board().checkers() != EMPTY;
-            if gives_check {
+            if extension == 0 && gives_check {
                 extension += 1;
             }
 
@@ -428,7 +429,7 @@ pub fn search<Search: SearchType>(
             local_context.push_move(Some(make_move), ply);
 
             let gives_check = *position.board().checkers() != EMPTY;
-            if gives_check {
+            if extension == 0 && gives_check {
                 extension += 1;
             }
             /*
