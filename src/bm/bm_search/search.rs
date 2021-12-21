@@ -523,11 +523,9 @@ pub fn search<Search: SearchType>(
                             local_context
                                 .get_cm_table_mut()
                                 .cutoff(&board, prev_move, make_move, depth);
-                            /*
                             local_context
                                 .get_cm_hist_mut()
                                 .cutoff(&board, prev_move, make_move, &quiets, depth);
-                                */
                         }
                     } else {
                         local_context

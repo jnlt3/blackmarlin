@@ -88,13 +88,13 @@ impl CounterMoveTable {
 
 #[derive(Debug, Clone)]
 pub struct DoubleMoveHistory {
-    table: Box<[[[[i16; SQUARE_COUNT]; PIECE_COUNT]; SQUARE_COUNT]; PIECE_COUNT]>,
+    table: Box<[[[[i16; SQUARE_COUNT]; PIECE_COUNT / 2]; SQUARE_COUNT]; PIECE_COUNT]>,
 }
 
 impl DoubleMoveHistory {
     pub fn new() -> Self {
         Self {
-            table: Box::new([[[[0; SQUARE_COUNT]; PIECE_COUNT]; SQUARE_COUNT]; PIECE_COUNT]),
+            table: Box::new([[[[0; SQUARE_COUNT]; PIECE_COUNT / 2]; SQUARE_COUNT]; PIECE_COUNT]),
         }
     }
 
@@ -108,7 +108,7 @@ impl DoubleMoveHistory {
     ) -> i16 {
         let piece_0_index = piece_index(color, piece_0);
         let to_0_index = to_0.to_index();
-        let piece_1_index = piece_index(color, piece_1);
+        let piece_1_index = piece_1.to_index();
         let to_1_index = to_1.to_index();
         self.table[piece_0_index][to_0_index][piece_1_index][to_1_index]
     }
@@ -129,7 +129,7 @@ impl DoubleMoveHistory {
         let prev_to_index = prev_move.get_dest().to_index();
 
         let piece = board.piece_on(make_move.get_source()).unwrap();
-        let index = piece_index(board.side_to_move(), piece);
+        let index = piece.to_index();
         let to_index = make_move.get_dest().to_index();
 
         let value = self.table[prev_index][prev_to_index][index][to_index];
@@ -142,7 +142,7 @@ impl DoubleMoveHistory {
 
         for &quiet in fails {
             let piece = board.piece_on(quiet.get_source()).unwrap();
-            let index = piece_index(board.side_to_move(), piece);
+            let index = piece.to_index();
             let to_index = quiet.get_dest().to_index();
             let value = self.table[prev_index][prev_to_index][index][to_index];
             let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
