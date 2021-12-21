@@ -9,7 +9,11 @@ use arrayvec::ArrayVec;
 use chess::ALL_FILES;
 use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_PIECES, EMPTY};
 
+const GRID_0: u64 = 0b0101010101010101010101010101010101010101010101010101010101010101;
+const GRID_1: u64 = GRID_0 << 1;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
+
 pub struct EvalData {
     pub w_ahead: [BitBoard; 64],
     pub b_ahead: [BitBoard; 64],
@@ -380,9 +384,33 @@ impl StdEvaluator {
         let pawn_cnt = pawns.popcnt();
         let piece_cnt = pieces.popcnt();
         let queen_cnt = queens.popcnt();
+
+        let ocb = if piece_cnt - pawn_cnt - 2 == board.pieces(Piece::Bishop).popcnt() {
+            -0.4
+        } else {
+            0.0
+        };
+
         0.8 + pawn_cnt as f32 * (1.0 / 64.0)
             + piece_cnt as f32 * (1.0 / 32.0)
             + queen_cnt as f32 * (1.0 / 16.0)
+            + ocb
+    }
+
+    fn ocb(board: &Board) -> bool {
+        let bishops = board.pieces(Piece::Bishop);
+        let w_bishops = bishops & board.color_combined(Color::White);
+        let b_bishops = bishops & board.color_combined(Color::Black);
+
+        if w_bishops.popcnt() == 1 && b_bishops.popcnt() == 1 {
+            let w_bishops_0 = w_bishops & BitBoard(GRID_0) != EMPTY;
+            let w_bishops_1 = w_bishops & BitBoard(GRID_0) != EMPTY;
+            let b_bishops_0 = b_bishops & BitBoard(GRID_1) != EMPTY;
+            let b_bishops_1 = b_bishops & BitBoard(GRID_1) != EMPTY;
+            w_bishops_0 && b_bishops_1 || b_bishops_0 && w_bishops_1
+        } else {
+            false
+        }
     }
 
     /**
