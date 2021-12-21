@@ -522,7 +522,7 @@ pub fn search<Search: SearchType>(
                         if let Some(Some(prev_move)) = prev_move {
                             local_context
                                 .get_cm_table_mut()
-                                .cutoff(&board, prev_move, make_move, depth);
+                                .cutoff(&board, prev_move, make_move);
                             local_context
                                 .get_cm_hist_mut()
                                 .cutoff(&board, prev_move, make_move, &quiets, depth);
