@@ -308,6 +308,22 @@ pub fn search<Search: SearchType>(
             )
         };
 
+        let ch_score = if is_quiet {
+            if let Some(Some(prev_move)) = prev_move {
+                local_context.get_cm_hist().get(
+                    board.side_to_move(),
+                    board.piece_on(prev_move.get_dest()).unwrap(),
+                    prev_move.get_dest(),
+                    board.piece_on(make_move.get_source()).unwrap(),
+                    make_move.get_dest(),
+                )
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
         let mut extension = 0;
         let mut score;
         if moves_seen == 0 {
@@ -388,8 +404,18 @@ pub fn search<Search: SearchType>(
             if it has very low history
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
+            let hist_threshold = -h_table::MAX_VALUE * ((depth * depth) as i32) / 64;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            if do_hp && (h_score as i32) < hist_threshold
+                || (is_quiet && (ch_score as i32) < hist_threshold)
+            {
+                continue;
+            }
+
+            if do_hp
+                && is_quiet
+                && (ch_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64)
+            {
                 continue;
             }
 
