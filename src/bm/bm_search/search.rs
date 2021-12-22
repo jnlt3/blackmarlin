@@ -588,6 +588,9 @@ pub fn q_search(
 ) -> Evaluation {
     *local_context.nodes() += 1;
 
+    if position.forced_draw(ply) {
+        return Evaluation::new(0);
+    }
     if ply >= target_ply {
         return position.get_eval();
     }
