@@ -349,6 +349,10 @@ pub fn search<Search: SearchType>(
                         */
                         return (Some(make_move), s_beta);
                     }
+                } else if extension == 0 {
+                    if !Search::PV && h_score as i32 >= h_table::MAX_VALUE {
+                        extension += 1;
+                    }
                 }
             }
             position.make_move(make_move);
