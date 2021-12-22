@@ -394,6 +394,14 @@ pub fn search<Search: SearchType>(
             }
 
             /*
+            At low depths, non-PV nodes, we assume we can reach beta if eval is high and history score is high
+            */
+            let do_hist_cutoff = !Search::PV && depth < 3 && eval >= beta;
+            if do_hist_cutoff && h_score as i32 > (h_table::MAX_VALUE * (depth as i32) / 3) {
+                return (Some(make_move), eval);
+            }
+
+            /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
