@@ -49,7 +49,7 @@ pub fn search<Search: SearchType>(
     local_context: &mut LocalContext,
     shared_context: &SharedContext,
     ply: u32,
-    target_ply: u32,
+    mut target_ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> (Option<ChessMove>, Evaluation) {
@@ -66,9 +66,15 @@ pub fn search<Search: SearchType>(
 
     local_context.update_sel_depth(ply);
 
+    let in_check = *position.board().checkers() != EMPTY;
+    if in_check {
+        target_ply += 1;
+    }
+
     /*
     At depth 0, we run Quiescence Search
     */
+
     if ply >= target_ply {
         return (
             None,
@@ -132,8 +138,6 @@ pub fn search<Search: SearchType>(
     } else {
         *local_context.tt_misses() += 1;
     }
-
-    let in_check = *position.board().checkers() != EMPTY;
 
     let eval = if skip_move.is_none() {
         position.get_eval()
@@ -308,7 +312,7 @@ pub fn search<Search: SearchType>(
             )
         };
 
-        let mut extension = if in_check { 1 } else { 0 };
+        let mut extension = 0;
         let mut score;
         if moves_seen == 0 {
             /*
