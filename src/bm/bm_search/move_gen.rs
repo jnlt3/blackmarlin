@@ -237,18 +237,22 @@ impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
             for make_move in &mut self.move_gen {
                 let expected_gain = StdEvaluator::see(self.board, make_move);
                 if !SEE_PRUNE || expected_gain > -1 {
-                    let pos = self
-                        .queue
-                        .binary_search_by_key(&expected_gain, |(_, score)| *score)
-                        .unwrap_or_else(|pos| pos);
-                    self.queue.insert(pos, (make_move, expected_gain));
+                    self.queue.push((make_move, expected_gain));
                 }
             }
             self.gen_type = QSearchGenType::Captures;
         }
         if self.gen_type == QSearchGenType::Captures {
-            if let Some((make_move, _)) = self.queue.pop() {
-                return Some(make_move);
+            let mut max = 0;
+            let mut best_index = None;
+            for (index, &(_, score)) in self.queue.iter().enumerate() {
+                if best_index.is_none() || score > max {
+                    max = score;
+                    best_index = Some(index);
+                }
+            }
+            if let Some(index) = best_index {
+                return Some(self.queue.swap_remove(index).0);
             }
             self.move_gen.set_iterator_mask(!*self.board.combined());
             self.gen_type = QSearchGenType::Quiet;
