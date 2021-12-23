@@ -308,7 +308,7 @@ pub fn search<Search: SearchType>(
             )
         };
 
-        let mut extension = 0;
+        let mut extension = if in_check { 1 } else { 0 };
         let mut score;
         if moves_seen == 0 {
             /*
@@ -353,11 +353,6 @@ pub fn search<Search: SearchType>(
             }
             position.make_move(make_move);
             local_context.push_move(Some(make_move), ply);
-
-            let gives_check = *position.board().checkers() != EMPTY;
-            if gives_check {
-                extension += 1;
-            }
 
             /*
             First moves don't get reduced
@@ -404,13 +399,6 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            position.make_move(make_move);
-            local_context.push_move(Some(make_move), ply);
-
-            let gives_check = *position.board().checkers() != EMPTY;
-            if gives_check {
-                extension += 1;
-            }
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
@@ -419,9 +407,8 @@ pub fn search<Search: SearchType>(
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
-                        .get((depth + extension) as usize, improving as usize)
+                        .get(depth as usize, improving as usize)
             {
-                position.unmake_move();
                 continue;
             }
 
@@ -458,7 +445,8 @@ pub fn search<Search: SearchType>(
             let lmr_ply = (target_ply as i16 - reduction).max(0) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
-
+            position.make_move(make_move);
+            local_context.push_move(Some(make_move), ply);
             let (_, lmr_score) = search::<Search::Zw>(
                 position,
                 local_context,
