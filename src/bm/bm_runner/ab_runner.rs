@@ -184,16 +184,13 @@ pub struct LocalContext {
     tt_hits: u32,
     tt_misses: u32,
     eval: Evaluation,
-    eval_stack: Vec<Evaluation>,
-    skip_moves: Vec<Option<ChessMove>>,
-    variation: Vec<Option<ChessMove>>,
+    pv: Vec<ChessMove>,
+    stack: Vec<State>,
     sel_depth: u32,
     h_table: HistoryTable,
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
-    killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
-    threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
     abort: bool,
 }
@@ -220,10 +217,30 @@ impl SharedContext {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct State {
+    pub killers: MoveEntry<KILLER_MOVE_CNT>,
+    pub eval: Evaluation,
+    pub move_played: Option<ChessMove>,
+    pub skip_move: Option<ChessMove>,
+}
+
 impl LocalContext {
     #[inline]
-    pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
-        &mut self.threat_moves
+    pub fn set_move(&mut self, pv: ChessMove, ply: u32) {
+        if ply as usize >= self.pv.len() {
+            self.pv.push(pv);
+        } else {
+            self.pv[ply as usize] = pv;
+        }
+    }
+
+    #[inline]
+    pub fn state(&mut self, ply: u32) -> &mut State {
+        while ply as usize >= self.stack.len() {
+            self.stack.push(State::default());
+        }
+        &mut self.stack[ply as usize]
     }
 
     #[inline]
@@ -267,11 +284,6 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<KILLER_MOVE_CNT>> {
-        &mut self.killer_moves
-    }
-
-    #[inline]
     pub fn tt_hits(&mut self) -> &mut u32 {
         &mut self.tt_hits
     }
@@ -279,52 +291,6 @@ impl LocalContext {
     #[inline]
     pub fn tt_misses(&mut self) -> &mut u32 {
         &mut self.tt_misses
-    }
-
-    #[inline]
-    pub fn get_eval(&self, ply: u32) -> Option<Evaluation> {
-        self.eval_stack.get(ply as usize).copied()
-    }
-
-    #[inline]
-    pub fn push_move(&mut self, make_move: Option<ChessMove>, ply: u32) {
-        if ply as usize >= self.variation.len() {
-            self.variation.push(make_move);
-        } else {
-            self.variation[ply as usize] = make_move;
-        }
-    }
-
-    #[inline]
-    pub fn get_move(&self, ply: u32) -> Option<Option<ChessMove>> {
-        self.variation.get(ply as usize).copied()
-    }
-
-    #[inline]
-    pub fn push_eval(&mut self, eval: Evaluation, ply: u32) {
-        if ply as usize >= self.eval_stack.len() {
-            self.eval_stack.push(eval);
-        } else {
-            self.eval_stack[ply as usize] = eval;
-        }
-    }
-
-    #[inline]
-    pub fn set_skip_move(&mut self, ply: u32, skip_move: ChessMove) {
-        while ply as usize >= self.skip_moves.len() {
-            self.skip_moves.push(None);
-        }
-        self.skip_moves[ply as usize] = Some(skip_move);
-    }
-
-    #[inline]
-    pub fn reset_skip_move(&mut self, ply: u32) {
-        self.skip_moves[ply as usize] = None;
-    }
-
-    #[inline]
-    pub fn get_skip_move(&mut self, ply: u32) -> Option<ChessMove> {
-        self.skip_moves.get(ply as usize).copied().unwrap_or(None)
     }
 
     #[inline]
@@ -383,7 +349,7 @@ impl AbRunner {
                         (Evaluation::min(), Evaluation::max())
                     };
                     local_context.nodes = 0;
-                    let (make_move, score) = search::search::<Pv>(
+                    let score = search::search::<Pv>(
                         &mut position,
                         &mut local_context,
                         &shared_context,
@@ -392,6 +358,7 @@ impl AbRunner {
                         alpha,
                         beta,
                     );
+                    let make_move = local_context.pv.get(0).copied();
                     nodes += local_context.nodes;
                     if depth > 1 && shared_context.abort_absolute(depth, nodes) {
                         break 'outer;
@@ -404,7 +371,7 @@ impl AbRunner {
                         depth,
                         nodes,
                         local_context.eval,
-                        best_move.unwrap_or(make_move.unwrap()),
+                        make_move.unwrap_or_default(),
                         search_start.elapsed(),
                     );
                     if (score > alpha && score < beta) || score.is_mate() {
@@ -427,29 +394,14 @@ impl AbRunner {
                     best_move,
                 ));
                 if let Some(eval) = eval {
-                    if let Some(best_move) = best_move {
-                        let best_move = best_move;
-                        let mut pv = vec![best_move];
-                        position.make_move(best_move);
-                        while let Some(analysis) = shared_context.t_table.get(position.board()) {
-                            pv.push(analysis.table_move());
-                            position.make_move(analysis.table_move());
-                            if pv.len() > depth as usize {
-                                break;
-                            }
-                        }
-                        for _ in 0..pv.len() {
-                            position.unmake_move()
-                        }
-                        gui_info.print_info(
-                            local_context.sel_depth,
-                            depth,
-                            eval,
-                            start_time.elapsed(),
-                            nodes,
-                            &pv,
-                        );
-                    }
+                    gui_info.print_info(
+                        local_context.sel_depth,
+                        depth,
+                        eval,
+                        start_time.elapsed(),
+                        nodes,
+                        &local_context.pv,
+                    );
                 }
                 depth += 1;
             }
@@ -490,14 +442,11 @@ impl AbRunner {
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
-                killer_moves: vec![],
-                threat_moves: vec![],
+                stack: Vec::new(),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
-                eval_stack: vec![],
-                skip_moves: vec![],
-                variation: vec![],
+                pv: vec![],
                 sel_depth: 0,
                 nodes: 0,
                 abort: false,
@@ -513,7 +462,6 @@ impl AbRunner {
         let mut join_handlers = vec![];
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
-        //TODO: Research the effects of different depths
         for i in 1..threads {
             join_handlers.push(std::thread::spawn(
                 self.launch_searcher::<SM, NoInfo>(search_start, i),

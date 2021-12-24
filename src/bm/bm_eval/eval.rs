@@ -6,7 +6,7 @@ pub enum Depth {
     Next,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Default)]
 pub struct Evaluation {
     score: i16,
 }

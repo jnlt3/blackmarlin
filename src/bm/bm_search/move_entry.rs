@@ -10,6 +10,16 @@ pub struct MoveEntry<const N: usize> {
     size: usize,
 }
 
+impl<const N: usize> Default for MoveEntry<N> {
+    fn default() -> Self {
+        Self {
+            moves: [ChessMove::default(); N],
+            index: 0,
+            size: 0,
+        }
+    }
+}
+
 impl<const N: usize> MoveEntry<N> {
     pub fn new() -> Self {
         Self {

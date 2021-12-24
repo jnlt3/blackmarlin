@@ -18,14 +18,12 @@ enum GenType {
     GenQuiet,
     CounterMove,
     Killer,
-    ThreatMove,
     Quiet,
 }
 
-pub struct OrderedMoveGen<const T: usize, const K: usize> {
+pub struct OrderedMoveGen<const K: usize> {
     move_gen: MoveGen,
     pv_move: Option<ChessMove>,
-    threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<ChessMove>,
     prev_move: Option<ChessMove>,
@@ -35,13 +33,12 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
 }
 
-impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
+impl<const K: usize> OrderedMoveGen<K> {
     pub fn new(
         board: &Board,
         pv_move: Option<ChessMove>,
         counter_move: Option<ChessMove>,
         prev_move: Option<ChessMove>,
-        threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
         Self {
@@ -50,7 +47,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             counter_move,
             prev_move,
             pv_move,
-            threat_move_entry,
             killer_entry,
             board: *board,
             queue: ArrayVec::new(),
@@ -166,22 +162,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         return Some(counter_move);
                     }
                 }
-                self.next(hist, cm_hist)
-            }
-            GenType::ThreatMove => {
-                for make_move in &mut self.threat_move_entry {
-                    if Some(make_move) != self.pv_move && Some(make_move) != self.counter_move {
-                        let position = self
-                            .queue
-                            .iter()
-                            .position(|(cmp_move, _)| make_move == *cmp_move);
-                        if let Some(position) = position {
-                            self.queue.remove(position);
-                            return Some(make_move);
-                        }
-                    }
-                }
-                self.gen_type = GenType::Quiet;
                 self.next(hist, cm_hist)
             }
             GenType::Quiet => {
