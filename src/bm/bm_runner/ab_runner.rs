@@ -20,10 +20,7 @@ use crate::bm::bm_util::window::Window;
 use super::time::TimeManager;
 
 pub const SEARCH_PARAMS: SearchParams = SearchParams {
-    killer_move_cnt: KILLER_MOVE_CNT,
-    threat_move_cnt: THREAT_MOVE_CNT,
     fail_cnt: FAIL_CNT,
-    iid_depth: IID_DEPTH,
     rev_f_prune_depth: REV_F_PRUNE_DEPTH,
     fp: F_PRUNE_THRESHOLD,
     do_fp: DO_F_PRUNE,
@@ -36,8 +33,6 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     ),
     nmp_depth: NULL_MOVE_PRUNE_DEPTH,
     do_nmp: DO_NULL_MOVE_REDUCTION,
-    iid: Reduction::new(IID_BASE, IID_FACTOR, IID_DIVISOR),
-    do_iid: DO_IID,
     lmr_depth: LMR_DEPTH,
     do_lmr: DO_LMR,
     do_lmp: DO_LMP,
@@ -50,10 +45,7 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
 
 #[derive(Debug, Clone)]
 pub struct SearchParams {
-    killer_move_cnt: usize,
-    threat_move_cnt: usize,
     fail_cnt: u8,
-    iid_depth: u32,
     fp: i16,
     do_fp: bool,
     rev_f_prune_depth: u32,
@@ -62,8 +54,6 @@ pub struct SearchParams {
     nmp: Reduction,
     nmp_depth: u32,
     do_nmp: bool,
-    iid: Reduction,
-    do_iid: bool,
     lmr_depth: u32,
     do_lmr: bool,
     do_lmp: bool,
@@ -75,16 +65,6 @@ pub struct SearchParams {
 }
 
 impl SearchParams {
-    #[inline]
-    pub const fn get_k_move_cnt(&self) -> usize {
-        self.killer_move_cnt
-    }
-
-    #[inline]
-    pub const fn get_threat_move_cnt(&self) -> usize {
-        self.threat_move_cnt
-    }
-
     #[inline]
     pub const fn get_q_search_depth(&self) -> u32 {
         self.q_search_depth
@@ -139,17 +119,7 @@ impl SearchParams {
     pub const fn do_nmp(&self, depth: u32) -> bool {
         self.do_nmp && depth >= self.nmp_depth
     }
-
-    #[inline]
-    pub const fn get_iid(&self) -> &Reduction {
-        &self.iid
-    }
-
-    #[inline]
-    pub const fn do_iid(&self, depth: u32) -> bool {
-        self.do_iid && depth > self.iid_depth
-    }
-
+    
     #[inline]
     pub const fn do_lmr(&self, depth: u32) -> bool {
         self.do_lmr && depth >= self.lmr_depth
