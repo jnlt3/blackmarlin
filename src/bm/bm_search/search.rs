@@ -214,7 +214,7 @@ pub fn search<Search: SearchType>(
         None
     };
 
-    local_context.state(ply + 2).killers.clear();
+    local_context.state(ply + 1).killers.clear();
     let killer_entry = if ply > 0 {
         local_context.state(ply).killers
     } else {

@@ -237,7 +237,7 @@ impl LocalContext {
 
     #[inline]
     pub fn state(&mut self, ply: u32) -> &mut State {
-        while ply as usize >= self.stack.len() {
+        if ply as usize >= self.stack.len() {
             self.stack.push(State::default());
         }
         &mut self.stack[ply as usize]
@@ -442,7 +442,7 @@ impl AbRunner {
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
-                stack: Vec::new(),
+                stack: Vec::with_capacity(256),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
