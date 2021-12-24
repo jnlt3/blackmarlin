@@ -119,7 +119,7 @@ impl SearchParams {
     pub const fn do_nmp(&self, depth: u32) -> bool {
         self.do_nmp && depth >= self.nmp_depth
     }
-    
+
     #[inline]
     pub const fn do_lmr(&self, depth: u32) -> bool {
         self.do_lmr && depth >= self.lmr_depth
@@ -155,6 +155,7 @@ pub struct LocalContext {
     tt_misses: u32,
     eval: Evaluation,
     pv: Vec<ChessMove>,
+    pv_ply: usize,
     stack: Vec<State>,
     sel_depth: u32,
     h_table: HistoryTable,
@@ -198,11 +199,8 @@ pub struct State {
 impl LocalContext {
     #[inline]
     pub fn set_move(&mut self, pv: ChessMove, ply: u32) {
-        if ply as usize >= self.pv.len() {
-            self.pv.push(pv);
-        } else {
-            self.pv[ply as usize] = pv;
-        }
+        self.pv[ply as usize] = pv;
+        self.pv_ply = self.pv_ply.max(ply as usize);
     }
 
     #[inline]
@@ -308,6 +306,7 @@ impl AbRunner {
             'outer: loop {
                 let mut fail_cnt = 0;
                 local_context.window.reset();
+                local_context.pv_ply = 0;
                 loop {
                     let (alpha, beta) = if eval.is_some()
                         && eval.unwrap().raw().abs() < 1000
@@ -370,7 +369,7 @@ impl AbRunner {
                         eval,
                         start_time.elapsed(),
                         nodes,
-                        &local_context.pv,
+                        &local_context.pv[0..local_context.pv_ply],
                     );
                 }
                 depth += 1;
@@ -416,7 +415,8 @@ impl AbRunner {
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
-                pv: vec![],
+                pv: vec![ChessMove::default(); 256],
+                pv_ply: 0,
                 sel_depth: 0,
                 nodes: 0,
                 abort: false,
