@@ -53,8 +53,7 @@ pub fn search<Search: SearchType>(
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> (Option<ChessMove>, Evaluation) {
-    let depth = target_ply.saturating_sub(ply);
-    if ply != 0 && shared_context.abort_absolute(depth, *local_context.nodes()) {
+    if ply != 0 && shared_context.abort_search() {
         local_context.trigger_abort();
         return (None, Evaluation::min());
     }

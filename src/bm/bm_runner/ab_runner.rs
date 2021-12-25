@@ -200,8 +200,13 @@ pub struct LocalContext {
 
 impl SharedContext {
     #[inline]
-    pub fn abort_absolute(&self, depth: u32, nodes: u32) -> bool {
-        self.time_manager.abort(self.start, depth, nodes)
+    pub fn abort_search(&self) -> bool {
+        self.time_manager.abort_search(self.start)
+    }
+
+    #[inline]
+    pub fn abort_deepening(&self, depth: u32, nodes: u32) -> bool {
+        self.time_manager.abort_deepening(self.start, depth, nodes)
     }
 
     #[inline]
@@ -382,6 +387,9 @@ impl AbRunner {
                     } else {
                         (Evaluation::min(), Evaluation::max())
                     };
+                    if depth > 1 && shared_context.abort_deepening(depth, nodes) {
+                        break 'outer;
+                    }
                     local_context.nodes = 0;
                     let (make_move, score) = search::search::<Pv>(
                         &mut position,
@@ -393,9 +401,6 @@ impl AbRunner {
                         beta,
                     );
                     nodes += local_context.nodes;
-                    if depth > 1 && shared_context.abort_absolute(depth, nodes) {
-                        break 'outer;
-                    }
                     local_context.window.set(score);
                     local_context.eval = score;
 

@@ -202,7 +202,16 @@ impl TimeManager {
         self.abort_now.store(true, Ordering::SeqCst);
     }
 
-    pub fn abort(&self, start: Instant, depth: u32, nodes: u32) -> bool {
+    pub fn abort_search(&self, start: Instant) -> bool {
+        if self.abort_now.load(Ordering::SeqCst) {
+            true
+        } else {
+            self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
+                && !self.infinite.load(Ordering::SeqCst)
+        }
+    }
+
+    pub fn abort_deepening(&self, start: Instant, depth: u32, nodes: u32) -> bool {
         if self.abort_now.load(Ordering::SeqCst) {
             true
         } else {
