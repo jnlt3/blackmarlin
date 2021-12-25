@@ -398,7 +398,7 @@ impl AbRunner {
                         beta,
                     );
                     nodes += local_context.nodes;
-                    if depth > 1 && shared_context.abort_deepening(depth + 1, nodes) {
+                    if depth > 1 && shared_context.abort_deepening(depth, nodes) {
                         break 'outer;
                     }
                     local_context.window.set(score);
