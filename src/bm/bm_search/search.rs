@@ -451,6 +451,9 @@ pub fn search<Search: SearchType>(
                 if improving {
                     reduction -= 1;
                 }
+                if gives_check {
+                    reduction -= 1;
+                }
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
 
