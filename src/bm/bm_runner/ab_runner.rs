@@ -457,6 +457,9 @@ impl AbRunner {
                     }
                 }
                 depth += 1;
+                if depth > 1 && shared_context.abort_deepening(depth, nodes) {
+                    break 'outer;
+                }
             }
             if let Some(evaluation) = eval {
                 debugger.complete();
