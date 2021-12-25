@@ -187,8 +187,9 @@ pub fn search<Search: SearchType>(
             local_context.push_move(None, ply);
 
             let zw = beta >> Next;
-            let reduction = SEARCH_PARAMS.get_nmp().reduction(depth);
-            let r_target_ply = target_ply.saturating_sub(reduction);
+            let reduction =
+                SEARCH_PARAMS.get_nmp().reduction(depth) + ((eval - beta).raw() / 200) as u32;
+            let r_target_ply = target_ply.saturating_sub(reduction).max(ply + 2);
             let (threat_move, search_score) = search::<NoNm>(
                 position,
                 local_context,
