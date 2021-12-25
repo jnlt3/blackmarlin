@@ -158,7 +158,8 @@ pub fn search<Search: SearchType>(
         let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
         if do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
-            if eval - f_margin >= beta {
+            let i_margin = improving as i16 * 40;
+            if eval - f_margin - i_margin >= beta {
                 return (None, eval);
             }
         }
