@@ -387,9 +387,6 @@ impl AbRunner {
                     } else {
                         (Evaluation::min(), Evaluation::max())
                     };
-                    if depth > 1 && shared_context.abort_deepening(depth, nodes) {
-                        break 'outer;
-                    }
                     local_context.nodes = 0;
                     let (make_move, score) = search::search::<Pv>(
                         &mut position,
@@ -401,6 +398,9 @@ impl AbRunner {
                         beta,
                     );
                     nodes += local_context.nodes;
+                    if depth > 1 && shared_context.abort_deepening(depth + 1, nodes) {
+                        break 'outer;
+                    }
                     local_context.window.set(score);
                     local_context.eval = score;
 
