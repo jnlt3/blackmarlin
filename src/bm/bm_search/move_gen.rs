@@ -214,17 +214,26 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
 pub enum QSearchGenType {
     CalcCaptures,
     Captures,
+    GenQuiets,
+    Quiets,
 }
 
 pub struct QuiescenceSearchMoveGen<const SEE_PRUNE: bool> {
     board: Board,
     gen_type: QSearchGenType,
+    move_list: ArrayVec<PieceMoves, 18>,
     queue: ArrayVec<(Move, i16), MAX_MOVES>,
 }
 
 impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
     pub fn new(board: &Board) -> Self {
+        let mut move_list = ArrayVec::new();
+        board.generate_moves(|piece_moves| {
+            move_list.push(piece_moves);
+            false
+        });
         Self {
+            move_list,
             board: board.clone(),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
@@ -237,7 +246,8 @@ impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.gen_type == QSearchGenType::CalcCaptures {
-            self.board.generate_moves(|mut piece_moves| {
+            for &piece_moves in &self.move_list {
+                let mut piece_moves = piece_moves;
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
                     let expected_gain = StdEvaluator::see(self.board.clone(), make_move);
@@ -249,9 +259,25 @@ impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
                         self.queue.insert(pos, (make_move, expected_gain));
                     }
                 }
-                false
-            });
+            }
             self.gen_type = QSearchGenType::Captures;
+        }
+        if self.gen_type == QSearchGenType::Captures {
+            if let Some((make_move, _)) = self.queue.pop() {
+                return Some(make_move);
+            } else {
+                self.gen_type = QSearchGenType::GenQuiets;
+            };
+        }
+        if self.gen_type == QSearchGenType::GenQuiets {
+            for &piece_moves in &self.move_list {
+                let mut piece_moves = piece_moves;
+                piece_moves.to &= !self.board.colors(!self.board.side_to_move());
+                for make_move in piece_moves {
+                    self.queue.push((make_move, 0));
+                }
+            }
+            self.gen_type = QSearchGenType::Quiets;
         }
         return if let Some((make_move, _)) = self.queue.pop() {
             Some(make_move)
