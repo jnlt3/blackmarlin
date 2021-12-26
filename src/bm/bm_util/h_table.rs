@@ -1,4 +1,4 @@
-use chess::{Board, ChessMove, Color, Piece, Square};
+use cozy_chess::{Board, Color, Move, Piece, Square};
 
 pub const MAX_VALUE: i32 = 512;
 const SQUARE_COUNT: usize = 64;
@@ -18,17 +18,17 @@ impl HistoryTable {
 
     pub fn get(&self, color: Color, piece: Piece, to: Square) -> i16 {
         let piece_index = piece_index(color, piece);
-        let to_index = to.to_index();
+        let to_index = to as usize;
         self.table[piece_index][to_index]
     }
 
-    pub fn cutoff(&mut self, board: &Board, make_move: ChessMove, fails: &[ChessMove], amt: u32) {
+    pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
         if amt > 20 {
             return;
         }
-        let piece = board.piece_on(make_move.get_source()).unwrap();
+        let piece = board.piece_on(make_move.from).unwrap();
         let index = piece_index(board.side_to_move(), piece);
-        let to_index = make_move.get_dest().to_index();
+        let to_index = make_move.to as usize;
 
         let value = self.table[index][to_index];
         let change = (amt * amt) as i16;
@@ -39,9 +39,9 @@ impl HistoryTable {
         self.table[index][to_index] += increment;
 
         for &quiet in fails {
-            let piece = board.piece_on(quiet.get_source()).unwrap();
+            let piece = board.piece_on(quiet.from).unwrap();
             let index = piece_index(board.side_to_move(), piece);
-            let to_index = quiet.get_dest().to_index();
+            let to_index = quiet.to as usize;
             let value = self.table[index][to_index];
             let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
             let decrement = change + decay;
@@ -53,7 +53,7 @@ impl HistoryTable {
 
 #[derive(Debug, Clone)]
 pub struct CounterMoveTable {
-    table: Box<[[Option<ChessMove>; SQUARE_COUNT]; PIECE_COUNT]>,
+    table: Box<[[Option<Move>; SQUARE_COUNT]; PIECE_COUNT]>,
 }
 
 impl CounterMoveTable {
@@ -63,25 +63,19 @@ impl CounterMoveTable {
         }
     }
 
-    pub fn get(&self, color: Color, piece: Piece, to: Square) -> Option<ChessMove> {
+    pub fn get(&self, color: Color, piece: Piece, to: Square) -> Option<Move> {
         let piece_index = piece_index(color, piece);
-        let to_index = to.to_index();
+        let to_index = to as usize;
         self.table[piece_index][to_index]
     }
 
-    pub fn cutoff(
-        &mut self,
-        board: &Board,
-        prev_move: ChessMove,
-        cutoff_move: ChessMove,
-        amt: u32,
-    ) {
+    pub fn cutoff(&mut self, board: &Board, prev_move: Move, cutoff_move: Move, amt: u32) {
         if amt > 20 {
             return;
         }
-        let piece = board.piece_on(prev_move.get_dest()).unwrap();
+        let piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
         let piece_index = piece_index(board.side_to_move(), piece);
-        let to_index = prev_move.get_dest().to_index();
+        let to_index = prev_move.to as usize;
         self.table[piece_index][to_index] = Some(cutoff_move);
     }
 }
@@ -107,30 +101,30 @@ impl DoubleMoveHistory {
         to_1: Square,
     ) -> i16 {
         let piece_0_index = piece_index(color, piece_0);
-        let to_0_index = to_0.to_index();
-        let piece_1_index = piece_1.to_index();
-        let to_1_index = to_1.to_index();
+        let to_0_index = to_0 as usize;
+        let piece_1_index = piece_1 as usize;
+        let to_1_index = to_1 as usize;
         self.table[piece_0_index][to_0_index][piece_1_index][to_1_index]
     }
 
     pub fn cutoff(
         &mut self,
         board: &Board,
-        prev_move: ChessMove,
-        make_move: ChessMove,
-        fails: &[ChessMove],
+        prev_move: Move,
+        make_move: Move,
+        fails: &[Move],
         amt: u32,
     ) {
         if amt > 20 {
             return;
         }
-        let prev_piece = board.piece_on(prev_move.get_dest()).unwrap();
+        let prev_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
         let prev_index = piece_index(board.side_to_move(), prev_piece);
-        let prev_to_index = prev_move.get_dest().to_index();
+        let prev_to_index = prev_move.to as usize;
 
-        let piece = board.piece_on(make_move.get_source()).unwrap();
-        let index = piece.to_index();
-        let to_index = make_move.get_dest().to_index();
+        let piece = board.piece_on(make_move.from).unwrap();
+        let index = piece as usize;
+        let to_index = make_move.to as usize;
 
         let value = self.table[prev_index][prev_to_index][index][to_index];
         let change = (amt * amt) as i16;
@@ -141,9 +135,9 @@ impl DoubleMoveHistory {
         self.table[prev_index][prev_to_index][index][to_index] += increment;
 
         for &quiet in fails {
-            let piece = board.piece_on(quiet.get_source()).unwrap();
-            let index = piece.to_index();
-            let to_index = quiet.get_dest().to_index();
+            let piece = board.piece_on(quiet.from).unwrap();
+            let index = piece as usize;
+            let to_index = quiet.to as usize;
             let value = self.table[prev_index][prev_to_index][index][to_index];
             let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
             let decrement = change + decay;
@@ -154,5 +148,5 @@ impl DoubleMoveHistory {
 }
 
 fn piece_index(color: Color, piece: Piece) -> usize {
-    color.to_index() * PIECE_COUNT / 2 + piece.to_index()
+    color as usize * PIECE_COUNT / 2 + piece as usize
 }

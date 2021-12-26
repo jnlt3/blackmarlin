@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use chess::{Board, ChessMove};
+use cozy_chess::{Board, Move};
 
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_runner::ab_consts::*;
@@ -185,8 +185,8 @@ pub struct LocalContext {
     tt_misses: u32,
     eval: Evaluation,
     eval_stack: Vec<Evaluation>,
-    skip_moves: Vec<Option<ChessMove>>,
-    variation: Vec<Option<ChessMove>>,
+    skip_moves: Vec<Option<Move>>,
+    variation: Vec<Option<Move>>,
     sel_depth: u32,
     h_table: HistoryTable,
     ch_table: HistoryTable,
@@ -292,7 +292,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn push_move(&mut self, make_move: Option<ChessMove>, ply: u32) {
+    pub fn push_move(&mut self, make_move: Option<Move>, ply: u32) {
         if ply as usize >= self.variation.len() {
             self.variation.push(make_move);
         } else {
@@ -301,7 +301,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_move(&self, ply: u32) -> Option<Option<ChessMove>> {
+    pub fn get_move(&self, ply: u32) -> Option<Option<Move>> {
         self.variation.get(ply as usize).copied()
     }
 
@@ -315,7 +315,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn set_skip_move(&mut self, ply: u32, skip_move: ChessMove) {
+    pub fn set_skip_move(&mut self, ply: u32, skip_move: Move) {
         while ply as usize >= self.skip_moves.len() {
             self.skip_moves.push(None);
         }
@@ -328,7 +328,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_skip_move(&mut self, ply: u32) -> Option<ChessMove> {
+    pub fn get_skip_move(&mut self, ply: u32) -> Option<Move> {
         self.skip_moves.get(ply as usize).copied().unwrap_or(None)
     }
 
@@ -361,7 +361,7 @@ impl AbRunner {
         &self,
         search_start: Instant,
         thread: u8,
-    ) -> impl FnMut() -> (Option<ChessMove>, Evaluation, u32, u32) {
+    ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u32) {
         let mut nodes = 0;
 
         let shared_context = self.shared_context.clone();
@@ -517,7 +517,7 @@ impl AbRunner {
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
         threads: u8,
-    ) -> (ChessMove, Evaluation, u32, u32) {
+    ) -> (Move, Evaluation, u32, u32) {
         let mut join_handlers = vec![];
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
@@ -556,7 +556,7 @@ impl AbRunner {
         self.position = Position::new(board);
     }
 
-    pub fn make_move(&mut self, make_move: ChessMove) {
+    pub fn make_move(&mut self, make_move: Move) {
         self.position.make_move(make_move);
     }
 

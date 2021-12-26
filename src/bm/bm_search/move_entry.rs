@@ -1,11 +1,11 @@
 use std::array::IntoIter;
 use std::iter::{IntoIterator, Take};
 
-use chess::ChessMove;
+use cozy_chess::Move;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MoveEntry<const N: usize> {
-    moves: [ChessMove; N],
+    moves: [Move; N],
     index: usize,
     size: usize,
 }
@@ -13,7 +13,7 @@ pub struct MoveEntry<const N: usize> {
 impl<const N: usize> MoveEntry<N> {
     pub fn new() -> Self {
         Self {
-            moves: [Default::default(); N],
+            moves: [unsafe { std::mem::zeroed() }; N],
             index: 0,
             size: 0,
         }
@@ -23,7 +23,7 @@ impl<const N: usize> MoveEntry<N> {
         self.size = 0;
     }
 
-    pub fn push(&mut self, killer_move: ChessMove) {
+    pub fn push(&mut self, killer_move: Move) {
         if N == 0 {
             return;
         }
@@ -35,10 +35,10 @@ impl<const N: usize> MoveEntry<N> {
     }
 }
 
-pub type MoveEntryIterator<const N: usize> = Take<IntoIter<ChessMove, N>>;
+pub type MoveEntryIterator<const N: usize> = Take<IntoIter<Move, N>>;
 
 impl<const N: usize> IntoIterator for MoveEntry<N> {
-    type Item = ChessMove;
+    type Item = Move;
     type IntoIter = MoveEntryIterator<N>;
 
     fn into_iter(self) -> Self::IntoIter {

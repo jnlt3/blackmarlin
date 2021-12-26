@@ -1,5 +1,5 @@
 use crate::bm::bm_eval::eval::Evaluation;
-use chess::{Board, ChessMove, MoveGen};
+use cozy_chess::{Board, Move};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
 use std::sync::Mutex;
@@ -41,7 +41,7 @@ pub struct TimeManager {
     target_duration: AtomicU32,
 
     same_move_depth: AtomicU32,
-    prev_move: Mutex<Option<ChessMove>>,
+    prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
 
     infinite: AtomicBool,
@@ -79,7 +79,7 @@ impl TimeManager {
         depth: u32,
         _: u32,
         eval: Evaluation,
-        current_move: ChessMove,
+        current_move: Move,
         _: Duration,
     ) {
         if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
@@ -124,8 +124,13 @@ impl TimeManager {
 
     pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
         self.abort_now.store(false, Ordering::SeqCst);
-        *self.board.lock().unwrap() = *board;
-        let move_cnt = MoveGen::new_legal(board).into_iter().count();
+        *self.board.lock().unwrap() = board.clone();
+
+        let mut move_cnt = 0;
+        board.generate_moves(|piece_moves| {
+            move_cnt += piece_moves.into_iter().count();
+            false
+        });
 
         let mut infinite = true;
 
@@ -175,8 +180,8 @@ impl TimeManager {
         self.max_nodes.store(max_nodes, Ordering::SeqCst);
 
         let (time, inc) = match board.side_to_move() {
-            chess::Color::White => (w_time, w_inc),
-            chess::Color::Black => (b_time, b_inc),
+            cozy_chess::Color::White => (w_time, w_inc),
+            cozy_chess::Color::Black => (b_time, b_inc),
         };
 
         let no_manage = infinite || move_time.is_some();
@@ -186,7 +191,7 @@ impl TimeManager {
             self.target_duration.store(0, Ordering::SeqCst);
         } else {
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
-            let default = if MoveGen::new_legal(board).len() > 1 {
+            let default = if move_cnt > 1 {
                 inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves
             } else {
                 0

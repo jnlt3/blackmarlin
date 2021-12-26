@@ -7,7 +7,7 @@ use crate::bm::nnue::Nnue;
 use arrayvec::ArrayVec;
 #[cfg(not(feature = "nnue"))]
 use chess::ALL_FILES;
-use chess::{BitBoard, Board, ChessMove, Color, Piece, ALL_PIECES, EMPTY};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
@@ -270,85 +270,66 @@ impl StdEvaluator {
         }
     }
 
-    pub fn see(mut board: Board, mut make_move: ChessMove) -> i16 {
+    pub fn see(mut board: Board, mut make_move: Move) -> i16 {
         let mut index = 0;
         let mut gains = [0_i16; 16];
-        let target_square = make_move.get_dest();
+        let target_square = make_move.to;
         gains[0] = if let Some(piece) = board.piece_on(target_square) {
             Self::piece_pts(piece)
         } else {
             0
         };
         'outer: for i in 1..16 {
-            board = board.make_move_new(make_move);
-            gains[i] = Self::piece_pts(board.piece_on(target_square).unwrap()) - gains[i - 1];
+            gains[i] = Self::piece_pts(board.piece_on(make_move.from).unwrap()) - gains[i - 1];
+            if let Err(_) = board.try_play_unchecked(make_move) {
+                break;
+            }
             let color = board.side_to_move();
-            let defenders = *board.color_combined(color);
-            let blockers = *board.combined();
-            for piece in &ALL_PIECES {
-                match piece {
+            let defenders = board.colors(color);
+            let blockers = board.occupied();
+            for piece in &Piece::ALL {
+                let mut potential = match piece {
                     Piece::Pawn => {
-                        let mut potential =
-                            chess::get_pawn_attacks(target_square, !color, blockers)
-                                & defenders
-                                & board.pieces(Piece::Pawn);
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                        cozy_chess::get_pawn_attacks(target_square, !color)
+                            & blockers
+                            & defenders
+                            & board.pieces(Piece::Pawn)
                     }
                     Piece::Knight => {
-                        let mut potential = chess::get_knight_moves(target_square)
+                        cozy_chess::get_knight_moves(target_square)
                             & board.pieces(Piece::Knight)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
                     Piece::Bishop => {
-                        let mut potential = chess::get_bishop_moves(target_square, blockers)
+                        cozy_chess::get_bishop_moves(target_square, blockers)
                             & defenders
-                            & board.pieces(Piece::Bishop);
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & board.pieces(Piece::Bishop)
                     }
                     Piece::Rook => {
-                        let mut potential = chess::get_rook_moves(target_square, blockers)
+                        cozy_chess::get_rook_moves(target_square, blockers)
                             & board.pieces(Piece::Rook)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
                     Piece::Queen => {
-                        let mut potential = chess::get_rook_moves(target_square, blockers)
-                            & chess::get_bishop_moves(target_square, blockers)
+                        cozy_chess::get_rook_moves(target_square, blockers)
+                            & cozy_chess::get_bishop_moves(target_square, blockers)
                             & board.pieces(Piece::Queen)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
                     Piece::King => {
-                        let mut potential = chess::get_king_moves(target_square)
+                        cozy_chess::get_king_moves(target_square)
                             & board.pieces(Piece::King)
-                            & defenders;
-                        if potential != EMPTY {
-                            let attacker = potential.next().unwrap();
-                            make_move = ChessMove::new(attacker, target_square, None);
-                            continue 'outer;
-                        }
+                            & defenders
                     }
+                };
+                if potential != BitBoard::EMPTY {
+                    let attacker = potential.next().unwrap();
+                    make_move = Move {
+                        from: attacker,
+                        to: target_square,
+                        promotion: None,
+                    };
+                    continue 'outer;
                 }
             }
             index = i;
@@ -361,11 +342,11 @@ impl StdEvaluator {
     }
 
     pub fn insufficient_material(&self, board: &Board) -> bool {
-        if board.combined().popcnt() == 2 {
+        if board.occupied().popcnt() == 2 {
             true
-        } else if board.combined().popcnt() == 3 {
+        } else if board.occupied().popcnt() == 3 {
             (board.pieces(Piece::Rook) | board.pieces(Piece::Queen) | board.pieces(Piece::Pawn))
-                == EMPTY
+                == BitBoard::EMPTY
         } else {
             false
         }
@@ -374,9 +355,9 @@ impl StdEvaluator {
     //TODO: Later to be removed with new NNUE versions
     #[cfg(feature = "nnue")]
     fn eval_scale(board: &Board) -> f32 {
-        let pawns = *board.pieces(Piece::Pawn);
-        let pieces = board.combined() & !pawns;
-        let queens = *board.pieces(Piece::Queen);
+        let pawns = board.pieces(Piece::Pawn);
+        let pieces = board.occupied() & !pawns;
+        let queens = board.pieces(Piece::Queen);
         let mut pawn_cnt = pawns.popcnt() as i16;
         if pawn_cnt == 0 {
             pawn_cnt = -16;
