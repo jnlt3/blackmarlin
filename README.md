@@ -7,11 +7,13 @@ WIP UCI Chess Engine
 |*Logo by Alex Brunetti*|
 
 
-Blackmarlin is a UCI compliant chess engine fully written in Rust by Doruk Sekercioglu.
+Black Marlin is a UCI compliant chess engine fully written in Rust by Doruk Sekercioglu.
+
+Black Marlin supports Chess960 as of December 26, 2021 although no extensive testing has been done.
 
 Make sure to compile the chess engine with `cargo build --release --features nnue` or run it with `cargo run --release --features nnue` in order to get the maximum strength out of the engine.
 
-Blackmarlin doesn't come with a built-in GUI. The recommended way of playing against the engine is to get the latest release or compile it locally and use it along with a Chess GUI that supports the UCI protocol. 
+Black Marlin doesn't come with a built-in GUI. The recommended way of playing against the engine is to get the latest release or compile it locally and use it along with a Chess GUI that supports the UCI protocol. 
 
 <strike>The repository used for NN training is [NNUE Marlin](https://github.com/dsekercioglu/nnue_marlin).</strike>
 
