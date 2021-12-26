@@ -1,5 +1,5 @@
 use crate::bm::bm_eval::eval::Evaluation;
-use chess::{Board, ChessMove};
+use cozy_chess::{Board, Move};
 use std::fmt::Display;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -10,7 +10,7 @@ pub struct SearchStats {
     delta_time: u128,
     depth: u32,
     evaluation: Option<Evaluation>,
-    best_move: Option<ChessMove>,
+    best_move: Option<Move>,
 }
 
 impl SearchStats {
@@ -18,7 +18,7 @@ impl SearchStats {
         delta_time: u128,
         depth: u32,
         evaluation: Option<Evaluation>,
-        best_move: Option<ChessMove>,
+        best_move: Option<Move>,
     ) -> Self {
         Self {
             delta_time,
@@ -135,7 +135,7 @@ pub trait GuiInfo {
         eval: Evaluation,
         elapsed: Duration,
         node_cnt: u32,
-        pv: &[ChessMove],
+        pv: &[Move],
     );
 }
 
@@ -147,7 +147,7 @@ impl GuiInfo for NoInfo {
         Self {}
     }
 
-    fn print_info(&self, _: u32, _: u32, _: Evaluation, _: Duration, _: u32, _: &[ChessMove]) {}
+    fn print_info(&self, _: u32, _: u32, _: Evaluation, _: Duration, _: u32, _: &[Move]) {}
 }
 
 #[derive(Debug, Clone)]
@@ -165,7 +165,7 @@ impl GuiInfo for UciInfo {
         eval: Evaluation,
         elapsed: Duration,
         node_cnt: u32,
-        pv: &[ChessMove],
+        pv: &[Move],
     ) {
         let eval_str = if eval.is_mate() {
             format!("mate {}", eval.mate_in().unwrap())

@@ -1,4 +1,4 @@
-use chess::{Board, ChessMove, MoveGen, EMPTY};
+use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 
@@ -23,62 +23,77 @@ enum GenType {
 }
 
 pub struct OrderedMoveGen<const T: usize, const K: usize> {
-    move_gen: MoveGen,
-    pv_move: Option<ChessMove>,
+    move_list: ArrayVec<PieceMoves, 18>,
+    pv_move: Option<Move>,
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
-    counter_move: Option<ChessMove>,
-    prev_move: Option<ChessMove>,
+    counter_move: Option<Move>,
+    prev_move: Option<Move>,
     gen_type: GenType,
     board: Board,
 
-    queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
+    queue: ArrayVec<(Move, i16), MAX_MOVES>,
 }
 
 impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     pub fn new(
         board: &Board,
-        pv_move: Option<ChessMove>,
-        counter_move: Option<ChessMove>,
-        prev_move: Option<ChessMove>,
+        pv_move: Option<Move>,
+        counter_move: Option<Move>,
+        prev_move: Option<Move>,
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
+        let mut move_list = ArrayVec::new();
+        board.generate_moves(|piece_moves| {
+            move_list.push(piece_moves);
+            false
+        });
         Self {
             gen_type: GenType::PvMove,
-            move_gen: MoveGen::new_legal(board),
+            move_list,
             counter_move,
             prev_move,
             pv_move,
             threat_move_entry,
             killer_entry,
-            board: *board,
+            board: board.clone(),
             queue: ArrayVec::new(),
         }
     }
 
-    pub fn next(&mut self, hist: &HistoryTable, cm_hist: &DoubleMoveHistory) -> Option<ChessMove> {
+    pub fn next(&mut self, hist: &HistoryTable, cm_hist: &DoubleMoveHistory) -> Option<Move> {
         if self.gen_type == GenType::PvMove {
             self.gen_type = GenType::CalcCaptures;
             if let Some(pv_move) = self.pv_move {
-                if self.board.legal(pv_move) {
-                    return Some(pv_move);
-                } else {
-                    self.pv_move = None;
+                for &piece_moves in &self.move_list {
+                    if piece_moves.from != pv_move.from {
+                        continue;
+                    }
+                    for mv in piece_moves {
+                        if mv == pv_move {
+                            return Some(pv_move);
+                        }
+                    }
                 }
+                self.pv_move = None;
             }
         }
         if self.gen_type == GenType::CalcCaptures {
-            self.move_gen.set_iterator_mask(*self.board.combined());
-            for make_move in &mut self.move_gen {
-                if Some(make_move) != self.pv_move {
-                    let mut expected_gain = StdEvaluator::see(self.board, make_move);
-                    if expected_gain < 0 {
-                        expected_gain += LOSING_CAPTURE;
+            for &piece_moves in &self.move_list {
+                let mut piece_moves = piece_moves;
+                piece_moves.to &= self.board.colors(!self.board.side_to_move());
+                for make_move in piece_moves {
+                    if Some(make_move) != self.pv_move {
+                        let mut expected_gain = StdEvaluator::see(self.board.clone(), make_move);
+                        if expected_gain < 0 {
+                            expected_gain += LOSING_CAPTURE;
+                        }
+                        self.queue.push((make_move, expected_gain));
                     }
-                    self.queue.push((make_move, expected_gain));
                 }
             }
+
             self.gen_type = GenType::Captures;
         }
         if self.gen_type == GenType::Captures {
@@ -97,38 +112,42 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             }
         }
         if self.gen_type == GenType::GenQuiet {
-            self.move_gen.set_iterator_mask(!EMPTY);
-            for make_move in &mut self.move_gen {
-                if Some(make_move) == self.pv_move {
-                    continue;
-                }
-                if let Some(piece) = make_move.get_promotion() {
-                    match piece {
-                        chess::Piece::Queen => {
-                            self.queue.push((make_move, i16::MAX));
-                        }
-                        _ => {
-                            self.queue.push((make_move, i16::MIN));
-                        }
-                    };
-                    continue;
-                }
-                let mut score = 0;
-                let piece = self.board.piece_on(make_move.get_source()).unwrap();
+            for &piece_moves in &self.move_list {
+                let mut piece_moves = piece_moves;
+                piece_moves.to &= !self.board.colors(!self.board.side_to_move());
+                for make_move in piece_moves {
+                    if Some(make_move) == self.pv_move {
+                        continue;
+                    }
+                    if let Some(piece) = make_move.promotion {
+                        match piece {
+                            cozy_chess::Piece::Queen => {
+                                self.queue.push((make_move, i16::MAX));
+                            }
+                            _ => {
+                                self.queue.push((make_move, i16::MIN));
+                            }
+                        };
+                        continue;
+                    }
+                    let mut score = 0;
+                    let piece = self.board.piece_on(make_move.from).unwrap();
 
-                score += hist.get(self.board.side_to_move(), piece, make_move.get_dest());
-                if let Some(prev_move) = self.prev_move {
-                    let prev_move_piece = self.board.piece_on(prev_move.get_dest()).unwrap();
-                    score += cm_hist.get(
-                        self.board.side_to_move(),
-                        prev_move_piece,
-                        prev_move.get_dest(),
-                        piece,
-                        make_move.get_dest(),
-                    );
-                }
+                    score += hist.get(self.board.side_to_move(), piece, make_move.to);
+                    if let Some(prev_move) = self.prev_move {
+                        let prev_move_piece =
+                            self.board.piece_on(prev_move.to).unwrap_or(Piece::King);
+                        score += cm_hist.get(
+                            self.board.side_to_move(),
+                            prev_move_piece,
+                            prev_move.to,
+                            piece,
+                            make_move.to,
+                        );
+                    }
 
-                self.queue.push((make_move, score));
+                    self.queue.push((make_move, score));
+                }
             }
             self.gen_type = GenType::Killer;
         }
@@ -195,21 +214,18 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
 pub enum QSearchGenType {
     CalcCaptures,
     Captures,
-    Quiet,
 }
 
 pub struct QuiescenceSearchMoveGen<const SEE_PRUNE: bool> {
-    move_gen: MoveGen,
     board: Board,
     gen_type: QSearchGenType,
-    queue: ArrayVec<(ChessMove, i16), MAX_MOVES>,
+    queue: ArrayVec<(Move, i16), MAX_MOVES>,
 }
 
 impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
     pub fn new(board: &Board) -> Self {
         Self {
-            board: *board,
-            move_gen: MoveGen::new_legal(board),
+            board: board.clone(),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
         }
@@ -217,30 +233,30 @@ impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
 }
 
 impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
-    type Item = ChessMove;
+    type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.gen_type == QSearchGenType::CalcCaptures {
-            self.move_gen.set_iterator_mask(*self.board.combined());
-            for make_move in &mut self.move_gen {
-                let expected_gain = StdEvaluator::see(self.board, make_move);
-                if !SEE_PRUNE || expected_gain > -1 {
-                    let pos = self
-                        .queue
-                        .binary_search_by_key(&expected_gain, |(_, score)| *score)
-                        .unwrap_or_else(|pos| pos);
-                    self.queue.insert(pos, (make_move, expected_gain));
+            self.board.generate_moves(|mut piece_moves| {
+                piece_moves.to &= self.board.colors(!self.board.side_to_move());
+                for make_move in piece_moves {
+                    let expected_gain = StdEvaluator::see(self.board.clone(), make_move);
+                    if !SEE_PRUNE || expected_gain > -1 {
+                        let pos = self
+                            .queue
+                            .binary_search_by_key(&expected_gain, |(_, score)| *score)
+                            .unwrap_or_else(|pos| pos);
+                        self.queue.insert(pos, (make_move, expected_gain));
+                    }
                 }
-            }
+                false
+            });
             self.gen_type = QSearchGenType::Captures;
         }
-        if self.gen_type == QSearchGenType::Captures {
-            if let Some((make_move, _)) = self.queue.pop() {
-                return Some(make_move);
-            }
-            self.move_gen.set_iterator_mask(!*self.board.combined());
-            self.gen_type = QSearchGenType::Quiet;
-        }
-        self.move_gen.next()
+        return if let Some((make_move, _)) = self.queue.pop() {
+            Some(make_move)
+        } else {
+            None
+        };
     }
 }

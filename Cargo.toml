@@ -16,7 +16,7 @@ opt-level = 3
 opt-level = 3
 
 [dependencies]
-chess = "3.2.0"
+cozy-chess = "0.1.2"
 text_io = "0.1.8"
 arrayvec = "0.7.1"
 regex = "1.5.4"

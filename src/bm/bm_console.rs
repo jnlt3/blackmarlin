@@ -6,7 +6,6 @@ mod gen_eval;
 mod gen_fen;
 #[cfg(feature = "trace")]
 mod grad;
-
 pub struct BmConsole {
     uci: UciAdapter,
 }
@@ -28,8 +27,6 @@ impl BmConsole {
             let command: &str = &command;
             match command {
                 #[cfg(feature = "trace")]
-                "gen" => Self::gen(_options),
-                #[cfg(feature = "trace")]
                 "tune" => Self::tune(_options),
                 #[cfg(feature = "data")]
                 "data" => Self::data(),
@@ -49,7 +46,7 @@ impl BmConsole {
     fn tune(options: Vec<(String, String)>) {
         use std::{collections::HashMap, str::FromStr};
 
-        use chess::Board;
+        use cozy_chess::Board;
 
         use crate::bm::{
             bm_console::gen_fen::DataPoint,
@@ -106,33 +103,6 @@ impl BmConsole {
             })
             .collect::<Vec<_>>();
         grad::tune(&traces);
-    }
-
-    #[cfg(feature = "trace")]
-    fn gen(options: Vec<(String, String)>) {
-        let option_param = options.iter().find(|(key, _)| key == "input");
-        if option_param.is_none() {
-            println!("error in parsing input file");
-            return;
-        }
-        let input_files = option_param.unwrap().1.split(" ").collect::<Vec<_>>();
-
-        let option_param = options.iter().find(|(key, _)| key == "output");
-        if option_param.is_none() {
-            println!("error in parsing output file");
-            return;
-        }
-        let output_file = &option_param.unwrap().1;
-
-        let mut all_fens = "".to_string();
-        for input_file in input_files.chunks(2) {
-            let weight = input_file[1].parse::<f64>().unwrap();
-            let input_file = input_file[0];
-            let pgns = std::fs::read_to_string(input_file.trim()).unwrap();
-            let fens = gen_fen::fens(&pgns, weight);
-            all_fens += &fens;
-        }
-        std::fs::write(output_file, all_fens).unwrap();
     }
 
     #[cfg(any(feature = "trace", feature = "data"))]

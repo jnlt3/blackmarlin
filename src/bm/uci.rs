@@ -1,10 +1,9 @@
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use chess::{Board, BoardBuilder, ChessMove, Color};
+use cozy_chess::{Board, File, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
@@ -74,6 +73,7 @@ pub struct UciAdapter {
     analysis: Option<JoinHandle<()>>,
     forced: bool,
     threads: u8,
+    chess960: bool,
 }
 
 impl UciAdapter {
@@ -89,18 +89,20 @@ impl UciAdapter {
             forced: false,
             analysis: None,
             time_manager,
+            chess960: false,
         }
     }
 
     pub fn input(&mut self, input: String) -> bool {
         let name = "Black Marlin".to_string();
-        let command = UciCommand::new(&input);
+        let command = UciCommand::new(&input, self.chess960);
         match command {
             UciCommand::Uci => {
                 println!("id name {} {}", name, VERSION);
                 println!("id author Doruk S.");
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
+                println!("option name UCI_Chess960 type check default false");
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -137,7 +139,8 @@ impl UciAdapter {
             UciCommand::Position(position, moves) => {
                 let runner = &mut *self.bm_runner.lock().unwrap();
                 runner.set_board(position);
-                for make_move in moves {
+                for mut make_move in moves {
+                    convert_move(&mut make_move, runner.get_board(), self.chess960);
                     runner.make_move(make_move);
                 }
             }
@@ -154,12 +157,11 @@ impl UciAdapter {
                     "Threads" => {
                         self.threads = value.parse::<u8>().unwrap();
                     }
+                    "UCI_Chess960" => {
+                        self.chess960 = value.to_lowercase().parse::<bool>().unwrap();
+                    }
                     _ => {}
                 }
-            }
-            UciCommand::Detail => {
-                self.exit();
-                self.detail();
             }
             UciCommand::Bench => {
                 self.exit();
@@ -170,8 +172,8 @@ impl UciAdapter {
                 let mut sum_node_cnt = 0;
                 let mut sum_time = Duration::from_nanos(0);
                 for position in POSITIONS {
-                    let board = chess::Board::from_str(position).unwrap();
-                    bm_runner.set_board(board);
+                    let board = cozy_chess::Board::from_str(position).unwrap();
+                    bm_runner.set_board(board.clone());
                     let options = [TimeManagementInfo::MaxDepth(12)];
                     let start = Instant::now();
 
@@ -211,9 +213,6 @@ impl UciAdapter {
                 );
                 println!("{}", buffer);
             }
-            UciCommand::DetailSearch(depth) => {
-                self.detail_search(depth);
-            }
         }
         true
     }
@@ -231,6 +230,8 @@ impl UciAdapter {
         }));
     }
 
+    //TODO: Reintroduce Detail
+    /*
     #[cfg(not(feature = "nnue"))]
     fn detail(&mut self) {
         use super::bm_eval::evaluator::StdEvaluator;
@@ -244,14 +245,14 @@ impl UciAdapter {
         let base_eval = eval.evaluate(&original_board);
 
         let mut sq_values = [None; 64];
-        for sq in *original_board.combined() {
+        for sq in original_board.occupied() {
             let mut board_builder = BoardBuilder::from(original_board);
             board_builder
-                .castle_rights(Color::White, chess::CastleRights::NoRights)
-                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+                .castle_rights(Color::White, cozy_chess::CastleRights::EMPTY)
+                .castle_rights(Color::Black, cozy_chess::CastleRights::EMPTY);
             board_builder.clear_square(sq);
             if let Ok(eval_board) = board_builder.try_into() {
-                sq_values[sq.to_index()] = Some((base_eval - eval.evaluate(&eval_board)).raw());
+                sq_values[sq as usize] = Some((base_eval - eval.evaluate(&eval_board)).raw());
             }
         }
         for rank in 0_usize..8 {
@@ -287,8 +288,8 @@ impl UciAdapter {
             for sq in *original_board.combined() {
                 let mut board_builder = BoardBuilder::from(original_board);
                 board_builder
-                    .castle_rights(Color::White, chess::CastleRights::NoRights)
-                    .castle_rights(Color::Black, chess::CastleRights::NoRights);
+                    .castle_rights(Color::White, cozy_chess::CastleRights::EMPTY)
+                    .castle_rights(Color::Black, cozy_chess::CastleRights::EMPTY);
                 board_builder.clear_square(sq);
                 if let Ok(eval_board) = board_builder.try_into() {
                     sq_values[sq.to_index()] = Some(base_eval - nnue.feed_forward(&eval_board, i));
@@ -323,8 +324,8 @@ impl UciAdapter {
         for sq in *original_board.combined() {
             let mut board_builder = BoardBuilder::from(original_board);
             board_builder
-                .castle_rights(Color::White, chess::CastleRights::NoRights)
-                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+                .castle_rights(Color::White, cozy_chess::CastleRights::EMPTY)
+                .castle_rights(Color::Black, cozy_chess::CastleRights::EMPTY);
             board_builder.clear_square(sq);
             if let Ok(eval_board) = board_builder.try_into() {
                 bm_runner.set_board(eval_board);
@@ -346,6 +347,7 @@ impl UciAdapter {
         }
         bm_runner.set_board(original_board);
     }
+    */
 
     fn exit(&mut self) {
         if let Some(analysis) = self.analysis.take() {
@@ -354,17 +356,30 @@ impl UciAdapter {
     }
 }
 
+fn convert_move(make_move: &mut Move, board: &Board, chess960: bool) {
+    let convert_castle = !chess960
+        && board.piece_on(make_move.from) == Some(Piece::King)
+        && make_move.from.file() == File::E
+        && matches!(make_move.to.file(), File::C | File::G);
+    if convert_castle {
+        let file = if make_move.to.file() == File::C {
+            File::A
+        } else {
+            File::H
+        };
+        make_move.to = Square::new(file, make_move.to.rank());
+    }
+}
+
 enum UciCommand {
     Uci,
     IsReady,
     NewGame,
-    Position(Board, Vec<ChessMove>),
+    Position(Board, Vec<Move>),
     Go(Vec<TimeManagementInfo>),
     SetOption(String, String),
-    Move(ChessMove),
+    Move(Move),
     Bench,
-    Detail,
-    DetailSearch(u32),
     Empty,
     Stop,
     Quit,
@@ -372,8 +387,8 @@ enum UciCommand {
 }
 
 impl UciCommand {
-    fn new(input: &str) -> Self {
-        let input_move = chess::ChessMove::from_str(input);
+    fn new(input: &str, chess960: bool) -> Self {
+        let input_move = cozy_chess::Move::from_str(input);
         if let Ok(m) = input_move {
             return UciCommand::Move(m);
         }
@@ -401,7 +416,7 @@ impl UciCommand {
                         break;
                     } else if token != "fen" {
                         if token == "moves" {
-                            if let Ok(board) = Board::from_str(&board) {
+                            if let Ok(board) = Board::from_fen(&board.trim(), chess960) {
                                 chess_board = Some(board);
                                 board_end = index;
                                 break;
@@ -412,12 +427,13 @@ impl UciCommand {
                     }
                 }
                 if chess_board.is_none() {
-                    chess_board = Some(Board::from_str(&board).unwrap());
+                    chess_board = Some(Board::from_fen(&board.trim(), chess960).unwrap());
                 }
                 let mut moves = vec![];
                 if board_end < split.len() && split[board_end] == "moves" {
                     for token in &split[board_end + 1..] {
-                        moves.push(ChessMove::from_str(token).unwrap());
+                        let make_move = Move::from_str(token).unwrap();
+                        moves.push(make_move);
                     }
                 }
                 UciCommand::Position(chess_board.unwrap(), moves)
@@ -470,10 +486,6 @@ impl UciCommand {
             "eval" => UciCommand::Eval,
             "isready" => UciCommand::IsReady,
             "bench" => UciCommand::Bench,
-            "detail" => UciCommand::Detail,
-            "detailsearch" => {
-                UciCommand::DetailSearch(split.next().unwrap().parse::<u32>().unwrap())
-            }
             "setoption" => {
                 split.next();
                 let name = split.next().unwrap().to_string();

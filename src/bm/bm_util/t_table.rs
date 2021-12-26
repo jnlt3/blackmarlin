@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use chess::{Board, ChessMove};
+use cozy_chess::{Board, Move};
 
 use crate::bm::bm_eval::eval::Evaluation;
 
@@ -16,16 +16,11 @@ pub struct Analysis {
     depth: u8,
     entry_type: Option<EntryType>,
     score: Evaluation,
-    table_move: ChessMove,
+    table_move: Move,
 }
 
 impl Analysis {
-    pub fn new(
-        depth: u32,
-        entry_type: EntryType,
-        score: Evaluation,
-        table_move: ChessMove,
-    ) -> Self {
+    pub fn new(depth: u32, entry_type: EntryType, score: Evaluation, table_move: Move) -> Self {
         Self {
             depth: depth as u8,
             entry_type: Some(entry_type),
@@ -50,7 +45,7 @@ impl Analysis {
     }
 
     #[inline]
-    pub fn table_move(&self) -> ChessMove {
+    pub fn table_move(&self) -> Move {
         self.table_move
     }
 }
@@ -69,7 +64,7 @@ impl Entry {
                 depth: 0,
                 entry_type: None,
                 score: Evaluation::new(0),
-                table_move: ChessMove::default(),
+                table_move: std::mem::zeroed(),
             }),
         }
     }
@@ -108,7 +103,7 @@ impl TranspositionTable {
     }
 
     pub fn get(&self, board: &Board) -> Option<Analysis> {
-        let hash = board.get_hash();
+        let hash = board.hash();
         let index = self.index(hash);
 
         let entry = &self.table[index];
@@ -127,7 +122,7 @@ impl TranspositionTable {
     }
 
     pub fn set(&self, board: &Board, entry: Analysis) {
-        let hash = board.get_hash();
+        let hash = board.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis: Analysis =

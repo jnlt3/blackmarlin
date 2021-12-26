@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use chess::{ChessMove, Piece, EMPTY};
+use cozy_chess::{BitBoard, Move, Piece};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
@@ -52,7 +52,7 @@ pub fn search<Search: SearchType>(
     target_ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
-) -> (Option<ChessMove>, Evaluation) {
+) -> (Option<Move>, Evaluation) {
     if ply != 0 && shared_context.abort_search() {
         local_context.trigger_abort();
         return (None, Evaluation::min());
@@ -94,7 +94,7 @@ pub fn search<Search: SearchType>(
 
     let mut best_move = None;
 
-    let board = *position.board();
+    let board = position.board().clone();
 
     let initial_alpha = alpha;
 
@@ -132,7 +132,7 @@ pub fn search<Search: SearchType>(
         *local_context.tt_misses() += 1;
     }
 
-    let in_check = *position.board().checkers() != EMPTY;
+    let in_check = position.board().checkers() != BitBoard::EMPTY;
 
     let eval = if skip_move.is_none() {
         position.get_eval()
@@ -173,7 +173,7 @@ pub fn search<Search: SearchType>(
         */
 
         let only_pawns =
-            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.combined().popcnt();
+            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.occupied().popcnt();
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
 
         if do_null_move && eval >= beta && position.null_move() {
@@ -260,8 +260,8 @@ pub fn search<Search: SearchType>(
     let counter_move = if let Some(Some(prev_move)) = prev_move {
         local_context.get_cm_table().get(
             board.side_to_move(),
-            board.piece_on(prev_move.get_dest()).unwrap(),
-            prev_move.get_dest(),
+            board.piece_on(prev_move.to).unwrap_or(Piece::King),
+            prev_move.to,
         )
     } else {
         None
@@ -279,8 +279,8 @@ pub fn search<Search: SearchType>(
     let mut moves_seen = 0;
     let mut move_exists = false;
 
-    let mut quiets = ArrayVec::<ChessMove, 64>::new();
-    let mut captures = ArrayVec::<ChessMove, 64>::new();
+    let mut quiets = ArrayVec::<Move, 64>::new();
+    let mut captures = ArrayVec::<Move, 64>::new();
 
     while let Some(make_move) =
         move_gen.next(local_context.get_h_table(), local_context.get_cm_hist())
@@ -289,21 +289,21 @@ pub fn search<Search: SearchType>(
             continue;
         }
         move_exists = true;
-        let is_capture = board.piece_on(make_move.get_dest()).is_some();
-        let is_promotion = make_move.get_promotion().is_some();
+        let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
+        let is_promotion = make_move.promotion.is_some();
         let is_quiet = !in_check && !is_capture && !is_promotion;
 
         let h_score = if is_capture {
             local_context.get_ch_table().get(
                 board.side_to_move(),
-                board.piece_on(make_move.get_source()).unwrap(),
-                make_move.get_dest(),
+                board.piece_on(make_move.from).unwrap(),
+                make_move.to,
             )
         } else {
             local_context.get_h_table().get(
                 board.side_to_move(),
-                board.piece_on(make_move.get_source()).unwrap(),
-                make_move.get_dest(),
+                board.piece_on(make_move.from).unwrap(),
+                make_move.to,
             )
         };
 
@@ -353,7 +353,7 @@ pub fn search<Search: SearchType>(
             position.make_move(make_move);
             local_context.push_move(Some(make_move), ply);
 
-            let gives_check = *position.board().checkers() != EMPTY;
+            let gives_check = position.board().checkers() != BitBoard::EMPTY;
             if gives_check {
                 extension += 1;
             }
@@ -398,7 +398,8 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 2;
             if do_see_prune
-                && eval + StdEvaluator::see(board, make_move) + SEARCH_PARAMS.get_fp() < alpha
+                && eval + StdEvaluator::see(board.clone(), make_move) + SEARCH_PARAMS.get_fp()
+                    < alpha
             {
                 continue;
             }
@@ -406,7 +407,7 @@ pub fn search<Search: SearchType>(
             position.make_move(make_move);
             local_context.push_move(Some(make_move), ply);
 
-            let gives_check = *position.board().checkers() != EMPTY;
+            let gives_check = position.board().checkers() != BitBoard::EMPTY;
             if gives_check {
                 extension += 1;
             }
@@ -548,7 +549,7 @@ pub fn search<Search: SearchType>(
         }
     }
     if !move_exists {
-        return if *board.checkers() == EMPTY {
+        return if board.checkers() == BitBoard::EMPTY {
             (None, Evaluation::new(0))
         } else {
             (None, Evaluation::new_checkmate(-1))
@@ -609,10 +610,10 @@ pub fn q_search(
         }
     }
 
-    let board = *position.board();
+    let board = position.board().clone();
     let mut highest_score = None;
     let mut best_move = None;
-    let in_check = *board.checkers() != EMPTY;
+    let in_check = board.checkers() != BitBoard::EMPTY;
 
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
@@ -639,7 +640,7 @@ pub fn q_search(
 
     let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
     for make_move in move_gen {
-        let is_capture = board.piece_on(make_move.get_dest()).is_some();
+        let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
             position.make_move(make_move);
             let search_score = q_search(

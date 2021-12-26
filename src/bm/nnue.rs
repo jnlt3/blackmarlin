@@ -1,4 +1,4 @@
-use chess::{BitBoard, Board, Color, Piece, EMPTY};
+use cozy_chess::{BitBoard, Board, Color, Piece};
 
 use self::normal::{Dense, Incremental, Psqt};
 
@@ -33,14 +33,14 @@ impl Nnue {
         let out_layer = Dense::new(&OUT);
 
         Self {
-            white: EMPTY,
-            black: EMPTY,
-            pawns: EMPTY,
-            knights: EMPTY,
-            bishops: EMPTY,
-            rooks: EMPTY,
-            queens: EMPTY,
-            kings: EMPTY,
+            white: BitBoard::EMPTY,
+            black: BitBoard::EMPTY,
+            pawns: BitBoard::EMPTY,
+            knights: BitBoard::EMPTY,
+            bishops: BitBoard::EMPTY,
+            rooks: BitBoard::EMPTY,
+            queens: BitBoard::EMPTY,
+            kings: BitBoard::EMPTY,
 
             inputs: [[0_i8; 64]; 12],
             w_input_layer: input_layer.clone(),
@@ -53,15 +53,15 @@ impl Nnue {
 
     #[inline]
     pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
-        let white = *board.color_combined(Color::White);
-        let black = *board.color_combined(Color::Black);
+        let white = board.colors(Color::White);
+        let black = board.colors(Color::Black);
 
-        let pawns = *board.pieces(Piece::Pawn);
-        let knights = *board.pieces(Piece::Knight);
-        let bishops = *board.pieces(Piece::Bishop);
-        let rooks = *board.pieces(Piece::Rook);
-        let queens = *board.pieces(Piece::Queen);
-        let kings = *board.pieces(Piece::King);
+        let pawns = board.pieces(Piece::Pawn);
+        let knights = board.pieces(Piece::Knight);
+        let bishops = board.pieces(Piece::Bishop);
+        let rooks = board.pieces(Piece::Rook);
+        let queens = board.pieces(Piece::Queen);
+        let kings = board.pieces(Piece::King);
 
         let array = [
             (white & pawns) ^ (self.white & self.pawns),
@@ -90,7 +90,7 @@ impl Nnue {
         for (w_index, (input, &bb)) in self.inputs.iter_mut().zip(&array).enumerate() {
             let b_index = (w_index + 6) % 12;
             for w_sq in bb {
-                let w_sq = w_sq.to_index();
+                let w_sq = w_sq as usize;
                 let b_sq = w_sq ^ 56;
 
                 let input = &mut input[w_sq];
