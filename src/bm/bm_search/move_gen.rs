@@ -253,10 +253,10 @@ impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
             });
             self.gen_type = QSearchGenType::Captures;
         }
-        return if let Some((make_move, _)) = self.queue.pop() {
+        if let Some((make_move, _)) = self.queue.pop() {
             Some(make_move)
         } else {
             None
-        };
+        }
     }
 }

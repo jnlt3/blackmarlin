@@ -87,8 +87,12 @@ fn parse_bm_net() {
     println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
+type Layers = Vec<usize>;
+type Weights = Vec<Vec<i8>>;
+type Psqt = Vec<i32>;
+
 #[cfg(feature = "nnue")]
-pub fn from_bytes_bm(bytes: Vec<u8>) -> (Vec<usize>, Vec<Vec<i8>>, Vec<Vec<i8>>, Vec<i32>) {
+pub fn from_bytes_bm(bytes: Vec<u8>) -> (Layers, Weights, Weights, Psqt) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
         let layer_size: u32 = unsafe {

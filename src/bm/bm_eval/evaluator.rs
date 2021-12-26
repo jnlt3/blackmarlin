@@ -279,7 +279,7 @@ impl StdEvaluator {
         };
         'outer: for i in 1..16 {
             gains[i] = Self::piece_pts(board.piece_on(make_move.from).unwrap()) - gains[i - 1];
-            if let Err(_) = board.try_play_unchecked(make_move) {
+            if board.try_play_unchecked(make_move).is_err() {
                 break;
             }
             let color = board.side_to_move();
@@ -383,7 +383,7 @@ impl StdEvaluator {
             let scale = Self::eval_scale(board);
             let nnue_out = self.nnue.feed_forward(board, 0);
             let scaled = (nnue_out as f32 * scale) as i16;
-            return Evaluation::new(scaled * turn + NNUE_TEMPO);
+            Evaluation::new(scaled * turn + NNUE_TEMPO)
         }
         #[cfg(not(feature = "nnue"))]
         {

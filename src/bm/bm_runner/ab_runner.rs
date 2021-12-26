@@ -409,7 +409,7 @@ impl AbRunner {
                         depth,
                         nodes,
                         local_context.eval,
-                        best_move.unwrap_or(make_move.unwrap()),
+                        best_move.unwrap_or_else(|| make_move.unwrap()),
                         search_start.elapsed(),
                     );
                     if (score > alpha && score < beta) || score.is_mate() {

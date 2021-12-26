@@ -416,7 +416,7 @@ impl UciCommand {
                         break;
                     } else if token != "fen" {
                         if token == "moves" {
-                            if let Ok(board) = Board::from_fen(&board.trim(), chess960) {
+                            if let Ok(board) = Board::from_fen(board.trim(), chess960) {
                                 chess_board = Some(board);
                                 board_end = index;
                                 break;
@@ -427,7 +427,7 @@ impl UciCommand {
                     }
                 }
                 if chess_board.is_none() {
-                    chess_board = Some(Board::from_fen(&board.trim(), chess960).unwrap());
+                    chess_board = Some(Board::from_fen(board.trim(), chess960).unwrap());
                 }
                 let mut moves = vec![];
                 if board_end < split.len() && split[board_end] == "moves" {
