@@ -139,7 +139,8 @@ impl UciAdapter {
             UciCommand::Position(position, moves) => {
                 let runner = &mut *self.bm_runner.lock().unwrap();
                 runner.set_board(position);
-                for make_move in moves {
+                for mut make_move in moves {
+                    convert_move(&mut make_move, runner.get_board(), self.chess960);
                     runner.make_move(make_move);
                 }
             }
@@ -440,7 +441,6 @@ impl UciCommand {
                 if board_end < split.len() && split[board_end] == "moves" {
                     for token in &split[board_end + 1..] {
                         let mut make_move = Move::from_str(token).unwrap();
-                        convert_move(&mut make_move, chess_board.as_ref().unwrap(), chess960);
                         moves.push(make_move);
                     }
                 }
