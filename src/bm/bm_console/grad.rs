@@ -379,11 +379,11 @@ impl std::ops::Mul<RanksPair> for RankTable {
     fn mul(self, rhs: RanksPair) -> Self::Output {
         let mut eval = T::default();
         for sq in rhs.0 {
-            let rank = sq.get_rank().to_index();
+            let rank = sq.rank() as usize;
             eval += self.0[rank];
         }
         for sq in rhs.1 {
-            let rank = sq.get_rank().to_index();
+            let rank = sq.rank() as usize;
             eval -= self.0[rank];
         }
         eval
@@ -395,13 +395,13 @@ impl std::ops::Mul<BbPair> for SquareTable {
     fn mul(self, rhs: BbPair) -> Self::Output {
         let mut eval = T::default();
         for sq in rhs.0 {
-            let rank = sq.get_rank().to_index();
-            let file = sq.get_file().to_index();
+            let rank = sq.rank() as usize;
+            let file = sq.file() as usize;
             eval += self.0[rank][file];
         }
         for sq in rhs.1 {
-            let rank = sq.get_rank().to_index();
-            let file = sq.get_file().to_index();
+            let rank = sq.rank() as usize;
+            let file = sq.file() as usize;
             eval -= self.0[rank][file];
         }
         eval
@@ -416,11 +416,11 @@ macro_rules! impl_pairs {
             fn mul(self, rhs: RanksPair) -> Self::Output {
                 let mut table = RankTable::default();
                 for sq in rhs.0 {
-                    let rank = sq.get_rank().to_index();
+                    let rank = sq.rank() as usize;
                     table.0[rank] += self;
                 }
                 for sq in rhs.1 {
-                    let rank = sq.get_rank().to_index();
+                    let rank = sq.rank() as usize;
                     table.0[rank] -= self;
                 }
                 table
@@ -441,13 +441,13 @@ macro_rules! impl_pairs {
             fn mul(self, rhs: BbPair) -> Self::Output {
                 let mut table = SquareTable::default();
                 for sq in rhs.0 {
-                    let rank = sq.get_rank().to_index();
-                    let file = sq.get_file().to_index();
+                    let rank = sq.rank() as usize;
+                    let file = sq.file() as usize;
                     table.0[rank][file] += self;
                 }
                 for sq in rhs.1 {
-                    let rank = sq.get_rank().to_index();
-                    let file = sq.get_file().to_index();
+                    let rank = sq.rank() as usize;
+                    let file = sq.file() as usize;
                     table.0[rank][file] -= self;
                 }
                 table
@@ -529,10 +529,10 @@ macro_rules! apply_weights {
 
 macro_rules! get_fields {
     ($obj: expr, $element: ident: $ty: ty) => {
-        format!("pub const {}: {} = {};", stringify!($element).to_ascii_uppercase(), stringify!($ty), $obj.$element.string());
+        format!("pub const {}: {} = {};", stringify!($element).to_ascii_uppercase(), stringify!($ty), $obj.$element.string())
     };
     ($obj: expr, $element: ident: $ty: ty, $($elements: ident: $tys: ty),*) => {
-        format!("pub const {}: {} = {};\n {}", stringify!($element).to_ascii_uppercase(), stringify!($ty), $obj.$element.string(), &get_fields!($obj, $($elements: $tys),*));
+        format!("pub const {}: {} = {};\n {}", stringify!($element).to_ascii_uppercase(), stringify!($ty), $obj.$element.string(), &get_fields!($obj, $($elements: $tys),*))
     }
 }
 

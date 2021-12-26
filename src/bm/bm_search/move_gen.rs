@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Piece};
+use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 
@@ -23,6 +23,7 @@ enum GenType {
 }
 
 pub struct OrderedMoveGen<const T: usize, const K: usize> {
+    move_list: ArrayVec<PieceMoves, 18>,
     pv_move: Option<Move>,
     threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
@@ -43,8 +44,14 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
+        let mut move_list = ArrayVec::new();
+        board.generate_moves(|piece_moves| {
+            move_list.push(piece_moves);
+            false
+        });
         Self {
             gen_type: GenType::PvMove,
+            move_list,
             counter_move,
             prev_move,
             pv_move,
@@ -59,26 +66,22 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         if self.gen_type == GenType::PvMove {
             self.gen_type = GenType::CalcCaptures;
             if let Some(pv_move) = self.pv_move {
-                let legal = self.board.generate_moves(|piece_moves| {
+                for &piece_moves in &self.move_list {
                     if piece_moves.from != pv_move.from {
-                        return false;
+                        continue;
                     }
                     for mv in piece_moves {
                         if mv == pv_move {
-                            return true;
+                            return Some(pv_move);
                         }
                     }
-                    false
-                });
-                if legal {
-                    return Some(pv_move);
-                } else {
-                    self.pv_move = None;
                 }
+                self.pv_move = None;
             }
         }
         if self.gen_type == GenType::CalcCaptures {
-            self.board.generate_moves(|mut piece_moves| {
+            for &piece_moves in &self.move_list {
+                let mut piece_moves = piece_moves;
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) != self.pv_move {
@@ -89,8 +92,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         self.queue.push((make_move, expected_gain));
                     }
                 }
-                false
-            });
+            }
 
             self.gen_type = GenType::Captures;
         }
@@ -110,7 +112,8 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             }
         }
         if self.gen_type == GenType::GenQuiet {
-            self.board.generate_moves(|mut piece_moves| {
+            for &piece_moves in &self.move_list {
+                let mut piece_moves = piece_moves;
                 piece_moves.to &= !self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) == self.pv_move {
@@ -145,8 +148,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
 
                     self.queue.push((make_move, score));
                 }
-                false
-            });
+            }
             self.gen_type = GenType::Killer;
         }
         //Assumes Killer Moves won't repeat

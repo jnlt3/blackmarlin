@@ -5,8 +5,6 @@ use crate::bm::bm_eval::eval_consts::*;
 use crate::bm::nnue::Nnue;
 #[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
-#[cfg(not(feature = "nnue"))]
-use chess::ALL_FILES;
 use cozy_chess::{BitBoard, Board, Color, Move, Piece};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -229,7 +227,7 @@ macro_rules! trace_ranks_pair {
             let trace: &mut EvalTrace = $trace;
             let bb_0: BitBoard = $bb_0;
             let bb_1: BitBoard = $bb_1;
-            trace.$field = RanksPair(bb_0, bb_1.reverse_colors());
+            trace.$field = RanksPair(bb_0, StdEvaluator::reverse_colors(bb_1));
         }
     };
 }
@@ -242,7 +240,7 @@ macro_rules! trace_psqt {
             let trace: &mut EvalTrace = $trace;
             let bitboard_0: BitBoard = $bitboard_0;
             let bitboard_1: BitBoard = $bitboard_1;
-            trace.$piece = BbPair(bitboard_0, bitboard_1.reverse_colors());
+            trace.$piece = BbPair(bitboard_0, StdEvaluator::reverse_colors(bitboard_1));
             trace.$piece_cnt = bitboard_0.popcnt() as i16 - bitboard_1.popcnt() as i16;
         }
     };
@@ -433,51 +431,51 @@ impl StdEvaluator {
 
     #[cfg(not(feature = "nnue"))]
     fn evaluate_threats(&mut self, board: &Board) -> TaperedEval {
-        let blockers = *board.combined();
+        let blockers = board.occupied();
 
-        let whites = *board.color_combined(Color::White);
-        let blacks = *board.color_combined(Color::Black);
+        let whites = board.colors(Color::White);
+        let blacks = board.colors(Color::Black);
 
-        let pawns = *board.pieces(Piece::Pawn);
-        let knights = *board.pieces(Piece::Knight);
-        let bishops = *board.pieces(Piece::Bishop);
-        let rooks = *board.pieces(Piece::Rook);
-        let queens = *board.pieces(Piece::Queen);
-        let kings = *board.pieces(Piece::King);
+        let pawns = board.pieces(Piece::Pawn);
+        let knights = board.pieces(Piece::Knight);
+        let bishops = board.pieces(Piece::Bishop);
+        let rooks = board.pieces(Piece::Rook);
+        let queens = board.pieces(Piece::Queen);
+        let kings = board.pieces(Piece::King);
 
-        let w_king = board.king_square(Color::White);
-        let b_king = board.king_square(Color::Black);
+        let w_king = board.king(Color::White);
+        let b_king = board.king(Color::Black);
 
-        let w_king_ring = DATA.ring[w_king.to_index()];
-        let b_king_ring = DATA.ring[b_king.to_index()];
+        let w_king_ring = DATA.ring[w_king as usize];
+        let b_king_ring = DATA.ring[b_king as usize];
 
-        let w_knight_attack = chess::get_knight_moves(b_king);
-        let b_knight_attack = chess::get_knight_moves(w_king);
+        let w_knight_attack = cozy_chess::get_knight_moves(b_king);
+        let b_knight_attack = cozy_chess::get_knight_moves(w_king);
 
-        let w_bishop_attack = chess::get_bishop_moves(b_king, blockers);
-        let b_bishop_attack = chess::get_bishop_moves(w_king, blockers);
+        let w_bishop_attack = cozy_chess::get_bishop_moves(b_king, blockers);
+        let b_bishop_attack = cozy_chess::get_bishop_moves(w_king, blockers);
 
-        let w_rook_attack = chess::get_rook_moves(b_king, blockers);
-        let b_rook_attack = chess::get_rook_moves(w_king, blockers);
+        let w_rook_attack = cozy_chess::get_rook_moves(b_king, blockers);
+        let b_rook_attack = cozy_chess::get_rook_moves(w_king, blockers);
 
-        let w_queen_attack =
-            chess::get_bishop_moves(b_king, blockers) | chess::get_rook_moves(b_king, blockers);
-        let b_queen_attack =
-            chess::get_bishop_moves(w_king, blockers) | chess::get_rook_moves(w_king, blockers);
+        let w_queen_attack = cozy_chess::get_bishop_moves(b_king, blockers)
+            | cozy_chess::get_rook_moves(b_king, blockers);
+        let b_queen_attack = cozy_chess::get_bishop_moves(w_king, blockers)
+            | cozy_chess::get_rook_moves(w_king, blockers);
 
         let mut knight_attack_cnt = 0_i16;
         let mut bishop_attack_cnt = 0_i16;
         let mut rook_attack_cnt = 0_i16;
         let mut queen_attack_cnt = 0_i16;
 
-        let mut w_pawn_attacks = EMPTY;
-        let mut b_pawn_attacks = EMPTY;
+        let mut w_pawn_attacks = BitBoard::EMPTY;
+        let mut b_pawn_attacks = BitBoard::EMPTY;
 
         for pawn in pawns & whites {
-            w_pawn_attacks |= chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+            w_pawn_attacks |= cozy_chess::get_pawn_attacks(pawn, Color::White);
         }
         for pawn in pawns & blacks {
-            b_pawn_attacks |= chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
+            b_pawn_attacks |= cozy_chess::get_pawn_attacks(pawn, Color::Black);
         }
 
         let w_mobility_area = !(b_pawn_attacks | (kings & whites) | (whites & pawns));
@@ -492,103 +490,103 @@ impl StdEvaluator {
         let mut black_attackers = 0_usize;
 
         for knight in knights & whites {
-            let attacks = chess::get_knight_moves(knight);
+            let attacks = cozy_chess::get_knight_moves(knight);
             let mobility = (attacks & w_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, knight_mobility, Color::White, mobility);
             knight_mobility += KNIGHT_MOBILITY[mobility];
-            if w_knight_attack & attacks != EMPTY {
+            if w_knight_attack & attacks != BitBoard::EMPTY {
                 knight_attack_cnt += 1;
             }
-            if b_king_ring & attacks != EMPTY {
+            if b_king_ring & attacks != BitBoard::EMPTY {
                 white_attackers += 1;
             }
         }
         for knight in knights & blacks {
-            let attacks = chess::get_knight_moves(knight);
+            let attacks = cozy_chess::get_knight_moves(knight);
             let mobility = (attacks & b_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, knight_mobility, Color::Black, mobility);
             knight_mobility -= KNIGHT_MOBILITY[mobility];
-            if b_knight_attack & attacks != EMPTY {
+            if b_knight_attack & attacks != BitBoard::EMPTY {
                 knight_attack_cnt -= 1;
             }
-            if w_king_ring & attacks != EMPTY {
+            if w_king_ring & attacks != BitBoard::EMPTY {
                 black_attackers += 1;
             }
         }
 
         for diag in bishops & whites {
-            let attacks = chess::get_bishop_moves(diag, blockers);
+            let attacks = cozy_chess::get_bishop_moves(diag, blockers);
             let mobility = (attacks & w_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, bishop_mobility, Color::White, mobility);
             bishop_mobility += BISHOP_MOBILITY[mobility];
-            if w_bishop_attack & attacks != EMPTY {
+            if w_bishop_attack & attacks != BitBoard::EMPTY {
                 bishop_attack_cnt += 1;
             }
-            if b_king_ring & attacks != EMPTY {
+            if b_king_ring & attacks != BitBoard::EMPTY {
                 white_attackers += 1;
             }
         }
         for diag in bishops & blacks {
-            let attacks = chess::get_bishop_moves(diag, blockers);
+            let attacks = cozy_chess::get_bishop_moves(diag, blockers);
             let mobility = (attacks & b_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, bishop_mobility, Color::Black, mobility);
             bishop_mobility -= BISHOP_MOBILITY[mobility];
-            if b_bishop_attack & attacks != EMPTY {
+            if b_bishop_attack & attacks != BitBoard::EMPTY {
                 bishop_attack_cnt -= 1;
             }
-            if w_king_ring & attacks != EMPTY {
+            if w_king_ring & attacks != BitBoard::EMPTY {
                 black_attackers += 1;
             }
         }
 
         for ortho in rooks & whites {
-            let attacks = chess::get_rook_moves(ortho, blockers);
+            let attacks = cozy_chess::get_rook_moves(ortho, blockers);
             let mobility = (attacks & w_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, rook_mobility, Color::White, mobility);
             rook_mobility += ROOK_MOBILITY[mobility];
-            if w_rook_attack & attacks != EMPTY {
+            if w_rook_attack & attacks != BitBoard::EMPTY {
                 rook_attack_cnt += 1;
             }
-            if b_king_ring & attacks != EMPTY {
+            if b_king_ring & attacks != BitBoard::EMPTY {
                 white_attackers += 1;
             }
         }
         for ortho in rooks & blacks {
-            let attacks = chess::get_rook_moves(ortho, blockers);
+            let attacks = cozy_chess::get_rook_moves(ortho, blockers);
             let mobility = (attacks & b_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, rook_mobility, Color::Black, mobility);
             rook_mobility -= ROOK_MOBILITY[mobility];
-            if b_rook_attack & attacks != EMPTY {
+            if b_rook_attack & attacks != BitBoard::EMPTY {
                 rook_attack_cnt -= 1;
             }
-            if w_king_ring & attacks != EMPTY {
+            if w_king_ring & attacks != BitBoard::EMPTY {
                 black_attackers += 1;
             }
         }
 
         for queen in queens & whites {
-            let attacks =
-                chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+            let attacks = cozy_chess::get_bishop_moves(queen, blockers)
+                | cozy_chess::get_rook_moves(queen, blockers);
             let mobility = (attacks & w_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, queen_mobility, Color::White, mobility);
             queen_mobility += QUEEN_MOBILITY[mobility];
-            if w_queen_attack & attacks != EMPTY {
+            if w_queen_attack & attacks != BitBoard::EMPTY {
                 queen_attack_cnt += 1;
             }
-            if b_king_ring & attacks != EMPTY {
+            if b_king_ring & attacks != BitBoard::EMPTY {
                 white_attackers += 1;
             }
         }
         for queen in queens & blacks {
-            let attacks =
-                chess::get_bishop_moves(queen, blockers) | chess::get_rook_moves(queen, blockers);
+            let attacks = cozy_chess::get_bishop_moves(queen, blockers)
+                | cozy_chess::get_rook_moves(queen, blockers);
             let mobility = (attacks & b_mobility_area).popcnt() as usize;
             trace_index!(&mut self.trace, queen_mobility, Color::Black, mobility);
             queen_mobility -= QUEEN_MOBILITY[mobility];
-            if b_queen_attack & attacks != EMPTY {
+            if b_queen_attack & attacks != BitBoard::EMPTY {
                 queen_attack_cnt -= 1;
             }
-            if w_king_ring & attacks != EMPTY {
+            if w_king_ring & attacks != BitBoard::EMPTY {
                 black_attackers += 1;
             }
         }
@@ -627,9 +625,9 @@ impl StdEvaluator {
 
     #[cfg(not(feature = "nnue"))]
     fn evaluate_bishops(&mut self, board: &Board) -> TaperedEval {
-        let bishops = *board.pieces(Piece::Bishop);
-        let w_bishops = bishops & *board.color_combined(Color::White);
-        let b_bishops = bishops & *board.color_combined(Color::Black);
+        let bishops = board.pieces(Piece::Bishop);
+        let w_bishops = bishops & board.colors(Color::White);
+        let b_bishops = bishops & board.colors(Color::Black);
         let w_pair = if w_bishops.popcnt() > 1 { 1 } else { 0 };
         let b_pair = if b_bishops.popcnt() > 1 { 1 } else { 0 };
         let bishop_pair = w_pair - b_pair;
@@ -639,68 +637,68 @@ impl StdEvaluator {
 
     #[cfg(not(feature = "nnue"))]
     fn evaluate_pawns(&mut self, board: &Board) -> TaperedEval {
-        let white_pawns = *board.pieces(Piece::Pawn) & board.color_combined(Color::White);
-        let black_pawns = *board.pieces(Piece::Pawn) & board.color_combined(Color::Black);
+        let white_pawns = board.pieces(Piece::Pawn) & board.colors(Color::White);
+        let black_pawns = board.pieces(Piece::Pawn) & board.colors(Color::Black);
 
-        let mut w_passed_bb = EMPTY;
-        let mut b_passed_bb = EMPTY;
+        let mut w_passed_bb = BitBoard::EMPTY;
+        let mut b_passed_bb = BitBoard::EMPTY;
 
         let mut w_isolated = 0_i16;
         let mut b_isolated = 0_i16;
 
-        let white_non_pawn = board.color_combined(Color::White) & !white_pawns;
-        let black_non_pawn = board.color_combined(Color::Black) & !black_pawns;
+        let white_non_pawn = board.colors(Color::White) & !white_pawns;
+        let black_non_pawn = board.colors(Color::Black) & !black_pawns;
 
-        let mut w_pawn_attacks = EMPTY;
-        let mut b_pawn_attacks = EMPTY;
+        let mut w_pawn_attacks = BitBoard::EMPTY;
+        let mut b_pawn_attacks = BitBoard::EMPTY;
 
         for pawn in white_pawns {
-            let ahead = DATA.w_ahead[pawn.to_index()];
+            let ahead = DATA.w_ahead[pawn as usize];
 
-            if (ahead & black_pawns) == EMPTY {
-                w_passed_bb |= BitBoard::from_square(pawn);
+            if (ahead & black_pawns) == BitBoard::EMPTY {
+                w_passed_bb |= pawn.bitboard();
             }
 
-            let adj = chess::get_adjacent_files(pawn.get_file());
-            if adj & white_pawns == EMPTY {
+            let adj = Self::adjacent_files(pawn.file());
+            if adj & white_pawns == BitBoard::EMPTY {
                 w_isolated += 1;
             }
 
-            let attacks = chess::get_pawn_attacks(pawn, Color::White, !EMPTY);
+            let attacks = cozy_chess::get_pawn_attacks(pawn, Color::White);
             w_pawn_attacks |= attacks;
         }
 
         for pawn in black_pawns {
-            let ahead = DATA.b_ahead[pawn.to_index()];
+            let ahead = DATA.b_ahead[pawn as usize];
 
-            if (ahead & white_pawns) == EMPTY {
-                b_passed_bb |= BitBoard::from_square(pawn);
+            if (ahead & white_pawns) == BitBoard::EMPTY {
+                b_passed_bb |= pawn.bitboard();
             }
 
-            let adj = chess::get_adjacent_files(pawn.get_file());
-            if adj & black_pawns == EMPTY {
+            let adj = Self::adjacent_files(pawn.file());
+            if adj & black_pawns == BitBoard::EMPTY {
                 b_isolated += 1;
             }
 
-            let attacks = chess::get_pawn_attacks(pawn, Color::Black, !EMPTY);
+            let attacks = cozy_chess::get_pawn_attacks(pawn, Color::Black);
             b_pawn_attacks |= attacks;
         }
         let mut w_doubled = 0;
         let mut b_doubled = 0;
-        for &file in &ALL_FILES {
-            let file_bb = chess::get_file(file);
+        for &file in &cozy_chess::File::ALL {
+            let file_bb = file.bitboard();
             w_doubled += (file_bb & white_pawns).popcnt().saturating_sub(1);
             b_doubled += (file_bb & black_pawns).popcnt().saturating_sub(1);
         }
 
         let mut passer_score = TaperedEval(0, 0);
         for sq in w_passed_bb {
-            let rank = sq.get_rank();
-            passer_score += PASSED_TABLE[rank.to_index()];
+            let rank = sq.rank();
+            passer_score += PASSED_TABLE[rank as usize];
         }
-        for sq in b_passed_bb.reverse_colors() {
-            let rank = sq.get_rank();
-            passer_score -= PASSED_TABLE[rank.to_index()];
+        for sq in Self::reverse_colors(b_passed_bb) {
+            let rank = sq.rank();
+            passer_score -= PASSED_TABLE[rank as usize];
         }
 
         let w_phalanx = (white_pawns & BitBoard(white_pawns.0 << 1)).popcnt();
@@ -735,8 +733,8 @@ impl StdEvaluator {
     pub fn get_psqt_score(board: BitBoard, table: &[[TaperedEval; 8]; 8]) -> TaperedEval {
         let mut psqt_score = TaperedEval(0, 0);
         for square in board {
-            let rank = square.get_rank().to_index();
-            let file = square.get_file().to_index();
+            let rank = square.rank() as usize;
+            let file = square.file() as usize;
             psqt_score += table[rank][file];
         }
         psqt_score
@@ -744,8 +742,8 @@ impl StdEvaluator {
 
     #[cfg(not(feature = "nnue"))]
     fn evaluate_psqt(&mut self, board: &Board, piece: Piece) -> TaperedEval {
-        let pieces_white = board.pieces(piece) & board.color_combined(Color::White);
-        let pieces_black = board.pieces(piece) & board.color_combined(Color::Black);
+        let pieces_white = board.pieces(piece) & board.colors(Color::White);
+        let pieces_black = board.pieces(piece) & board.colors(Color::Black);
 
         let psqt = match piece {
             Piece::Pawn => {
@@ -793,6 +791,21 @@ impl StdEvaluator {
         };
 
         Self::get_psqt_score(pieces_white, psqt)
-            - Self::get_psqt_score(pieces_black.reverse_colors(), psqt)
+            - Self::get_psqt_score(Self::reverse_colors(pieces_black), psqt)
+    }
+
+    #[cfg(not(feature = "nnue"))]
+    fn reverse_colors(mut bb: BitBoard) -> BitBoard {
+        const K1: BitBoard = BitBoard(0x00FF00FF00FF00FF);
+        const K2: BitBoard = BitBoard(0x0000FFFF0000FFFF);
+        bb = ((bb >> 8) & K1) | ((bb & K1) << 8);
+        bb = ((bb >> 16) & K2) | ((bb & K2) << 16);
+        bb = (bb >> 32) | (bb << 32);
+        return bb;
+    }
+
+    #[cfg(not(feature = "nnue"))]
+    fn adjacent_files(file: cozy_chess::File) -> BitBoard {
+        (file.bitboard() << 8) | (file.bitboard() >> 8)
     }
 }

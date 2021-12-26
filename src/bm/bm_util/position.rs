@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Piece};
+use cozy_chess::{Board, Move};
 
 use crate::bm::bm_eval::{eval::Evaluation, evaluator::StdEvaluator};
 

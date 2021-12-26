@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use cozy_chess::{Board, Color, File, Move, Piece, Square};
+use cozy_chess::{Board, File, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
@@ -163,10 +163,6 @@ impl UciAdapter {
                     _ => {}
                 }
             }
-            UciCommand::Detail => {
-                self.exit();
-                //self.detail();
-            }
             UciCommand::Bench => {
                 self.exit();
 
@@ -217,9 +213,6 @@ impl UciAdapter {
                 );
                 println!("{}", buffer);
             }
-            UciCommand::DetailSearch(depth) => {
-                //self.detail_search(depth);
-            }
         }
         true
     }
@@ -237,6 +230,8 @@ impl UciAdapter {
         }));
     }
 
+    //TODO: Reintroduce Detail
+    /*
     #[cfg(not(feature = "nnue"))]
     fn detail(&mut self) {
         use super::bm_eval::evaluator::StdEvaluator;
@@ -250,14 +245,14 @@ impl UciAdapter {
         let base_eval = eval.evaluate(&original_board);
 
         let mut sq_values = [None; 64];
-        for sq in *original_board.combined() {
+        for sq in original_board.occupied() {
             let mut board_builder = BoardBuilder::from(original_board);
             board_builder
-                .castle_rights(Color::White, chess::CastleRights::NoRights)
-                .castle_rights(Color::Black, chess::CastleRights::NoRights);
+                .castle_rights(Color::White, cozy_chess::CastleRights::EMPTY)
+                .castle_rights(Color::Black, cozy_chess::CastleRights::EMPTY);
             board_builder.clear_square(sq);
             if let Ok(eval_board) = board_builder.try_into() {
-                sq_values[sq.to_index()] = Some((base_eval - eval.evaluate(&eval_board)).raw());
+                sq_values[sq as usize] = Some((base_eval - eval.evaluate(&eval_board)).raw());
             }
         }
         for rank in 0_usize..8 {
@@ -276,7 +271,6 @@ impl UciAdapter {
         bm_runner.set_board(original_board);
     }
 
-    /*
     #[cfg(feature = "nnue")]
     fn detail(&mut self) {
         self.exit();
@@ -386,8 +380,6 @@ enum UciCommand {
     SetOption(String, String),
     Move(Move),
     Bench,
-    Detail,
-    DetailSearch(u32),
     Empty,
     Stop,
     Quit,
@@ -440,7 +432,7 @@ impl UciCommand {
                 let mut moves = vec![];
                 if board_end < split.len() && split[board_end] == "moves" {
                     for token in &split[board_end + 1..] {
-                        let mut make_move = Move::from_str(token).unwrap();
+                        let make_move = Move::from_str(token).unwrap();
                         moves.push(make_move);
                     }
                 }
@@ -494,10 +486,6 @@ impl UciCommand {
             "eval" => UciCommand::Eval,
             "isready" => UciCommand::IsReady,
             "bench" => UciCommand::Bench,
-            "detail" => UciCommand::Detail,
-            "detailsearch" => {
-                UciCommand::DetailSearch(split.next().unwrap().parse::<u32>().unwrap())
-            }
             "setoption" => {
                 split.next();
                 let name = split.next().unwrap().to_string();

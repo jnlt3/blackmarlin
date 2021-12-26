@@ -5,8 +5,8 @@ impl TaperedEval {
     #[inline]
     pub fn convert(&self, phase: i16) -> i16 {
         let phase = phase as i32;
-        ((self.0 as i32 * phase + self.1 as i32 * (TOTAL_PHASE as i32 - phase)) / TOTAL_PHASE as i32)
-            as i16
+        ((self.0 as i32 * phase + self.1 as i32 * (TOTAL_PHASE as i32 - phase))
+            / TOTAL_PHASE as i32) as i16
     }
 }
 

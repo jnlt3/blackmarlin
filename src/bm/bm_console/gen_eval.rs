@@ -4,7 +4,8 @@ use std::{
     sync::Arc,
 };
 
-use chess::{Board, MoveGen};
+use arrayvec::ArrayVec;
+use cozy_chess::{BitBoard, Board, Move};
 use rand::Rng;
 
 use crate::bm::{
@@ -27,30 +28,38 @@ fn play_single(
     engine_1.set_board(Board::default());
     let mut result = 0.5;
     for ply in 0..160 {
-        let mut move_gen = MoveGen::new_legal(engine_0.get_board());
-        if move_gen.next().is_none() {
-            result = (ply % 2) as f32;
-            break;
+        match engine_0.get_board().status() {
+            cozy_chess::GameStatus::Won => {
+                result = (ply % 2) as f32;
+                break;
+            }
+            cozy_chess::GameStatus::Drawn => break,
+            cozy_chess::GameStatus::Ongoing => {}
         }
-
         time_manager.initiate(engine_0.get_board(), time_management_info);
         let (mut make_move, eval, _, _) = engine_0.search::<Run, NoInfo>(1);
         time_manager.clear();
         let turn = match engine_0.get_board().side_to_move() {
-            chess::Color::White => 1,
-            chess::Color::Black => -1,
+            cozy_chess::Color::White => 1,
+            cozy_chess::Color::Black => -1,
         };
 
-        let mut move_gen = MoveGen::new_legal(engine_0.get_board());
-        move_gen.set_iterator_mask(*engine_0.get_board().combined());
-        if move_gen.next().is_none() {
-            evals.push((*engine_0.get_board(), eval * turn));
+        let board = engine_0.get_board().clone();
+        let capture_exists = board.generate_moves(|piece_moves| {
+            piece_moves.to & board.colors(!board.side_to_move()) != BitBoard::EMPTY
+        });
+        if capture_exists {
+            evals.push((engine_0.get_board().clone(), eval * turn));
         }
 
         if ply < 8 {
-            let moves = MoveGen::new_legal(engine_0.get_board())
-                .into_iter()
-                .collect::<Box<_>>();
+            let mut moves = ArrayVec::<Move, 218>::new();
+            board.generate_moves(|piece_moves| {
+                for make_move in piece_moves {
+                    moves.push(make_move);
+                }
+                false
+            });
             make_move = moves[rand::thread_rng().gen_range(0..moves.len())];
         }
         engine_0.make_move(make_move);
