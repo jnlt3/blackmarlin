@@ -399,6 +399,7 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 2;
             if do_see_prune
+                && eval < alpha
                 && eval + StdEvaluator::see(board.clone(), make_move) + SEARCH_PARAMS.get_fp()
                     < alpha
             {
