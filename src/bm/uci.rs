@@ -174,6 +174,7 @@ impl UciAdapter {
                 let mut sum_time = Duration::from_nanos(0);
                 for position in POSITIONS {
                     let board = cozy_chess::Board::from_str(position).unwrap();
+                    bm_runner.new_game();
                     bm_runner.set_board(board.clone());
                     let options = [TimeManagementInfo::MaxDepth(12)];
                     let start = Instant::now();
