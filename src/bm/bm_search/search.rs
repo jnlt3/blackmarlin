@@ -383,13 +383,29 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            let see = if depth <= 8 {
+                StdEvaluator::see(board.clone(), make_move)
+            } else {
+                0
+            };
             /*
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            if do_hp
+                && !is_capture
+                && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64)
+            {
+                continue;
+            }
+
+            if do_hp
+                && is_capture
+                && see < 0
+                && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64)
+            {
                 continue;
             }
 
@@ -398,10 +414,7 @@ pub fn search<Search: SearchType>(
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 2;
-            if do_see_prune
-                && eval + StdEvaluator::see(board.clone(), make_move) + SEARCH_PARAMS.get_fp()
-                    < alpha
-            {
+            if do_see_prune && eval + see + SEARCH_PARAMS.get_fp() < alpha {
                 continue;
             }
 
