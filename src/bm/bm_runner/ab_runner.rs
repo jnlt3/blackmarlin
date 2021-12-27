@@ -197,6 +197,7 @@ pub struct LocalContext {
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: u32,
     abort: bool,
+    root_moves: Box<[[u32; 64]; 64]>,
 }
 
 impl SharedContext {
@@ -227,6 +228,16 @@ impl SharedContext {
 }
 
 impl LocalContext {
+    #[inline]
+    pub fn update_root_nodes(&mut self, mv: Move, nodes: u32) {
+        self.root_moves[mv.from as usize][mv.to as usize] += nodes;
+    }
+
+    #[inline]
+    pub fn move_nodes(&self, mv: Move) -> u32 {
+        self.root_moves[mv.from as usize][mv.to as usize]
+    }
+
     #[inline]
     pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
         &mut self.threat_moves
@@ -349,6 +360,10 @@ impl LocalContext {
     pub fn abort(&self) -> bool {
         self.abort
     }
+
+    pub fn root_eval(&self) -> Evaluation {
+        self.eval
+    }
 }
 
 pub struct AbRunner {
@@ -390,7 +405,7 @@ impl AbRunner {
                     } else {
                         (Evaluation::min(), Evaluation::max())
                     };
-                    local_context.nodes = 0;
+                    let prev_nodes = local_context.nodes;
                     let (make_move, score) = search::search::<Pv>(
                         &mut position,
                         &mut local_context,
@@ -400,7 +415,7 @@ impl AbRunner {
                         alpha,
                         beta,
                     );
-                    nodes += local_context.nodes;
+                    nodes += local_context.nodes - prev_nodes;
                     if depth > 1 && shared_context.abort_deepening(depth, nodes) {
                         break 'outer;
                     }
@@ -408,10 +423,9 @@ impl AbRunner {
                     local_context.eval = score;
 
                     shared_context.time_manager.deepen(
+                        &mut local_context,
                         thread,
                         depth,
-                        nodes,
-                        local_context.eval,
                         best_move.unwrap_or_else(|| make_move.unwrap()),
                         search_start.elapsed(),
                     );
@@ -514,6 +528,7 @@ impl AbRunner {
                 sel_depth: 0,
                 nodes: 0,
                 abort: false,
+                root_moves: Box::new([[0; 64]; 64]),
             },
             position,
             chess960: false,

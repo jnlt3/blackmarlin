@@ -1,12 +1,12 @@
-use crate::bm::bm_eval::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use super::ab_runner::LocalContext;
+
 const EXPECTED_MOVES: u32 = 40;
-const MOVE_CHANGE_MARGIN: u32 = 9;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -75,10 +75,9 @@ impl TimeManager {
 impl TimeManager {
     pub fn deepen(
         &self,
+        local_context: &mut LocalContext,
         thread: u8,
         depth: u32,
-        _: u32,
-        eval: Evaluation,
         current_move: Move,
         _: Duration,
     ) {
@@ -86,39 +85,17 @@ impl TimeManager {
             return;
         }
 
-        let current_eval = eval.raw();
-        let last_eval = self.last_eval.load(Ordering::SeqCst);
-        let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
+        let current_eval = local_context.root_eval().raw();
+        let time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
 
-        let mut move_changed = false;
-        let prev_move = &mut *self.prev_move.lock().unwrap();
-        if let Some(prev_move) = prev_move {
-            if *prev_move != current_move {
-                move_changed = true;
-            }
-        }
-        *prev_move = Some(current_move);
-
-        let move_change_depth = if move_changed {
-            self.same_move_depth.store(0, Ordering::SeqCst);
-            0
-        } else {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
-        };
-
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
-
-        time *= 1.05_f32.powf(eval_diff.min(1.0));
-
-        let move_change_factor = 1.05_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .max(0.4);
-
+        let nodes = *local_context.nodes() as f32;
+        let base = nodes.powf(1.0 / depth as f32);
+        let node_ratio = depth as f32 - (local_context.move_nodes(current_move) as f32).log(base);
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.target_duration
-            .store((time * 0.001 * move_change_factor) as u32, Ordering::SeqCst);
+            .store((time * 0.007 * node_ratio) as u32, Ordering::SeqCst);
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 

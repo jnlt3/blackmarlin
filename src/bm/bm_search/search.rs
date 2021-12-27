@@ -286,6 +286,7 @@ pub fn search<Search: SearchType>(
     while let Some(make_move) =
         move_gen.next(local_context.get_h_table(), local_context.get_cm_hist())
     {
+        let nodes_before = *local_context.nodes();
         if Some(make_move) == skip_move {
             continue;
         }
@@ -506,6 +507,9 @@ pub fn search<Search: SearchType>(
 
         position.unmake_move();
         moves_seen += 1;
+
+        let node_diff = *local_context.nodes() - nodes_before;
+        local_context.update_root_nodes(make_move, node_diff);
 
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
