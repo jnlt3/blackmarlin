@@ -62,7 +62,12 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         }
     }
 
-    pub fn next(&mut self, hist: &HistoryTable, cm_hist: &DoubleMoveHistory) -> Option<Move> {
+    pub fn next(
+        &mut self,
+        hist: &HistoryTable,
+        c_hist: &HistoryTable,
+        cm_hist: &DoubleMoveHistory,
+    ) -> Option<Move> {
         if self.gen_type == GenType::PvMove {
             self.gen_type = GenType::CalcCaptures;
             if let Some(pv_move) = self.pv_move {
@@ -84,13 +89,16 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 let mut piece_moves = piece_moves;
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
-                    if Some(make_move) != self.pv_move {
-                        let mut expected_gain = StdEvaluator::see(self.board.clone(), make_move);
-                        if expected_gain < 0 {
-                            expected_gain += LOSING_CAPTURE;
-                        }
-                        self.queue.push((make_move, expected_gain));
+                    if Some(make_move) == self.pv_move {
+                        continue;
                     }
+                    let piece = self.board.piece_on(make_move.from).unwrap();
+
+                    let mut expected_gain = c_hist.get(self.board.side_to_move(), piece, make_move.to);
+                    if expected_gain < 0 {
+                        expected_gain += LOSING_CAPTURE;
+                    }
+                    self.queue.push((make_move, expected_gain));
                 }
             }
 
