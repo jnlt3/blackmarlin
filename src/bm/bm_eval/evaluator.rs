@@ -268,28 +268,30 @@ impl StdEvaluator {
         }
     }
 
-    pub fn see(mut board: Board, mut make_move: Move) -> i16 {
+    pub fn see(board: Board, make_move: Move) -> i16 {
         let mut index = 0;
         let mut gains = [0_i16; 16];
         let target_square = make_move.to;
+        let move_piece = board.piece_on(make_move.from).unwrap();
         gains[0] = if let Some(piece) = board.piece_on(target_square) {
             Self::piece_pts(piece)
         } else {
+            if move_piece == Piece::King {
+                return 0;
+            }
             0
         };
+        let mut color = !board.side_to_move();
+        let mut blockers = board.occupied() & !make_move.from.bitboard();
+        let mut last_piece_pts = Self::piece_pts(move_piece);
         'outer: for i in 1..16 {
-            gains[i] = Self::piece_pts(board.piece_on(make_move.from).unwrap()) - gains[i - 1];
-            if board.try_play_unchecked(make_move).is_err() {
-                break;
-            }
-            let color = board.side_to_move();
-            let defenders = board.colors(color);
-            let blockers = board.occupied();
-            for piece in &Piece::ALL {
+            gains[i] = last_piece_pts - gains[i - 1];
+            let defenders = board.colors(color) & blockers;
+            for &piece in &Piece::ALL {
+                last_piece_pts = Self::piece_pts(piece);
                 let mut potential = match piece {
                     Piece::Pawn => {
                         cozy_chess::get_pawn_attacks(target_square, !color)
-                            & blockers
                             & defenders
                             & board.pieces(Piece::Pawn)
                     }
@@ -322,11 +324,8 @@ impl StdEvaluator {
                 };
                 if potential != BitBoard::EMPTY {
                     let attacker = potential.next().unwrap();
-                    make_move = Move {
-                        from: attacker,
-                        to: target_square,
-                        promotion: None,
-                    };
+                    blockers &= !attacker.bitboard();
+                    color = !color;
                     continue 'outer;
                 }
             }
