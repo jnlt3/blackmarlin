@@ -85,17 +85,17 @@ impl TimeManager {
             return;
         }
 
+        let max_duration = self.max_duration.load(Ordering::SeqCst);
         let current_eval = local_context.root_eval().raw();
-        let time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
+        let time = (self.normal_duration.load(Ordering::SeqCst).min(max_duration) * 1000) as f32;
 
         let nodes = *local_context.nodes() as f32;
-        let base = nodes.powf(1.0 / depth as f32);
-        let node_ratio = depth as f32 - (local_context.move_nodes(current_move) as f32).log(base);
-        let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
+        let node_ratio = 1.0 - (local_context.move_nodes(current_move) as f32) / nodes;
+        let uncertainty = (node_ratio * 10.0).min(2.0);
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.target_duration
-            .store((time * 0.007 * node_ratio) as u32, Ordering::SeqCst);
+            .store(((time * 0.001 * uncertainty) as u32).min(max_duration), Ordering::SeqCst);
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
