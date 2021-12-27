@@ -159,6 +159,7 @@ impl UciAdapter {
                     }
                     "UCI_Chess960" => {
                         self.chess960 = value.to_lowercase().parse::<bool>().unwrap();
+                        self.bm_runner.lock().unwrap().set_chess960(self.chess960);
                     }
                     _ => {}
                 }
@@ -359,7 +360,7 @@ impl UciAdapter {
     }
 }
 
-fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
+pub fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
     if !chess960 && board.color_on(make_move.from) == board.color_on(make_move.to) {
         let rights = board.castle_rights(board.side_to_move());
         let file = if Some(make_move.to.file()) == rights.short {

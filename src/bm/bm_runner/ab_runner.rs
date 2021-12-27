@@ -16,6 +16,7 @@ use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
+use crate::bm::uci;
 
 use super::time::TimeManager;
 
@@ -354,6 +355,7 @@ pub struct AbRunner {
     shared_context: SharedContext,
     local_context: LocalContext,
     position: Position,
+    chess960: bool,
 }
 
 impl AbRunner {
@@ -361,6 +363,7 @@ impl AbRunner {
         &self,
         search_start: Instant,
         thread: u8,
+        chess960: bool,
     ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u32) {
         let mut nodes = 0;
 
@@ -437,7 +440,9 @@ impl AbRunner {
                         let mut pv = vec![best_move];
                         position.make_move(best_move);
                         while let Some(analysis) = shared_context.t_table.get(position.board()) {
-                            pv.push(analysis.table_move());
+                            let mut make_move = analysis.table_move();
+                            uci::convert_move_to_uci(&mut make_move, position.board(), chess960);
+                            pv.push(make_move);
                             position.make_move(analysis.table_move());
                             if pv.len() > depth as usize {
                                 break;
@@ -511,6 +516,7 @@ impl AbRunner {
                 abort: false,
             },
             position,
+            chess960: false,
         }
     }
 
@@ -523,12 +529,14 @@ impl AbRunner {
         self.shared_context.start = Instant::now();
         //TODO: Research the effects of different depths
         for i in 1..threads {
-            join_handlers.push(std::thread::spawn(
-                self.launch_searcher::<SM, NoInfo>(search_start, i),
-            ));
+            join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
+                search_start,
+                i,
+                self.chess960,
+            )));
         }
         let (final_move, final_eval, max_depth, mut node_count) =
-            self.launch_searcher::<SM, Info>(search_start, 0)();
+            self.launch_searcher::<SM, Info>(search_start, 0, self.chess960)();
         for join_handler in join_handlers {
             let (_, _, _, nodes) = join_handler.join().unwrap();
             node_count += nodes;
@@ -567,5 +575,9 @@ impl AbRunner {
 
     pub fn get_board(&self) -> &Board {
         self.position.board()
+    }
+
+    pub fn set_chess960(&mut self, chess960: bool) {
+        self.chess960 = chess960;
     }
 }
