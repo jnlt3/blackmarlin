@@ -268,9 +268,9 @@ impl StdEvaluator {
         }
     }
 
-    pub fn see(board: Board, make_move: Move) -> i16 {
+    pub fn see<const N: usize>(board: Board, make_move: Move) -> i16 {
         let mut index = 0;
-        let mut gains = [0_i16; 16];
+        let mut gains = [0_i16; N];
         let target_square = make_move.to;
         let move_piece = board.piece_on(make_move.from).unwrap();
         gains[0] = if let Some(piece) = board.piece_on(target_square) {
@@ -284,7 +284,7 @@ impl StdEvaluator {
         let mut color = !board.side_to_move();
         let mut blockers = board.occupied() & !make_move.from.bitboard();
         let mut last_piece_pts = Self::piece_pts(move_piece);
-        'outer: for i in 1..16 {
+        'outer: for i in 1..N {
             gains[i] = last_piece_pts - gains[i - 1];
             let defenders = board.colors(color) & blockers;
             for &piece in &Piece::ALL {

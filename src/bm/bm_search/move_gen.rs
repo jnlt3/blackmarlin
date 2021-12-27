@@ -85,7 +85,8 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) != self.pv_move {
-                        let mut expected_gain = StdEvaluator::see(self.board.clone(), make_move);
+                        let mut expected_gain =
+                            StdEvaluator::see::<2>(self.board.clone(), make_move);
                         if expected_gain < 0 {
                             expected_gain += LOSING_CAPTURE;
                         }
@@ -240,7 +241,7 @@ impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
             self.board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain = StdEvaluator::see(self.board.clone(), make_move);
+                    let expected_gain = StdEvaluator::see::<16>(self.board.clone(), make_move);
                     if !SEE_PRUNE || expected_gain > -1 {
                         let pos = self
                             .queue
