@@ -272,14 +272,18 @@ impl StdEvaluator {
         let mut index = 0;
         let mut gains = [0_i16; 16];
         let target_square = make_move.to;
+        let move_piece = board.piece_on(make_move.from).unwrap();
         gains[0] = if let Some(piece) = board.piece_on(target_square) {
             Self::piece_pts(piece)
         } else {
+            if move_piece == Piece::King {
+                return 0;
+            }
             0
         };
         let mut color = !board.side_to_move();
         let mut blockers = board.occupied() & !make_move.from.bitboard();
-        let mut last_piece_pts = Self::piece_pts(board.piece_on(make_move.from).unwrap());
+        let mut last_piece_pts = Self::piece_pts(move_piece);
         'outer: for i in 1..16 {
             gains[i] = last_piece_pts - gains[i - 1];
             let defenders = board.colors(color) & blockers;
