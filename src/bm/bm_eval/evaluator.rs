@@ -355,7 +355,6 @@ impl StdEvaluator {
     fn eval_scale(board: &Board) -> f32 {
         let pawns = board.pieces(Piece::Pawn);
         let pieces = board.occupied() & !pawns;
-        let queens = board.pieces(Piece::Queen);
         let mut pawn_cnt = pawns.popcnt() as i16;
         if pawn_cnt == 0 {
             pawn_cnt = -16;
