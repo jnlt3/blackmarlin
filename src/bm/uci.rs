@@ -224,8 +224,11 @@ impl UciAdapter {
             .initiate(self.bm_runner.lock().unwrap().get_board(), &commands);
         let bm_runner = self.bm_runner.clone();
         let threads = self.threads;
+        let chess960 = self.chess960;
         self.analysis = Some(std::thread::spawn(move || {
-            let (best_move, _, _, _) = bm_runner.lock().unwrap().search::<Run, UciInfo>(threads);
+            let mut bm_runner = bm_runner.lock().unwrap();
+            let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(threads);
+            convert_move_to_uci(&mut best_move, bm_runner.get_board(), chess960);
             println!("bestmove {}", best_move);
         }));
     }
@@ -353,6 +356,18 @@ impl UciAdapter {
         if let Some(analysis) = self.analysis.take() {
             analysis.join().unwrap();
         }
+    }
+}
+
+fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
+    if !chess960 && board.color_on(make_move.from) == board.color_on(make_move.to) {
+        let rights = board.castle_rights(board.side_to_move());
+        let file = if Some(make_move.to.file()) == rights.short {
+            File::G
+        } else {
+            File::C
+        };
+        make_move.to = Square::new(file, make_move.to.rank());
     }
 }
 
