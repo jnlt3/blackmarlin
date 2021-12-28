@@ -2,12 +2,13 @@ use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 
-use crate::bm::bm_util::h_table::{self, DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
 
 const MAX_MOVES: usize = 218;
+const THRESHOLD: i16 = -(2_i16.pow(10));
 const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -93,7 +94,8 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         continue;
                     }
                     let expected_gain =
-                        c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to);
+                        c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to)
+                            + StdEvaluator::see::<1>(&self.board, make_move) * 32;
                     self.queue.push((make_move, expected_gain));
                 }
             }
@@ -101,7 +103,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             self.gen_type = GenType::Captures;
         }
         if self.gen_type == GenType::Captures {
-            let mut max = LOSING_CAPTURE + h_table::MAX_VALUE as i16;
+            let mut max = THRESHOLD;
             let mut best_index = None;
             for (index, (make_move, score)) in self.queue.iter_mut().enumerate() {
                 if *score > max {
