@@ -92,10 +92,9 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
-                    let mut expected_gain = c_hist
-                        .get(self.board.side_to_move(), piece_moves.piece, make_move.to)
-                        .max(StdEvaluator::see::<2>(self.board.clone(), make_move));
-                    if expected_gain < 0 {
+                    let mut expected_gain =
+                        c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to);
+                    if StdEvaluator::see::<16>(self.board.clone(), make_move) < 0 {
                         expected_gain += LOSING_CAPTURE;
                     }
                     self.queue.push((make_move, expected_gain));
