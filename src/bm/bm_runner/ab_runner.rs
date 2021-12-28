@@ -45,7 +45,6 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     q_search_depth: QUIESCENCE_SEARCH_DEPTH,
     delta_margin: DELTA_MARGIN,
     do_dp: DO_DELTA_PRUNE,
-    do_see_prune: DO_SEE_PRUNE,
     h_reduce_divisor: HISTORY_REDUCTION_DIVISOR,
 };
 
@@ -71,7 +70,6 @@ pub struct SearchParams {
     q_search_depth: u32,
     delta_margin: i16,
     do_dp: bool,
-    do_see_prune: bool,
     h_reduce_divisor: i16,
 }
 
@@ -99,11 +97,6 @@ impl SearchParams {
     #[inline]
     pub const fn do_dp(&self) -> bool {
         self.do_dp
-    }
-
-    #[inline]
-    pub const fn do_see_prune(&self) -> bool {
-        self.do_see_prune
     }
 
     #[inline]

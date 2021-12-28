@@ -641,8 +641,8 @@ pub fn q_search(
         }
     }
 
-    let move_gen = QuiescenceSearchMoveGen::<{ SEARCH_PARAMS.do_see_prune() }>::new(&board);
-    for make_move in move_gen {
+    let mut move_gen = QuiescenceSearchMoveGen::new(&board);
+    while let Some(make_move) = move_gen.next(local_context.get_ch_table()) {
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
             position.make_move(make_move);
