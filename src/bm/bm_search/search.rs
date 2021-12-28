@@ -405,6 +405,11 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            let do_h_fut_prune = !Search::PV && !in_check && depth <= 6;
+            if do_h_fut_prune && eval + h_score / 2 + SEARCH_PARAMS.get_fp() < alpha {
+                continue;
+            }
+
             position.make_move(make_move);
             local_context.push_move(Some(make_move), ply);
 
