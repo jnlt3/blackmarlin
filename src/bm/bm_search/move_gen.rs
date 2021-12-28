@@ -2,13 +2,13 @@ use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 
-use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{self, DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
 
 const MAX_MOVES: usize = 218;
-const LOSING_CAPTURE: i16 = -(2_i16.pow(10));
+const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -94,7 +94,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                     let mut expected_gain =
                         c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to);
-                    if StdEvaluator::see::<16>(self.board.clone(), make_move) < 0 {
+                    if expected_gain < 0 {
                         expected_gain += LOSING_CAPTURE;
                     }
                     self.queue.push((make_move, expected_gain));
@@ -104,10 +104,10 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             self.gen_type = GenType::Captures;
         }
         if self.gen_type == GenType::Captures {
-            let mut max = LOSING_CAPTURE;
+            let mut max = LOSING_CAPTURE + h_table::MAX_VALUE as i16;
             let mut best_index = None;
             for (index, &(_, score)) in self.queue.iter().enumerate() {
-                if score >= max {
+                if score > max {
                     max = score;
                     best_index = Some(index);
                 }
