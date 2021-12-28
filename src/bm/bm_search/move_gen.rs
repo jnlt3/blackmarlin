@@ -92,11 +92,8 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
-                    let mut expected_gain =
+                    let expected_gain =
                         c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to);
-                    if expected_gain < 0 {
-                        expected_gain += LOSING_CAPTURE;
-                    }
                     self.queue.push((make_move, expected_gain));
                 }
             }
@@ -106,9 +103,13 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         if self.gen_type == GenType::Captures {
             let mut max = LOSING_CAPTURE + h_table::MAX_VALUE as i16;
             let mut best_index = None;
-            for (index, &(_, score)) in self.queue.iter().enumerate() {
-                if score > max {
-                    max = score;
+            for (index, (make_move, score)) in self.queue.iter_mut().enumerate() {
+                if *score > max {
+                    if StdEvaluator::see::<16>(&self.board, *make_move) < 0 {
+                        *score += LOSING_CAPTURE;
+                        continue;
+                    }
+                    max = *score;
                     best_index = Some(index);
                 }
             }
@@ -247,7 +248,7 @@ impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
             self.board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain = StdEvaluator::see::<16>(self.board.clone(), make_move);
+                    let expected_gain = StdEvaluator::see::<16>(&self.board, make_move);
                     if !SEE_PRUNE || expected_gain > -1 {
                         let pos = self
                             .queue

@@ -268,7 +268,7 @@ impl StdEvaluator {
         }
     }
 
-    pub fn see<const N: usize>(board: Board, make_move: Move) -> i16 {
+    pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
         let mut index = 0;
         let mut gains = [0_i16; N];
         let target_square = make_move.to;
