@@ -405,8 +405,8 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
-            let do_h_fut_prune = !Search::PV && !in_check && depth <= 6;
-            if do_h_fut_prune && eval + h_score / 2 + SEARCH_PARAMS.get_fp() < alpha {
+            let do_h_fut_prune = !Search::PV && !in_check && depth <= 7;
+            if do_h_fut_prune && eval + h_score / 2 + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
                 continue;
             }
 
