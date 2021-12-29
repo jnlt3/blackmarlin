@@ -381,7 +381,7 @@ pub fn search<Search: SearchType>(
             */
             let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth <= 7;
 
-            if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
+            if do_fp && h_score < -256 && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
                 continue;
             }
 
