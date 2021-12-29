@@ -87,8 +87,11 @@ fn parse_bm_net() {
     println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
+#[cfg(feature = "nnue")]
 type Layers = Vec<usize>;
+#[cfg(feature = "nnue")]
 type Weights = Vec<Vec<i8>>;
+#[cfg(feature = "nnue")]
 type Psqt = Vec<i32>;
 
 #[cfg(feature = "nnue")]
