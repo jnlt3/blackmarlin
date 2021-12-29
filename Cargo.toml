@@ -19,11 +19,11 @@ opt-level = 3
 cozy-chess = "0.1.2"
 text_io = "0.1.8"
 arrayvec = "0.7.1"
-regex = "1.5.4"
-rand = "0.8.4"
-rand_distr = "0.4.2"
+regex = { version = "1.5.4", optional = true }
+rand = { version = "0.8.4", optional = true }
+rand_distr = { version = "0.4.2", optional = true }
 
 [features]
-data = []
-trace = []
+data = ["rand", "rand_distr"]
+trace = ["rand", "rand_distr", "regex"]
 nnue = []
