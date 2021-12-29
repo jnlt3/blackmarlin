@@ -97,7 +97,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     }
                     let expected_gain =
                         c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to)
-                            + StdEvaluator::see::<1>(&self.board, make_move) * 32;
+                            + StdEvaluator::see::<2>(&self.board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
             }
