@@ -237,7 +237,7 @@ pub fn search<Search: SearchType>(
         local_context.get_threat_table().push(MoveEntry::new());
     }
 
-    if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
+    if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 1) {
         entry.clear();
     }
     if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
