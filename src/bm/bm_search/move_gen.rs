@@ -231,13 +231,13 @@ pub enum QSearchGenType {
     Captures,
 }
 
-pub struct QuiescenceSearchMoveGen<const SEE_PRUNE: bool> {
+pub struct QuiescenceSearchMoveGen {
     board: Board,
     gen_type: QSearchGenType,
-    queue: ArrayVec<(Move, i16), MAX_MOVES>,
+    queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
 }
 
-impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
+impl QuiescenceSearchMoveGen {
     pub fn new(board: &Board) -> Self {
         Self {
             board: board.clone(),
@@ -245,31 +245,37 @@ impl<const SEE_PRUNE: bool> QuiescenceSearchMoveGen<SEE_PRUNE> {
             queue: ArrayVec::new(),
         }
     }
-}
 
-impl<const SEE_PRUNE: bool> Iterator for QuiescenceSearchMoveGen<SEE_PRUNE> {
-    type Item = Move;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next(&mut self, c_hist: &HistoryTable) -> Option<Move> {
         if self.gen_type == QSearchGenType::CalcCaptures {
             self.board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain = StdEvaluator::see::<16>(&self.board, make_move);
-                    if !SEE_PRUNE || expected_gain > -1 {
-                        let pos = self
-                            .queue
-                            .binary_search_by_key(&expected_gain, |(_, score)| *score)
-                            .unwrap_or_else(|pos| pos);
-                        self.queue.insert(pos, (make_move, expected_gain));
-                    }
+                    let expected_gain =
+                        c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to)
+                            + StdEvaluator::see::<1>(&self.board, make_move) * 32;
+                    self.queue.push((make_move, expected_gain, None));
                 }
                 false
             });
             self.gen_type = QSearchGenType::Captures;
         }
-        if let Some((make_move, _)) = self.queue.pop() {
-            Some(make_move)
+        let mut max = 0;
+        let mut best_index = None;
+        for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
+            if best_index.is_none() || *score > max {
+                let see_score =
+                    see.unwrap_or_else(|| StdEvaluator::see::<16>(&self.board, *make_move));
+                *see = Some(see_score);
+                if see_score < 0 {
+                    continue;
+                }
+                max = *score;
+                best_index = Some(index);
+            }
+        }
+        if let Some(index) = best_index {
+            Some(self.queue.swap_remove(index).0)
         } else {
             None
         }

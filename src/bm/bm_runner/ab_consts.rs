@@ -35,7 +35,6 @@ pub const DO_LMP: bool = true;
 pub const QUIESCENCE_SEARCH_DEPTH: u32 = 30;
 pub const DELTA_MARGIN: i16 = 1000;
 pub const DO_DELTA_PRUNE: bool = true;
-pub const DO_SEE_PRUNE: bool = true;
 
 pub const FAIL_CNT: u8 = 10;
 pub const WINDOW_START: i16 = 25;
