@@ -352,16 +352,20 @@ impl StdEvaluator {
     //TODO: Later to be removed with new NNUE versions
     #[cfg(feature = "nnue")]
     fn eval_scale(board: &Board) -> f32 {
+        let mut base = 0.8;
+
         let pawns = board.pieces(Piece::Pawn);
         let pieces = board.occupied() & !pawns;
         let queens = board.pieces(Piece::Queen);
-        let mut pawn_cnt = pawns.popcnt() as i16;
+        let pawn_cnt = pawns.popcnt() as i16;
         if pawn_cnt == 0 {
-            pawn_cnt = -16;
+            base -= 0.33;
         }
+        base -= (board.halfmove_clock() as f32) / 300.0;
         let piece_cnt = pieces.popcnt();
         let queen_cnt = queens.popcnt();
-        0.8 + pawn_cnt as f32 * (1.0 / 48.0)
+
+        base + pawn_cnt as f32 * (1.0 / 48.0)
             + piece_cnt as f32 * (1.0 / 24.0)
             + queen_cnt as f32 * (1.0 / 12.0)
     }
