@@ -61,7 +61,7 @@ fn parse_bm_net() {
     }
 
     let def_weights = format!(
-        "#[allow(dead_code)]\nconst PSQT: [[i32; {}]; {}] = ",
+        "#[allow(dead_code)]\nconst PSQT: [[i16; {}]; {}] = ",
         layers[layers.len() - 1],
         layers[0],
     );
