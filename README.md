@@ -1,4 +1,4 @@
-# Blackmarlin
+# Black Marlin
 
 WIP UCI Chess Engine
 
