@@ -41,13 +41,13 @@ impl Window {
     }
 
     pub fn fail_low(&mut self) {
-        self.beta = (self.alpha + self.beta) / 2;
-        self.alpha = self.center - self.window;
+        self.beta = ((self.alpha as i32 + self.beta as i32) / 2) as i16;
+        self.alpha = self.center.saturating_sub(self.window);
         self.expand();
     }
 
     pub fn fail_high(&mut self) {
-        self.beta = self.center + self.window;
+        self.beta = self.center.saturating_add(self.window);
         self.expand();
     }
 
