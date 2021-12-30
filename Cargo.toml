@@ -16,7 +16,7 @@ opt-level = 3
 opt-level = 3
 
 [dependencies]
-cozy-chess = "0.1.2"
+cozy-chess = "0.1.4"
 text_io = "0.1.8"
 arrayvec = "0.7.1"
 regex = { version = "1.5.4", optional = true }
