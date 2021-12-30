@@ -78,7 +78,7 @@ fn play_single(
 
 fn gen_games(iter: usize) -> Vec<(Board, Evaluation, f32)> {
     let mut evals = vec![];
-    let time_management_options = TimeManagementInfo::MaxDepth(6);
+    let time_management_options = TimeManagementInfo::MaxDepth(7);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
     let mut engine_1 = AbRunner::new(Board::default(), time_manager.clone());
