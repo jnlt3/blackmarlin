@@ -7,9 +7,9 @@ pub struct Window {
     divisor: i16,
     add: i16,
 
-    center: Evaluation,
-    alpha: Evaluation,
-    beta: Evaluation,
+    center: i16,
+    alpha: i16,
+    beta: i16,
     window: i16,
 }
 
@@ -20,9 +20,9 @@ impl Window {
             factor,
             divisor,
             add,
-            center: Evaluation::new(0),
-            alpha: Evaluation::new(start),
-            beta: Evaluation::new(start),
+            center: 0,
+            alpha: start,
+            beta: start,
             window: start,
         }
     }
@@ -33,11 +33,11 @@ impl Window {
     }
 
     pub fn set(&mut self, eval: Evaluation) {
-        self.center = eval;
+        self.center = eval.raw();
     }
 
     pub fn get(&self) -> (Evaluation, Evaluation) {
-        (self.alpha, self.beta)
+        (Evaluation::new(self.alpha), Evaluation::new(self.beta))
     }
 
     pub fn fail_low(&mut self) {
@@ -56,7 +56,7 @@ impl Window {
     }
 
     fn set_bounds(&mut self) {
-        self.alpha = self.center - self.window;
-        self.beta = self.center + self.window;
+        self.alpha = self.center.saturating_sub(self.window);
+        self.beta = self.center.saturating_add(self.window);
     }
 }
