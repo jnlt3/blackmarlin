@@ -382,6 +382,7 @@ pub fn search<Search: SearchType>(
             let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth <= 7;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
+                move_gen.set_skip_quiets(!in_check);
                 continue;
             }
 
@@ -406,28 +407,27 @@ pub fn search<Search: SearchType>(
             {
                 continue;
             }
-
-            position.make_move(make_move);
-            local_context.push_move(Some(make_move), ply);
-
-            let gives_check = position.board().checkers() != BitBoard::EMPTY;
-            if gives_check {
-                extension += 1;
-            }
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
             if SEARCH_PARAMS.do_lmp()
+                && !move_gen.skip_quiets()
                 && is_quiet
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
-                        .get((depth + extension) as usize, improving as usize)
+                        .get(depth as usize, improving as usize)
             {
-                position.unmake_move();
+                move_gen.set_skip_quiets(!in_check);
                 continue;
             }
 
+            position.make_move(make_move);
+            local_context.push_move(Some(make_move), ply);
+            let gives_check = position.board().checkers() != BitBoard::EMPTY;
+            if gives_check {
+                extension += 1;
+            }
             /*
             LMR
             We try to prove a move is worse than alpha at a reduced depth
