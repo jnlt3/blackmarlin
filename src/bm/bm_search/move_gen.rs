@@ -21,6 +21,7 @@ enum GenType {
     Killer,
     ThreatMove,
     Quiet,
+    BadCaptures,
 }
 
 type LazySee = Option<i16>;
@@ -35,7 +36,9 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     gen_type: GenType,
     board: Board,
 
-    queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
+    captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
+    quiets: ArrayVec<(Move, i16), MAX_MOVES>,
+    skip_quiets: bool,
 }
 
 impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
@@ -61,7 +64,30 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             threat_move_entry,
             killer_entry,
             board: board.clone(),
-            queue: ArrayVec::new(),
+            captures: ArrayVec::new(),
+            quiets: ArrayVec::new(),
+            skip_quiets: false,
+        }
+    }
+
+    pub fn set_skip_quiets(&mut self, value: bool) {
+        self.skip_quiets = value;
+    }
+
+    pub fn skip_quiets(&self) -> bool {
+        self.skip_quiets
+    }
+
+    fn set_phase(&mut self) {
+        if self.skip_quiets {
+            match self.gen_type {
+                GenType::GenQuiet
+                | GenType::CounterMove
+                | GenType::Killer
+                | GenType::ThreatMove
+                | GenType::Quiet => self.gen_type = GenType::BadCaptures,
+                _ => {}
+            }
         }
     }
 
@@ -71,6 +97,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
     ) -> Option<Move> {
+        self.set_phase();
         if self.gen_type == GenType::PvMove {
             self.gen_type = GenType::CalcCaptures;
             if let Some(pv_move) = self.pv_move {
@@ -98,7 +125,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     let expected_gain =
                         c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to)
                             + StdEvaluator::see::<1>(&self.board, make_move) * 32;
-                    self.queue.push((make_move, expected_gain, None));
+                    self.captures.push((make_move, expected_gain, None));
                 }
             }
 
@@ -107,7 +134,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         if self.gen_type == GenType::Captures {
             let mut max = THRESHOLD;
             let mut best_index = None;
-            for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
+            for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
                     let see_score =
                         see.unwrap_or_else(|| StdEvaluator::see::<16>(&self.board, *make_move));
@@ -121,9 +148,13 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 }
             }
             if let Some(index) = best_index {
-                return Some(self.queue.swap_remove(index).0);
+                return Some(self.captures.swap_remove(index).0);
             } else {
-                self.gen_type = GenType::GenQuiet;
+                self.gen_type = if self.skip_quiets {
+                    GenType::BadCaptures
+                } else {
+                    GenType::GenQuiet
+                }
             }
         }
         if self.gen_type == GenType::GenQuiet {
@@ -137,10 +168,10 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     if let Some(piece) = make_move.promotion {
                         match piece {
                             cozy_chess::Piece::Queen => {
-                                self.queue.push((make_move, i16::MAX, None));
+                                self.quiets.push((make_move, i16::MAX));
                             }
                             _ => {
-                                self.queue.push((make_move, i16::MIN, None));
+                                self.quiets.push((make_move, i16::MIN));
                             }
                         };
                         continue;
@@ -161,7 +192,7 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                         );
                     }
 
-                    self.queue.push((make_move, score, None));
+                    self.quiets.push((make_move, score));
                 }
             }
             self.gen_type = GenType::Killer;
@@ -170,11 +201,11 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         if self.gen_type == GenType::Killer {
             for make_move in self.killer_entry.clone() {
                 let position = self
-                    .queue
+                    .quiets
                     .iter()
-                    .position(|(cmp_move, _, _)| make_move == *cmp_move);
+                    .position(|(cmp_move, _)| make_move == *cmp_move);
                 if let Some(position) = position {
-                    self.queue.swap_remove(position);
+                    self.quiets.swap_remove(position);
                     return Some(make_move);
                 }
             }
@@ -184,11 +215,11 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             self.gen_type = GenType::Quiet;
             if let Some(counter_move) = self.counter_move {
                 let position = self
-                    .queue
+                    .quiets
                     .iter()
-                    .position(|(cmp_move, _, _)| counter_move == *cmp_move);
+                    .position(|(cmp_move, _)| counter_move == *cmp_move);
                 if let Some(position) = position {
-                    self.queue.swap_remove(position);
+                    self.quiets.swap_remove(position);
                     return Some(counter_move);
                 }
             }
@@ -196,11 +227,11 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         if self.gen_type == GenType::ThreatMove {
             for make_move in &mut self.threat_move_entry {
                 let position = self
-                    .queue
+                    .quiets
                     .iter()
-                    .position(|(cmp_move, _, _)| make_move == *cmp_move);
+                    .position(|(cmp_move, _)| make_move == *cmp_move);
                 if let Some(position) = position {
-                    self.queue.swap_remove(position);
+                    self.quiets.swap_remove(position);
                     return Some(make_move);
                 }
             }
@@ -209,19 +240,31 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
         if self.gen_type == GenType::Quiet {
             let mut max = 0;
             let mut best_index = None;
-            for (index, &(_, score, _)) in self.queue.iter().enumerate() {
+            for (index, &(_, score)) in self.quiets.iter().enumerate() {
                 if best_index.is_none() || score > max {
                     max = score;
                     best_index = Some(index);
                 }
             }
-            return if let Some(index) = best_index {
-                Some(self.queue.swap_remove(index).0)
+            if let Some(index) = best_index {
+                return Some(self.quiets.swap_remove(index).0);
             } else {
-                None
+                self.gen_type = GenType::BadCaptures;
             };
         }
-        None
+        let mut max = 0;
+        let mut best_index = None;
+        for (index, &(_, score, _)) in self.captures.iter().enumerate() {
+            if best_index.is_none() || score > max {
+                max = score;
+                best_index = Some(index);
+            }
+        }
+        if let Some(index) = best_index {
+            Some(self.captures.swap_remove(index).0)
+        } else {
+            None
+        }
     }
 }
 
