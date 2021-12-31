@@ -7,6 +7,33 @@ mod normal;
 include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
 
 #[derive(Debug, Clone)]
+pub struct EvalCache<const N: usize> {
+    cache: [Option<(u64, i16)>; N],
+}
+
+impl<const N: usize> EvalCache<N> {
+    pub fn new() -> Self {
+        Self { cache: [None; N] }
+    }
+
+    pub fn save(&mut self, hash: u64, eval: i16) {
+        self.cache[(hash as usize % N)] = Some((hash, eval))
+    }
+
+    pub fn get(&self, hash: u64) -> Option<i16> {
+        if let Some((cache_hash, eval)) = self.cache[(hash as usize % N)] {
+            if cache_hash == hash {
+                Some(eval)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Nnue {
     white: BitBoard,
     black: BitBoard,
@@ -24,6 +51,8 @@ pub struct Nnue {
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
     out_layer: Dense<'static, MID, OUTPUT>,
+
+    cache: EvalCache<128>,
 }
 
 impl Nnue {
@@ -48,11 +77,16 @@ impl Nnue {
             w_res_layer: res_layer.clone(),
             b_res_layer: res_layer,
             out_layer,
+            cache: EvalCache::new(),
         }
     }
 
     #[inline]
     pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
+        if let Some(eval) = self.cache.get(board.hash()) {
+            return eval;
+        }
+
         let white = board.colors(Color::White);
         let black = board.colors(Color::Black);
 
@@ -120,7 +154,9 @@ impl Nnue {
 
         let psqt_score = (self.w_res_layer.get()[bucket] - self.b_res_layer.get()[bucket]) / 128;
 
-        psqt_score as i16
-            + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket])
+        let out = psqt_score as i16
+            + normal::out(self.out_layer.ff_sym(&w_incr_layer, &b_incr_layer, bucket)[bucket]);
+        self.cache.save(board.hash(), out);
+        out
     }
 }
