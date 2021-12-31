@@ -293,8 +293,6 @@ pub fn search<Search: SearchType>(
         }
         move_exists = true;
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
-        let is_promotion = make_move.promotion.is_some();
-        let is_quiet = !in_check && !is_capture && !is_promotion;
 
         let h_score = if is_capture {
             local_context.get_ch_table().get(
@@ -379,7 +377,7 @@ pub fn search<Search: SearchType>(
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_fp = !Search::PV && is_quiet && SEARCH_PARAMS.do_fp() && depth <= 7;
+            let do_fp = !Search::PV && !is_capture && SEARCH_PARAMS.do_fp() && depth <= 7;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
                 move_gen.set_skip_quiets(!in_check);
@@ -412,7 +410,7 @@ pub fn search<Search: SearchType>(
             */
             if SEARCH_PARAMS.do_lmp()
                 && !move_gen.skip_quiets()
-                && is_quiet
+                && !is_capture
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
