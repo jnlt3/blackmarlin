@@ -515,18 +515,19 @@ pub fn search<Search: SearchType>(
             if score >= beta {
                 if skip_move.is_none() && !local_context.abort() {
                     if !is_capture {
+                        let hist_amt = depth + quiets.len() as u32 / 5;
                         let killer_table = local_context.get_k_table();
                         killer_table[ply as usize].push(make_move);
                         local_context
                             .get_h_table_mut()
-                            .cutoff(&board, make_move, &quiets, depth);
+                            .cutoff(&board, make_move, &quiets, hist_amt);
                         if let Some(Some(prev_move)) = prev_move {
                             local_context
                                 .get_cm_table_mut()
-                                .cutoff(&board, prev_move, make_move, depth);
+                                .cutoff(&board, prev_move, make_move, hist_amt);
                             local_context
                                 .get_cm_hist_mut()
-                                .cutoff(&board, prev_move, make_move, &quiets, depth);
+                                .cutoff(&board, prev_move, make_move, &quiets, hist_amt);
                         }
                     } else {
                         local_context
