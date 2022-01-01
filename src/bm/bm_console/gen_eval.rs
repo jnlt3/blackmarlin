@@ -45,10 +45,11 @@ fn play_single(
         };
 
         let board = engine_0.get_board().clone();
-        let capture_exists = board.generate_moves(|piece_moves| {
-            piece_moves.to & board.colors(!board.side_to_move()) != BitBoard::EMPTY
-        });
-        if capture_exists {
+
+        if !board
+            .colors(!engine_0.get_board().side_to_move())
+            .has(make_move.to)
+        {
             evals.push((engine_0.get_board().clone(), eval * turn));
         }
 
