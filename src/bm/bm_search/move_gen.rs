@@ -278,6 +278,7 @@ pub struct QuiescenceSearchMoveGen {
     board: Board,
     gen_type: QSearchGenType,
     queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
+    alpha: i16,
 }
 
 impl QuiescenceSearchMoveGen {
@@ -286,6 +287,7 @@ impl QuiescenceSearchMoveGen {
             board: board.clone(),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
+            alpha: i16::MIN,
         }
     }
 
@@ -310,9 +312,10 @@ impl QuiescenceSearchMoveGen {
                 let see_score =
                     see.unwrap_or_else(|| StdEvaluator::see::<16>(&self.board, *make_move));
                 *see = Some(see_score);
-                if see_score < 0 {
+                if see_score < self.alpha.max(0) {
                     continue;
                 }
+                self.alpha = see_score;
                 max = *score;
                 best_index = Some(index);
             }
