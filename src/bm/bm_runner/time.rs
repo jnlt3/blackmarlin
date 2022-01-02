@@ -112,7 +112,7 @@ impl TimeManager {
             eval_diff *= 2.0;
         }
 
-        time *= 1.05_f32.powf(eval_diff);
+        time *= 1.05_f32.powf(eval_diff.abs());
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
