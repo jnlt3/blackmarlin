@@ -395,11 +395,10 @@ impl StdEvaluator {
     //TODO: investigate tapered evaluation
     fn piece_pts(piece: Piece) -> i16 {
         match piece {
-            Piece::Pawn => 100,
-            Piece::Knight => 300,
-            Piece::Bishop => 300,
-            Piece::Rook => 500,
-            Piece::Queen => 900,
+            Piece::Pawn => 105,
+            Piece::Knight | Piece::Bishop => 313,
+            Piece::Rook => 483,
+            Piece::Queen => 851,
             Piece::King => 20000,
         }
     }
