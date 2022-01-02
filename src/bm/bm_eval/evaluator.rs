@@ -379,10 +379,8 @@ impl StdEvaluator {
         };
         #[cfg(feature = "nnue")]
         {
-            let scale = Self::eval_scale(board);
             let nnue_out = self.nnue.feed_forward(board, 0);
-            let scaled = (nnue_out as f32 * scale) as i16;
-            Evaluation::new(scaled * turn + NNUE_TEMPO)
+            Evaluation::new(nnue_out * turn + NNUE_TEMPO)
         }
         #[cfg(not(feature = "nnue"))]
         {
