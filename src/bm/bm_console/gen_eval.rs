@@ -27,7 +27,7 @@ fn play_single(
     engine_0.set_board(Board::default());
     engine_1.set_board(Board::default());
     let mut result = 0.5;
-    for ply in 0..160 {
+    for ply in 0.. {
         match engine_0.get_board().status() {
             cozy_chess::GameStatus::Won => {
                 result = (ply % 2) as f32;
