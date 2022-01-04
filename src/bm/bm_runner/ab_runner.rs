@@ -370,10 +370,14 @@ impl AbRunner {
             let mut best_move = None;
             let mut eval: Option<Evaluation> = None;
             let mut depth = 1_u32;
+            let mut abort = false;
             'outer: loop {
                 let mut fail_cnt = 0;
                 local_context.window.reset();
                 loop {
+                    if abort {
+                        break 'outer;
+                    }
                     let (alpha, beta) = if eval.is_some()
                         && eval.unwrap().raw().abs() < 1000
                         && depth > 4
@@ -394,7 +398,7 @@ impl AbRunner {
                         beta,
                     );
                     nodes += local_context.nodes;
-                    if depth > 1 && shared_context.abort_deepening(depth, nodes) {
+                    if depth > 1 && local_context.abort() {
                         break 'outer;
                     }
                     local_context.window.set(score);
@@ -408,6 +412,7 @@ impl AbRunner {
                         best_move.unwrap_or_else(|| make_move.unwrap()),
                         search_start.elapsed(),
                     );
+                    abort = shared_context.abort_deepening(depth, nodes);
                     if (score > alpha && score < beta) || score.is_mate() {
                         best_move = make_move;
                         eval = Some(score);
