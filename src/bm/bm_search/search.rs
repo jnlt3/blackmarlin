@@ -390,7 +390,9 @@ pub fn search<Search: SearchType>(
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            let h_depth = depth.saturating_sub(2);
+
+            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((h_depth * h_depth) as i32) / 36) {
                 continue;
             }
 
