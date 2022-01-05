@@ -1,7 +1,7 @@
 pub const KILLER_MOVE_CNT: usize = 2;
 pub const THREAT_MOVE_CNT: usize = 1;
 
-pub const F_PRUNE_THRESHOLD: i16 = 200;
+pub const F_PRUNE_THRESHOLD: i16 = 150;
 pub const DO_F_PRUNE: bool = true;
 
 pub const REV_F_PRUNE_DEPTH: u32 = 7;
