@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use cozy_chess::{Board, Move};
+use cozy_chess::{Board, Move, Square};
 
 use crate::bm::bm_eval::eval::Evaluation;
 
@@ -59,12 +59,16 @@ pub struct Entry {
 impl Entry {
     unsafe fn zeroed() -> Self {
         Self {
-            hash: std::mem::transmute::<u64, AtomicU64>(u64::MAX),
+            hash: AtomicU64::new(u64::MAX),
             analysis: std::mem::transmute::<Analysis, AtomicU64>(Analysis {
                 depth: 0,
                 entry_type: None,
                 score: Evaluation::new(0),
-                table_move: std::mem::zeroed(),
+                table_move: Move {
+                    from: Square::A1,
+                    to: Square::A1,
+                    promotion: None,
+                },
             }),
         }
     }
