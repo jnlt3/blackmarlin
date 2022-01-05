@@ -98,9 +98,8 @@ type Psqt = Vec<i32>;
 pub fn from_bytes_bm(bytes: Vec<u8>) -> (Layers, Weights, Weights, Psqt) {
     let mut layers = vec![];
     for layer_size in bytes.chunks(4).take(3) {
-        let layer_size: u32 = unsafe {
-            std::mem::transmute([layer_size[0], layer_size[1], layer_size[2], layer_size[3]])
-        };
+        let layer_size =
+            u32::from_le_bytes([layer_size[0], layer_size[1], layer_size[2], layer_size[3]]);
         layers.push(layer_size as usize);
     }
     assert_eq!(
@@ -121,7 +120,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Layers, Weights, Weights, Psqt) {
     for (layer_weights, bias_weights) in weights.iter_mut().zip(&mut biases) {
         let mut index = 0;
         for &weight in &mut bytes_iterator {
-            let weight: i8 = unsafe { std::mem::transmute(weight) };
+            let weight = i8::from_le_bytes([weight]);
             layer_weights[index] = weight;
             index += 1;
             if index >= layer_weights.len() {
@@ -130,7 +129,7 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Layers, Weights, Weights, Psqt) {
         }
         let mut index = 0;
         for &weight in &mut bytes_iterator {
-            let weight: i8 = unsafe { std::mem::transmute(weight) };
+            let weight = i8::from_le_bytes([weight]);
             bias_weights[index] = weight;
             index += 1;
             if index >= bias_weights.len() {
@@ -142,14 +141,13 @@ pub fn from_bytes_bm(bytes: Vec<u8>) -> (Layers, Weights, Weights, Psqt) {
 
     let mut index = 0;
     while index < psqt_weights.len() {
-        let weight: i32 = unsafe {
-            std::mem::transmute([
-                *bytes_iterator.next().unwrap(),
-                *bytes_iterator.next().unwrap(),
-                *bytes_iterator.next().unwrap(),
-                *bytes_iterator.next().unwrap(),
-            ])
-        };
+        let weight: i32 = i32::from_le_bytes([
+            *bytes_iterator.next().unwrap(),
+            *bytes_iterator.next().unwrap(),
+            *bytes_iterator.next().unwrap(),
+            *bytes_iterator.next().unwrap(),
+        ]);
+
         psqt_weights[index] = weight;
         index += 1;
         if index >= psqt_weights.len() {
