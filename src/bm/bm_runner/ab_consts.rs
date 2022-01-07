@@ -6,7 +6,7 @@ pub const DO_F_PRUNE: bool = true;
 
 pub const REV_F_PRUNE_DEPTH: u32 = 7;
 pub const REV_F_PRUNE_THRESHOLD_BASE: i16 = 0;
-pub const REV_F_PRUNE_THRESHOLD_FACTOR: i16 = 80;
+pub const REV_F_PRUNE_THRESHOLD_FACTOR: i16 = 50;
 pub const DO_REV_F_PRUNE: bool = true;
 
 pub const NULL_MOVE_REDUCTION_BASE: u32 = 2;
