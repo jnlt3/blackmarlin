@@ -363,7 +363,7 @@ impl StdEvaluator {
         #[cfg(feature = "nnue")]
         {
             let nnue_out = self.nnue.feed_forward(board, 0);
-            Evaluation::new(nnue_out * turn + NNUE_TEMPO)
+            Evaluation::new(nnue_out)
         }
         #[cfg(not(feature = "nnue"))]
         {
