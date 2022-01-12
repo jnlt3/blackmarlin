@@ -211,7 +211,8 @@ impl TimeManager {
         if self.abort_now.load(Ordering::SeqCst) {
             true
         } else {
-            self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
+            (self.target_duration.load(Ordering::SeqCst) * 16 / 10)
+                < start.elapsed().as_millis() as u32
                 && !self.infinite.load(Ordering::SeqCst)
         }
     }
