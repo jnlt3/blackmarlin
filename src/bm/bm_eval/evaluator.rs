@@ -5,7 +5,9 @@ use crate::bm::bm_eval::eval_consts::*;
 use crate::bm::nnue::Nnue;
 #[cfg(feature = "trace")]
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Color, Move, Piece};
+#[cfg(not(feature = "nnue"))]
+use cozy_chess::Color;
+use cozy_chess::{BitBoard, Board, Move, Piece};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvalData {
