@@ -255,9 +255,6 @@ pub struct StdEvaluator {
     nnue: Nnue,
 }
 
-#[cfg(feature = "nnue")]
-const NNUE_TEMPO: i16 = 15;
-
 impl StdEvaluator {
     pub fn new() -> Self {
         Self {
@@ -356,10 +353,6 @@ impl StdEvaluator {
         if self.insufficient_material(board) {
             return Evaluation::new(0);
         }
-        let turn = match board.side_to_move() {
-            Color::White => 1,
-            Color::Black => -1,
-        };
         #[cfg(feature = "nnue")]
         {
             let nnue_out = self.nnue.feed_forward(board, 0);
@@ -367,6 +360,10 @@ impl StdEvaluator {
         }
         #[cfg(not(feature = "nnue"))]
         {
+            let turn = match board.side_to_move() {
+                Color::White => 1,
+                Color::Black => -1,
+            };
             let phase = (board.pieces(Piece::Pawn).popcnt() * PAWN_PHASE
                 + board.pieces(Piece::Knight).popcnt() * KNIGHT_PHASE
                 + board.pieces(Piece::Bishop).popcnt() * BISHOP_PHASE
