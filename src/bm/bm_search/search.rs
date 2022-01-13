@@ -453,7 +453,6 @@ pub fn search<Search: SearchType>(
                 if !improving {
                     reduction += 1;
                 }
-                reduction += (!Search::PV) as i16 + (!improving) as i16;
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
 
