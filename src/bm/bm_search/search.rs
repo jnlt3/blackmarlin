@@ -379,7 +379,7 @@ pub fn search<Search: SearchType>(
             */
             let do_fp = !Search::PV && !is_capture && SEARCH_PARAMS.do_fp() && depth <= 7;
 
-            if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
+            if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16 + in_check as i16) < alpha {
                 move_gen.set_skip_quiets(!in_check);
                 continue;
             }
