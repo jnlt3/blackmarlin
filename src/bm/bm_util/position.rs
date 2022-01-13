@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move};
+use cozy_chess::{Board, Color, Move, Piece};
 
 use crate::bm::bm_eval::{eval::Evaluation, evaluator::StdEvaluator};
 
@@ -82,5 +82,26 @@ impl Position {
     pub fn get_eval(&mut self) -> Evaluation {
         let board = self.board().clone();
         self.evaluator.evaluate(&board)
+    }
+
+    pub fn material(&self) -> Evaluation {
+        let white = self.board().colors(Color::White);
+        let black = self.board().colors(Color::Black);
+        let pawns = self.board().pieces(Piece::Pawn);
+        let knights = self.board().pieces(Piece::Knight);
+        let bishops = self.board().pieces(Piece::Bishop);
+        let rooks = self.board().pieces(Piece::Rook);
+        let queens = self.board().pieces(Piece::Queen);
+        let pawn_diff = (white & pawns).popcnt() as i16 - (black & pawns).popcnt() as i16;
+        let knight_diff = (white & knights).popcnt() as i16 - (black & knights).popcnt() as i16;
+        let bishop_diff = (white & bishops).popcnt() as i16 - (black & bishops).popcnt() as i16;
+        let rook_diff = (white & rooks).popcnt() as i16 - (black & rooks).popcnt() as i16;
+        let queen_diff = (white & queens).popcnt() as i16 - (black & queens).popcnt() as i16;
+        let mat = pawn_diff + (knight_diff + bishop_diff) * 3 + rook_diff * 5 + queen_diff * 9;
+        let turn = match self.board().side_to_move() {
+            Color::White => 100,
+            Color::Black => -100,
+        };
+        Evaluation::new(turn * mat)
     }
 }

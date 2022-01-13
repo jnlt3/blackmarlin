@@ -149,6 +149,9 @@ pub fn search<Search: SearchType>(
         false
     };
 
+    let complexity = (eval - position.material()).raw().abs() - 100;
+
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -158,7 +161,7 @@ pub fn search<Search: SearchType>(
         let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
         if do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
-            if eval - f_margin + (improving as i16) * 50 >= beta {
+            if eval - f_margin + (improving as i16) * 50 - complexity / 25 >= beta {
                 return (None, eval);
             }
         }
