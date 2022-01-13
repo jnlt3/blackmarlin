@@ -21,8 +21,8 @@ pub const IID_FACTOR: u32 = 1;
 pub const IID_DIVISOR: u32 = 4;
 pub const DO_IID: bool = false;
 
-pub const LMR_BASE: f32 = 2.0;
-pub const LMR_DIV: f32 = 2.0;
+pub const LMR_BASE: f32 = 1.5;
+pub const LMR_DIV: f32 = 1.75;
 pub const LMR_DEPTH: u32 = 1;
 pub const DO_LMR: bool = true;
 
