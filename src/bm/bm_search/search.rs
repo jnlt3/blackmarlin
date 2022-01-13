@@ -447,12 +447,13 @@ pub fn search<Search: SearchType>(
                 */
 
                 reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
-                if Search::PV {
-                    reduction -= 1;
+                if !Search::PV {
+                    reduction += 1;
                 };
-                if improving {
-                    reduction -= 1;
+                if !improving {
+                    reduction += 1;
                 }
+                reduction += (!Search::PV) as i16 + (!improving) as i16;
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
 
