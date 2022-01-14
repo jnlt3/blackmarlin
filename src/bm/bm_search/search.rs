@@ -149,7 +149,7 @@ pub fn search<Search: SearchType>(
         false
     };
 
-    let complexity = (eval - position.material()).raw().abs();
+    let complexity = (eval - position.material()).raw().abs() - 200;
 
 
     if !Search::PV && !in_check && skip_move.is_none() {
