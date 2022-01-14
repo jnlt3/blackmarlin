@@ -178,7 +178,7 @@ pub fn search<Search: SearchType>(
                 alpha,
                 beta,
             );
-            if score < alpha {
+            if score <= alpha {
                 return (None, score);
             }
         }
