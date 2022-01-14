@@ -164,6 +164,26 @@ pub fn search<Search: SearchType>(
         }
 
         /*
+        Reverse Razoring (Idea from Vizvezdenec)
+        If eval is way lower than alpha and there is no tactical sequence that beats alpha (qsearch)
+        We can safely return the score from qsearch
+        */
+        if depth <= 3 && eval + (depth as i16) * 300 < alpha {
+            let score = q_search(
+                position,
+                local_context,
+                shared_context,
+                ply,
+                ply + SEARCH_PARAMS.get_q_search_depth(),
+                alpha,
+                beta,
+            );
+            if score < alpha {
+                return (None, score);
+            }
+        }
+
+        /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
         giving the opponent the side to move we can prune this node and return the evaluation
