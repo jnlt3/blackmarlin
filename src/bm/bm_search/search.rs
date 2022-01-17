@@ -389,8 +389,8 @@ pub fn search<Search: SearchType>(
             if it has very low history
             */
             let hp_depth = depth.saturating_sub(
-                ((alpha - eval).raw() / SEARCH_PARAMS.get_fp())
-                    .min(8)
+                ((alpha - eval).raw() / (SEARCH_PARAMS.get_fp() * 2))
+                    .min(4)
                     .max(0) as u32,
             );
             let do_hp = !Search::PV && hp_depth <= 8 && eval <= alpha;
