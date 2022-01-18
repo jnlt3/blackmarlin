@@ -388,6 +388,7 @@ impl AbRunner {
                         (Evaluation::min(), Evaluation::max())
                     };
                     local_context.nodes = 0;
+                    local_context.sel_depth = 0;
                     let (make_move, score) = search::search::<Pv>(
                         &mut position,
                         &mut local_context,
