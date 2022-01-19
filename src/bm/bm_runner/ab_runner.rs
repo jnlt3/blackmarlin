@@ -168,6 +168,7 @@ pub struct SharedContext {
     time_manager: Arc<TimeManager>,
 
     t_table: Arc<TranspositionTable>,
+
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
 }
@@ -345,6 +346,8 @@ impl LocalContext {
 }
 
 pub struct AbRunner {
+    lmr_base: f32,
+    lmr_div: f32,
     shared_context: SharedContext,
     local_context: LocalContext,
     position: Position,
@@ -474,19 +477,35 @@ impl AbRunner {
         }
     }
 
+    pub fn set_lmr_base(&mut self, value: f32) {
+        self.lmr_base = value;
+        self.shared_context.lmr_lookup = Self::create_lmr(self.lmr_base, self.lmr_div);
+    }
+
+    pub fn set_lmr_div(&mut self, value: f32) {
+        self.lmr_div = value;
+        self.shared_context.lmr_lookup = Self::create_lmr(self.lmr_base, self.lmr_div);
+    }
+
+    fn create_lmr(base: f32, div: f32) -> Arc<LmrLookup> {
+        Arc::new(LookUp2d::new(|depth, mv| {
+            if depth == 0 || mv == 0 {
+                0
+            } else {
+                (base + (depth as f32).ln() * (mv as f32).ln() / div) as u32
+            }
+        }))
+    }
+
     pub fn new(board: Board, time_manager: Arc<TimeManager>) -> Self {
         let mut position = Position::new(board);
         Self {
+            lmr_base: LMR_BASE,
+            lmr_div: LMR_DIV,
             shared_context: SharedContext {
                 time_manager,
                 t_table: Arc::new(TranspositionTable::new(2_usize.pow(20))),
-                lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
-                    if depth == 0 || mv == 0 {
-                        0
-                    } else {
-                        (LMR_BASE + (depth as f32).ln() * (mv as f32).ln() / LMR_DIV) as u32
-                    }
-                })),
+                lmr_lookup: Self::create_lmr(LMR_BASE, LMR_DIV),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
                     let mut x = LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR;
                     if improving == 0 {

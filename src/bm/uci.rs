@@ -12,7 +12,7 @@ use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
 #[cfg(feature = "nnue")]
 use crate::bm::nnue::Nnue;
 
-const VERSION: &str = "4.0";
+const VERSION: &str = "5.0";
 
 const POSITIONS: &[&str] = &[
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -103,6 +103,10 @@ impl UciAdapter {
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_Chess960 type check default false");
+
+                println!("option name LMR_Base type spin default 75 min 0 max 250");
+                println!("option name LMR_Div type spin default 125 min 0 max 250");
+
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -160,6 +164,14 @@ impl UciAdapter {
                     "UCI_Chess960" => {
                         self.chess960 = value.to_lowercase().parse::<bool>().unwrap();
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
+                    }
+                    "LMR_Base" => {
+                        let lmr_base_100 = value.to_lowercase().parse::<u64>().unwrap();
+                        self.bm_runner.lock().unwrap().set_lmr_base(lmr_base_100 as f32 / 100.0);
+                    }
+                    "LMR_Div" => {
+                        let lmr_div_100 = value.to_lowercase().parse::<u64>().unwrap();
+                        self.bm_runner.lock().unwrap().set_lmr_div(lmr_div_100 as f32 / 100.0);
                     }
                     _ => {}
                 }
