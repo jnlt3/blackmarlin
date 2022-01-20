@@ -4,7 +4,7 @@ use cozy_chess::{BitBoard, Move, Piece};
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::evaluator::StdEvaluator;
-use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, SEARCH_PARAMS};
+use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY, SEARCH_PARAMS};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
@@ -58,32 +58,31 @@ pub fn search<Search: SearchType>(
         return (None, Evaluation::min());
     }
 
+    local_context.update_sel_depth(ply);
     if ply != 0 && position.forced_draw(ply) {
         *local_context.nodes() += 1;
         return (None, Evaluation::new(0));
     }
 
-    local_context.update_sel_depth(ply);
-
     /*
     At depth 0, we run Quiescence Search
     */
-    if ply >= target_ply {
+    if ply >= target_ply || ply >= MAX_PLY {
         return (
             None,
             q_search(
                 position,
                 local_context,
                 shared_context,
-                0,
-                SEARCH_PARAMS.get_q_search_depth(),
+                ply,
+                ply + SEARCH_PARAMS.get_q_search_depth(),
                 alpha,
                 beta,
             ),
         );
     }
 
-    let skip_move = local_context.get_skip_move(ply);
+    let skip_move = local_context.search_stack()[ply as usize].skip_move;
     let tt_entry = if skip_move.is_some() {
         None
     } else {
@@ -137,16 +136,14 @@ pub fn search<Search: SearchType>(
     let eval = if skip_move.is_none() {
         position.get_eval()
     } else {
-        local_context.get_eval(ply).unwrap()
+        local_context.search_stack()[ply as usize].eval
     };
 
-    local_context.push_eval(eval, ply);
+    local_context.search_stack_mut()[ply as usize].eval = eval;
     let improving = if ply < 2 || in_check {
         false
-    } else if let Some(prev_eval) = local_context.get_eval(ply - 2) {
-        eval > prev_eval
     } else {
-        false
+        eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
@@ -183,7 +180,7 @@ pub fn search<Search: SearchType>(
                     threat_table.push(MoveEntry::new());
                 }
             }
-            local_context.push_move(None, ply);
+            local_context.search_stack_mut()[ply as usize].move_played = None;
 
             let zw = beta >> Next;
             let reduction =
@@ -253,7 +250,7 @@ pub fn search<Search: SearchType>(
     };
 
     let prev_move = if ply != 0 {
-        local_context.get_move(ply - 1)
+        Some(local_context.search_stack()[ply as usize - 1].move_played)
     } else {
         None
     };
@@ -328,7 +325,7 @@ pub fn search<Search: SearchType>(
                 {
                     let reduced_plies = ply + depth / 2 - 1;
                     let s_beta = entry.score() - depth as i16 * 3;
-                    local_context.set_skip_move(ply, make_move);
+                    local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
                     let (_, s_score) = search::<Search::Zw>(
                         position,
                         local_context,
@@ -338,7 +335,7 @@ pub fn search<Search: SearchType>(
                         s_beta - 1,
                         s_beta,
                     );
-                    local_context.reset_skip_move(ply);
+                    local_context.search_stack_mut()[ply as usize].skip_move = None;
                     if s_score < s_beta {
                         extension += 1;
                     } else if s_beta >= beta {
@@ -352,7 +349,7 @@ pub fn search<Search: SearchType>(
                 }
             }
             position.make_move(make_move);
-            local_context.push_move(Some(make_move), ply);
+            local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
 
             let gives_check = position.board().checkers() != BitBoard::EMPTY;
             if gives_check {
@@ -423,7 +420,7 @@ pub fn search<Search: SearchType>(
             }
 
             position.make_move(make_move);
-            local_context.push_move(Some(make_move), ply);
+            local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
             let gives_check = position.board().checkers() != BitBoard::EMPTY;
             if gives_check {
                 extension += 1;
@@ -591,7 +588,8 @@ pub fn q_search(
 ) -> Evaluation {
     *local_context.nodes() += 1;
 
-    if ply >= target_ply {
+    local_context.update_sel_depth(ply);
+    if ply >= target_ply || ply >= MAX_PLY {
         return position.get_eval();
     }
 
