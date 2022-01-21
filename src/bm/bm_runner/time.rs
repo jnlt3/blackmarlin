@@ -5,6 +5,8 @@ use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use super::ab_runner::MAX_PLY;
+
 const EXPECTED_MOVES: u32 = 40;
 const MOVE_CHANGE_MARGIN: u32 = 9;
 
@@ -12,7 +14,7 @@ const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
 
 //We pretty much solve the position if we calculate this deep :D
-const DEPTH_DEFAULT: u32 = 255;
+const DEPTH_DEFAULT: u32 = MAX_PLY;
 
 //TODO: consider u64 as more than an hour of analysis will most likely cause an overflow
 const NODES_DEFAULT: u32 = u32::MAX;

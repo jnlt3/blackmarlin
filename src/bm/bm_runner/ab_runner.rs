@@ -20,6 +20,8 @@ use crate::bm::uci;
 
 use super::time::TimeManager;
 
+pub const MAX_PLY: u32 = 128;
+
 pub const SEARCH_PARAMS: SearchParams = SearchParams {
     killer_move_cnt: KILLER_MOVE_CNT,
     threat_move_cnt: THREAT_MOVE_CNT,
@@ -173,14 +175,19 @@ pub struct SharedContext {
 }
 
 #[derive(Debug, Clone)]
+pub struct SearchStack {
+    pub eval: Evaluation,
+    pub skip_move: Option<Move>,
+    pub move_played: Option<Move>,
+}
+
+#[derive(Debug, Clone)]
 pub struct LocalContext {
     window: Window,
     tt_hits: u32,
     tt_misses: u32,
     eval: Evaluation,
-    eval_stack: Vec<Evaluation>,
-    skip_moves: Vec<Option<Move>>,
-    variation: Vec<Option<Move>>,
+    search_stack: Vec<SearchStack>,
     sel_depth: u32,
     h_table: HistoryTable,
     ch_table: HistoryTable,
@@ -281,49 +288,13 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_eval(&self, ply: u32) -> Option<Evaluation> {
-        self.eval_stack.get(ply as usize).copied()
+    pub fn search_stack(&self) -> &[SearchStack] {
+        &self.search_stack
     }
 
     #[inline]
-    pub fn push_move(&mut self, make_move: Option<Move>, ply: u32) {
-        if ply as usize >= self.variation.len() {
-            self.variation.push(make_move);
-        } else {
-            self.variation[ply as usize] = make_move;
-        }
-    }
-
-    #[inline]
-    pub fn get_move(&self, ply: u32) -> Option<Option<Move>> {
-        self.variation.get(ply as usize).copied()
-    }
-
-    #[inline]
-    pub fn push_eval(&mut self, eval: Evaluation, ply: u32) {
-        if ply as usize >= self.eval_stack.len() {
-            self.eval_stack.push(eval);
-        } else {
-            self.eval_stack[ply as usize] = eval;
-        }
-    }
-
-    #[inline]
-    pub fn set_skip_move(&mut self, ply: u32, skip_move: Move) {
-        while ply as usize >= self.skip_moves.len() {
-            self.skip_moves.push(None);
-        }
-        self.skip_moves[ply as usize] = Some(skip_move);
-    }
-
-    #[inline]
-    pub fn reset_skip_move(&mut self, ply: u32) {
-        self.skip_moves[ply as usize] = None;
-    }
-
-    #[inline]
-    pub fn get_skip_move(&mut self, ply: u32) -> Option<Move> {
-        self.skip_moves.get(ply as usize).copied().unwrap_or(None)
+    pub fn search_stack_mut(&mut self) -> &mut [SearchStack] {
+        &mut self.search_stack
     }
 
     #[inline]
@@ -498,19 +469,24 @@ impl AbRunner {
             },
             local_context: LocalContext {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
+                tt_hits: 0,
+                tt_misses: 0,
+                eval: position.get_eval(),
+                search_stack: vec![
+                    SearchStack {
+                        eval: Evaluation::new(0),
+                        skip_move: None,
+                        move_played: None,
+                    };
+                    MAX_PLY as usize
+                ],
+                sel_depth: 0,
                 h_table: HistoryTable::new(),
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
                 killer_moves: vec![],
                 threat_moves: vec![],
-                tt_hits: 0,
-                tt_misses: 0,
-                eval: position.get_eval(),
-                eval_stack: vec![],
-                skip_moves: vec![],
-                variation: vec![],
-                sel_depth: 0,
                 nodes: 0,
                 abort: false,
             },
