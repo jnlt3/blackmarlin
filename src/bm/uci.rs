@@ -490,7 +490,7 @@ impl UciCommand {
                             TimeManagementInfo::MaxDepth(depth)
                         }
                         "nodes" => {
-                            let nodes = split.next().unwrap().parse::<u32>().unwrap();
+                            let nodes = split.next().unwrap().parse::<u64>().unwrap();
                             TimeManagementInfo::MaxNodes(nodes)
                         }
                         _ => TimeManagementInfo::Unknown,

@@ -60,7 +60,7 @@ pub fn search<Search: SearchType>(
 
     local_context.update_sel_depth(ply);
     if ply != 0 && position.forced_draw(ply) {
-        *local_context.nodes() += 1;
+        local_context.increment_nodes();
         return (None, Evaluation::new(0));
     }
 
@@ -89,7 +89,7 @@ pub fn search<Search: SearchType>(
         shared_context.get_t_table().get(position.board())
     };
 
-    *local_context.nodes() += 1;
+    local_context.increment_nodes();
 
     let mut best_move = None;
 
@@ -586,7 +586,7 @@ pub fn q_search(
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
-    *local_context.nodes() += 1;
+    local_context.increment_nodes();
 
     local_context.update_sel_depth(ply);
     if ply >= target_ply || ply >= MAX_PLY {
