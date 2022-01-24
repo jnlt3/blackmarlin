@@ -1,7 +1,7 @@
 use crate::bm::bm_eval::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering, AtomicU64};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -16,8 +16,7 @@ const INC_DEFAULT: Duration = Duration::from_secs(0);
 //We pretty much solve the position if we calculate this deep :D
 const DEPTH_DEFAULT: u32 = MAX_PLY;
 
-//TODO: consider u64 as more than an hour of analysis will most likely cause an overflow
-const NODES_DEFAULT: u32 = u32::MAX;
+const NODES_DEFAULT: u64 = u64::MAX;
 
 const MOVES_TO_GO_DEFAULT: Option<u32> = None;
 
@@ -28,7 +27,7 @@ pub enum TimeManagementInfo {
     WInc(Duration),
     BInc(Duration),
     MaxDepth(u32),
-    MaxNodes(u32),
+    MaxNodes(u64),
     MovesToGo(u32),
     MoveTime(Duration),
     Unknown,
@@ -51,7 +50,7 @@ pub struct TimeManager {
     no_manage: AtomicBool,
 
     max_depth: AtomicU32,
-    max_nodes: AtomicU32,
+    max_nodes: AtomicU64,
 }
 
 impl TimeManager {
@@ -69,7 +68,7 @@ impl TimeManager {
             infinite: AtomicBool::new(true),
             no_manage: AtomicBool::new(true),
             max_depth: AtomicU32::new(DEPTH_DEFAULT),
-            max_nodes: AtomicU32::new(NODES_DEFAULT),
+            max_nodes: AtomicU64::new(NODES_DEFAULT),
         }
     }
 }
@@ -79,7 +78,7 @@ impl TimeManager {
         &self,
         thread: u8,
         depth: u32,
-        _: u32,
+        _: u64,
         eval: Evaluation,
         current_move: Move,
         _: Duration,
@@ -218,7 +217,7 @@ impl TimeManager {
         }
     }
 
-    pub fn abort_deepening(&self, start: Instant, depth: u32, nodes: u32) -> bool {
+    pub fn abort_deepening(&self, start: Instant, depth: u32, nodes: u64) -> bool {
         if self.abort_now.load(Ordering::SeqCst) {
             true
         } else {

@@ -134,7 +134,7 @@ pub trait GuiInfo {
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,
-        node_cnt: u32,
+        node_cnt: u64,
         pv: &[Move],
     );
 }
@@ -147,7 +147,7 @@ impl GuiInfo for NoInfo {
         Self {}
     }
 
-    fn print_info(&self, _: u32, _: u32, _: Evaluation, _: Duration, _: u32, _: &[Move]) {}
+    fn print_info(&self, _: u32, _: u32, _: Evaluation, _: Duration, _: u64, _: &[Move]) {}
 }
 
 #[derive(Debug, Clone)]
@@ -164,7 +164,7 @@ impl GuiInfo for UciInfo {
         depth: u32,
         eval: Evaluation,
         elapsed: Duration,
-        node_cnt: u32,
+        node_cnt: u64,
         pv: &[Move],
     ) {
         let eval_str = if eval.is_mate() {

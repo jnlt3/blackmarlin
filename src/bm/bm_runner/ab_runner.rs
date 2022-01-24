@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -172,6 +173,8 @@ pub struct SharedContext {
     t_table: Arc<TranspositionTable>,
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
+
+    node_counters: Vec<Option<Arc<AtomicU64>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -195,7 +198,7 @@ pub struct LocalContext {
     cm_hist: DoubleMoveHistory,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
-    nodes: u32,
+    nodes: Arc<AtomicU64>,
     abort: bool,
 }
 
@@ -206,7 +209,7 @@ impl SharedContext {
     }
 
     #[inline]
-    pub fn abort_deepening(&self, depth: u32, nodes: u32) -> bool {
+    pub fn abort_deepening(&self, depth: u32, nodes: u64) -> bool {
         self.time_manager.abort_deepening(self.start, depth, nodes)
     }
 
@@ -223,6 +226,24 @@ impl SharedContext {
     #[inline]
     pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
         &self.lmp_lookup
+    }
+
+    fn initialize_node_counters(&mut self, threads: usize) {
+        self.node_counters = vec![None; threads];
+    }
+
+    fn add_node_counter(&mut self, thread: usize, node_counter: Arc<AtomicU64>) {
+        self.node_counters[thread] = Some(node_counter);
+    }
+
+    fn get_node_count(&self) -> u64 {
+        let mut total_nodes = 0;
+        for nodes in &self.node_counters {
+            if let Some(nodes) = nodes {
+                total_nodes += nodes.load(Ordering::Relaxed);
+            }
+        }
+        total_nodes
     }
 }
 
@@ -302,8 +323,16 @@ impl LocalContext {
         self.sel_depth = self.sel_depth.max(ply);
     }
 
-    pub fn nodes(&mut self) -> &mut u32 {
-        &mut self.nodes
+    pub fn reset_nodes(&self) {
+        self.nodes.store(0, Ordering::Relaxed);
+    }
+
+    pub fn increment_nodes(&self) {
+        self.nodes.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn nodes(&self) -> u64 {
+        self.nodes.load(Ordering::Relaxed)
     }
 
     pub fn trigger_abort(&mut self) {
@@ -328,15 +357,16 @@ impl AbRunner {
         search_start: Instant,
         thread: u8,
         chess960: bool,
-    ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u32) {
-        let mut nodes = 0;
-
-        let shared_context = self.shared_context.clone();
+    ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) {
+        let mut shared_context = self.shared_context.clone();
         let mut local_context = self.local_context.clone();
+        shared_context.add_node_counter(thread as usize, local_context.nodes.clone());
         let mut position = self.position.clone();
         let mut debugger = SM::new(self.position.board());
         let gui_info = Info::new();
         move || {
+            let mut nodes = 0;
+            local_context.reset_nodes();
             let start_time = Instant::now();
             let mut best_move = None;
             let mut eval: Option<Evaluation> = None;
@@ -358,7 +388,6 @@ impl AbRunner {
                     } else {
                         (Evaluation::min(), Evaluation::max())
                     };
-                    local_context.nodes = 0;
                     local_context.sel_depth = 0;
                     let (make_move, score) = search::search::<Pv>(
                         &mut position,
@@ -369,7 +398,7 @@ impl AbRunner {
                         alpha,
                         beta,
                     );
-                    nodes += local_context.nodes;
+                    nodes = local_context.nodes();
                     if depth > 1 && local_context.abort() {
                         break 'outer;
                     }
@@ -421,12 +450,13 @@ impl AbRunner {
                         for _ in 0..pv.len() {
                             position.unmake_move()
                         }
+                        let total_nodes = shared_context.get_node_count();
                         gui_info.print_info(
                             local_context.sel_depth,
                             depth,
                             eval,
                             start_time.elapsed(),
-                            nodes,
+                            total_nodes,
                             &pv,
                         );
                     }
@@ -466,6 +496,7 @@ impl AbRunner {
                     x as usize
                 })),
                 start: Instant::now(),
+                node_counters: vec![],
             },
             local_context: LocalContext {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
@@ -487,7 +518,7 @@ impl AbRunner {
                 cm_hist: DoubleMoveHistory::new(),
                 killer_moves: vec![],
                 threat_moves: vec![],
-                nodes: 0,
+                nodes: Arc::new(AtomicU64::new(0)),
                 abort: false,
             },
             position,
@@ -498,10 +529,11 @@ impl AbRunner {
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
         threads: u8,
-    ) -> (Move, Evaluation, u32, u32) {
+    ) -> (Move, Evaluation, u32, u64) {
         let mut join_handlers = vec![];
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
+        self.shared_context.initialize_node_counters(threads as usize);
         //TODO: Research the effects of different depths
         for i in 1..threads {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
