@@ -162,6 +162,40 @@ impl SearchParams {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct NodeCounter {
+    node_counters: Vec<Option<Arc<AtomicU64>>>,
+}
+
+impl NodeCounter {
+    fn initialize_node_counters(&mut self, threads: usize) {
+        self.node_counters = vec![None; threads];
+    }
+
+    fn add_node_counter(&mut self, thread: usize, node_counter: Arc<AtomicU64>) {
+        self.node_counters[thread] = Some(node_counter);
+    }
+
+    fn get_node_count(&self) -> u64 {
+        let mut total_nodes = 0;
+        for nodes in self.node_counters.iter() {
+            if let Some(nodes) = nodes {
+                total_nodes += nodes.load(Ordering::Relaxed);
+            }
+        }
+        total_nodes
+    }
+}
+
+#[derive(Debug)]
+pub struct Nodes(Arc<AtomicU64>);
+
+impl Clone for Nodes {
+    fn clone(&self) -> Self {
+        Self(Arc::new(AtomicU64::new(0)))
+    }
+}
+
 type LmrLookup = LookUp2d<u32, 32, 64>;
 type LmpLookup = LookUp2d<usize, { LMP_DEPTH as usize }, 2>;
 
@@ -173,8 +207,6 @@ pub struct SharedContext {
     t_table: Arc<TranspositionTable>,
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
-
-    node_counters: Vec<Option<Arc<AtomicU64>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -198,7 +230,7 @@ pub struct LocalContext {
     cm_hist: DoubleMoveHistory,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
     threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
-    nodes: Arc<AtomicU64>,
+    nodes: Nodes,
     abort: bool,
 }
 
@@ -226,24 +258,6 @@ impl SharedContext {
     #[inline]
     pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
         &self.lmp_lookup
-    }
-
-    fn initialize_node_counters(&mut self, threads: usize) {
-        self.node_counters = vec![None; threads];
-    }
-
-    fn add_node_counter(&mut self, thread: usize, node_counter: Arc<AtomicU64>) {
-        self.node_counters[thread] = Some(node_counter);
-    }
-
-    fn get_node_count(&self) -> u64 {
-        let mut total_nodes = 0;
-        for nodes in self.node_counters.iter() {
-            if let Some(nodes) = nodes {
-                total_nodes += nodes.load(Ordering::Relaxed);
-            }
-        }
-        total_nodes
     }
 }
 
@@ -324,15 +338,15 @@ impl LocalContext {
     }
 
     pub fn reset_nodes(&self) {
-        self.nodes.store(0, Ordering::Relaxed);
+        self.nodes.0.store(0, Ordering::Relaxed);
     }
 
     pub fn increment_nodes(&self) {
-        self.nodes.fetch_add(1, Ordering::Relaxed);
+        self.nodes.0.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn nodes(&self) -> u64 {
-        self.nodes.load(Ordering::Relaxed)
+        self.nodes.0.load(Ordering::Relaxed)
     }
 
     pub fn trigger_abort(&mut self) {
@@ -347,20 +361,28 @@ impl LocalContext {
 pub struct AbRunner {
     shared_context: SharedContext,
     local_context: LocalContext,
+    node_counter: NodeCounter,
     position: Position,
     chess960: bool,
 }
 
 impl AbRunner {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
-        &self,
+        &mut self,
         search_start: Instant,
         thread: u8,
         chess960: bool,
     ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) {
-        let mut shared_context = self.shared_context.clone();
+        let main_thread = thread == 0;
+        let shared_context = self.shared_context.clone();
         let mut local_context = self.local_context.clone();
-        shared_context.add_node_counter(thread as usize, local_context.nodes.clone());
+        self.node_counter
+            .add_node_counter(thread as usize, local_context.nodes.0.clone());
+        let node_counter = if main_thread {
+            Some(self.node_counter.clone())
+        } else {
+            None
+        };
         let mut position = self.position.clone();
         let mut debugger = SM::new(self.position.board());
         let gui_info = Info::new();
@@ -427,7 +449,7 @@ impl AbRunner {
                         }
                     }
                 }
-                if thread == 0 {
+                if main_thread {
                     debugger.push(SearchStats::new(
                         start_time.elapsed().as_millis(),
                         depth,
@@ -456,7 +478,7 @@ impl AbRunner {
                             for _ in 0..pv.len() {
                                 position.unmake_move()
                             }
-                            let total_nodes = shared_context.get_node_count();
+                            let total_nodes = node_counter.as_ref().unwrap().get_node_count();
                             gui_info.print_info(
                                 local_context.sel_depth,
                                 depth,
@@ -485,6 +507,9 @@ impl AbRunner {
     pub fn new(board: Board, time_manager: Arc<TimeManager>) -> Self {
         let mut position = Position::new(board);
         Self {
+            node_counter: NodeCounter {
+                node_counters: vec![],
+            },
             shared_context: SharedContext {
                 time_manager,
                 t_table: Arc::new(TranspositionTable::new(2_usize.pow(20))),
@@ -503,7 +528,6 @@ impl AbRunner {
                     x as usize
                 })),
                 start: Instant::now(),
-                node_counters: vec![],
             },
             local_context: LocalContext {
                 window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
@@ -525,7 +549,7 @@ impl AbRunner {
                 cm_hist: DoubleMoveHistory::new(),
                 killer_moves: vec![],
                 threat_moves: vec![],
-                nodes: Arc::new(AtomicU64::new(0)),
+                nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
             },
             position,
@@ -540,8 +564,7 @@ impl AbRunner {
         let mut join_handlers = vec![];
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
-        self.shared_context
-            .initialize_node_counters(threads as usize);
+        self.node_counter.initialize_node_counters(threads as usize);
         //TODO: Research the effects of different depths
         for i in 1..threads {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
