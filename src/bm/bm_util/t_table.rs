@@ -73,13 +73,13 @@ impl Entry {
         }
     }
     fn zero(&self) {
-        self.hash.store(u64::MAX, Ordering::SeqCst);
-        self.analysis.store(0, Ordering::SeqCst);
+        self.hash.store(u64::MAX, Ordering::Relaxed);
+        self.analysis.store(0, Ordering::Relaxed);
     }
 
     fn set_new(&self, hash: u64, entry: u64) {
-        self.hash.store(hash, Ordering::SeqCst);
-        self.analysis.store(entry, Ordering::SeqCst);
+        self.hash.store(hash, Ordering::Relaxed);
+        self.analysis.store(entry, Ordering::Relaxed);
     }
 }
 
@@ -111,8 +111,8 @@ impl TranspositionTable {
         let index = self.index(hash);
 
         let entry = &self.table[index];
-        let hash_u64 = entry.hash.load(Ordering::SeqCst);
-        let entry_u64 = entry.analysis.load(Ordering::SeqCst);
+        let hash_u64 = entry.hash.load(Ordering::Relaxed);
+        let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
             let analysis = unsafe { std::mem::transmute::<u64, Analysis>(entry_u64) };
             if analysis.entry_type.is_some() {
@@ -130,7 +130,7 @@ impl TranspositionTable {
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
-            unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::SeqCst)) };
+            unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
         if analysis.entry_type.is_none() || entry.depth >= analysis.depth / 2 {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
