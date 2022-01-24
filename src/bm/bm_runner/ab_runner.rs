@@ -238,7 +238,7 @@ impl SharedContext {
 
     fn get_node_count(&self) -> u64 {
         let mut total_nodes = 0;
-        for nodes in &self.node_counters {
+        for nodes in self.node_counters.iter() {
             if let Some(nodes) = nodes {
                 total_nodes += nodes.load(Ordering::Relaxed);
             }
@@ -427,38 +427,45 @@ impl AbRunner {
                         }
                     }
                 }
-                debugger.push(SearchStats::new(
-                    start_time.elapsed().as_millis(),
-                    depth,
-                    eval,
-                    best_move,
-                ));
-                if let Some(eval) = eval {
-                    if let Some(best_move) = best_move {
-                        let best_move = best_move;
-                        let mut pv = vec![best_move];
-                        position.make_move(best_move);
-                        while let Some(analysis) = shared_context.t_table.get(position.board()) {
-                            let mut make_move = analysis.table_move();
-                            uci::convert_move_to_uci(&mut make_move, position.board(), chess960);
-                            pv.push(make_move);
-                            position.make_move(analysis.table_move());
-                            if pv.len() > depth as usize {
-                                break;
+                if thread == 0 {
+                    debugger.push(SearchStats::new(
+                        start_time.elapsed().as_millis(),
+                        depth,
+                        eval,
+                        best_move,
+                    ));
+                    if let Some(eval) = eval {
+                        if let Some(best_move) = best_move {
+                            let best_move = best_move;
+                            let mut pv = vec![best_move];
+                            position.make_move(best_move);
+                            while let Some(analysis) = shared_context.t_table.get(position.board())
+                            {
+                                let mut make_move = analysis.table_move();
+                                uci::convert_move_to_uci(
+                                    &mut make_move,
+                                    position.board(),
+                                    chess960,
+                                );
+                                pv.push(make_move);
+                                position.make_move(analysis.table_move());
+                                if pv.len() > depth as usize {
+                                    break;
+                                }
                             }
+                            for _ in 0..pv.len() {
+                                position.unmake_move()
+                            }
+                            let total_nodes = shared_context.get_node_count();
+                            gui_info.print_info(
+                                local_context.sel_depth,
+                                depth,
+                                eval,
+                                start_time.elapsed(),
+                                total_nodes,
+                                &pv,
+                            );
                         }
-                        for _ in 0..pv.len() {
-                            position.unmake_move()
-                        }
-                        let total_nodes = shared_context.get_node_count();
-                        gui_info.print_info(
-                            local_context.sel_depth,
-                            depth,
-                            eval,
-                            start_time.elapsed(),
-                            total_nodes,
-                            &pv,
-                        );
                     }
                 }
                 depth += 1;
@@ -533,7 +540,8 @@ impl AbRunner {
         let mut join_handlers = vec![];
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
-        self.shared_context.initialize_node_counters(threads as usize);
+        self.shared_context
+            .initialize_node_counters(threads as usize);
         //TODO: Research the effects of different depths
         for i in 1..threads {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
