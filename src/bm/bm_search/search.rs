@@ -152,9 +152,10 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
+        //{'fp': 101, 'fp_base': 26, 'rfp': 56, 'rfp_base': 6, 'seefp': 124, 'seefp_base': 52}
         let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
         if do_rev_f_prune {
-            let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
+            let f_margin = 6 + (depth as i16) * 56;
             if eval - f_margin + (improving as i16) * 50 >= beta {
                 return (None, eval);
             }
@@ -376,7 +377,7 @@ pub fn search<Search: SearchType>(
             */
             let do_fp = !Search::PV && !is_capture && SEARCH_PARAMS.do_fp() && depth <= 7;
 
-            if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
+            if do_fp && eval + 26 + (depth as i16) * 56 < alpha {
                 move_gen.set_skip_quiets(!in_check);
                 continue;
             }
@@ -397,9 +398,7 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune
-                && eval
-                    + StdEvaluator::see::<16>(&board, make_move)
-                    + SEARCH_PARAMS.get_fp() * (depth as i16)
+                && eval + 52 + StdEvaluator::see::<16>(&board, make_move) + (depth as i16) * 124
                     < alpha
             {
                 continue;
