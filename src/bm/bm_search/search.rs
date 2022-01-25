@@ -377,7 +377,7 @@ pub fn search<Search: SearchType>(
             let do_fp = !Search::PV && !is_capture && SEARCH_PARAMS.do_fp() && depth <= 7;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
-                move_gen.set_skip_quiets(!in_check);
+                move_gen.set_skip_quiets(true);
                 continue;
             }
 
@@ -392,19 +392,6 @@ pub fn search<Search: SearchType>(
             }
 
             /*
-            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
-            we assume it's safe to prune this move
-            */
-            let do_see_prune = !Search::PV && !in_check && depth <= 7;
-            if do_see_prune
-                && eval
-                    + StdEvaluator::see::<16>(&board, make_move)
-                    + SEARCH_PARAMS.get_fp() * (depth as i16)
-                    < alpha
-            {
-                continue;
-            }
-            /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
             if SEARCH_PARAMS.do_lmp()
@@ -415,7 +402,21 @@ pub fn search<Search: SearchType>(
                         .get_lmp_lookup()
                         .get(depth as usize, improving as usize)
             {
-                move_gen.set_skip_quiets(!in_check);
+                move_gen.set_skip_quiets(true);
+                continue;
+            }
+            
+            /*
+            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
+            we assume it's safe to prune this move
+            */
+            let do_see_prune = !Search::PV && !in_check && depth <= 7;
+            if do_see_prune
+                && eval
+                    + StdEvaluator::see::<16>(&board, make_move)
+                    + SEARCH_PARAMS.get_fp() * (depth as i16)
+                    < alpha
+            {
                 continue;
             }
 
