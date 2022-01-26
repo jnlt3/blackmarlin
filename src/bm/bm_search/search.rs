@@ -220,6 +220,7 @@ pub fn search<Search: SearchType>(
                     continue;
                 }
                 position.make_move(make_move);
+                local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
                 let zw = probcut_beta >> Next;
                 let q_score = q_search(
                     position,
@@ -246,7 +247,7 @@ pub fn search<Search: SearchType>(
                 }
                 position.unmake_move();
                 if score >= probcut_beta {
-                    return (Some(make_move), score);
+                    return (None, score);
                 }
             }
         }
