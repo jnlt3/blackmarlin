@@ -146,13 +146,14 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    if !Search::PV && !in_check && skip_move.is_none() {
+    if !Search::PV && !in_check {
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
+        let do_rev_f_prune =
+            SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth) && skip_move.is_none();
         if do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
             if eval - f_margin + (improving as i16) * 50 >= beta {
@@ -171,7 +172,8 @@ pub fn search<Search: SearchType>(
 
         let only_pawns =
             MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.occupied().popcnt();
-        let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
+        let do_null_move =
+            SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns && skip_move.is_none();
 
         if do_null_move && eval >= beta && position.null_move() {
             {
