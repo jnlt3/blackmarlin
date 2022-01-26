@@ -227,8 +227,8 @@ pub fn search<Search: SearchType>(
                     shared_context,
                     ply,
                     ply + SEARCH_PARAMS.get_q_search_depth(),
-                    zw - 1,
                     zw,
+                    zw + 1,
                 );
                 let mut score = q_score << Next;
                 if score >= probcut_beta {
@@ -239,8 +239,8 @@ pub fn search<Search: SearchType>(
                         shared_context,
                         ply,
                         ply + depth,
-                        zw - 1,
                         zw,
+                        zw + 1,
                     );
                     score = s_score << Next;
                 }
