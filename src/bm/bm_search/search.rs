@@ -229,6 +229,49 @@ pub fn search<Search: SearchType>(
         best_move = iid_move;
     }
 
+    let probcut_beta = beta + 100;
+    if depth > 4
+        && !(tt_entry.is_some()
+            && tt_entry.unwrap().depth() >= depth - 3
+            && tt_entry.unwrap().score() < probcut_beta)
+    {
+        let mut probcut_move_gen = QuiescenceSearchMoveGen::new(&board);
+        while let Some(make_move) = probcut_move_gen.next(local_context.get_ch_table()) {
+            if skip_move == Some(make_move) {
+                continue;
+            }
+            position.make_move(make_move);
+            let zw = probcut_beta >> Next;
+            let q_score = q_search(
+                position,
+                local_context,
+                shared_context,
+                ply,
+                ply + SEARCH_PARAMS.get_q_search_depth(),
+                zw - 1,
+                zw,
+            );
+            let mut score = q_score << Next;
+            if score >= probcut_beta {
+                let depth = depth.saturating_sub(4);
+                let (_, s_score) = search::<Search::Zw>(
+                    position,
+                    local_context,
+                    shared_context,
+                    ply,
+                    ply + depth,
+                    zw - 1,
+                    zw,
+                );
+                score = s_score << Next;
+            }
+            position.unmake_move();
+            if score >= probcut_beta {
+                return (Some(make_move), score);
+            }
+        }
+    }
+
     while local_context.get_k_table().len() <= ply as usize {
         local_context.get_k_table().push(MoveEntry::new());
         local_context.get_threat_table().push(MoveEntry::new());
@@ -405,7 +448,7 @@ pub fn search<Search: SearchType>(
                 move_gen.set_skip_quiets(true);
                 continue;
             }
-            
+
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
