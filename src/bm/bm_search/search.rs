@@ -49,7 +49,7 @@ pub fn search<Search: SearchType>(
     local_context: &mut LocalContext,
     shared_context: &SharedContext,
     ply: u32,
-    target_ply: u32,
+    mut target_ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> (Option<Move>, Evaluation) {
@@ -97,7 +97,7 @@ pub fn search<Search: SearchType>(
 
     let initial_alpha = alpha;
 
-    let depth = target_ply - ply;
+    let mut depth = target_ply - ply;
 
     /*
     Transposition Table
@@ -205,6 +205,12 @@ pub fn search<Search: SearchType>(
                 return (None, score);
             }
         }
+    }
+
+
+    if tt_entry.is_none() && depth >= 4 {
+        depth -= 1;
+        target_ply -= 1;
     }
 
     /*
@@ -405,7 +411,7 @@ pub fn search<Search: SearchType>(
                 move_gen.set_skip_quiets(true);
                 continue;
             }
-            
+
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
