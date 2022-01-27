@@ -209,7 +209,7 @@ pub fn search<Search: SearchType>(
 
     if tt_entry.is_none() && depth >= 4 {
         let mut iir = 1;
-        if !Search::PV && depth >= 8 {
+        if Search::PV && depth >= 8 {
             iir += 1;
         }
         depth -= iir;
