@@ -207,10 +207,13 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
-        depth -= 1;
-        target_ply -= 1;
+        let mut iir = 1;
+        if !Search::PV {
+            iir += 1;
+        }
+        depth -= iir;
+        target_ply -= iir;
     }
 
     /*
