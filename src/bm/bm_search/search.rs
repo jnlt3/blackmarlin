@@ -433,7 +433,7 @@ pub fn search<Search: SearchType>(
             }
 
             if depth > 4 && !beta.is_mate() {
-                let extension_beta = beta + 128;
+                let extension_beta = beta + 256;
                 let zw = extension_beta >> Next;
                 let (_, low_score) = search::<Search::Zw>(
                     position,
