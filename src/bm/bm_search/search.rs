@@ -440,7 +440,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply + extension - 4,
+                    ply + depth / 2 + extension,
                     zw,
                     zw + 1,
                 );
