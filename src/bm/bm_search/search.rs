@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -432,6 +431,25 @@ pub fn search<Search: SearchType>(
             if gives_check {
                 extension += 1;
             }
+
+            if depth > 4 && !beta.is_mate() {
+                let extension_beta = beta + 128;
+                let zw = extension_beta >> Next;
+                let (_, low_score) = search::<Search::Zw>(
+                    position,
+                    local_context,
+                    shared_context,
+                    ply + 1,
+                    target_ply + extension - 4,
+                    zw,
+                    zw + 1,
+                );
+                let low_score = low_score << Next;
+                if low_score >= extension_beta {
+                    extension += 1;
+                }
+            }
+
             /*
             LMR
             We try to prove a move is worse than alpha at a reduced depth
