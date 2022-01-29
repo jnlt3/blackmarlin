@@ -13,8 +13,9 @@ pub enum EntryType {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Analysis {
+    exists: bool,
     depth: u8,
-    entry_type: Option<EntryType>,
+    entry_type: EntryType,
     score: Evaluation,
     table_move: Move,
 }
@@ -22,10 +23,25 @@ pub struct Analysis {
 impl Analysis {
     pub fn new(depth: u32, entry_type: EntryType, score: Evaluation, table_move: Move) -> Self {
         Self {
+            exists: true,
             depth: depth as u8,
-            entry_type: Some(entry_type),
+            entry_type,
             score,
             table_move,
+        }
+    }
+
+    pub fn zero() -> Self {
+        Self {
+            exists: false,
+            depth: 0,
+            entry_type: EntryType::LowerBound,
+            score: Evaluation::new(0),
+            table_move: Move {
+                from: Square::A1,
+                to: Square::A1,
+                promotion: None,
+            },
         }
     }
 
@@ -36,7 +52,7 @@ impl Analysis {
 
     #[inline]
     pub fn entry_type(&self) -> EntryType {
-        self.entry_type.unwrap()
+        self.entry_type
     }
 
     #[inline]
@@ -57,24 +73,21 @@ pub struct Entry {
 }
 
 impl Entry {
-    unsafe fn zeroed() -> Self {
-        Self {
-            hash: AtomicU64::new(u64::MAX),
-            analysis: std::mem::transmute::<Analysis, AtomicU64>(Analysis {
-                depth: 0,
-                entry_type: None,
-                score: Evaluation::new(0),
-                table_move: Move {
-                    from: Square::A1,
-                    to: Square::A1,
-                    promotion: None,
-                },
-            }),
+    fn zeroed() -> Self {
+        unsafe {
+            Self {
+                hash: AtomicU64::new(std::mem::transmute(Analysis::zero())),
+                analysis: AtomicU64::new(std::mem::transmute(Analysis::zero())),
+            }
         }
     }
     fn zero(&self) {
-        self.hash.store(u64::MAX, Ordering::Relaxed);
-        self.analysis.store(0, Ordering::Relaxed);
+        unsafe {
+            self.hash
+                .store(std::mem::transmute(Analysis::zero()), Ordering::Relaxed);
+            self.analysis
+                .store(std::mem::transmute(Analysis::zero()), Ordering::Relaxed);
+        }
     }
 
     fn set_new(&self, hash: u64, entry: u64) {
@@ -92,9 +105,7 @@ pub struct TranspositionTable {
 impl TranspositionTable {
     pub fn new(size: usize) -> Self {
         let size = size.next_power_of_two();
-        let table = (0..size)
-            .map(|_| unsafe { Entry::zeroed() })
-            .collect::<Box<_>>();
+        let table = (0..size).map(|_| Entry::zeroed()).collect::<Box<_>>();
         Self {
             table,
             mask: size - 1,
@@ -114,8 +125,8 @@ impl TranspositionTable {
         let hash_u64 = entry.hash.load(Ordering::Relaxed);
         let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
-            let analysis = unsafe { std::mem::transmute::<u64, Analysis>(entry_u64) };
-            if analysis.entry_type.is_some() {
+            let analysis: Analysis = unsafe { std::mem::transmute(entry_u64) };
+            if analysis.exists {
                 Some(analysis)
             } else {
                 None
@@ -131,7 +142,7 @@ impl TranspositionTable {
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-        if analysis.entry_type.is_none() || entry.depth >= analysis.depth / 2 {
+        if !analysis.exists || entry.depth >= analysis.depth / 2 {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
