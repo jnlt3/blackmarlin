@@ -432,6 +432,7 @@ pub fn search<Search: SearchType>(
                 extension += 1;
             }
 
+            let mut beta_extend = false;
             if !Search::PV && depth > 8 && !beta.is_mate() {
                 let extension_beta = beta + 128;
                 let zw = extension_beta >> Next;
@@ -447,6 +448,7 @@ pub fn search<Search: SearchType>(
                 let low_score = low_score << Next;
                 if low_score >= extension_beta {
                     extension += 1;
+                    beta_extend = true;
                 }
             }
 
@@ -459,7 +461,7 @@ pub fn search<Search: SearchType>(
             let mut reduction = 0_i16;
             let do_lmr = SEARCH_PARAMS.do_lmr(depth);
 
-            if do_lmr {
+            if do_lmr && !beta_extend {
                 reduction = shared_context
                     .get_lmr_lookup()
                     .get(depth as usize, moves_seen) as i16;
