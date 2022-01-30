@@ -215,6 +215,10 @@ impl UciAdapter {
                 );
                 println!("{}", buffer);
             }
+            UciCommand::Static => {
+                let runner = &mut *self.bm_runner.lock().unwrap();
+                println!("{}", runner.raw_eval().raw());
+            }
         }
         true
     }
@@ -401,6 +405,7 @@ enum UciCommand {
     Stop,
     Quit,
     Eval,
+    Static,
 }
 
 impl UciCommand {
@@ -503,6 +508,7 @@ impl UciCommand {
             "eval" => UciCommand::Eval,
             "isready" => UciCommand::IsReady,
             "bench" => UciCommand::Bench,
+            "static" => UciCommand::Static,
             "setoption" => {
                 split.next();
                 let name = split.next().unwrap().to_string();
