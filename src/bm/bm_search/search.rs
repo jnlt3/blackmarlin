@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -418,9 +417,7 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune
-                && eval
-                    + StdEvaluator::see::<16>(&board, make_move)
-                    + SEARCH_PARAMS.get_fp() * (depth as i16)
+                && eval + StdEvaluator::see::<16>(&board, make_move) + 35 + 65 * (depth as i16)
                     < alpha
             {
                 continue;
