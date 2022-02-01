@@ -47,6 +47,7 @@ fn play_single(
         if !board
             .colors(!engine.get_board().side_to_move())
             .has(make_move.to)
+            && board.checkers() == BitBoard::EMPTY
         {
             evals.push((engine.get_board().clone(), eval * turn));
         }
@@ -75,7 +76,7 @@ fn play_single(
 
 fn gen_games(iter: usize) -> Vec<(Board, Evaluation, f32)> {
     let mut evals = vec![];
-    let time_management_options = TimeManagementInfo::MaxDepth(7);
+    let time_management_options = TimeManagementInfo::MaxDepth(6);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
     for i in 0..iter {
@@ -94,7 +95,7 @@ pub fn gen_eval() {
     for _ in 0.. {
         let mut evals = vec![];
         let mut threads = vec![];
-        for _ in 0..2 {
+        for _ in 0..6 {
             threads.push(std::thread::spawn(move || gen_games(100)))
         }
         for t in threads {
