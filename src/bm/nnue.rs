@@ -124,7 +124,7 @@ impl Nnue {
         };
         let eval = psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket]);
         let scale =
-            83 + (knights | bishops | rooks).popcnt() as i32 * 5 + queens.popcnt() as i32 * 12;
+            80 + (knights | bishops | rooks).popcnt() as i32 * 5 + queens.popcnt() as i32 * 20;
         ((eval as i32 * scale) / 100) as i16
     }
 }
