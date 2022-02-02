@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -391,7 +390,7 @@ pub fn search<Search: SearchType>(
             In low depth, non-PV nodes, we assume it's safe to prune a move
             if it has very low history
             */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
+            let do_hp = !Search::PV && depth <= 8 && eval + (depth as i16) * 25 <= alpha;
 
             if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
                 continue;
