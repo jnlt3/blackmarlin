@@ -459,7 +459,7 @@ pub fn search<Search: SearchType>(
                 if improving {
                     reduction -= 1;
                 }
-                reduction = reduction.min(depth as i16 - 1).max(0);
+                reduction = reduction.min(depth as i16 - 2).max(0);
             }
 
             let lmr_ply = (target_ply as i16 - reduction).max(0) as u32;
