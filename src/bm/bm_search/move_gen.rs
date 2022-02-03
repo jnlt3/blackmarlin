@@ -21,6 +21,7 @@ enum GenType {
     Killer,
     ThreatMove,
     Quiet,
+    SkipQuiets,
     BadCaptures,
 }
 
@@ -81,11 +82,9 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     fn set_phase(&mut self) {
         if self.skip_quiets {
             match self.gen_type {
-                GenType::GenQuiet
-                | GenType::CounterMove
-                | GenType::Killer
-                | GenType::ThreatMove
-                | GenType::Quiet => self.gen_type = GenType::BadCaptures,
+                GenType::CounterMove | GenType::Killer | GenType::ThreatMove | GenType::Quiet => {
+                    self.gen_type = GenType::SkipQuiets
+                }
                 _ => {}
             }
         }
@@ -247,6 +246,19 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                 }
             }
             if let Some(index) = best_index {
+                return Some(self.quiets.swap_remove(index).0);
+            } else {
+                self.gen_type = GenType::BadCaptures;
+            };
+        }
+        if self.gen_type == GenType::SkipQuiets {
+            let mut promo_index = None;
+            for (index, &(_, score)) in self.quiets.iter().enumerate() {
+                if score == i16::MAX {
+                    promo_index = Some(index);
+                }
+            }
+            if let Some(index) = promo_index {
                 return Some(self.quiets.swap_remove(index).0);
             } else {
                 self.gen_type = GenType::BadCaptures;

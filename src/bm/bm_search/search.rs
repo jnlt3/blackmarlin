@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -296,6 +295,8 @@ pub fn search<Search: SearchType>(
         }
         move_exists = true;
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
+        let is_q_promo = make_move.promotion == Some(Piece::Queen);
+        let tactical = is_capture || is_q_promo;
 
         let h_score = if is_capture {
             local_context.get_ch_table().get(
@@ -380,7 +381,7 @@ pub fn search<Search: SearchType>(
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_fp = !Search::PV && !is_capture && SEARCH_PARAMS.do_fp() && depth <= 7;
+            let do_fp = !Search::PV && !tactical && SEARCH_PARAMS.do_fp() && depth <= 7;
 
             if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
                 move_gen.set_skip_quiets(true);
@@ -402,7 +403,7 @@ pub fn search<Search: SearchType>(
             */
             if SEARCH_PARAMS.do_lmp()
                 && !move_gen.skip_quiets()
-                && !is_capture
+                && !tactical
                 && quiets.len()
                     >= shared_context
                         .get_lmp_lookup()
