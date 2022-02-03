@@ -169,8 +169,9 @@ pub fn search<Search: SearchType>(
         move ordering for the next ply
         */
 
+        let stm = board.colors(board.side_to_move());
         let only_pawns =
-            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.occupied().popcnt();
+            MIN_PIECE_CNT / 2 + (stm & board.pieces(Piece::Pawn)).popcnt() == stm.popcnt();
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
 
         if do_null_move && eval >= beta && position.null_move() {
@@ -206,7 +207,6 @@ pub fn search<Search: SearchType>(
             }
         }
     }
-
 
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
