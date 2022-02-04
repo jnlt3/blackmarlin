@@ -19,17 +19,15 @@ enum GenType {
     GenQuiet,
     CounterMove,
     Killer,
-    ThreatMove,
     Quiet,
     BadCaptures,
 }
 
 type LazySee = Option<i16>;
 
-pub struct OrderedMoveGen<const T: usize, const K: usize> {
+pub struct OrderedMoveGen<const K: usize> {
     move_list: ArrayVec<PieceMoves, 18>,
     pv_move: Option<Move>,
-    threat_move_entry: MoveEntryIterator<T>,
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
     prev_move: Option<Move>,
@@ -41,13 +39,12 @@ pub struct OrderedMoveGen<const T: usize, const K: usize> {
     skip_quiets: bool,
 }
 
-impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
+impl<const K: usize> OrderedMoveGen<K> {
     pub fn new(
         board: &Board,
         pv_move: Option<Move>,
         counter_move: Option<Move>,
         prev_move: Option<Move>,
-        threat_move_entry: MoveEntryIterator<T>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
         let mut move_list = ArrayVec::new();
@@ -61,7 +58,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
             counter_move,
             prev_move,
             pv_move,
-            threat_move_entry,
             killer_entry,
             board: board.clone(),
             captures: ArrayVec::new(),
@@ -81,11 +77,9 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
     fn set_phase(&mut self) {
         if self.skip_quiets {
             match self.gen_type {
-                GenType::GenQuiet
-                | GenType::CounterMove
-                | GenType::Killer
-                | GenType::ThreatMove
-                | GenType::Quiet => self.gen_type = GenType::BadCaptures,
+                GenType::GenQuiet | GenType::CounterMove | GenType::Killer | GenType::Quiet => {
+                    self.gen_type = GenType::BadCaptures
+                }
                 _ => {}
             }
         }
@@ -223,19 +217,6 @@ impl<const T: usize, const K: usize> OrderedMoveGen<T, K> {
                     return Some(counter_move);
                 }
             }
-        }
-        if self.gen_type == GenType::ThreatMove {
-            for make_move in &mut self.threat_move_entry {
-                let position = self
-                    .quiets
-                    .iter()
-                    .position(|(cmp_move, _)| make_move == *cmp_move);
-                if let Some(position) = position {
-                    self.quiets.swap_remove(position);
-                    return Some(make_move);
-                }
-            }
-            self.gen_type = GenType::Quiet;
         }
         if self.gen_type == GenType::Quiet {
             let mut max = 0;

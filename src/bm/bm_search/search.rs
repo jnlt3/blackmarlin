@@ -174,19 +174,13 @@ pub fn search<Search: SearchType>(
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
 
         if do_null_move && eval >= beta && position.null_move() {
-            {
-                let threat_table = local_context.get_threat_table();
-                while threat_table.len() <= ply as usize + 1 {
-                    threat_table.push(MoveEntry::new());
-                }
-            }
             local_context.search_stack_mut()[ply as usize].move_played = None;
 
             let zw = beta >> Next;
             let reduction =
                 SEARCH_PARAMS.get_nmp().reduction(depth) + ((eval - beta).raw() / 200) as u32;
             let r_target_ply = target_ply.saturating_sub(reduction).max(ply + 2);
-            let (threat_move, search_score) = search::<NoNm>(
+            let (_, search_score) = search::<NoNm>(
                 position,
                 local_context,
                 shared_context,
@@ -195,10 +189,6 @@ pub fn search<Search: SearchType>(
                 zw,
                 zw + 1,
             );
-            if let Some(threat_move) = threat_move {
-                let threat_table = local_context.get_threat_table();
-                threat_table[ply as usize + 1].push(threat_move)
-            }
             position.unmake_move();
             let score = search_score << Next;
             if score >= beta {
@@ -207,53 +197,20 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
     }
 
-    /*
-    Internal Iterative Deepening
-    In PV nodes, if we don't have a move from the transposition table, we do a reduced
-    depth search to get a good estimation on what the best move is
-    This is currently disabled
-    */
-    let do_iid = SEARCH_PARAMS.do_iid(depth) && Search::PV && !in_check;
-    if do_iid && best_move.is_none() {
-        let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
-        let target_ply = target_ply.max(reduction) - reduction;
-        let (iid_move, _) = search::<Search>(
-            position,
-            local_context,
-            shared_context,
-            ply,
-            target_ply,
-            alpha,
-            beta,
-        );
-        best_move = iid_move;
-    }
-
     while local_context.get_k_table().len() <= ply as usize {
         local_context.get_k_table().push(MoveEntry::new());
-        local_context.get_threat_table().push(MoveEntry::new());
     }
 
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
         entry.clear();
     }
-    if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
-        entry.clear();
-    }
 
     let mut highest_score = None;
-
-    let threat_move_entry = if ply > 1 {
-        local_context.get_threat_table()[ply as usize]
-    } else {
-        MoveEntry::new()
-    };
 
     let prev_move = if ply != 0 {
         Some(local_context.search_stack()[ply as usize - 1].move_played)
@@ -276,7 +233,6 @@ pub fn search<Search: SearchType>(
         best_move,
         counter_move,
         prev_move.unwrap_or(None),
-        threat_move_entry.into_iter(),
         local_context.get_k_table()[ply as usize].into_iter(),
     );
 
