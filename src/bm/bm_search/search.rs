@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -412,17 +411,13 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            let see = StdEvaluator::see::<16>(&board, make_move);
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
-            if do_see_prune
-                && eval
-                    + StdEvaluator::see::<16>(&board, make_move)
-                    + SEARCH_PARAMS.get_fp() * (depth as i16)
-                    < alpha
-            {
+            if do_see_prune && eval + see + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
                 continue;
             }
 
@@ -458,6 +453,9 @@ pub fn search<Search: SearchType>(
                 };
                 if improving {
                     reduction -= 1;
+                }
+                if !is_capture && see < 0 {
+                    reduction += 1;
                 }
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
