@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -623,13 +622,12 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = board.checkers() != BitBoard::EMPTY;
 
+    let stand_pat = position.get_eval();
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
     if !in_check {
-        let stand_pat = position.get_eval();
-
         /*
         If stand pat is way below alpha, assume it can't be beaten.
         */
@@ -647,9 +645,12 @@ pub fn q_search(
     }
 
     let mut move_gen = QuiescenceSearchMoveGen::new(&board);
-    while let Some(make_move) = move_gen.next(local_context.get_ch_table()) {
+    while let Some((make_move, see)) = move_gen.next(local_context.get_ch_table()) {
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
+            if stand_pat + see > beta + 200 {
+                return stand_pat + see;
+            }
             position.make_move(make_move);
             let search_score = q_search(
                 position,
