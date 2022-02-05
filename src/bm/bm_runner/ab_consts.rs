@@ -29,7 +29,7 @@ pub const DO_LMR: bool = true;
 pub const LMP_DEPTH: u32 = 64;
 pub const LMP_OFFSET: f32 = 2.0;
 pub const LMP_FACTOR: f32 = 0.66;
-pub const IMPROVING_OFFSET: f32 = 2.0;
+pub const IMPROVING_OFFSET: f32 = 2.5;
 pub const DO_LMP: bool = true;
 
 pub const QUIESCENCE_SEARCH_DEPTH: u32 = 30;
