@@ -207,7 +207,6 @@ pub fn search<Search: SearchType>(
         }
     }
 
-
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
         target_ply -= 1;
@@ -416,7 +415,7 @@ pub fn search<Search: SearchType>(
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_see_prune = !Search::PV && !in_check && depth <= 7;
+            let do_see_prune = !Search::PV && !in_check && depth <= 7 && eval < beta;
             if do_see_prune
                 && eval
                     + StdEvaluator::see::<16>(&board, make_move)
