@@ -649,7 +649,7 @@ pub fn q_search(
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
             if stand_pat + see > beta + 200 {
-                return stand_pat + see;
+                return beta;
             }
             position.make_move(make_move);
             let search_score = q_search(
