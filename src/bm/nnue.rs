@@ -63,6 +63,13 @@ impl Nnue {
         let queens = board.pieces(Piece::Queen);
         let kings = board.pieces(Piece::King);
 
+        let scaling_factor = 82
+            + (pawns.popcnt() as i32) * 13
+            + (knights.popcnt() as i32) * -2
+            + (bishops.popcnt() as i32) * -15
+            + (rooks.popcnt() as i32) * 3
+            + (queens.popcnt() as i32) * 2;
+
         let array = [
             (white & pawns) ^ (self.white & self.pawns),
             (white & knights) ^ (self.white & self.knights),
@@ -122,6 +129,8 @@ impl Nnue {
                 self.b_res_layer.get()[bucket] / 64,
             ),
         };
-        psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
+        let eval =
+            psqt_score as i32 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket]) as i32;
+        ((eval * scaling_factor.max(20)) / 100) as i16
     }
 }
