@@ -201,7 +201,7 @@ pub fn search<Search: SearchType>(
             }
             position.unmake_move();
             let score = search_score << Next;
-            if score >= beta {
+            if !score.is_mate() && score >= beta {
                 return (None, score);
             }
         }
