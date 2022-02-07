@@ -648,7 +648,7 @@ pub fn q_search(
     while let Some((make_move, see)) = move_gen.next(local_context.get_ch_table()) {
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
-            if stand_pat + see > beta + 200 {
+            if stand_pat + see - 200 > beta {
                 return beta;
             }
             position.make_move(make_move);
