@@ -289,7 +289,7 @@ impl QuiescenceSearchMoveGen {
         }
     }
 
-    pub fn next(&mut self, c_hist: &HistoryTable) -> Option<Move> {
+    pub fn next(&mut self, c_hist: &HistoryTable) -> Option<(Move, i16)> {
         if self.gen_type == QSearchGenType::CalcCaptures {
             self.board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= self.board.colors(!self.board.side_to_move());
@@ -318,7 +318,8 @@ impl QuiescenceSearchMoveGen {
             }
         }
         if let Some(index) = best_index {
-            Some(self.queue.swap_remove(index).0)
+            let out = self.queue.swap_remove(index);
+            Some((out.0, out.2.unwrap()))
         } else {
             None
         }
