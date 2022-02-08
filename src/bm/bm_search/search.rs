@@ -648,6 +648,10 @@ pub fn q_search(
     while let Some((make_move, see)) = move_gen.next(local_context.get_ch_table()) {
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
+            /*
+            SEE beta cutoff: (Koivisto)
+            If SEE considerably improves evaluation above beta, we can return beta early
+            */
             if stand_pat + see - 200 > beta {
                 return beta;
             }
