@@ -52,26 +52,25 @@ pub fn search<Search: SearchType>(
     mut depth: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
-) -> (Option<Move>, Evaluation) {
+) -> Evaluation {
+    local_context.search_stack_mut()[ply as usize].pv_len = 0;
+
     if ply != 0 && shared_context.abort_search() {
         local_context.trigger_abort();
-        return (None, Evaluation::min());
+        return Evaluation::min();
     }
 
     local_context.update_sel_depth(ply);
     if ply != 0 && position.forced_draw(ply) {
         local_context.increment_nodes();
-        return (None, Evaluation::new(0));
+        return Evaluation::new(0);
     }
 
     /*
     At depth 0, we run Quiescence Search
     */
     if depth == 0 || ply >= MAX_PLY {
-        return (
-            None,
-            q_search(position, local_context, shared_context, ply, alpha, beta),
-        );
+        return q_search(position, local_context, shared_context, ply, alpha, beta);
     }
 
     let skip_move = local_context.search_stack()[ply as usize].skip_move;
@@ -103,16 +102,16 @@ pub fn search<Search: SearchType>(
             let score = entry.score();
             match entry.entry_type() {
                 Exact => {
-                    return (best_move, score);
+                    return score;
                 }
                 LowerBound => {
                     if score >= beta {
-                        return (best_move, score);
+                        return score;
                     }
                 }
                 UpperBound => {
                     if score <= alpha {
-                        return (best_move, score);
+                        return score;
                     }
                 }
             }
@@ -146,7 +145,7 @@ pub fn search<Search: SearchType>(
         if do_rev_f_prune {
             let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
             if eval - f_margin + (improving as i16) * 50 >= beta {
-                return (None, eval);
+                return eval;
             }
         }
 
@@ -169,7 +168,7 @@ pub fn search<Search: SearchType>(
             let reduction =
                 SEARCH_PARAMS.get_nmp().reduction(depth) + ((eval - beta).raw() / 200) as u32;
             let reduced_depth = depth.saturating_sub(reduction).max(2);
-            let (_, search_score) = search::<NoNm>(
+            let search_score = search::<NoNm>(
                 position,
                 local_context,
                 shared_context,
@@ -181,7 +180,7 @@ pub fn search<Search: SearchType>(
             position.unmake_move();
             let score = search_score << Next;
             if score >= beta {
-                return (None, score);
+                return score;
             }
         }
     }
@@ -275,7 +274,7 @@ pub fn search<Search: SearchType>(
                 {
                     let s_beta = entry.score() - depth as i16 * 3;
                     local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
-                    let (_, s_score) = search::<Search::Zw>(
+                    let s_score = search::<Search::Zw>(
                         position,
                         local_context,
                         shared_context,
@@ -293,7 +292,7 @@ pub fn search<Search: SearchType>(
                         If a move isn't singular and the move that disproves the singularity
                         our singular beta is above beta, we assume the move is good enough to beat beta
                         */
-                        return (Some(make_move), s_beta);
+                        return s_beta;
                     }
                 }
             }
@@ -308,7 +307,7 @@ pub fn search<Search: SearchType>(
             /*
             First moves don't get reduced
             */
-            let (_, search_score) = search::<Search>(
+            let search_score = search::<Search>(
                 position,
                 local_context,
                 shared_context,
@@ -409,7 +408,7 @@ pub fn search<Search: SearchType>(
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
-            let (_, lmr_score) = search::<Search::Zw>(
+            let lmr_score = search::<Search::Zw>(
                 position,
                 local_context,
                 shared_context,
@@ -425,7 +424,7 @@ pub fn search<Search: SearchType>(
             otherwise, we run a full depth search to attempt a fail low
             */
             if lmr_depth < depth && score > alpha {
-                let (_, zw_score) = search::<Search::Zw>(
+                let zw_score = search::<Search::Zw>(
                     position,
                     local_context,
                     shared_context,
@@ -440,7 +439,7 @@ pub fn search<Search: SearchType>(
             If we don't get a fail low, this means the move has to be searched fully
             */
             if Search::PV && score > alpha {
-                let (_, search_score) = search::<Search>(
+                let search_score = search::<Search>(
                     position,
                     local_context,
                     shared_context,
@@ -459,36 +458,44 @@ pub fn search<Search: SearchType>(
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
             best_move = Some(make_move);
-        }
-        if score > alpha {
-            if score >= beta {
-                if skip_move.is_none() && !local_context.abort() {
-                    if !is_capture {
-                        let killer_table = local_context.get_k_table();
-                        killer_table[ply as usize].push(make_move);
-                        local_context
-                            .get_h_table_mut()
-                            .cutoff(&board, make_move, &quiets, depth);
-                        if let Some(Some(prev_move)) = prev_move {
-                            local_context
-                                .get_cm_table_mut()
-                                .cutoff(&board, prev_move, make_move, depth);
-                            local_context
-                                .get_cm_hist_mut()
-                                .cutoff(&board, prev_move, make_move, &quiets, depth);
-                        }
-                    } else {
-                        local_context
-                            .get_ch_table_mut()
-                            .cutoff(&board, make_move, &captures, depth);
-                    }
-
-                    let analysis = Analysis::new(depth, LowerBound, score, make_move);
-                    shared_context.get_t_table().set(position.board(), analysis);
+            if score > alpha {
+                if Search::PV || (ply == 0 && moves_seen == 1) {
+                    let (child_pv, len) = {
+                        let child = &local_context.search_stack()[ply as usize + 1];
+                        (child.pv, child.pv_len)
+                    };
+                    local_context.search_stack_mut()[ply as usize]
+                        .update_pv(make_move, &child_pv[..len]);
                 }
-                return (Some(make_move), score);
+                if score >= beta {
+                    if skip_move.is_none() && !local_context.abort() {
+                        if !is_capture {
+                            let killer_table = local_context.get_k_table();
+                            killer_table[ply as usize].push(make_move);
+                            local_context
+                                .get_h_table_mut()
+                                .cutoff(&board, make_move, &quiets, depth);
+                            if let Some(Some(prev_move)) = prev_move {
+                                local_context
+                                    .get_cm_table_mut()
+                                    .cutoff(&board, prev_move, make_move, depth);
+                                local_context
+                                    .get_cm_hist_mut()
+                                    .cutoff(&board, prev_move, make_move, &quiets, depth);
+                            }
+                        } else {
+                            local_context
+                                .get_ch_table_mut()
+                                .cutoff(&board, make_move, &captures, depth);
+                        }
+
+                        let analysis = Analysis::new(depth, LowerBound, score, make_move);
+                        shared_context.get_t_table().set(position.board(), analysis);
+                    }
+                    return score;
+                }
+                alpha = score;
             }
-            alpha = score;
         }
         if is_capture {
             if !captures.is_full() {
@@ -500,9 +507,9 @@ pub fn search<Search: SearchType>(
     }
     if !move_exists {
         return if board.checkers() == BitBoard::EMPTY {
-            (None, Evaluation::new(0))
+            Evaluation::new(0)
         } else {
-            (None, Evaluation::new_checkmate(-1))
+            Evaluation::new_checkmate(-1)
         };
     }
     let highest_score = highest_score.unwrap();
@@ -519,7 +526,7 @@ pub fn search<Search: SearchType>(
             shared_context.get_t_table().set(position.board(), analysis);
         }
     }
-    (best_move, highest_score)
+    highest_score
 }
 
 /*
