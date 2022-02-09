@@ -49,7 +49,7 @@ pub fn search<Search: SearchType>(
     local_context: &mut LocalContext,
     shared_context: &SharedContext,
     ply: u32,
-    mut target_ply: u32,
+    mut depth: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> (Option<Move>, Evaluation) {
@@ -67,18 +67,10 @@ pub fn search<Search: SearchType>(
     /*
     At depth 0, we run Quiescence Search
     */
-    if ply >= target_ply || ply >= MAX_PLY {
+    if depth == 0 || ply >= MAX_PLY {
         return (
             None,
-            q_search(
-                position,
-                local_context,
-                shared_context,
-                ply,
-                ply + SEARCH_PARAMS.get_q_search_depth(),
-                alpha,
-                beta,
-            ),
+            q_search(position, local_context, shared_context, ply, alpha, beta),
         );
     }
 
@@ -97,8 +89,6 @@ pub fn search<Search: SearchType>(
 
     let initial_alpha = alpha;
 
-    let mut depth = target_ply - ply;
-
     /*
     Transposition Table
     If we get a TT hit and the search is deep enough,
@@ -109,7 +99,7 @@ pub fn search<Search: SearchType>(
     if let Some(entry) = tt_entry {
         *local_context.tt_hits() += 1;
         best_move = Some(entry.table_move());
-        if !Search::PV && ply + entry.depth() >= target_ply {
+        if !Search::PV && entry.depth() >= depth {
             let score = entry.score();
             match entry.entry_type() {
                 Exact => {
@@ -174,31 +164,20 @@ pub fn search<Search: SearchType>(
         let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
 
         if do_null_move && eval >= beta && position.null_move() {
-            {
-                let threat_table = local_context.get_threat_table();
-                while threat_table.len() <= ply as usize + 1 {
-                    threat_table.push(MoveEntry::new());
-                }
-            }
             local_context.search_stack_mut()[ply as usize].move_played = None;
-
             let zw = beta >> Next;
             let reduction =
                 SEARCH_PARAMS.get_nmp().reduction(depth) + ((eval - beta).raw() / 200) as u32;
-            let r_target_ply = target_ply.saturating_sub(reduction).max(ply + 2);
-            let (threat_move, search_score) = search::<NoNm>(
+            let reduced_depth = depth.saturating_sub(reduction).max(2);
+            let (_, search_score) = search::<NoNm>(
                 position,
                 local_context,
                 shared_context,
                 ply + 1,
-                r_target_ply,
+                reduced_depth - 1,
                 zw,
                 zw + 1,
             );
-            if let Some(threat_move) = threat_move {
-                let threat_table = local_context.get_threat_table();
-                threat_table[ply as usize + 1].push(threat_move)
-            }
             position.unmake_move();
             let score = search_score << Next;
             if score >= beta {
@@ -209,50 +188,17 @@ pub fn search<Search: SearchType>(
 
     if tt_entry.is_none() && depth >= 4 {
         depth -= 1;
-        target_ply -= 1;
-    }
-
-    /*
-    Internal Iterative Deepening
-    In PV nodes, if we don't have a move from the transposition table, we do a reduced
-    depth search to get a good estimation on what the best move is
-    This is currently disabled
-    */
-    let do_iid = SEARCH_PARAMS.do_iid(depth) && Search::PV && !in_check;
-    if do_iid && best_move.is_none() {
-        let reduction = SEARCH_PARAMS.get_iid().reduction(depth);
-        let target_ply = target_ply.max(reduction) - reduction;
-        let (iid_move, _) = search::<Search>(
-            position,
-            local_context,
-            shared_context,
-            ply,
-            target_ply,
-            alpha,
-            beta,
-        );
-        best_move = iid_move;
     }
 
     while local_context.get_k_table().len() <= ply as usize {
         local_context.get_k_table().push(MoveEntry::new());
-        local_context.get_threat_table().push(MoveEntry::new());
     }
 
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 2) {
         entry.clear();
     }
-    if let Some(entry) = local_context.get_threat_table().get_mut(ply as usize + 2) {
-        entry.clear();
-    }
 
     let mut highest_score = None;
-
-    let threat_move_entry = if ply > 1 {
-        local_context.get_threat_table()[ply as usize]
-    } else {
-        MoveEntry::new()
-    };
 
     let prev_move = if ply != 0 {
         Some(local_context.search_stack()[ply as usize - 1].move_played)
@@ -275,7 +221,6 @@ pub fn search<Search: SearchType>(
         best_move,
         counter_move,
         prev_move.unwrap_or(None),
-        threat_move_entry.into_iter(),
         local_context.get_k_table()[ply as usize].into_iter(),
     );
 
@@ -328,7 +273,6 @@ pub fn search<Search: SearchType>(
                     && (entry.entry_type() == EntryType::LowerBound
                         || entry.entry_type() == EntryType::Exact)
                 {
-                    let reduced_plies = ply + depth / 2 - 1;
                     let s_beta = entry.score() - depth as i16 * 3;
                     local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
                     let (_, s_score) = search::<Search::Zw>(
@@ -336,7 +280,7 @@ pub fn search<Search: SearchType>(
                         local_context,
                         shared_context,
                         ply,
-                        reduced_plies,
+                        depth / 2 - 1,
                         s_beta - 1,
                         s_beta,
                     );
@@ -369,7 +313,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                target_ply + extension,
+                depth - 1 + extension,
                 beta >> Next,
                 alpha >> Next,
             );
@@ -461,7 +405,7 @@ pub fn search<Search: SearchType>(
                 reduction = reduction.min(depth as i16 - 1).max(0);
             }
 
-            let lmr_ply = (target_ply as i16 - reduction).max(0) as u32;
+            let lmr_depth = (depth as i16 - reduction) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
@@ -470,7 +414,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                lmr_ply + extension,
+                lmr_depth - 1 + extension,
                 zw - 1,
                 zw,
             );
@@ -480,13 +424,13 @@ pub fn search<Search: SearchType>(
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
-            if lmr_ply < target_ply && score > alpha {
+            if lmr_depth < depth && score > alpha {
                 let (_, zw_score) = search::<Search::Zw>(
                     position,
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply + extension,
+                    depth - 1 + extension,
                     zw - 1,
                     zw,
                 );
@@ -501,7 +445,7 @@ pub fn search<Search: SearchType>(
                     local_context,
                     shared_context,
                     ply + 1,
-                    target_ply + extension,
+                    depth - 1 + extension,
                     beta >> Next,
                     alpha >> Next,
                 );
@@ -588,14 +532,13 @@ pub fn q_search(
     local_context: &mut LocalContext,
     shared_context: &SharedContext,
     ply: u32,
-    target_ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
     local_context.increment_nodes();
 
     local_context.update_sel_depth(ply);
-    if ply >= target_ply || ply >= MAX_PLY {
+    if ply >= MAX_PLY {
         return position.get_eval();
     }
 
@@ -661,7 +604,6 @@ pub fn q_search(
                 local_context,
                 shared_context,
                 ply + 1,
-                target_ply,
                 beta >> Next,
                 alpha >> Next,
             );

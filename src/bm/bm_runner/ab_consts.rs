@@ -1,5 +1,4 @@
 pub const KILLER_MOVE_CNT: usize = 2;
-pub const THREAT_MOVE_CNT: usize = 1;
 
 pub const F_PRUNE_THRESHOLD: i16 = 100;
 pub const DO_F_PRUNE: bool = true;
@@ -15,12 +14,6 @@ pub const NULL_MOVE_REDUCTION_DIVISOR: u32 = 4;
 pub const NULL_MOVE_PRUNE_DEPTH: u32 = 5;
 pub const DO_NULL_MOVE_REDUCTION: bool = true;
 
-pub const IID_DEPTH: u32 = 5;
-pub const IID_BASE: u32 = 1;
-pub const IID_FACTOR: u32 = 1;
-pub const IID_DIVISOR: u32 = 4;
-pub const DO_IID: bool = false;
-
 pub const LMR_BASE: f32 = 0.75;
 pub const LMR_DIV: f32 = 1.25;
 pub const LMR_DEPTH: u32 = 1;
@@ -32,7 +25,6 @@ pub const LMP_FACTOR: f32 = 1.0;
 pub const IMPROVING_DIVISOR: f32 = 1.5;
 pub const DO_LMP: bool = true;
 
-pub const QUIESCENCE_SEARCH_DEPTH: u32 = 30;
 pub const DELTA_MARGIN: i16 = 1000;
 pub const DO_DELTA_PRUNE: bool = true;
 
