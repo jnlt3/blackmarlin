@@ -25,9 +25,7 @@ pub const MAX_PLY: u32 = 128;
 
 pub const SEARCH_PARAMS: SearchParams = SearchParams {
     killer_move_cnt: KILLER_MOVE_CNT,
-    threat_move_cnt: THREAT_MOVE_CNT,
     fail_cnt: FAIL_CNT,
-    iid_depth: IID_DEPTH,
     rev_f_prune_depth: REV_F_PRUNE_DEPTH,
     fp: F_PRUNE_THRESHOLD,
     do_fp: DO_F_PRUNE,
@@ -40,12 +38,9 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
     ),
     nmp_depth: NULL_MOVE_PRUNE_DEPTH,
     do_nmp: DO_NULL_MOVE_REDUCTION,
-    iid: Reduction::new(IID_BASE, IID_FACTOR, IID_DIVISOR),
-    do_iid: DO_IID,
     lmr_depth: LMR_DEPTH,
     do_lmr: DO_LMR,
     do_lmp: DO_LMP,
-    q_search_depth: QUIESCENCE_SEARCH_DEPTH,
     delta_margin: DELTA_MARGIN,
     do_dp: DO_DELTA_PRUNE,
     h_reduce_divisor: HISTORY_REDUCTION_DIVISOR,
@@ -54,9 +49,7 @@ pub const SEARCH_PARAMS: SearchParams = SearchParams {
 #[derive(Debug, Clone)]
 pub struct SearchParams {
     killer_move_cnt: usize,
-    threat_move_cnt: usize,
     fail_cnt: u8,
-    iid_depth: u32,
     fp: i16,
     do_fp: bool,
     rev_f_prune_depth: u32,
@@ -65,12 +58,9 @@ pub struct SearchParams {
     nmp: Reduction,
     nmp_depth: u32,
     do_nmp: bool,
-    iid: Reduction,
-    do_iid: bool,
     lmr_depth: u32,
     do_lmr: bool,
     do_lmp: bool,
-    q_search_depth: u32,
     delta_margin: i16,
     do_dp: bool,
     h_reduce_divisor: i16,
@@ -80,16 +70,6 @@ impl SearchParams {
     #[inline]
     pub const fn get_k_move_cnt(&self) -> usize {
         self.killer_move_cnt
-    }
-
-    #[inline]
-    pub const fn get_threat_move_cnt(&self) -> usize {
-        self.threat_move_cnt
-    }
-
-    #[inline]
-    pub const fn get_q_search_depth(&self) -> u32 {
-        self.q_search_depth
     }
 
     #[inline]
@@ -135,16 +115,6 @@ impl SearchParams {
     #[inline]
     pub const fn do_nmp(&self, depth: u32) -> bool {
         self.do_nmp && depth >= self.nmp_depth
-    }
-
-    #[inline]
-    pub const fn get_iid(&self) -> &Reduction {
-        &self.iid
-    }
-
-    #[inline]
-    pub const fn do_iid(&self, depth: u32) -> bool {
-        self.do_iid && depth > self.iid_depth
     }
 
     #[inline]
@@ -214,6 +184,18 @@ pub struct SearchStack {
     pub eval: Evaluation,
     pub skip_move: Option<Move>,
     pub move_played: Option<Move>,
+    pub pv: [Option<Move>; MAX_PLY as usize + 1],
+    pub pv_len: usize,
+}
+
+impl SearchStack {
+    pub fn update_pv(&mut self, best_move: Move, child_pv: &[Option<Move>]) {
+        self.pv[0] = Some(best_move);
+        for (pv, &child) in self.pv[1..].iter_mut().zip(child_pv) {
+            *pv = child;
+        }
+        self.pv_len = child_pv.len() + 1;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -229,7 +211,6 @@ pub struct LocalContext {
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
     killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
-    threat_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_threat_move_cnt() }>>,
     nodes: Nodes,
     abort: bool,
 }
@@ -262,11 +243,6 @@ impl SharedContext {
 }
 
 impl LocalContext {
-    #[inline]
-    pub fn get_threat_table(&mut self) -> &mut Vec<MoveEntry<THREAT_MOVE_CNT>> {
-        &mut self.threat_moves
-    }
-
     #[inline]
     pub fn get_h_table(&self) -> &HistoryTable {
         &self.h_table
@@ -411,7 +387,7 @@ impl AbRunner {
                         (Evaluation::min(), Evaluation::max())
                     };
                     local_context.sel_depth = 0;
-                    let (make_move, score) = search::search::<Pv>(
+                    let score = search::search::<Pv>(
                         &mut position,
                         &mut local_context,
                         &shared_context,
@@ -432,12 +408,12 @@ impl AbRunner {
                         depth,
                         nodes,
                         local_context.eval,
-                        best_move.unwrap_or_else(|| make_move.unwrap()),
+                        local_context.search_stack[0].pv[0].unwrap(),
                         search_start.elapsed(),
                     );
                     abort = shared_context.abort_deepening(depth, nodes);
                     if (score > alpha && score < beta) || score.is_mate() {
-                        best_move = make_move;
+                        best_move = local_context.search_stack[0].pv[0];
                         eval = Some(score);
                         break;
                     } else {
@@ -456,40 +432,36 @@ impl AbRunner {
                         eval,
                         best_move,
                     ));
-                    if let Some(eval) = eval {
-                        if let Some(best_move) = best_move {
-                            let best_move = best_move;
-                            let mut pv = vec![best_move];
-                            position.make_move(best_move);
-                            while let Some(analysis) = shared_context.t_table.get(position.board())
-                            {
-                                let mut make_move = analysis.table_move();
-                                uci::convert_move_to_uci(
-                                    &mut make_move,
-                                    position.board(),
-                                    chess960,
-                                );
-                                pv.push(make_move);
-                                position.make_move(analysis.table_move());
-                                if pv.len() > depth as usize {
-                                    break;
-                                }
+
+                    let mut pv = vec![];
+                    let root_stack = &local_context.search_stack[0];
+                    for make_move in &root_stack.pv[..root_stack.pv_len] {
+                        if let Some(make_move) = *make_move {
+                            let mut uci_move = make_move;
+                            uci::convert_move_to_uci(&mut uci_move, position.board(), chess960);
+                            position.make_move(make_move);
+                            pv.push(uci_move);
+                            if pv.len() > depth as usize {
+                                break;
                             }
-                            for _ in 0..pv.len() {
-                                position.unmake_move()
-                            }
-                            let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                            gui_info.print_info(
-                                local_context.sel_depth,
-                                depth,
-                                eval,
-                                start_time.elapsed(),
-                                total_nodes,
-                                &pv,
-                            );
+                        } else {
+                            break;
                         }
                     }
+                    for _ in 0..pv.len() {
+                        position.unmake_move()
+                    }
+                    let total_nodes = node_counter.as_ref().unwrap().get_node_count();
+                    gui_info.print_info(
+                        local_context.sel_depth,
+                        depth,
+                        eval.unwrap(),
+                        start_time.elapsed(),
+                        total_nodes,
+                        &pv,
+                    );
                 }
+
                 depth += 1;
                 if depth > 1 && shared_context.abort_deepening(depth, nodes) {
                     break 'outer;
@@ -539,6 +511,8 @@ impl AbRunner {
                         eval: Evaluation::new(0),
                         skip_move: None,
                         move_played: None,
+                        pv: [None; MAX_PLY as usize + 1],
+                        pv_len: 0,
                     };
                     MAX_PLY as usize
                 ],
@@ -548,7 +522,6 @@ impl AbRunner {
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
                 killer_moves: vec![],
-                threat_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
             },
