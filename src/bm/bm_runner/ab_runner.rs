@@ -184,7 +184,7 @@ pub struct SearchStack {
     pub eval: Evaluation,
     pub skip_move: Option<Move>,
     pub move_played: Option<Move>,
-    pub pv: [Option<Move>; MAX_PLY as usize],
+    pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
 }
 
@@ -511,7 +511,7 @@ impl AbRunner {
                         eval: Evaluation::new(0),
                         skip_move: None,
                         move_played: None,
-                        pv: [None; MAX_PLY as usize],
+                        pv: [None; MAX_PLY as usize + 1],
                         pv_len: 0,
                     };
                     MAX_PLY as usize
