@@ -335,7 +335,10 @@ pub fn search<Search: SearchType>(
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            let h_threshold =
+                (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) + quiets.len() as i32 * 2;
+
+            if do_hp && (h_score as i32) < h_threshold {
                 continue;
             }
 
