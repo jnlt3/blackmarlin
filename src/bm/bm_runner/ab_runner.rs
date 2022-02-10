@@ -5,13 +5,10 @@ use std::time::Instant;
 use cozy_chess::{Board, Move};
 
 use crate::bm::bm_eval::eval::Evaluation;
-use crate::bm::bm_runner::ab_consts::*;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
-use crate::bm::bm_search::reduction::Reduction;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
-use crate::bm::bm_search::threshold::Threshold;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -22,115 +19,6 @@ use crate::bm::uci;
 use super::time::TimeManager;
 
 pub const MAX_PLY: u32 = 128;
-
-pub const SEARCH_PARAMS: SearchParams = SearchParams {
-    killer_move_cnt: KILLER_MOVE_CNT,
-    fail_cnt: FAIL_CNT,
-    rev_f_prune_depth: REV_F_PRUNE_DEPTH,
-    fp: F_PRUNE_THRESHOLD,
-    do_fp: DO_F_PRUNE,
-    rev_fp: Threshold::new(REV_F_PRUNE_THRESHOLD_BASE, REV_F_PRUNE_THRESHOLD_FACTOR),
-    do_rev_fp: DO_REV_F_PRUNE,
-    nmp: Reduction::new(
-        NULL_MOVE_REDUCTION_BASE,
-        NULL_MOVE_REDUCTION_FACTOR,
-        NULL_MOVE_REDUCTION_DIVISOR,
-    ),
-    nmp_depth: NULL_MOVE_PRUNE_DEPTH,
-    do_nmp: DO_NULL_MOVE_REDUCTION,
-    lmr_depth: LMR_DEPTH,
-    do_lmr: DO_LMR,
-    do_lmp: DO_LMP,
-    delta_margin: DELTA_MARGIN,
-    do_dp: DO_DELTA_PRUNE,
-    h_reduce_divisor: HISTORY_REDUCTION_DIVISOR,
-};
-
-#[derive(Debug, Clone)]
-pub struct SearchParams {
-    killer_move_cnt: usize,
-    fail_cnt: u8,
-    fp: i16,
-    do_fp: bool,
-    rev_f_prune_depth: u32,
-    rev_fp: Threshold,
-    do_rev_fp: bool,
-    nmp: Reduction,
-    nmp_depth: u32,
-    do_nmp: bool,
-    lmr_depth: u32,
-    do_lmr: bool,
-    do_lmp: bool,
-    delta_margin: i16,
-    do_dp: bool,
-    h_reduce_divisor: i16,
-}
-
-impl SearchParams {
-    #[inline]
-    pub const fn get_k_move_cnt(&self) -> usize {
-        self.killer_move_cnt
-    }
-
-    #[inline]
-    pub const fn get_delta(&self) -> i16 {
-        self.delta_margin
-    }
-
-    #[inline]
-    pub const fn do_dp(&self) -> bool {
-        self.do_dp
-    }
-
-    #[inline]
-    pub const fn do_rev_f_prune(&self, depth: u32) -> bool {
-        depth < self.rev_f_prune_depth
-    }
-
-    #[inline]
-    pub const fn get_rev_fp(&self) -> &Threshold {
-        &self.rev_fp
-    }
-
-    #[inline]
-    pub const fn do_rev_fp(&self) -> bool {
-        self.do_rev_fp
-    }
-
-    #[inline]
-    pub const fn get_fp(&self) -> i16 {
-        self.fp
-    }
-
-    #[inline]
-    pub const fn do_fp(&self) -> bool {
-        self.do_fp
-    }
-
-    #[inline]
-    pub const fn get_nmp(&self) -> &Reduction {
-        &self.nmp
-    }
-
-    #[inline]
-    pub const fn do_nmp(&self, depth: u32) -> bool {
-        self.do_nmp && depth >= self.nmp_depth
-    }
-
-    #[inline]
-    pub const fn do_lmr(&self, depth: u32) -> bool {
-        self.do_lmr && depth >= self.lmr_depth
-    }
-
-    #[inline]
-    pub const fn do_lmp(&self) -> bool {
-        self.do_lmp
-    }
-
-    pub fn get_h_reduce_div(&self) -> i16 {
-        self.h_reduce_divisor
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct NodeCounter {
@@ -167,7 +55,7 @@ impl Clone for Nodes {
 }
 
 type LmrLookup = LookUp2d<u32, 32, 64>;
-type LmpLookup = LookUp2d<usize, { LMP_DEPTH as usize }, 2>;
+type LmpLookup = LookUp2d<usize, 16, 2>;
 
 #[derive(Debug, Clone)]
 pub struct SharedContext {
@@ -210,7 +98,7 @@ pub struct LocalContext {
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
-    killer_moves: Vec<MoveEntry<{ SEARCH_PARAMS.get_k_move_cnt() }>>,
+    killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
 }
@@ -284,7 +172,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<KILLER_MOVE_CNT>> {
+    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<2>> {
         &mut self.killer_moves
     }
 
@@ -380,7 +268,7 @@ impl AbRunner {
                     let (alpha, beta) = if eval.is_some()
                         && eval.unwrap().raw().abs() < 1000
                         && depth > 4
-                        && fail_cnt < SEARCH_PARAMS.fail_cnt
+                        && fail_cnt < 10
                     {
                         local_context.window.get()
                     } else {
@@ -489,20 +377,20 @@ impl AbRunner {
                     if depth == 0 || mv == 0 {
                         0
                     } else {
-                        (LMR_BASE + (depth as f32).ln() * (mv as f32).ln() / LMR_DIV) as u32
+                        (0.75 + (depth as f32).ln() * (mv as f32).ln() / 1.25) as u32
                     }
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
-                    let mut x = LMP_OFFSET + depth as f32 * depth as f32 * LMP_FACTOR;
+                    let mut x = 3.0 + depth as f32 * depth as f32;
                     if improving == 0 {
-                        x /= IMPROVING_DIVISOR;
+                        x /= 1.5;
                     }
                     x as usize
                 })),
                 start: Instant::now(),
             },
             local_context: LocalContext {
-                window: Window::new(WINDOW_START, WINDOW_FACTOR, WINDOW_DIVISOR, WINDOW_ADD),
+                window: Window::new(25, 1, 4, 5),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
