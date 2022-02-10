@@ -106,6 +106,11 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn c_hist_threshold() -> i16 {
+    0
+}
+
 pub fn search<Search: SearchType>(
     position: &mut Position,
     local_context: &mut LocalContext,
@@ -645,6 +650,14 @@ pub fn q_search(
             */
             if stand_pat + see - q_see_threshold() > beta {
                 return beta;
+            }
+            let h_score = local_context.get_ch_table().get(
+                board.side_to_move(),
+                board.piece_on(make_move.from).unwrap(),
+                make_move.to,
+            );
+            if h_score < c_hist_threshold() {
+                continue;
             }
             position.make_move(make_move);
             let search_score = q_search(
