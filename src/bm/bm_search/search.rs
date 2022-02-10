@@ -1,10 +1,10 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Move, Piece};
+use cozy_chess::{BitBoard, Board, Move, Piece};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::evaluator::StdEvaluator;
-use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY, SEARCH_PARAMS};
+use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
@@ -42,7 +42,69 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const MIN_PIECE_CNT: u32 = 2;
+#[inline]
+const fn do_rev_fp(depth: u32) -> bool {
+    depth < 7
+}
+
+#[inline]
+const fn rev_fp(depth: u32, improving: bool) -> i16 {
+    (depth as i16 - improving as i16) * 50
+}
+
+#[inline]
+fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
+    Search::NM
+        && depth > 4
+        && eval >= beta
+        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
+}
+
+#[inline]
+fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
+    assert!(eval >= beta);
+    let r = 3 + depth / 4 + ((eval - beta) / 200) as u32;
+    depth.saturating_sub(r).max(1)
+}
+
+#[inline]
+const fn iir(depth: u32) -> u32 {
+    if depth >= 4 {
+        1
+    } else {
+        0
+    }
+}
+
+#[inline]
+const fn fp(depth: u32) -> i16 {
+    depth as i16 * 100
+}
+
+#[inline]
+const fn see_fp(depth: u32) -> i16 {
+    depth as i16 * 100
+}
+
+#[inline]
+const fn hp(depth: u32) -> i32 {
+    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+}
+
+#[inline]
+const fn history_lmr(history: i16) -> i16 {
+    history / 192
+}
+
+#[inline]
+const fn delta() -> i16 {
+    1000
+}
+
+#[inline]
+const fn q_see_threshold() -> i16 {
+    200
+}
 
 pub fn search<Search: SearchType>(
     position: &mut Position,
@@ -141,12 +203,8 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        let do_rev_f_prune = SEARCH_PARAMS.do_rev_fp() && SEARCH_PARAMS.do_rev_f_prune(depth);
-        if do_rev_f_prune {
-            let f_margin = SEARCH_PARAMS.get_rev_fp().threshold(depth);
-            if eval - f_margin + (improving as i16) * 50 >= beta {
-                return eval;
-            }
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+            return eval;
         }
 
         /*
@@ -157,23 +215,15 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-
-        let only_pawns =
-            MIN_PIECE_CNT + board.pieces(Piece::Pawn).popcnt() == board.occupied().popcnt();
-        let do_null_move = SEARCH_PARAMS.do_nmp(depth) && Search::NM && !only_pawns;
-
-        if do_null_move && eval >= beta && position.null_move() {
+        if do_nmp::<Search>(&board, depth, eval.raw(), beta.raw()) && position.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
             let zw = beta >> Next;
-            let reduction =
-                SEARCH_PARAMS.get_nmp().reduction(depth) + ((eval - beta).raw() / 200) as u32;
-            let reduced_depth = depth.saturating_sub(reduction).max(2);
             let search_score = search::<NoNm>(
                 position,
                 local_context,
                 shared_context,
                 ply + 1,
-                reduced_depth - 1,
+                nmp_depth(depth, eval.raw(), beta.raw()),
                 zw,
                 zw + 1,
             );
@@ -185,8 +235,8 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.is_none() && depth >= 4 {
-        depth -= 1;
+    if tt_entry.is_none() {
+        depth -= iir(depth)
     }
 
     while local_context.get_k_table().len() <= ply as usize {
@@ -322,9 +372,9 @@ pub fn search<Search: SearchType>(
             In non-PV nodes If a move isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
-            let do_fp = !Search::PV && !is_capture && SEARCH_PARAMS.do_fp() && depth <= 7;
+            let do_fp = !Search::PV && !is_capture && depth <= 7;
 
-            if do_fp && eval + SEARCH_PARAMS.get_fp() * (depth as i16) < alpha {
+            if do_fp && eval + fp(depth) < alpha {
                 move_gen.set_skip_quiets(true);
                 continue;
             }
@@ -335,15 +385,14 @@ pub fn search<Search: SearchType>(
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < (-h_table::MAX_VALUE * ((depth * depth) as i32) / 64) {
+            if do_hp && (h_score as i32) < hp(depth) {
                 continue;
             }
 
             /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
-            if SEARCH_PARAMS.do_lmp()
-                && !move_gen.skip_quiets()
+            if !move_gen.skip_quiets()
                 && !is_capture
                 && quiets.len()
                     >= shared_context
@@ -360,10 +409,7 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune
-                && eval
-                    + StdEvaluator::see::<16>(&board, make_move)
-                    + SEARCH_PARAMS.get_fp() * (depth as i16)
-                    < alpha
+                && eval + StdEvaluator::see::<16>(&board, make_move) + see_fp(depth) < alpha
             {
                 continue;
             }
@@ -374,35 +420,31 @@ pub fn search<Search: SearchType>(
             if gives_check {
                 extension += 1;
             }
+
             /*
             LMR
             We try to prove a move is worse than alpha at a reduced depth
             If the move proves to be worse than alpha, we don't have to do a
             full depth search
             */
-            let mut reduction = 0_i16;
-            let do_lmr = SEARCH_PARAMS.do_lmr(depth);
+            let mut reduction = shared_context
+                .get_lmr_lookup()
+                .get(depth as usize, moves_seen) as i16;
 
-            if do_lmr {
-                reduction = shared_context
-                    .get_lmr_lookup()
-                    .get(depth as usize, moves_seen) as i16;
+            /*
+            If a move is quiet, we already have information on this move
+            in the history table. If history score is high, we reduce
+            less and if history score is low we reduce more.
+            */
 
-                /*
-                If a move is quiet, we already have information on this move
-                in the history table. If history score is high, we reduce
-                less and if history score is low we reduce more.
-                */
-
-                reduction -= h_score / SEARCH_PARAMS.get_h_reduce_div();
-                if Search::PV {
-                    reduction -= 1;
-                };
-                if improving {
-                    reduction -= 1;
-                }
-                reduction = reduction.min(depth as i16 - 1).max(0);
+            reduction -= history_lmr(h_score);
+            if Search::PV {
+                reduction -= 1;
+            };
+            if improving {
+                reduction -= 1;
             }
+            reduction = reduction.min(depth as i16 - 1).max(0);
 
             let lmr_depth = (depth as i16 - reduction) as u32;
             //Reduced Search/Zero Window if no reduction
@@ -581,8 +623,7 @@ pub fn q_search(
         /*
         If stand pat is way below alpha, assume it can't be beaten.
         */
-        let do_dp = SEARCH_PARAMS.do_dp();
-        if do_dp && stand_pat + SEARCH_PARAMS.get_delta() < alpha {
+        if stand_pat + delta() < alpha {
             return stand_pat;
         }
         if stand_pat > alpha {
@@ -602,7 +643,7 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - 200 > beta {
+            if stand_pat + see - q_see_threshold() > beta {
                 return beta;
             }
             position.make_move(make_move);
