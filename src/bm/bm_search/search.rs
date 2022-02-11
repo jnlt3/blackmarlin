@@ -108,7 +108,7 @@ const fn q_see_threshold() -> i16 {
 
 #[inline]
 const fn c_hist_threshold() -> i16 {
-    0
+    -h_table::MAX_VALUE as i16 / 2
 }
 
 pub fn search<Search: SearchType>(
