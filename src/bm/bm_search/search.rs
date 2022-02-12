@@ -194,6 +194,17 @@ pub fn search<Search: SearchType>(
     let improving = if ply < 2 || in_check {
         false
     } else {
+        if let Some(prev_move) = local_context.search_stack()[ply as usize - 1].move_played {
+            let diff = -eval - local_context.search_stack()[ply as usize - 1].eval;
+            let piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
+            local_context.get_eval_table().add(
+                !board.side_to_move(),
+                piece,
+                prev_move.to,
+                diff.raw(),
+            );
+        }
+
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
@@ -290,6 +301,12 @@ pub fn search<Search: SearchType>(
         move_exists = true;
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
 
+        let eval_diff = local_context.get_eval_table().get(
+            board.side_to_move(),
+            board.piece_on(make_move.from).unwrap(),
+            make_move.to,
+        );
+
         let h_score = if is_capture {
             local_context.get_ch_table().get(
                 board.side_to_move(),
@@ -374,7 +391,7 @@ pub fn search<Search: SearchType>(
             */
             let do_fp = !Search::PV && !is_capture && depth <= 7;
 
-            if do_fp && eval + fp(depth) < alpha {
+            if do_fp && eval + eval_diff + fp(depth) < alpha {
                 move_gen.set_skip_quiets(true);
                 continue;
             }

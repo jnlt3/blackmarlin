@@ -9,6 +9,7 @@ use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval_table::EvalTable;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -98,6 +99,7 @@ pub struct LocalContext {
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
+    eval_table: EvalTable,
     killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
@@ -144,6 +146,11 @@ impl LocalContext {
     #[inline]
     pub fn get_cm_table(&self) -> &CounterMoveTable {
         &self.cm_table
+    }
+
+    #[inline]
+    pub fn get_eval_table(&mut self) -> &mut EvalTable {
+        &mut self.eval_table
     }
 
     #[inline]
@@ -409,6 +416,7 @@ impl AbRunner {
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
+                eval_table: EvalTable::new(),
                 killer_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
