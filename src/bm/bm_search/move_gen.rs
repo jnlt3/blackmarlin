@@ -70,6 +70,10 @@ impl<const K: usize> OrderedMoveGen<K> {
         self.skip_quiets = value;
     }
 
+    pub fn skip_quiets(&self) -> bool {
+        self.skip_quiets
+    }
+
     fn set_phase(&mut self) {
         if self.skip_quiets {
             match self.gen_type {
