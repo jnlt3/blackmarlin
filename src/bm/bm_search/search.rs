@@ -106,6 +106,13 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn see_rfp(depth: u32) -> i16 {
+    assert!(depth <= 2);
+    const THRESHOLD: [i16; 2] = [500, 900];
+    THRESHOLD[depth as usize - 1]
+}
+
 pub fn search<Search: SearchType>(
     position: &mut Position,
     local_context: &mut LocalContext,
@@ -198,12 +205,29 @@ pub fn search<Search: SearchType>(
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
+        let last_move_see = if ply > 0 {
+            local_context.search_stack_mut()[ply as usize - 1].see
+        } else {
+            0
+        };
+
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+            return eval;
+        }
+
+        /*
+        Significant Capture Pruning:
+        At low depths, we won't advance much further in search so
+        if a capture has very positive SEE and pushes eval above beta
+        we can safely return evaluation
+        */
+        
+        if eval >= beta && depth <= 2 && last_move_see >= see_rfp(depth) {
             return eval;
         }
 
@@ -217,6 +241,7 @@ pub fn search<Search: SearchType>(
         */
         if do_nmp::<Search>(&board, depth, eval.raw(), beta.raw()) && position.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
+            local_context.search_stack_mut()[ply as usize].see = 0;
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
                 position,
@@ -303,6 +328,7 @@ pub fn search<Search: SearchType>(
                 make_move.to,
             )
         };
+        let see = StdEvaluator::see::<16>(&board, make_move);
 
         let mut extension = 0;
         let mut score;
@@ -348,6 +374,7 @@ pub fn search<Search: SearchType>(
             }
             position.make_move(make_move);
             local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+            local_context.search_stack_mut()[ply as usize].see = -see;
 
             let gives_check = position.board().checkers() != BitBoard::EMPTY;
             if gives_check {
@@ -408,14 +435,13 @@ pub fn search<Search: SearchType>(
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
-            if do_see_prune
-                && eval + StdEvaluator::see::<16>(&board, make_move) + see_fp(depth) < alpha
-            {
+            if do_see_prune && eval + see + see_fp(depth) < alpha {
                 continue;
             }
 
             position.make_move(make_move);
             local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+            local_context.search_stack_mut()[ply as usize].see = -see;
             let gives_check = position.board().checkers() != BitBoard::EMPTY;
             if gives_check {
                 extension += 1;
