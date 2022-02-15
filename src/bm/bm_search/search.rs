@@ -380,16 +380,6 @@ pub fn search<Search: SearchType>(
             }
 
             /*
-            In low depth, non-PV nodes, we assume it's safe to prune a move
-            if it has very low history
-            */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
-
-            if do_hp && (h_score as i32) < hp(depth) {
-                continue;
-            }
-
-            /*
             If a move is placed late in move ordering, we can safely prune it based on a depth related margin
             */
             if !move_gen.skip_quiets()
@@ -400,6 +390,16 @@ pub fn search<Search: SearchType>(
                         .get(depth as usize, improving as usize)
             {
                 move_gen.set_skip_quiets(true);
+                continue;
+            }
+
+            /*
+            In low depth, non-PV nodes, we assume it's safe to prune a move
+            if it has very low history
+            */
+            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
+
+            if do_hp && (h_score as i32) < hp(depth) {
                 continue;
             }
 
