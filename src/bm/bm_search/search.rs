@@ -97,6 +97,11 @@ const fn history_lmr(history: i16) -> i16 {
 }
 
 #[inline]
+const fn see_lmr(see: i16) -> i16 {
+    see / 400
+}
+
+#[inline]
 const fn delta() -> i16 {
     1000
 }
@@ -403,14 +408,13 @@ pub fn search<Search: SearchType>(
                 continue;
             }
 
+            let see = StdEvaluator::see::<16>(&board, make_move);
             /*
             In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
             we assume it's safe to prune this move
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
-            if do_see_prune
-                && eval + StdEvaluator::see::<16>(&board, make_move) + see_fp(depth) < alpha
-            {
+            if do_see_prune && eval + see + see_fp(depth) < alpha {
                 continue;
             }
 
@@ -438,6 +442,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
+            reduction += see_lmr(see);
             if Search::PV {
                 reduction -= 1;
             };
