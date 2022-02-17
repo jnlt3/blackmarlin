@@ -23,14 +23,19 @@ pub struct Nnue {
     b_input_layer: Incremental<'static, INPUT, MID>,
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
+    w_s_res_layer: Psqt<'static, INPUT, OUTPUT>,
+    b_s_res_layer: Psqt<'static, INPUT, OUTPUT>,
     out_layer: Dense<'static, MID, OUTPUT>,
+    s_out_layer: Dense<'static, MID, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
         let res_layer = Psqt::new(&PSQT);
+        let s_res_layer = Psqt::new(&S_PSQT);
         let out_layer = Dense::new(&OUT, OUT_BIAS);
+        let s_out_layer = Dense::new(&S_OUT, S_OUT_BIAS);
 
         Self {
             white: BitBoard::EMPTY,
@@ -47,7 +52,10 @@ impl Nnue {
             b_input_layer: input_layer,
             w_res_layer: res_layer.clone(),
             b_res_layer: res_layer,
+            w_s_res_layer: s_res_layer.clone(),
+            b_s_res_layer: s_res_layer,
             out_layer,
+            s_out_layer,
         }
     }
 
@@ -103,25 +111,33 @@ impl Nnue {
                     self.b_input_layer.incr_ff::<1>(64 * b_index + b_sq);
                     self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
                     self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
+                    self.w_s_res_layer.incr_ff::<1>(64 * w_index + w_sq);
+                    self.b_s_res_layer.incr_ff::<1>(64 * b_index + b_sq);
                 } else {
                     self.w_input_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_input_layer.incr_ff::<-1>(64 * b_index + b_sq);
                     self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
+                    self.w_s_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
+                    self.b_s_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
                 }
             }
         }
 
-        let (incr_layer, psqt_score) = match board.side_to_move() {
+        let (incr_layer, psqt_score, s_psqt_score) = match board.side_to_move() {
             Color::White => (
                 normal::clipped_relu(*self.w_input_layer.get()),
                 self.w_res_layer.get()[bucket] / 64,
+                self.w_s_res_layer.get()[bucket] / 64,
             ),
             Color::Black => (
                 normal::clipped_relu(*self.b_input_layer.get()),
                 self.b_res_layer.get()[bucket] / 64,
+                self.b_s_res_layer.get()[bucket] / 64,
             ),
         };
-        psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
+        let eval = psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket]);
+        let scale = s_psqt_score as i16 + normal::out(self.s_out_layer.ff(&incr_layer, bucket)[bucket]);
+        ((eval as i32 * scale as i32) / normal::UNITS as i32) as i16
     }
 }

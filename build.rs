@@ -33,7 +33,17 @@ fn parse_bm_net() {
     let out_bias = bias_from_bytes_i8(&nn_bytes, layers[2]);
     nn_bytes = &nn_bytes[layers[2]..];
 
+    let s_out = dense_from_bytes_i8(&nn_bytes, layers[1], layers[2]);
+    nn_bytes = &nn_bytes[layers[1] * layers[2]..];
+
+    let s_out_bias = bias_from_bytes_i8(&nn_bytes, layers[2]);
+    nn_bytes = &nn_bytes[layers[2]..];
+
+
     let res = dense_from_bytes_i32(&nn_bytes, layers[0], layers[2]);
+    nn_bytes = &nn_bytes[layers[0] * layers[2] * 4..];
+
+    let s_res = dense_from_bytes_i32(&nn_bytes, layers[0], layers[2]);
     nn_bytes = &nn_bytes[layers[0] * layers[2] * 4..];
 
     def_layers += &format!(
@@ -53,9 +63,22 @@ fn parse_bm_net() {
         layers[2], out_bias
     );
     def_layers += &format!(
+        "pub const S_OUT: [[i8; {}]; {}] = {}\n",
+        layers[2], layers[1], s_out
+    );
+    def_layers += &format!(
+        "pub const S_OUT_BIAS: [i32; {}] = {}\n",
+        layers[2], s_out_bias
+    );
+    def_layers += &format!(
         "pub const PSQT: [[i32; {}]; {}] = {}\n",
         layers[2], layers[0], res
     );
+    def_layers += &format!(
+        "pub const S_PSQT: [[i32; {}]; {}] = {}\n",
+        layers[2], layers[0], s_res
+    );
+
 
     assert!(nn_bytes.is_empty(), "{}", nn_bytes.len());
 
