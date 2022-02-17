@@ -138,6 +138,6 @@ impl Nnue {
         };
         let eval = psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket]);
         let scale = s_psqt_score as i16 + normal::out(self.s_out_layer.ff(&incr_layer, bucket)[bucket]);
-        ((eval as i32 * scale as i32) / normal::UNITS as i32) as i16
+        ((eval as i32 * scale.max(0) as i32) / normal::UNITS as i32) as i16
     }
 }
