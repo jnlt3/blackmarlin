@@ -87,7 +87,7 @@ pub fn out(x: i32) -> i16 {
 pub fn c_relu_pair_mul<const N: usize>(a: [i16; N], b: [i16; N]) -> [i8; N] {
     let mut out = [0; N];
     for ((a, b), out) in a.into_iter().zip(b.into_iter()).zip(&mut out) {
-        *out = (a as i32 * b.clamp(MIN, MAX) as i32).clamp(MIN as i32, MAX as i32) as i8;
+        *out = (a as i32 * b.clamp(MIN, MAX) as i32 / SCALE as i32).clamp(MIN as i32, MAX as i32) as i8;
     }
     out
 }
