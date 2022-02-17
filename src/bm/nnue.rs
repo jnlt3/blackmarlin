@@ -19,8 +19,11 @@ pub struct Nnue {
 
     inputs: [[i8; 64]; 12],
 
-    w_input_layer: Incremental<'static, INPUT, MID>,
-    b_input_layer: Incremental<'static, INPUT, MID>,
+    w_pm_a: Incremental<'static, INPUT, MID>,
+    w_pm_b: Incremental<'static, INPUT, MID>,
+    b_pm_a: Incremental<'static, INPUT, MID>,
+    b_pm_b: Incremental<'static, INPUT, MID>,
+
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
     out_layer: Dense<'static, MID, OUTPUT>,
@@ -28,7 +31,8 @@ pub struct Nnue {
 
 impl Nnue {
     pub fn new() -> Self {
-        let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
+        let pm_a = Incremental::new(&PM_A, PM_A_BIAS);
+        let pm_b = Incremental::new(&PM_B, PM_B_BIAS);
         let res_layer = Psqt::new(&PSQT);
         let out_layer = Dense::new(&OUT, OUT_BIAS);
 
@@ -43,8 +47,10 @@ impl Nnue {
             kings: BitBoard::EMPTY,
 
             inputs: [[0_i8; 64]; 12],
-            w_input_layer: input_layer.clone(),
-            b_input_layer: input_layer,
+            w_pm_a: pm_a.clone(),
+            w_pm_b: pm_b.clone(),
+            b_pm_a: pm_a.clone(),
+            b_pm_b: pm_b.clone(),
             w_res_layer: res_layer.clone(),
             b_res_layer: res_layer,
             out_layer,
@@ -99,13 +105,19 @@ impl Nnue {
                 *input = new;
 
                 if new == 1 {
-                    self.w_input_layer.incr_ff::<1>(64 * w_index + w_sq);
-                    self.b_input_layer.incr_ff::<1>(64 * b_index + b_sq);
+                    self.w_pm_a.incr_ff::<1>(64 * w_index + w_sq);
+                    self.b_pm_a.incr_ff::<1>(64 * b_index + b_sq);
+                    self.w_pm_b.incr_ff::<1>(64 * w_index + w_sq);
+                    self.b_pm_b.incr_ff::<1>(64 * b_index + b_sq);
+
                     self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
                     self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
                 } else {
-                    self.w_input_layer.incr_ff::<-1>(64 * w_index + w_sq);
-                    self.b_input_layer.incr_ff::<-1>(64 * b_index + b_sq);
+                    self.w_pm_a.incr_ff::<-1>(64 * w_index + w_sq);
+                    self.b_pm_a.incr_ff::<-1>(64 * b_index + b_sq);
+                    self.w_pm_b.incr_ff::<-1>(64 * w_index + w_sq);
+                    self.b_pm_b.incr_ff::<-1>(64 * b_index + b_sq);
+
                     self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
                     self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
                 }
@@ -114,11 +126,11 @@ impl Nnue {
 
         let (incr_layer, psqt_score) = match board.side_to_move() {
             Color::White => (
-                normal::clipped_relu(*self.w_input_layer.get()),
+                normal::c_relu_pair_mul(*self.w_pm_a.get(), *self.w_pm_b.get()),
                 self.w_res_layer.get()[bucket] / 64,
             ),
             Color::Black => (
-                normal::clipped_relu(*self.b_input_layer.get()),
+                normal::c_relu_pair_mul(*self.b_pm_a.get(), *self.b_pm_b.get()),
                 self.b_res_layer.get()[bucket] / 64,
             ),
         };

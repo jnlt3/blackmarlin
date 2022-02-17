@@ -21,10 +21,16 @@ fn parse_bm_net() {
     }
     let mut def_layers = String::new();
 
-    let incremental = dense_from_bytes_i8(&nn_bytes, layers[0], layers[1]);
+    let pm_a = dense_from_bytes_i8(&nn_bytes, layers[0], layers[1]);
     nn_bytes = &nn_bytes[layers[0] * layers[1]..];
 
-    let incremental_bias = bias_from_bytes_i8(&nn_bytes, layers[1]);
+    let pm_a_bias = bias_from_bytes_i8(&nn_bytes, layers[1]);
+    nn_bytes = &nn_bytes[layers[1]..];
+
+    let pm_b = dense_from_bytes_i8(&nn_bytes, layers[0], layers[1]);
+    nn_bytes = &nn_bytes[layers[0] * layers[1]..];
+
+    let pm_b_bias = bias_from_bytes_i8(&nn_bytes, layers[1]);
     nn_bytes = &nn_bytes[layers[1]..];
 
     let out = dense_from_bytes_i8(&nn_bytes, layers[1], layers[2]);
@@ -37,13 +43,23 @@ fn parse_bm_net() {
     nn_bytes = &nn_bytes[layers[0] * layers[2] * 4..];
 
     def_layers += &format!(
-        "pub const INCREMENTAL: [[i8; {}]; {}] = {}\n",
-        layers[1], layers[0], incremental
+        "pub const PM_A: [[i8; {}]; {}] = {}\n",
+        layers[1], layers[0], pm_a
     );
     def_layers += &format!(
-        "pub const INCREMENTAL_BIAS: [i16; {}] = {}\n",
-        layers[1], incremental_bias
+        "pub const PM_A_BIAS: [i16; {}] = {}\n",
+        layers[1], pm_a_bias
     );
+
+    def_layers += &format!(
+        "pub const PM_B: [[i8; {}]; {}] = {}\n",
+        layers[1], layers[0], pm_b
+    );
+    def_layers += &format!(
+        "pub const PM_B_BIAS: [i16; {}] = {}\n",
+        layers[1], pm_b_bias
+    );
+
     def_layers += &format!(
         "pub const OUT: [[i8; {}]; {}] = {}\n",
         layers[2], layers[1], out

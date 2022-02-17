@@ -84,10 +84,10 @@ pub fn out(x: i32) -> i16 {
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N]) -> [i8; N] {
-    let mut out = [0_i8; N];
-    for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        *clipped = x.max(MIN).min(MAX) as i8;
+pub fn c_relu_pair_mul<const N: usize>(a: [i16; N], b: [i16; N]) -> [i8; N] {
+    let mut out = [0; N];
+    for ((a, b), out) in a.into_iter().zip(b.into_iter()).zip(&mut out) {
+        *out = (a as i32 * b.clamp(MIN, MAX) as i32).clamp(MIN as i32, MAX as i32) as i8;
     }
     out
 }
