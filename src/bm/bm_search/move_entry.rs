@@ -1,7 +1,7 @@
 use std::array::IntoIter;
 use std::iter::{IntoIterator, Take};
 
-use cozy_chess::Move;
+use cozy_chess::{Move, Square};
 
 #[derive(Debug, Copy, Clone)]
 pub struct MoveEntry<const N: usize> {
@@ -13,13 +13,18 @@ pub struct MoveEntry<const N: usize> {
 impl<const N: usize> MoveEntry<N> {
     pub fn new() -> Self {
         Self {
-            moves: [unsafe { std::mem::zeroed() }; N],
+            moves: [Move {
+                from: Square::A1,
+                to: Square::A1,
+                promotion: None,
+            }; N],
             index: 0,
             size: 0,
         }
     }
 
     pub fn clear(&mut self) {
+        self.index = 0;
         self.size = 0;
     }
 
