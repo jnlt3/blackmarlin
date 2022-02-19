@@ -444,7 +444,7 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
-            reduction = reduction.min(depth as i16 - 1).max(0);
+            reduction = reduction.min(depth as i16 - 2).max(0);
 
             let lmr_depth = (depth as i16 - reduction) as u32;
             //Reduced Search/Zero Window if no reduction
