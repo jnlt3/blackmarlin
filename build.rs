@@ -1,4 +1,3 @@
-
 #[cfg(feature = "nnue")]
 use std::{env, path::Path};
 
@@ -9,8 +8,9 @@ fn main() {
 
 #[cfg(feature = "nnue")]
 fn parse_bm_net() {
-    let nn_bytes = std::fs::read("./nnue.bin").expect("nnue file doesn't exist");
-    
+    let nn_dir = env::var("EVALFILE").unwrap();
+    let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
+
     let layers = parse_arch(&nn_bytes);
     let mut nn_bytes = &nn_bytes[12..];
 
@@ -48,10 +48,7 @@ fn parse_bm_net() {
         "pub const OUT: [[i8; {}]; {}] = {}\n",
         layers[2], layers[1], out
     );
-    def_layers += &format!(
-        "pub const OUT_BIAS: [i32; {}] = {}\n",
-        layers[2], out_bias
-    );
+    def_layers += &format!("pub const OUT_BIAS: [i32; {}] = {}\n", layers[2], out_bias);
     def_layers += &format!(
         "pub const PSQT: [[i32; {}]; {}] = {}\n",
         layers[2], layers[0], res
@@ -65,14 +62,13 @@ fn parse_bm_net() {
     println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
-pub fn parse_arch(bytes: &[u8]) -> [usize; 3]  {
+pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
     let mut layers = [0; 3];
     for (bytes, layer) in bytes.chunks(4).take(3).zip(&mut layers) {
         *layer = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
     }
     layers
 }
-
 
 #[cfg(feature = "nnue")]
 pub fn dense_from_bytes_i8(bytes: &[u8], input: usize, output: usize) -> String {
@@ -92,7 +88,6 @@ pub fn dense_from_bytes_i8(bytes: &[u8], input: usize, output: usize) -> String 
     array
 }
 
-
 #[cfg(feature = "nnue")]
 pub fn dense_from_bytes_i32(bytes: &[u8], input: usize, output: usize) -> String {
     let mut weights = vec![];
@@ -111,7 +106,6 @@ pub fn dense_from_bytes_i32(bytes: &[u8], input: usize, output: usize) -> String
     array
 }
 
-
 #[cfg(feature = "nnue")]
 pub fn bias_from_bytes_i8(bytes: &[u8], len: usize) -> String {
     let mut weights = vec![];
@@ -125,4 +119,3 @@ pub fn bias_from_bytes_i8(bytes: &[u8], len: usize) -> String {
     array += "];";
     array
 }
-
