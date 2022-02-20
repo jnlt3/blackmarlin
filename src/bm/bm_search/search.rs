@@ -53,17 +53,22 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
-fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
+fn do_nmp<Search: SearchType>(
+    board: &Board,
+    depth: u32,
+    eval: i16,
+    beta: i16,
+    improving: bool,
+) -> bool {
     Search::NM
         && depth > 4
-        && eval >= beta
+        && eval + improving as i16 * 50 >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
-    assert!(eval >= beta);
-    let r = 3 + depth / 4 + ((eval - beta) / 200) as u32;
+    let r = 3 + depth / 4 + ((eval - beta) / 200).max(0) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -215,7 +220,9 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(&board, depth, eval.raw(), beta.raw()) && position.null_move() {
+        if do_nmp::<Search>(&board, depth, eval.raw(), beta.raw(), improving)
+            && position.null_move()
+        {
             local_context.search_stack_mut()[ply as usize].move_played = None;
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
