@@ -105,11 +105,14 @@ impl UciAdapter {
                 println!("option name UCI_Chess960 type check default false");
 
                 println!("option name rfp type spin default 50 min 40 max 100");
+                println!("option name rfpimpr type spin default 50 min 40 max 100");
                 println!("option name fp type spin default 100 min 50 max 150");
                 println!("option name seefp type spin default 100 min 50 max 150");
+                println!("option name seefpc type spin default 100 min 50 max 150");
                 println!("option name hpquad type spin default 8 min 0 max 512");
                 println!("option name hplin type spin default 0 min 0 max 512");
                 println!("option name qsee type spin default 200 min 50 max 500");
+                println!("option name hlmr type spin default 192 min 64 max 512");
 
                 println!("uciok");
             }
@@ -181,6 +184,10 @@ impl UciAdapter {
                         self.bm_runner.lock().unwrap().shared_context.seefp =
                             value.parse::<i16>().unwrap();
                     }
+                    "seefpc" => {
+                        self.bm_runner.lock().unwrap().shared_context.seefpc =
+                            value.parse::<i16>().unwrap();
+                    }
                     "hpquad" => {
                         self.bm_runner.lock().unwrap().shared_context.hpquad =
                             value.parse::<i16>().unwrap();
@@ -191,6 +198,14 @@ impl UciAdapter {
                     }
                     "qsee" => {
                         self.bm_runner.lock().unwrap().shared_context.qsee =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "hlmr" => {
+                        self.bm_runner.lock().unwrap().shared_context.hlmr =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "rfpimpr" => {
+                        self.bm_runner.lock().unwrap().shared_context.rfpimpr =
                             value.parse::<i16>().unwrap();
                     }
                     _ => {}

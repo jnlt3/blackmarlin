@@ -409,7 +409,9 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune
-                && eval + StdEvaluator::see::<16>(&board, make_move) + shared_context.see_fp(depth)
+                && eval
+                    + StdEvaluator::see::<16>(&board, make_move)
+                    + shared_context.see_fp(depth, is_capture)
                     < alpha
             {
                 continue;
@@ -438,7 +440,7 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score);
+            reduction -= shared_context.history_lmr(h_score);
             if Search::PV {
                 reduction -= 1;
             };

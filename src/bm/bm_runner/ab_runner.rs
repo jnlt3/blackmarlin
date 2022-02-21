@@ -67,12 +67,19 @@ pub struct SharedContext {
     lmp_lookup: Arc<LmpLookup>,
 
     pub qsee: i16,
+
     pub rfp: i16,
+    pub rfpimpr: i16,
+
     pub fp: i16,
+
     pub seefp: i16,
+    pub seefpc: i16,
 
     pub hpquad: i16,
     pub hplin: i16,
+
+    pub hlmr: i16,
 }
 
 #[derive(Debug, Clone)]
@@ -149,18 +156,27 @@ impl SharedContext {
 
     #[inline]
     pub fn rev_fp(&self, depth: u32, improving: bool) -> i16 {
-        self.rfp * (depth as i16 - improving as i16)
+        self.rfp * depth as i16 - self.rfpimpr * improving as i16
     }
 
     #[inline]
-    pub fn see_fp(&self, depth: u32) -> i16 {
-        self.seefp * depth as i16
+    pub fn see_fp(&self, depth: u32, is_capture: bool) -> i16 {
+        if is_capture {
+            self.seefp * depth as i16
+        } else {
+            self.seefpc * depth as i16
+        }
     }
 
     #[inline]
     pub fn hp(&self, depth: u32) -> i32 {
         -512 * (depth * depth) as i32 * self.hpquad as i32 / 512
             - depth as i32 * self.hplin as i32 / 512
+    }
+
+    #[inline]
+    pub fn history_lmr(&self, history: i16) -> i16 {
+        (history / self.hlmr).clamp(-2, 2)
     }
 }
 
@@ -424,10 +440,13 @@ impl AbRunner {
                 start: Instant::now(),
                 qsee: 200,
                 rfp: 50,
+                rfpimpr: 50,
                 fp: 100,
                 seefp: 100,
+                seefpc: 100,
                 hpquad: 64,
                 hplin: 0,
+                hlmr: 192,
             },
             local_context: LocalContext {
                 window: Window::new(25, 1, 4, 5),
