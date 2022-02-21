@@ -65,6 +65,14 @@ pub struct SharedContext {
     t_table: Arc<TranspositionTable>,
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
+
+    pub qsee: i16,
+    pub rfp: i16,
+    pub fp: i16,
+    pub seefp: i16,
+
+    pub hpquad: i16,
+    pub hplin: i16,
 }
 
 #[derive(Debug, Clone)]
@@ -127,6 +135,32 @@ impl SharedContext {
     #[inline]
     pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
         &self.lmp_lookup
+    }
+
+    #[inline]
+    pub fn q_see_threshold(&self) -> i16 {
+        self.qsee
+    }
+
+    #[inline]
+    pub fn fp(&self, depth: u32) -> i16 {
+        self.fp * depth as i16
+    }
+
+    #[inline]
+    pub fn rev_fp(&self, depth: u32, improving: bool) -> i16 {
+        self.rfp * (depth as i16 - improving as i16)
+    }
+
+    #[inline]
+    pub fn see_fp(&self, depth: u32) -> i16 {
+        self.seefp * depth as i16
+    }
+
+    #[inline]
+    pub fn hp(&self, depth: u32) -> i32 {
+        -512 * (depth * depth) as i32 * self.hpquad as i32 / 512
+            - depth as i32 * self.hplin as i32 / 512
     }
 }
 
@@ -223,7 +257,7 @@ impl LocalContext {
 }
 
 pub struct AbRunner {
-    shared_context: SharedContext,
+    pub shared_context: SharedContext,
     local_context: LocalContext,
     node_counter: NodeCounter,
     position: Position,
@@ -388,6 +422,12 @@ impl AbRunner {
                     x as usize
                 })),
                 start: Instant::now(),
+                qsee: 200,
+                rfp: 50,
+                fp: 100,
+                seefp: 100,
+                hpquad: 64,
+                hplin: 0,
             },
             local_context: LocalContext {
                 window: Window::new(25, 1, 4, 5),

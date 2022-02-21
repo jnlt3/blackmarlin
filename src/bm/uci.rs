@@ -103,6 +103,14 @@ impl UciAdapter {
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_Chess960 type check default false");
+
+                println!("option name rfp type spin default 50 min 40 max 100");
+                println!("option name fp type spin default 100 min 50 max 150");
+                println!("option name seefp type spin default 100 min 50 max 150");
+                println!("option name hpquad type spin default 8 min 0 max 512");
+                println!("option name hplin type spin default 0 min 0 max 512");
+                println!("option name qsee type spin default 200 min 50 max 500");
+
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -160,6 +168,30 @@ impl UciAdapter {
                     "UCI_Chess960" => {
                         self.chess960 = value.to_lowercase().parse::<bool>().unwrap();
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
+                    }
+                    "rfp" => {
+                        self.bm_runner.lock().unwrap().shared_context.rfp =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "fp" => {
+                        self.bm_runner.lock().unwrap().shared_context.fp =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "seefp" => {
+                        self.bm_runner.lock().unwrap().shared_context.seefp =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "hpquad" => {
+                        self.bm_runner.lock().unwrap().shared_context.hpquad =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "hplin" => {
+                        self.bm_runner.lock().unwrap().shared_context.hplin =
+                            value.parse::<i16>().unwrap();
+                    }
+                    "qsee" => {
+                        self.bm_runner.lock().unwrap().shared_context.qsee =
+                            value.parse::<i16>().unwrap();
                     }
                     _ => {}
                 }

@@ -203,7 +203,7 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+        if do_rev_fp(depth) && eval - shared_context.rev_fp(depth, improving) >= beta {
             return eval;
         }
 
@@ -374,7 +374,7 @@ pub fn search<Search: SearchType>(
             */
             let do_fp = !Search::PV && !is_capture && depth <= 7;
 
-            if do_fp && eval + fp(depth) < alpha {
+            if do_fp && eval + shared_context.fp(depth) < alpha {
                 move_gen.set_skip_quiets(true);
                 continue;
             }
@@ -399,7 +399,7 @@ pub fn search<Search: SearchType>(
             */
             let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
 
-            if do_hp && (h_score as i32) < hp(depth) {
+            if do_hp && (h_score as i32) < shared_context.hp(depth) {
                 continue;
             }
 
@@ -409,7 +409,8 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune
-                && eval + StdEvaluator::see::<16>(&board, make_move) + see_fp(depth) < alpha
+                && eval + StdEvaluator::see::<16>(&board, make_move) + shared_context.see_fp(depth)
+                    < alpha
             {
                 continue;
             }
@@ -643,7 +644,7 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - q_see_threshold() > beta {
+            if stand_pat + see - shared_context.q_see_threshold() > beta {
                 return beta;
             }
             position.make_move(make_move);
