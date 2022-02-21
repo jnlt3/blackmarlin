@@ -78,18 +78,18 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 73
+    depth as i16 * 55
 }
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 72
+    depth as i16 * 58
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
     let depth = depth as i32;
-    -h_table::MAX_VALUE * (depth * depth * 14 + depth * 9) / 512
+    -h_table::MAX_VALUE * (depth * depth * 4 + depth * 19) / 512
 }
 
 #[inline]
@@ -104,8 +104,17 @@ const fn delta() -> i16 {
 
 #[inline]
 const fn q_see_threshold() -> i16 {
-    195
+    206
 }
+
+/*
+fp = 55 in [50, 150] with Elo diff 0.1
+rfp = 40 in [40, 100] with Elo diff 0.1
+seefp = 58 in [50, 150] with Elo diff 0.1
+hpquad = 4 in [0, 512] with Elo diff 0.1
+hplin = 19 in [0, 512] with Elo diff 0.1
+qsee = 206 in [50, 500] with Elo diff 0.025
+*/
 
 pub fn search<Search: SearchType>(
     position: &mut Position,
