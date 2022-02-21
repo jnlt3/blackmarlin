@@ -49,7 +49,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 64 - improving as i16 * 50
+    depth as i16 * 50 - improving as i16 * 44
 }
 
 #[inline]
@@ -78,23 +78,23 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 121
+    depth as i16 * 76
 }
 
 #[inline]
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 104
+const fn see_fp(depth: u32, is_capture: bool) -> i16 {
+    depth as i16 * if is_capture { 114 } else { 88 }
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
     let depth = depth as i32;
-    -h_table::MAX_VALUE * (depth * depth * 12 + depth * 4) / 512
+    -h_table::MAX_VALUE * (depth * depth * 9 + depth * 1) / 512
 }
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 192
+    history / 132
 }
 
 #[inline]
@@ -104,7 +104,7 @@ const fn delta() -> i16 {
 
 #[inline]
 const fn q_see_threshold() -> i16 {
-    212
+    209
 }
 
 /*
@@ -419,7 +419,8 @@ pub fn search<Search: SearchType>(
             */
             let do_see_prune = !Search::PV && !in_check && depth <= 7;
             if do_see_prune
-                && eval + StdEvaluator::see::<16>(&board, make_move) + see_fp(depth) < alpha
+                && eval + StdEvaluator::see::<16>(&board, make_move) + see_fp(depth, is_capture)
+                    < alpha
             {
                 continue;
             }
