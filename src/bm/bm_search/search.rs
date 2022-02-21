@@ -42,6 +42,18 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
+/*
+fp = 121 in [50, 150] with Elo diff 0.1
+rfp = 63 in [40, 100] with Elo diff 0.2
+rfpimpr = 50 in [40, 100] with Elo diff 0.2
+seefp = 104 in [50, 150] with Elo diff 0.1
+seefpc = 101 in [50, 150] with Elo diff 0.1
+hpquad = 12 in [0, 512] with Elo diff 0.1
+hplin = 4 in [0, 512] with Elo diff 0.025
+qsee = 212 in [50, 500] with Elo diff 0.025
+hlmr = 190 in [64, 512] with Elo diff 0.1
+*/
+
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
     depth < 7
@@ -49,7 +61,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 41
+    depth as i16 * 64 - improving as i16 * 50
 }
 
 #[inline]
@@ -78,18 +90,18 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 83
+    depth as i16 * 121
 }
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 84
+    depth as i16 * 104
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
     let depth = depth as i32;
-    -h_table::MAX_VALUE * (depth * depth * 15 + depth * 10) / 512
+    -h_table::MAX_VALUE * (depth * depth * 12 + depth * 4) / 512
 }
 
 #[inline]
@@ -104,7 +116,7 @@ const fn delta() -> i16 {
 
 #[inline]
 const fn q_see_threshold() -> i16 {
-    195
+    212
 }
 
 /*
