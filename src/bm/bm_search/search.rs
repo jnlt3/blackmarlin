@@ -94,7 +94,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 132
+    (history / 132).clamp(-2, 2)
 }
 
 #[inline]
