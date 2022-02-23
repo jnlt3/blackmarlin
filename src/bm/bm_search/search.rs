@@ -649,6 +649,10 @@ pub fn q_search(
                 board.piece_on(make_move.from).unwrap(),
                 make_move.to,
             );
+            /*
+            Quiescence Capture History Pruning:
+            If Stand Pat is lower than alpha and capture history is low, we can safely prune this move
+            */
             if stand_pat <= alpha && capture_hist < q_cap_threshold() {
                 continue;
             }
