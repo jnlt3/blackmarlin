@@ -77,8 +77,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 100
+fn fp(depth: u32, h_score: i16) -> i16 {
+    depth as i16 * (100 + h_score / 10)
 }
 
 #[inline]
@@ -374,7 +374,7 @@ pub fn search<Search: SearchType>(
             */
             let do_fp = !Search::PV && !is_capture && depth <= 7;
 
-            if do_fp && eval + fp(depth) < alpha {
+            if do_fp && eval + fp(depth, h_score) < alpha {
                 move_gen.set_skip_quiets(true);
                 continue;
             }
