@@ -49,7 +49,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 42
+    depth as i16 * 53 - improving as i16 * 54
 }
 
 #[inline]
@@ -78,23 +78,23 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 124
+    depth as i16 * 127
 }
 
 #[inline]
 const fn see_fp(depth: u32, is_capture: bool) -> i16 {
-    depth as i16 * if is_capture { 120 } else { 101 }
+    depth as i16 * if is_capture { 132 } else { 123 }
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
     let depth = depth as i32;
-    -h_table::MAX_VALUE * (depth * depth * 11 + depth * 18) / 512
+    -h_table::MAX_VALUE * (depth * depth * 6 + depth * 16) / 512
 }
 
 #[inline]
-const fn history_lmr(history: i16) -> i16 {
-    history / 196
+fn history_lmr(history: i16) -> i16 {
+    (history / 234).clamp(-2, 2)
 }
 
 #[inline]
@@ -104,7 +104,7 @@ const fn delta() -> i16 {
 
 #[inline]
 const fn q_see_threshold() -> i16 {
-    197
+    172
 }
 
 pub fn search<Search: SearchType>(
