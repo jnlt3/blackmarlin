@@ -106,6 +106,11 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn q_cap_threshold() -> i16 {
+    -96
+}
+
 pub fn search<Search: SearchType>(
     position: &mut Position,
     local_context: &mut LocalContext,
@@ -639,6 +644,14 @@ pub fn q_search(
     while let Some((make_move, see)) = move_gen.next(local_context.get_ch_table()) {
         let is_capture = board.colors(!board.side_to_move()).has(make_move.to);
         if in_check || is_capture {
+            let capture_hist = local_context.get_ch_table().get(
+                board.side_to_move(),
+                board.piece_on(make_move.from).unwrap(),
+                make_move.to,
+            );
+            if stand_pat <= alpha && capture_hist < q_cap_threshold() {
+                continue;
+            }
             /*
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
