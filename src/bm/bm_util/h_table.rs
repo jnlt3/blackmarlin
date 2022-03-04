@@ -4,6 +4,21 @@ pub const MAX_VALUE: i32 = 512;
 const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 
+pub trait HistUpdate {
+    const CUTOFF: bool;
+}
+
+pub struct Cutoff;
+pub struct Fail;
+
+impl HistUpdate for Cutoff {
+    const CUTOFF: bool = true;
+}
+
+impl HistUpdate for Fail {
+    const CUTOFF: bool = false;
+}
+
 #[derive(Debug, Clone)]
 pub struct HistoryTable {
     table: Box<[[i16; SQUARE_COUNT]; PIECE_COUNT]>,
@@ -22,7 +37,13 @@ impl HistoryTable {
         self.table[piece_index][to_index]
     }
 
-    pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
+    pub fn update<H: HistUpdate>(
+        &mut self,
+        board: &Board,
+        make_move: Move,
+        fails: &[Move],
+        amt: u32,
+    ) {
         if amt > 20 {
             return;
         }
@@ -36,7 +57,9 @@ impl HistoryTable {
 
         let increment = change - decay;
 
-        self.table[index][to_index] += increment;
+        if H::CUTOFF {
+            self.table[index][to_index] += increment;
+        }
 
         for &quiet in fails {
             let piece = board.piece_on(quiet.from).unwrap();
@@ -69,7 +92,7 @@ impl CounterMoveTable {
         self.table[piece_index][to_index]
     }
 
-    pub fn cutoff(&mut self, board: &Board, prev_move: Move, cutoff_move: Move, amt: u32) {
+    pub fn update(&mut self, board: &Board, prev_move: Move, cutoff_move: Move, amt: u32) {
         if amt > 20 {
             return;
         }
@@ -107,7 +130,7 @@ impl DoubleMoveHistory {
         self.table[piece_0_index][to_0_index][piece_1_index][to_1_index]
     }
 
-    pub fn cutoff(
+    pub fn update(
         &mut self,
         board: &Board,
         prev_move: Move,

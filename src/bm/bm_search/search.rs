@@ -6,7 +6,7 @@ use crate::bm::bm_eval::eval::Evaluation;
 use crate::bm::bm_eval::evaluator::StdEvaluator;
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
-use crate::bm::bm_util::h_table;
+use crate::bm::bm_util::h_table::{self, Cutoff, Fail};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
@@ -516,19 +516,22 @@ pub fn search<Search: SearchType>(
                             killer_table[ply as usize].push(make_move);
                             local_context
                                 .get_h_table_mut()
-                                .cutoff(&board, make_move, &quiets, depth);
+                                .update::<Cutoff>(&board, make_move, &quiets, depth);
                             if let Some(Some(prev_move)) = prev_move {
                                 local_context
                                     .get_cm_table_mut()
-                                    .cutoff(&board, prev_move, make_move, depth);
+                                    .update(&board, prev_move, make_move, depth);
                                 local_context
                                     .get_cm_hist_mut()
-                                    .cutoff(&board, prev_move, make_move, &quiets, depth);
+                                    .update(&board, prev_move, make_move, &quiets, depth);
                             }
+                            local_context
+                                .get_ch_table_mut()
+                                .update::<Fail>(&board, make_move, &captures, depth);
                         } else {
                             local_context
                                 .get_ch_table_mut()
-                                .cutoff(&board, make_move, &captures, depth);
+                                .update::<Cutoff>(&board, make_move, &captures, depth);
                         }
 
                         let analysis = Analysis::new(depth, LowerBound, score, make_move);
