@@ -82,7 +82,6 @@ macro_rules! tune {
                 );
             }),
             Box::new(|value| unsafe {
-                print!("hey");
                 search::$param = value.parse::<$ty>().unwrap();
             }),
         ));
