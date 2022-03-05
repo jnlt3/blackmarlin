@@ -88,7 +88,7 @@ const fn see_fp(depth: u32) -> i16 {
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+    -h_table::MAX_VALUE * (depth as i32) / 8
 }
 
 #[inline]
