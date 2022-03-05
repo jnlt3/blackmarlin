@@ -42,14 +42,18 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
+pub static mut REV_FP: i16 = 50;
+pub static mut FP: i16 = 100;
+pub static mut SEE_FP: i16 = 100;
+
 #[inline]
-const fn do_rev_fp(depth: u32) -> bool {
+fn do_rev_fp(depth: u32) -> bool {
     depth < 7
 }
 
 #[inline]
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 50
+fn rev_fp(depth: u32, improving: bool) -> i16 {
+    (depth as i16 - improving as i16) * unsafe { REV_FP }
 }
 
 #[inline]
@@ -77,13 +81,13 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 100
+fn fp(depth: u32) -> i16 {
+    depth as i16 * unsafe { FP }
 }
 
 #[inline]
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 100
+fn see_fp(depth: u32) -> i16 {
+    depth as i16 * unsafe { SEE_FP }
 }
 
 #[inline]

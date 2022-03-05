@@ -8,6 +8,7 @@ use cozy_chess::{Board, File, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
 
+use super::bm_search::search;
 use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
 #[cfg(feature = "nnue")]
 use crate::bm::nnue::Nnue;
@@ -67,6 +68,27 @@ const POSITIONS: &[&str] = &[
     "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93",
 ];
 
+macro_rules! tune {
+    ($uci: tt, $param: ident: $ty: ty = $default: expr, range($min: expr, $max: expr)) => {
+        ($uci).params.push((
+            stringify!($param).to_string(),
+            Box::new(|| {
+                println!(
+                    "option name {} type spin default {} min {} max {}",
+                    stringify!($param),
+                    $default,
+                    $min,
+                    $max
+                );
+            }),
+            Box::new(|value| unsafe {
+                print!("hey");
+                search::$param = value.parse::<$ty>().unwrap();
+            }),
+        ));
+    };
+}
+
 pub struct UciAdapter {
     bm_runner: Arc<Mutex<AbRunner>>,
     time_manager: Arc<TimeManager>,
@@ -74,6 +96,8 @@ pub struct UciAdapter {
     forced: bool,
     threads: u8,
     chess960: bool,
+
+    params: Vec<(String, Box<dyn Fn()>, Box<dyn Fn(&str)>)>,
 }
 
 impl UciAdapter {
@@ -83,14 +107,21 @@ impl UciAdapter {
             Board::default(),
             time_manager.clone(),
         )));
-        Self {
+        let mut uci = Self {
             bm_runner,
             threads: 1,
             forced: false,
             analysis: None,
             time_manager,
             chess960: false,
-        }
+            params: vec![],
+        };
+
+        tune!(uci, REV_FP: i16 = 50, range(0, 200));
+        tune!(uci, FP: i16 = 100, range(0, 200));
+        tune!(uci, SEE_FP: i16 = 100, range(0, 200));
+
+        uci
     }
 
     pub fn input(&mut self, input: String) -> bool {
@@ -103,6 +134,9 @@ impl UciAdapter {
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_Chess960 type check default false");
+                for (_, uci, _) in &self.params {
+                    uci();
+                }
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -162,6 +196,11 @@ impl UciAdapter {
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
                     }
                     _ => {}
+                };
+                for (param, _, set) in &self.params {
+                    if param == name {
+                        set(&value);
+                    }
                 }
             }
             UciCommand::Bench => {
