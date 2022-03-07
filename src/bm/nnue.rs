@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, Piece};
+use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
 
 use self::normal::{Dense, Incremental, Psqt};
 
@@ -7,22 +7,39 @@ mod normal;
 include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
 
 #[derive(Debug, Clone)]
-pub struct Nnue {
-    white: BitBoard,
-    black: BitBoard,
-    pawns: BitBoard,
-    knights: BitBoard,
-    bishops: BitBoard,
-    rooks: BitBoard,
-    queens: BitBoard,
-    kings: BitBoard,
-
-    inputs: [[i8; 64]; 12],
-
+pub struct Accumulator {
     w_input_layer: Incremental<'static, INPUT, MID>,
     b_input_layer: Incremental<'static, INPUT, MID>,
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
+}
+
+impl Accumulator {
+    pub fn update<const INCR: bool>(&mut self, sq: Square, piece: Piece, color: Color) {
+        let w_piece_index = color as usize * 6 + piece as usize;
+        let b_piece_index = (!color) as usize * 6 + piece as usize;
+
+        let w_index = sq as usize + w_piece_index * 64;
+        let b_index = (sq as usize ^ 56) + b_piece_index * 64;
+
+        if INCR {
+            self.w_input_layer.incr_ff::<1>(w_index);
+            self.w_res_layer.incr_ff::<1>(w_index);
+            self.b_input_layer.incr_ff::<1>(b_index);
+            self.b_res_layer.incr_ff::<1>(b_index);
+        } else {
+            self.w_input_layer.incr_ff::<-1>(w_index);
+            self.w_res_layer.incr_ff::<-1>(w_index);
+            self.b_input_layer.incr_ff::<-1>(b_index);
+            self.b_res_layer.incr_ff::<-1>(b_index);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Nnue {
+    accumulator: Vec<Accumulator>,
+    head: usize,
     out_layer: Dense<'static, MID, OUTPUT>,
 }
 
@@ -33,95 +50,98 @@ impl Nnue {
         let out_layer = Dense::new(&OUT, OUT_BIAS);
 
         Self {
-            white: BitBoard::EMPTY,
-            black: BitBoard::EMPTY,
-            pawns: BitBoard::EMPTY,
-            knights: BitBoard::EMPTY,
-            bishops: BitBoard::EMPTY,
-            rooks: BitBoard::EMPTY,
-            queens: BitBoard::EMPTY,
-            kings: BitBoard::EMPTY,
-
-            inputs: [[0_i8; 64]; 12],
-            w_input_layer: input_layer.clone(),
-            b_input_layer: input_layer,
-            w_res_layer: res_layer.clone(),
-            b_res_layer: res_layer,
+            accumulator: vec![
+                Accumulator {
+                    w_input_layer: input_layer.clone(),
+                    b_input_layer: input_layer,
+                    w_res_layer: res_layer.clone(),
+                    b_res_layer: res_layer,
+                };
+                101
+            ],
+            head: 0,
             out_layer,
         }
     }
 
-    #[inline]
-    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
-        let white = board.colors(Color::White);
-        let black = board.colors(Color::Black);
+    pub fn reset(&mut self, board: &Board) {
+        self.head = 0;
+        let accumulator = &mut self.accumulator[0];
+        accumulator.w_input_layer.reset(INCREMENTAL_BIAS);
+        accumulator.b_input_layer.reset(INCREMENTAL_BIAS);
+        accumulator.w_res_layer.reset();
+        accumulator.b_res_layer.reset();
+        for sq in board.occupied() {
+            let piece = board.piece_on(sq).unwrap();
+            let color = board.color_on(sq).unwrap();
+            accumulator.update::<true>(sq, piece, color);
+        }
+    }
 
-        let pawns = board.pieces(Piece::Pawn);
-        let knights = board.pieces(Piece::Knight);
-        let bishops = board.pieces(Piece::Bishop);
-        let rooks = board.pieces(Piece::Rook);
-        let queens = board.pieces(Piece::Queen);
-        let kings = board.pieces(Piece::King);
+    pub fn null_move(&mut self) {
+        self.accumulator[self.head + 1] = self.accumulator[self.head].clone();
+        self.head += 1;
+    }
 
-        let array = [
-            (white & pawns) ^ (self.white & self.pawns),
-            (white & knights) ^ (self.white & self.knights),
-            (white & bishops) ^ (self.white & self.bishops),
-            (white & rooks) ^ (self.white & self.rooks),
-            (white & queens) ^ (self.white & self.queens),
-            (white & kings) ^ (self.white & self.kings),
-            (black & pawns) ^ (self.black & self.pawns),
-            (black & knights) ^ (self.black & self.knights),
-            (black & bishops) ^ (self.black & self.bishops),
-            (black & rooks) ^ (self.black & self.rooks),
-            (black & queens) ^ (self.black & self.queens),
-            (black & kings) ^ (self.black & self.kings),
-        ];
+    pub fn make_move(&mut self, board: &Board, make_move: Move) {
+        self.accumulator[self.head + 1] = self.accumulator[self.head].clone();
+        self.head += 1;
+        let acc = &mut self.accumulator[self.head];
 
-        self.white = white;
-        self.black = black;
-        self.pawns = pawns;
-        self.knights = knights;
-        self.bishops = bishops;
-        self.rooks = rooks;
-        self.queens = queens;
-        self.kings = kings;
+        let from_sq = make_move.from;
+        let from_type = board.piece_on(from_sq).unwrap();
+        let from_color = board.side_to_move();
+        acc.update::<false>(from_sq, from_type, from_color);
 
-        for (w_index, (input, &bb)) in self.inputs.iter_mut().zip(&array).enumerate() {
-            let b_index = (w_index + 6) % 12;
-            for w_sq in bb {
-                let w_sq = w_sq as usize;
-                let b_sq = w_sq ^ 56;
-
-                let input = &mut input[w_sq];
-                let old = *input;
-                let new = 1 - old;
-                *input = new;
-
-                if new == 1 {
-                    self.w_input_layer.incr_ff::<1>(64 * w_index + w_sq);
-                    self.b_input_layer.incr_ff::<1>(64 * b_index + b_sq);
-                    self.w_res_layer.incr_ff::<1>(64 * w_index + w_sq);
-                    self.b_res_layer.incr_ff::<1>(64 * b_index + b_sq);
-                } else {
-                    self.w_input_layer.incr_ff::<-1>(64 * w_index + w_sq);
-                    self.b_input_layer.incr_ff::<-1>(64 * b_index + b_sq);
-                    self.w_res_layer.incr_ff::<-1>(64 * w_index + w_sq);
-                    self.b_res_layer.incr_ff::<-1>(64 * b_index + b_sq);
-                }
-            }
+        let to_sq = make_move.to;
+        if let Some((captured, color)) = board.piece_on(to_sq).zip(board.color_on(to_sq)) {
+            acc.update::<false>(to_sq, captured, color);
         }
 
+        if let Some(ep) = board.en_passant() {
+            let (stm_fifth, stm_sixth) = match from_color {
+                Color::White => (Rank::Fifth, Rank::Sixth),
+                Color::Black => (Rank::Fourth, Rank::Third),
+            };
+            if from_type == Piece::Pawn && to_sq == Square::new(ep, stm_sixth) {
+                acc.update::<false>(Square::new(ep, stm_fifth), Piece::Pawn, !from_color);
+            }
+        }
+        if Some(from_color) == board.color_on(to_sq) {
+            let stm_first = match from_color {
+                Color::White => Rank::First,
+                Color::Black => Rank::Eighth,
+            };
+            if to_sq.file() > from_sq.file() {
+                acc.update::<true>(Square::new(File::G, stm_first), Piece::King, from_color);
+                acc.update::<true>(Square::new(File::F, stm_first), Piece::Rook, from_color);
+            } else {
+                acc.update::<true>(Square::new(File::C, stm_first), Piece::King, from_color);
+                acc.update::<true>(Square::new(File::D, stm_first), Piece::Rook, from_color);
+            }
+        } else {
+            acc.update::<true>(to_sq, make_move.promotion.unwrap_or(from_type), from_color);
+        }
+    }
+
+    pub fn unmake_move(&mut self) {
+        self.head -= 1;
+    }
+
+    #[inline]
+    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
+        let acc = &mut self.accumulator[self.head];
         let (incr_layer, psqt_score) = match board.side_to_move() {
             Color::White => (
-                normal::clipped_relu(*self.w_input_layer.get()),
-                self.w_res_layer.get()[bucket] / 64,
+                normal::clipped_relu(*acc.w_input_layer.get()),
+                acc.w_res_layer.get()[bucket] / 64,
             ),
             Color::Black => (
-                normal::clipped_relu(*self.b_input_layer.get()),
-                self.b_res_layer.get()[bucket] / 64,
+                normal::clipped_relu(*acc.b_input_layer.get()),
+                acc.b_res_layer.get()[bucket] / 64,
             ),
         };
+
         psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
     }
 }

@@ -24,6 +24,10 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Psqt<'a, INPUT, OUTPUT> {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.out = [0; OUTPUT];
+    }
+
     pub fn get(&self) -> &[i32; OUTPUT] {
         &self.out
     }
@@ -38,6 +42,10 @@ pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {
 impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT> {
     pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i16; OUTPUT]) -> Self {
         Self { weights, out: bias }
+    }
+
+    pub fn reset(&mut self, out: [i16; OUTPUT]) {
+        self.out = out;
     }
 
     #[inline]

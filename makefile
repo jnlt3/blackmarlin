@@ -7,4 +7,4 @@ NAME := $(EXE)
 endif
 
 rule:
-	EVALFILE=$(EVALFILE) cargo rustc --release --features nnue -- -C target-cpu=native --emit link=$(NAME)
+	EVALFILE=$(EVALFILE) cargo rustc --release -- -C target-cpu=native --emit link=$(NAME)

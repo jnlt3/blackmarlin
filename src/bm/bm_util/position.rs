@@ -1,17 +1,20 @@
-use cozy_chess::{Board, Move};
+use cozy_chess::{BitBoard, Board, Move, Piece};
 
-use crate::bm::bm_eval::{eval::Evaluation, evaluator::StdEvaluator};
+use crate::bm::nnue::Nnue;
+
+use super::eval::Evaluation;
 
 #[derive(Debug, Clone)]
 pub struct Position {
     current: Board,
     boards: Vec<Board>,
-    evaluator: StdEvaluator,
+    evaluator: Nnue,
 }
 
 impl Position {
     pub fn new(board: Board) -> Self {
-        let evaluator = StdEvaluator::new();
+        let mut evaluator = Nnue::new();
+        evaluator.reset(&board);
         Self {
             current: board,
             boards: vec![],
@@ -19,9 +22,13 @@ impl Position {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.evaluator.reset(&self.current);
+    }
+
     #[inline]
     pub fn forced_draw(&self, ply: u32) -> bool {
-        if self.evaluator.insufficient_material(self.board()) || self.half_ply() >= 100 {
+        if self.insufficient_material() || self.half_ply() >= 100 {
             return true;
         }
         let hash = self.hash();
@@ -54,6 +61,7 @@ impl Position {
     #[inline]
     pub fn null_move(&mut self) -> bool {
         if let Some(new_board) = self.board().null_move() {
+            self.evaluator.null_move();
             self.boards.push(self.current.clone());
             self.current = new_board;
             true
@@ -64,12 +72,14 @@ impl Position {
 
     #[inline]
     pub fn make_move(&mut self, make_move: Move) {
+        self.evaluator.make_move(&self.current, make_move);
         self.boards.push(self.current.clone());
         self.current.play_unchecked(make_move);
     }
 
     #[inline]
     pub fn unmake_move(&mut self) {
+        self.evaluator.unmake_move();
         let current = self.boards.pop().unwrap();
         self.current = current;
     }
@@ -81,6 +91,19 @@ impl Position {
 
     pub fn get_eval(&mut self) -> Evaluation {
         let board = self.board().clone();
-        self.evaluator.evaluate(&board)
+        Evaluation::new(self.evaluator.feed_forward(&board, 0))
+    }
+
+    pub fn insufficient_material(&self) -> bool {
+        if self.current.occupied().popcnt() == 2 {
+            true
+        } else if self.current.occupied().popcnt() == 3 {
+            (self.current.pieces(Piece::Rook)
+                | self.current.pieces(Piece::Queen)
+                | self.current.pieces(Piece::Pawn))
+                == BitBoard::EMPTY
+        } else {
+            false
+        }
     }
 }

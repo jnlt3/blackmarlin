@@ -1,3 +1,4 @@
+pub mod eval;
 pub mod h_table;
 pub mod lookup;
 pub mod position;
