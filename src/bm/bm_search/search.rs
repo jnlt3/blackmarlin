@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece};
 
 use crate::bm::bm_eval::eval::Depth::Next;
 use crate::bm::bm_eval::eval::Evaluation;
@@ -13,6 +13,7 @@ use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
+use super::tactics;
 
 pub trait SearchType {
     const NM: bool;
@@ -196,6 +197,19 @@ pub fn search<Search: SearchType>(
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
+        let (w_threat, b_threat) = tactics::get_pawn_threats(pos.board());
+
+        let (stm_threat, n_stm_threat) = match pos.board().side_to_move() {
+            Color::White => (w_threat, b_threat),
+            Color::Black => (b_threat, w_threat),
+        };
+
+        let threat_balance = stm_threat - n_stm_threat;
+
+        if depth <= 2 && threat_balance > 100 && eval >= beta {
+            return beta;
+        }
+
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
