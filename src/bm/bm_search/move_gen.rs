@@ -32,7 +32,6 @@ pub struct OrderedMoveGen<const K: usize> {
     counter_move: Option<Move>,
     prev_move: Option<Move>,
     gen_type: GenType,
-    board: Board,
 
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
     quiets: ArrayVec<(Move, i16), MAX_MOVES>,
@@ -59,7 +58,6 @@ impl<const K: usize> OrderedMoveGen<K> {
             prev_move,
             pv_move,
             killer_entry,
-            board: board.clone(),
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -87,6 +85,7 @@ impl<const K: usize> OrderedMoveGen<K> {
 
     pub fn next(
         &mut self,
+        board: &Board,
         hist: &HistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
@@ -111,14 +110,14 @@ impl<const K: usize> OrderedMoveGen<K> {
         if self.gen_type == GenType::CalcCaptures {
             for &piece_moves in &self.move_list {
                 let mut piece_moves = piece_moves;
-                piece_moves.to &= self.board.colors(!self.board.side_to_move());
+                piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
                     let expected_gain =
-                        c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to)
-                            + StdEvaluator::see::<1>(&self.board, make_move) * 32;
+                        c_hist.get(board.side_to_move(), piece_moves.piece, make_move.to)
+                            + StdEvaluator::see::<1>(&board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -131,7 +130,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
                     let see_score =
-                        see.unwrap_or_else(|| StdEvaluator::see::<16>(&self.board, *make_move));
+                        see.unwrap_or_else(|| StdEvaluator::see::<16>(&board, *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
                         *score += LOSING_CAPTURE;
@@ -154,7 +153,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         if self.gen_type == GenType::GenQuiet {
             for &piece_moves in &self.move_list {
                 let mut piece_moves = piece_moves;
-                piece_moves.to &= !self.board.colors(!self.board.side_to_move());
+                piece_moves.to &= !board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) == self.pv_move {
                         continue;
@@ -171,14 +170,13 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let mut score = 0;
-                    let piece = self.board.piece_on(make_move.from).unwrap();
+                    let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(self.board.side_to_move(), piece, make_move.to);
+                    score += hist.get(board.side_to_move(), piece, make_move.to);
                     if let Some(prev_move) = self.prev_move {
-                        let prev_move_piece =
-                            self.board.piece_on(prev_move.to).unwrap_or(Piece::King);
+                        let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
                         score += cm_hist.get(
-                            self.board.side_to_move(),
+                            board.side_to_move(),
                             prev_move_piece,
                             prev_move.to,
                             piece,
@@ -256,28 +254,26 @@ pub enum QSearchGenType {
 }
 
 pub struct QuiescenceSearchMoveGen {
-    board: Board,
     gen_type: QSearchGenType,
     queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
 }
 
 impl QuiescenceSearchMoveGen {
-    pub fn new(board: &Board) -> Self {
+    pub fn new() -> Self {
         Self {
-            board: board.clone(),
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
         }
     }
 
-    pub fn next(&mut self, c_hist: &HistoryTable) -> Option<(Move, i16)> {
+    pub fn next(&mut self, board: &Board, c_hist: &HistoryTable) -> Option<(Move, i16)> {
         if self.gen_type == QSearchGenType::CalcCaptures {
-            self.board.generate_moves(|mut piece_moves| {
-                piece_moves.to &= self.board.colors(!self.board.side_to_move());
+            board.generate_moves(|mut piece_moves| {
+                piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     let expected_gain =
-                        c_hist.get(self.board.side_to_move(), piece_moves.piece, make_move.to)
-                            + StdEvaluator::see::<1>(&self.board, make_move) * 32;
+                        c_hist.get(board.side_to_move(), piece_moves.piece, make_move.to)
+                            + StdEvaluator::see::<1>(&board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
@@ -288,8 +284,7 @@ impl QuiescenceSearchMoveGen {
         let mut best_index = None;
         for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
             if best_index.is_none() || *score > max {
-                let see_score =
-                    see.unwrap_or_else(|| StdEvaluator::see::<16>(&self.board, *make_move));
+                let see_score = see.unwrap_or_else(|| StdEvaluator::see::<16>(&board, *make_move));
                 *see = Some(see_score);
                 if see_score < 0 {
                     continue;
