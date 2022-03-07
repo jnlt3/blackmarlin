@@ -466,6 +466,7 @@ impl AbRunner {
 
     pub fn make_move(&mut self, make_move: Move) {
         self.position.make_move(make_move);
+        self.position.reset();
     }
 
     #[cfg(feature = "data")]

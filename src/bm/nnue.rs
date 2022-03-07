@@ -2,6 +2,8 @@ use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
 
 use self::normal::{Dense, Incremental, Psqt};
 
+use super::bm_runner::ab_runner;
+
 mod normal;
 
 include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
@@ -57,7 +59,7 @@ impl Nnue {
                     w_res_layer: res_layer.clone(),
                     b_res_layer: res_layer,
                 };
-                101
+                ab_runner::MAX_PLY as usize + 1
             ],
             head: 0,
             out_layer,
