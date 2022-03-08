@@ -286,6 +286,8 @@ impl AbRunner {
                         (Evaluation::min(), Evaluation::max())
                     };
                     local_context.sel_depth = 0;
+
+                    let prev_nodes = local_context.nodes();
                     let score = search::search::<Pv>(
                         &mut position,
                         &mut local_context,
@@ -308,7 +310,7 @@ impl AbRunner {
                         depth,
                         local_context.get_move_nodes()[curr_move.from as usize]
                             [curr_move.to as usize],
-                        nodes,
+                        nodes - prev_nodes,
                         local_context.eval,
                         local_context.search_stack[0].pv[0].unwrap(),
                         search_start.elapsed(),
