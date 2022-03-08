@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -98,6 +98,7 @@ pub struct LocalContext {
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
+    move_nodes: [[u64; 64]; 64],
     killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
@@ -152,6 +153,11 @@ impl LocalContext {
     }
 
     #[inline]
+    pub fn get_move_nodes(&self) -> &[[u64; 64]; 64] {
+        &self.move_nodes
+    }
+
+    #[inline]
     pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
         &mut self.h_table
     }
@@ -169,6 +175,11 @@ impl LocalContext {
     #[inline]
     pub fn get_cm_hist_mut(&mut self) -> &mut DoubleMoveHistory {
         &mut self.cm_hist
+    }
+
+    #[inline]
+    pub fn get_move_nodes_mut(&mut self) -> &mut [[u64; 64]; 64] {
+        &mut self.move_nodes
     }
 
     #[inline]
@@ -291,9 +302,12 @@ impl AbRunner {
                     local_context.window.set(score);
                     local_context.eval = score;
 
+                    let curr_move = local_context.search_stack[0].pv[0].unwrap();
                     shared_context.time_manager.deepen(
                         thread,
                         depth,
+                        local_context.get_move_nodes()[curr_move.from as usize]
+                            [curr_move.to as usize],
                         nodes,
                         local_context.eval,
                         local_context.search_stack[0].pv[0].unwrap(),
@@ -409,6 +423,7 @@ impl AbRunner {
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
+                move_nodes: [[0; 64]; 64],
                 killer_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,

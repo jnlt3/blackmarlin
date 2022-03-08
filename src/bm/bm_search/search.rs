@@ -305,6 +305,11 @@ pub fn search<Search: SearchType>(
             )
         };
 
+        let nodes_before = local_context.nodes();
+        if ply == 0 {
+            local_context.get_move_nodes_mut()[make_move.from as usize][make_move.to as usize] = 0;
+        }
+
         let mut extension = 0;
         let mut score;
 
@@ -486,6 +491,11 @@ pub fn search<Search: SearchType>(
                 );
                 score = search_score << Next;
             }
+        }
+
+        if ply == 0 {
+            local_context.get_move_nodes_mut()[make_move.from as usize][make_move.to as usize] =
+                local_context.nodes() - nodes_before;
         }
 
         pos.unmake_move();
