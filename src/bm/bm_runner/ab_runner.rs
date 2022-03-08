@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
@@ -427,6 +427,7 @@ impl AbRunner {
         self.shared_context.start = Instant::now();
         self.node_counter.initialize_node_counters(threads as usize);
         //TODO: Research the effects of different depths
+        self.position.reset();
         for i in 1..threads {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
                 search_start,
@@ -465,6 +466,7 @@ impl AbRunner {
 
     pub fn make_move(&mut self, make_move: Move) {
         self.position.make_move(make_move);
+        self.position.reset();
     }
 
     #[cfg(feature = "data")]

@@ -1,4 +1,4 @@
-use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Display;
 use std::fs::OpenOptions;

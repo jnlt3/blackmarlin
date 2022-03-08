@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use cozy_chess::{Board, Move, Square};
 
-use crate::bm::bm_eval::eval::Evaluation;
+use crate::bm::bm_util::eval::Evaluation;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {

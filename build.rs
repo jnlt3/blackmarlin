@@ -1,12 +1,9 @@
-#[cfg(feature = "nnue")]
 use std::{env, path::Path};
 
 fn main() {
-    #[cfg(feature = "nnue")]
     parse_bm_net();
 }
 
-#[cfg(feature = "nnue")]
 fn parse_bm_net() {
     let nn_dir = env::var("EVALFILE").unwrap();
     let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
@@ -70,7 +67,6 @@ pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
     layers
 }
 
-#[cfg(feature = "nnue")]
 pub fn dense_from_bytes_i8(bytes: &[u8], input: usize, output: usize) -> String {
     let mut weights = vec![];
     for &byte in bytes.iter().take(input * output) {
@@ -88,7 +84,6 @@ pub fn dense_from_bytes_i8(bytes: &[u8], input: usize, output: usize) -> String 
     array
 }
 
-#[cfg(feature = "nnue")]
 pub fn dense_from_bytes_i32(bytes: &[u8], input: usize, output: usize) -> String {
     let mut weights = vec![];
     for bytes in bytes.chunks(4).take(input * output) {
@@ -106,7 +101,6 @@ pub fn dense_from_bytes_i32(bytes: &[u8], input: usize, output: usize) -> String
     array
 }
 
-#[cfg(feature = "nnue")]
 pub fn bias_from_bytes_i8(bytes: &[u8], len: usize) -> String {
     let mut weights = vec![];
     for &byte in bytes.iter().take(len) {
