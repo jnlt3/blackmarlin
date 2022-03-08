@@ -349,6 +349,10 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        let mut reduction = shared_context
+            .get_lmr_lookup()
+            .get(depth as usize, moves_seen) as i16;
+
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -389,7 +393,10 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
+
+        if do_see_prune
+            && eval + see::<16>(pos.board(), make_move) + see_fp(depth - reduction as u32) < alpha
+        {
             continue;
         }
 
@@ -406,10 +413,6 @@ pub fn search<Search: SearchType>(
         If the move proves to be worse than alpha, we don't have to do a
         full depth search
         */
-        let mut reduction = shared_context
-            .get_lmr_lookup()
-            .get(depth as usize, moves_seen) as i16;
-
         if moves_seen > 0 {
             /*
             If a move is quiet, we already have information on this move
