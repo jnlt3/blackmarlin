@@ -53,7 +53,7 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 
 #[inline]
 fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
-    Search::NM 
+    Search::NM
         && depth > 4
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
@@ -307,129 +307,110 @@ pub fn search<Search: SearchType>(
 
         let mut extension = 0;
         let mut score;
-        if moves_seen == 0 {
-            /*
-            Singular Extensions:
-            If a move can't be beaten by any other move, we assume the move
-            is singular (only solution) and extend in order to get a more accurate
-            estimation of best move/eval
-            */
-            if let Some(entry) = tt_entry {
-                if entry.table_move() == make_move
-                    && ply != 0
-                    && depth >= 7
-                    && !entry.score().is_mate()
-                    && entry.depth() >= depth - 2
-                    && (entry.entry_type() == EntryType::LowerBound
-                        || entry.entry_type() == EntryType::Exact)
-                {
-                    let s_beta = entry.score() - depth as i16 * 3;
-                    local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
-                    let s_score = search::<Search::Zw>(
-                        pos,
-                        local_context,
-                        shared_context,
-                        ply,
-                        depth / 2 - 1,
-                        s_beta - 1,
-                        s_beta,
-                    );
-                    local_context.search_stack_mut()[ply as usize].skip_move = None;
-                    if s_score < s_beta {
-                        extension += 1;
-                    } else if s_beta >= beta {
-                        /*
-                        Multi-cut:
-                        If a move isn't singular and the move that disproves the singularity
-                        our singular beta is above beta, we assume the move is good enough to beat beta
-                        */
-                        return s_beta;
-                    }
+
+        /*
+        Singular Extensions:
+        If a move can't be beaten by any other move, we assume the move
+        is singular (only solution) and extend in order to get a more accurate
+        estimation of best move/eval
+        */
+        if let Some(entry) = tt_entry {
+            if moves_seen == 0
+                && entry.table_move() == make_move
+                && ply != 0
+                && depth >= 7
+                && !entry.score().is_mate()
+                && entry.depth() >= depth - 2
+                && (entry.entry_type() == EntryType::LowerBound
+                    || entry.entry_type() == EntryType::Exact)
+            {
+                let s_beta = entry.score() - depth as i16 * 3;
+                local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
+                let s_score = search::<Search::Zw>(
+                    pos,
+                    local_context,
+                    shared_context,
+                    ply,
+                    depth / 2 - 1,
+                    s_beta - 1,
+                    s_beta,
+                );
+                local_context.search_stack_mut()[ply as usize].skip_move = None;
+                if s_score < s_beta {
+                    extension += 1;
+                } else if s_beta >= beta {
+                    /*
+                    Multi-cut:
+                    If a move isn't singular and the move that disproves the singularity
+                    our singular beta is above beta, we assume the move is good enough to beat beta
+                    */
+                    return s_beta;
                 }
             }
-            pos.make_move(make_move);
-            local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+        }
 
-            let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-            if gives_check {
-                extension += 1;
-            }
+        /*
+        In non-PV nodes If a move isn't good enough to beat alpha - a static margin
+        we assume it's safe to prune this move
+        */
+        let do_fp = !Search::PV && moves_seen > 0 && !is_capture && depth <= 7;
 
-            /*
-            First moves don't get reduced
-            */
-            let search_score = search::<Search>(
-                pos,
-                local_context,
-                shared_context,
-                ply + 1,
-                depth - 1 + extension,
-                beta >> Next,
-                alpha >> Next,
-            );
-            score = search_score << Next;
-        } else {
-            /*
-            In non-PV nodes If a move isn't good enough to beat alpha - a static margin
-            we assume it's safe to prune this move
-            */
-            let do_fp = !Search::PV && !is_capture && depth <= 7;
+        if do_fp && eval + fp(depth) < alpha {
+            move_gen.set_skip_quiets(true);
+            continue;
+        }
 
-            if do_fp && eval + fp(depth) < alpha {
-                move_gen.set_skip_quiets(true);
-                continue;
-            }
+        /*
+        If a move is placed late in move ordering, we can safely prune it based on a depth related margin
+        */
+        if !move_gen.skip_quiets()
+            && !is_capture
+            && quiets.len()
+                >= shared_context
+                    .get_lmp_lookup()
+                    .get(depth as usize, improving as usize)
+        {
+            move_gen.set_skip_quiets(true);
+            continue;
+        }
 
-            /*
-            If a move is placed late in move ordering, we can safely prune it based on a depth related margin
-            */
-            if !move_gen.skip_quiets()
-                && !is_capture
-                && quiets.len()
-                    >= shared_context
-                        .get_lmp_lookup()
-                        .get(depth as usize, improving as usize)
-            {
-                move_gen.set_skip_quiets(true);
-                continue;
-            }
+        /*
+        In low depth, non-PV nodes, we assume it's safe to prune a move
+        if it has very low history
+        */
+        let do_hp = !Search::PV && moves_seen > 0 && depth <= 8 && eval <= alpha;
 
-            /*
-            In low depth, non-PV nodes, we assume it's safe to prune a move
-            if it has very low history
-            */
-            let do_hp = !Search::PV && depth <= 8 && eval <= alpha;
+        if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
 
-            if do_hp && (h_score as i32) < hp(depth) {
-                continue;
-            }
+        /*
+        In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
+        we assume it's safe to prune this move
+        */
+        let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
+        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
+            continue;
+        }
 
-            /*
-            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
-            we assume it's safe to prune this move
-            */
-            let do_see_prune = !Search::PV && !in_check && depth <= 7;
-            if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
-                continue;
-            }
+        pos.make_move(make_move);
+        local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+        let gives_check = pos.board().checkers() != BitBoard::EMPTY;
+        if gives_check {
+            extension += 1;
+        }
 
-            pos.make_move(make_move);
-            local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
-            let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-            if gives_check {
-                extension += 1;
-            }
+        /*
+        LMR
+        We try to prove a move is worse than alpha at a reduced depth
+        If the move proves to be worse than alpha, we don't have to do a
+        full depth search
+        */
+        let mut reduction = shared_context
+            .get_lmr_lookup()
+            .get(depth as usize, moves_seen) as i16;
 
-            /*
-            LMR
-            We try to prove a move is worse than alpha at a reduced depth
-            If the move proves to be worse than alpha, we don't have to do a
-            full depth search
-            */
-            let mut reduction = shared_context
-                .get_lmr_lookup()
-                .get(depth as usize, moves_seen) as i16;
-
+        if moves_seen > 0 {
             /*
             If a move is quiet, we already have information on this move
             in the history table. If history score is high, we reduce
@@ -444,8 +425,22 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
+        }
 
-            let lmr_depth = (depth as i16 - reduction) as u32;
+        let lmr_depth = (depth as i16 - reduction) as u32;
+
+        if moves_seen == 0 {
+            let search_score = search::<Search>(
+                pos,
+                local_context,
+                shared_context,
+                ply + 1,
+                depth - 1 + extension,
+                beta >> Next,
+                alpha >> Next,
+            );
+            score = search_score << Next;
+        } else {
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
