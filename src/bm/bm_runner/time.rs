@@ -1,14 +1,13 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
 const EXPECTED_MOVES: u32 = 40;
-const MOVE_CHANGE_MARGIN: u32 = 9;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -41,8 +40,6 @@ pub struct TimeManager {
     normal_duration: AtomicU32,
     target_duration: AtomicU32,
 
-    same_move_depth: AtomicU32,
-    prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
 
     infinite: AtomicBool,
@@ -61,8 +58,6 @@ impl TimeManager {
             max_duration: AtomicU32::new(0),
             normal_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
-            same_move_depth: AtomicU32::new(0),
-            prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
             infinite: AtomicBool::new(true),
@@ -78,9 +73,10 @@ impl TimeManager {
         &self,
         thread: u8,
         depth: u32,
-        _: u64,
+        move_nodes: u64,
+        nodes: u64,
         eval: Evaluation,
-        current_move: Move,
+        _: Move,
         _: Duration,
     ) {
         if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
@@ -91,35 +87,18 @@ impl TimeManager {
         let last_eval = self.last_eval.load(Ordering::SeqCst);
         let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
 
-        let mut move_changed = false;
-        let prev_move = &mut *self.prev_move.lock().unwrap();
-        if let Some(prev_move) = prev_move {
-            if *prev_move != current_move {
-                move_changed = true;
-            }
-        }
-        *prev_move = Some(current_move);
-
-        let move_change_depth = if move_changed {
-            self.same_move_depth.store(0, Ordering::SeqCst);
-            0
-        } else {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
-        };
-
         let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
 
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
-        let move_change_factor = 1.05_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .max(0.4);
+        let node_score = ((move_nodes as u128 * 100) / nodes as u128) as f32 / 100.0;
+        let node_factor = 1.4 - node_score;
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.target_duration
-            .store((time * 0.001 * move_change_factor) as u32, Ordering::SeqCst);
+            .store((time * 0.001 * node_factor) as u32, Ordering::SeqCst);
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
@@ -231,8 +210,6 @@ impl TimeManager {
     }
 
     pub fn clear(&self) {
-        *self.prev_move.lock().unwrap() = None;
-        self.same_move_depth.store(0, Ordering::SeqCst);
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
