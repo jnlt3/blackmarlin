@@ -349,6 +349,10 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        let mut reduction = shared_context
+            .get_lmr_lookup()
+            .get(depth as usize, moves_seen) as i16;
+
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -380,7 +384,7 @@ pub fn search<Search: SearchType>(
         */
         let do_hp = !Search::PV && moves_seen > 0 && depth <= 8 && eval <= alpha;
 
-        if do_hp && (h_score as i32) < hp(depth) {
+        if do_hp && (h_score as i32) < hp(depth - reduction as u32) {
             continue;
         }
 
@@ -406,9 +410,6 @@ pub fn search<Search: SearchType>(
         If the move proves to be worse than alpha, we don't have to do a
         full depth search
         */
-        let mut reduction = shared_context
-            .get_lmr_lookup()
-            .get(depth as usize, moves_seen) as i16;
 
         if moves_seen > 0 {
             /*
