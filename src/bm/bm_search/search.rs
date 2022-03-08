@@ -537,11 +537,8 @@ pub fn search<Search: SearchType>(
                                 depth,
                             );
                         }
-
-                        let analysis = Analysis::new(depth, LowerBound, score, make_move);
-                        shared_context.get_t_table().set(pos.board(), analysis);
                     }
-                    return score;
+                    break;
                 }
                 alpha = score;
             }
@@ -566,7 +563,11 @@ pub fn search<Search: SearchType>(
     if skip_move.is_none() && !local_context.abort() {
         if let Some(final_move) = &best_move {
             let entry_type = if highest_score > initial_alpha {
-                Exact
+                if highest_score >= beta {
+                    LowerBound
+                } else {
+                    Exact
+                }
             } else {
                 UpperBound
             };
@@ -673,10 +674,7 @@ pub fn q_search(
                 alpha = score;
                 if score >= beta {
                     pos.unmake_move();
-
-                    let analysis = Analysis::new(0, LowerBound, score, make_move);
-                    shared_context.get_t_table().set(pos.board(), analysis);
-                    return score;
+                    break;
                 }
             }
             pos.unmake_move();
@@ -684,7 +682,11 @@ pub fn q_search(
     }
     if let (Some(best_move), Some(highest_score)) = (best_move, highest_score) {
         let entry_type = if highest_score > initial_alpha {
-            Exact
+            if highest_score >= beta {
+                LowerBound
+            } else {
+                Exact
+            }
         } else {
             UpperBound
         };
