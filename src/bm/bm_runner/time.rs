@@ -92,7 +92,7 @@ impl TimeManager {
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
         let node_score = ((move_nodes as u128 * 100) / nodes as u128) as f32 / 100.0;
-        let node_factor = 1.4 - node_score.max(0.4);
+        let node_factor = 1.6 - node_score.max(0.4);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
