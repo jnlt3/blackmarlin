@@ -105,6 +105,11 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn d1_see_threshold() -> i16 {
+    400
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -384,13 +389,19 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let see = see::<16>(pos.board(), make_move);
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
+        if do_see_prune && eval + see + see_fp(depth) < alpha {
             continue;
+        }
+
+        let do_see_beta_prune = !Search::PV && moves_seen > 0 && !in_check && depth == 1;
+        if do_see_beta_prune && eval + see > beta + d1_see_threshold() {
+            return beta;
         }
 
         pos.make_move(make_move);
