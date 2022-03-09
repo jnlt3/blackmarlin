@@ -9,6 +9,7 @@ use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
+use crate::bm::policy;
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -281,7 +282,6 @@ pub fn search<Search: SearchType>(
         local_context.get_h_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
-        depth >= 6,
     ) {
         if Some(make_move) == skip_move {
             continue;
@@ -391,6 +391,12 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
             continue;
+        }
+
+        if moves_seen > 0 && depth <= 8 {
+            if policy::move_eval(pos.board(), make_move) < -100 * depth as i16 {
+                continue;
+            }
         }
 
         pos.make_move(make_move);
