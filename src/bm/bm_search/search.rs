@@ -269,6 +269,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         prev_move.unwrap_or(None),
         local_context.get_k_table()[ply as usize].into_iter(),
+        depth >= 8 && best_move.is_none(),
     );
 
     let mut moves_seen = 0;
@@ -391,12 +392,6 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
             continue;
-        }
-
-        if moves_seen > 0 && depth <= 8 {
-            if policy::move_eval(pos.board(), make_move) < -100 * depth as i16 {
-                continue;
-            }
         }
 
         pos.make_move(make_move);

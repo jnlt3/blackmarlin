@@ -36,6 +36,8 @@ pub struct OrderedMoveGen<const K: usize> {
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
     quiets: ArrayVec<(Move, i16), MAX_MOVES>,
     skip_quiets: bool,
+
+    policy: bool,
 }
 
 impl<const K: usize> OrderedMoveGen<K> {
@@ -45,6 +47,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         counter_move: Option<Move>,
         prev_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
+        policy: bool,
     ) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
@@ -61,6 +64,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
+            policy,
         }
     }
 
@@ -171,17 +175,21 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(board.side_to_move(), piece, make_move.to);
-
-                    if let Some(prev_move) = self.prev_move {
-                        let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-                        score += cm_hist.get(
-                            board.side_to_move(),
-                            prev_move_piece,
-                            prev_move.to,
-                            piece,
-                            make_move.to,
-                        );
+                    if self.policy {
+                        score += policy::move_eval(board, make_move);
+                    } else {
+                        score += hist.get(board.side_to_move(), piece, make_move.to);
+                        if let Some(prev_move) = self.prev_move {
+                            let prev_move_piece =
+                                board.piece_on(prev_move.to).unwrap_or(Piece::King);
+                            score += cm_hist.get(
+                                board.side_to_move(),
+                                prev_move_piece,
+                                prev_move.to,
+                                piece,
+                                make_move.to,
+                            );
+                        }
                     }
 
                     self.quiets.push((make_move, score));
