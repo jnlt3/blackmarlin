@@ -174,7 +174,7 @@ impl<const K: usize> OrderedMoveGen<K> {
 
                     score += hist.get(board.side_to_move(), piece, make_move.to);
 
-                    if self.pv_move.is_none() && depth >= 10 {
+                    if self.pv_move.is_none() && depth >= 6 {
                         score += policy::move_eval(board, make_move);
                     }
 
