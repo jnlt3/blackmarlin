@@ -177,19 +177,17 @@ impl<const K: usize> OrderedMoveGen<K> {
 
                     if self.policy {
                         score += policy::move_eval(board, make_move);
-                    } else {
-                        score += hist.get(board.side_to_move(), piece, make_move.to);
-                        if let Some(prev_move) = self.prev_move {
-                            let prev_move_piece =
-                                board.piece_on(prev_move.to).unwrap_or(Piece::King);
-                            score += cm_hist.get(
-                                board.side_to_move(),
-                                prev_move_piece,
-                                prev_move.to,
-                                piece,
-                                make_move.to,
-                            );
-                        }
+                    }
+                    score += hist.get(board.side_to_move(), piece, make_move.to);
+                    if let Some(prev_move) = self.prev_move {
+                        let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
+                        score += cm_hist.get(
+                            board.side_to_move(),
+                            prev_move_piece,
+                            prev_move.to,
+                            piece,
+                            make_move.to,
+                        );
                     }
 
                     self.quiets.push((make_move, score));
