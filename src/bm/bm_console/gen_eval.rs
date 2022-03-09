@@ -9,7 +9,7 @@ use cozy_chess::{BitBoard, Board, Move};
 use rand::Rng;
 
 use crate::bm::{
-    bm_eval::eval::Evaluation,
+    bm_util::eval::Evaluation,
     bm_runner::{
         ab_runner::AbRunner,
         config::{NoInfo, Run},
