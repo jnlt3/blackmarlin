@@ -89,7 +89,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         hist: &HistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
-        depth: u32,
+        policy: bool,
     ) -> Option<Move> {
         self.set_phase();
         if self.gen_type == GenType::PvMove {
@@ -174,7 +174,7 @@ impl<const K: usize> OrderedMoveGen<K> {
 
                     score += hist.get(board.side_to_move(), piece, make_move.to);
 
-                    if self.pv_move.is_none() && depth >= 6 {
+                    if policy {
                         score += policy::move_eval(board, make_move);
                     }
 
