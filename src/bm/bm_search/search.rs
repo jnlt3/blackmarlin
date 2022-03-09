@@ -281,6 +281,7 @@ pub fn search<Search: SearchType>(
         local_context.get_h_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
+        depth,
     ) {
         if Some(make_move) == skip_move {
             continue;

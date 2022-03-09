@@ -8,20 +8,31 @@ mod bm;
 
 fn main() {
     /*
-    let start_pos = Board::from_fen(
-        "rnb1kbnr/pppppppp/8/6q1/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 1 1",
+    let mut board = Board::from_fen(
+        "rnb1kbnr/pp1ppppp/8/3N4/8/8/PPPPPPPP/RNBQKB1R w KQkq - 0 1",
         false,
     )
     .unwrap();
-    let mut moves = vec![];
-    start_pos.generate_moves(|piece_moves| {
-        for mv in piece_moves {
-            moves.push(mv);
+    for i in 0..2 {
+        let mut moves = vec![];
+        board.generate_moves(|piece_moves| {
+            for mv in piece_moves {
+                moves.push(mv);
+            }
+            false
+        });
+        let mut highest = i16::MIN;
+        let mut best_move = None;
+        for mv in moves {
+            let score = policy::move_eval(&board, mv);
+            println!("{} {}", mv, score);
+            if score > highest {
+                best_move = Some(mv);
+                highest = score;
+            }
         }
-        false
-    });
-    for mv in moves {
-        println!("{}: {}", mv, policy::move_eval(&start_pos, mv));
+        board.play_unchecked(best_move.unwrap());
+        println!("{}", best_move.unwrap());
     }
     */
 

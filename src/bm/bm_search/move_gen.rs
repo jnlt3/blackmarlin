@@ -89,6 +89,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         hist: &HistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
+        depth: u32,
     ) -> Option<Move> {
         self.set_phase();
         if self.gen_type == GenType::PvMove {
@@ -117,8 +118,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     }
                     let expected_gain =
                         c_hist.get(board.side_to_move(), piece_moves.piece, make_move.to)
-                            + search::see::<1>(&board, make_move) * 32
-                            + policy::move_eval(board, make_move);
+                            + search::see::<1>(&board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -173,7 +173,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let piece = board.piece_on(make_move.from).unwrap();
 
                     score += hist.get(board.side_to_move(), piece, make_move.to);
-                    score += policy::move_eval(board, make_move);
+
+                    if self.pv_move.is_none() && depth >= 10 {
+                        score += policy::move_eval(board, make_move);
+                    }
 
                     if let Some(prev_move) = self.prev_move {
                         let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
