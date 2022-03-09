@@ -348,7 +348,6 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
-
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move

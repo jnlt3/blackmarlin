@@ -1,7 +1,39 @@
 use std::{env, path::Path};
 
 fn main() {
+    parse_policy_net();
     parse_bm_net();
+}
+
+fn parse_policy_net() {
+    let nn_dir = env::var("POLICYFILE").unwrap();
+    let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
+    let mut nn_bytes = &nn_bytes[..];
+
+    let perceptron_weights_0 = bias_from_bytes_i8(&nn_bytes, 768 * 384);
+    nn_bytes = &nn_bytes[768 * 384..];
+    let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, 384);
+    nn_bytes = &nn_bytes[384..];
+    let perceptron_weights_1 = bias_from_bytes_i8(&nn_bytes, 768 * 384);
+    nn_bytes = &nn_bytes[768 * 384..];
+    let perceptron_bias_1 = bias_from_bytes_i8(&nn_bytes, 384);
+
+    let mut def_layers = String::new();
+    def_layers += &format!(
+        "pub const WEIGHTS_0: [i8; 384 * 768] = {}\n",
+        perceptron_weights_0,
+    );
+    def_layers += &format!("pub const BIAS_0: [i8; 384] = {}\n", perceptron_bias_0);
+    def_layers += &format!(
+        "pub const WEIGHTS_1: [i8; 384 * 768] = {}\n",
+        perceptron_weights_1,
+    );
+    def_layers += &format!("pub const BIAS_1: [i8; 384] = {}\n", perceptron_bias_1);
+
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("policy_weights.rs");
+    std::fs::write(&dest_path, &def_layers).unwrap();
+    println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
 fn parse_bm_net() {

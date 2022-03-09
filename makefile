@@ -1,5 +1,6 @@
 EXE    	= BlackMarlin
 EVALFILE = ./nn/default.bin
+POLICYFILE = ./nn/policy.bin
 ifeq ($(OS),Windows_NT)
 NAME := $(EXE).exe
 else
@@ -7,4 +8,4 @@ NAME := $(EXE)
 endif
 
 rule:
-	EVALFILE=$(EVALFILE) cargo rustc --release -- -C target-cpu=native --emit link=$(NAME)
+	POLICYFILE=$(POLICYFILE) EVALFILE=$(EVALFILE) cargo rustc --release -- -C target-cpu=native --emit link=$(NAME)
