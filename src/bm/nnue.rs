@@ -16,8 +16,8 @@ pub struct Accumulator {
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
 
-    w_policy_input: Incremental<'static, INPUT, 256>,
-    b_policy_input: Incremental<'static, INPUT, 256>,
+    w_policy_input: Incremental<'static, INPUT, 64>,
+    b_policy_input: Incremental<'static, INPUT, 64>,
 }
 
 impl Accumulator {
@@ -179,6 +179,6 @@ impl Nnue {
         for (&weight, &val) in P_WEIGHTS_1[move_index].iter().zip(&incr_layer) {
             sum += weight as i32 * val as i32;
         }
-        normal::out(-sum)
+        normal::out(sum)
     }
 }
