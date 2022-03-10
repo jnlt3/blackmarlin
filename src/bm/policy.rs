@@ -10,8 +10,8 @@ pub fn move_eval(board: &Board, make_move: Move) -> i16 {
     };
     let move_index = move_piece * 64 + move_sq;
 
-    let mut score_0 = BIAS_0[move_sq] as i16;
-    let mut score_1 = BIAS_1[move_sq] as i16;
+    let mut score_0 = BIAS_0[move_index] as i16;
+    let mut score_1 = BIAS_1[move_index] as i16;
     for sq in board.occupied() {
         let piece = board.piece_on(sq).unwrap() as usize;
         let color = board.color_on(sq).unwrap();

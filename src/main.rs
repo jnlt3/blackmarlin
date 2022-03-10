@@ -8,12 +8,9 @@ mod bm;
 
 fn main() {
     /*
-    let mut board = Board::from_fen(
-        "rnb1kbnr/pp1ppppp/8/3N4/8/8/PPPPPPPP/RNBQKB1R w KQkq - 0 1",
-        false,
-    )
-    .unwrap();
-    for i in 0..2 {
+    let mut board = Board::from_fen("3k4/7P/8/8/8/8/8/7K w - - 0 1", false).unwrap();
+
+    for i in 0..1 {
         let mut moves = vec![];
         board.generate_moves(|piece_moves| {
             for mv in piece_moves {
