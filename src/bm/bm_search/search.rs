@@ -269,7 +269,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         prev_move.unwrap_or(None),
         local_context.get_k_table()[ply as usize].into_iter(),
-        depth >= 8 && best_move.is_none(),
+        depth >= 8,
     );
 
     let mut moves_seen = 0;
@@ -279,7 +279,7 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     while let Some(make_move) = move_gen.next(
-        pos.board(),
+        pos,
         local_context.get_h_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),

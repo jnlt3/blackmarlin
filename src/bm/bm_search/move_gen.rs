@@ -1,6 +1,7 @@
 use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::position::Position;
 use crate::bm::policy;
 use arrayvec::ArrayVec;
 
@@ -89,7 +90,7 @@ impl<const K: usize> OrderedMoveGen<K> {
 
     pub fn next(
         &mut self,
-        board: &Board,
+        pos: &Position,
         hist: &HistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
@@ -114,14 +115,14 @@ impl<const K: usize> OrderedMoveGen<K> {
         if self.gen_type == GenType::CalcCaptures {
             for &piece_moves in &self.move_list {
                 let mut piece_moves = piece_moves;
-                piece_moves.to &= board.colors(!board.side_to_move());
+                piece_moves.to &= pos.board().colors(!pos.board().side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
                     let expected_gain =
-                        c_hist.get(board.side_to_move(), piece_moves.piece, make_move.to)
-                            + search::see::<1>(&board, make_move) * 32;
+                        c_hist.get(pos.board().side_to_move(), piece_moves.piece, make_move.to)
+                            + search::see::<1>(&pos.board(), make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -133,7 +134,8 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
+                    let see_score =
+                        see.unwrap_or_else(|| search::see::<16>(&pos.board(), *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
                         *score += LOSING_CAPTURE;
@@ -156,7 +158,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         if self.gen_type == GenType::GenQuiet {
             for &piece_moves in &self.move_list {
                 let mut piece_moves = piece_moves;
-                piece_moves.to &= !board.colors(!board.side_to_move());
+                piece_moves.to &= !pos.board().colors(!pos.board().side_to_move());
                 for make_move in piece_moves {
                     if Some(make_move) == self.pv_move {
                         continue;
@@ -173,17 +175,17 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let mut score = 0;
-                    let piece = board.piece_on(make_move.from).unwrap();
+                    let piece = pos.board().piece_on(make_move.from).unwrap();
 
                     if self.policy {
-                        score += policy::move_eval(board, make_move);
+                        score += pos.get_move_eval(make_move);
                     } else {
-                        score += hist.get(board.side_to_move(), piece, make_move.to);
+                        score += hist.get(pos.board().side_to_move(), piece, make_move.to);
                         if let Some(prev_move) = self.prev_move {
                             let prev_move_piece =
-                                board.piece_on(prev_move.to).unwrap_or(Piece::King);
+                                pos.board().piece_on(prev_move.to).unwrap_or(Piece::King);
                             score += cm_hist.get(
-                                board.side_to_move(),
+                                pos.board().side_to_move(),
                                 prev_move_piece,
                                 prev_move.to,
                                 piece,

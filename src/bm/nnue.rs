@@ -7,6 +7,7 @@ use super::bm_runner::ab_runner;
 mod normal;
 
 include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
+include!(concat!(env!("OUT_DIR"), "/policy_weights.rs"));
 
 #[derive(Debug, Clone)]
 pub struct Accumulator {
@@ -14,6 +15,9 @@ pub struct Accumulator {
     b_input_layer: Incremental<'static, INPUT, MID>,
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
+
+    w_policy_input: Incremental<'static, INPUT, 128>,
+    b_policy_input: Incremental<'static, INPUT, 128>,
 }
 
 impl Accumulator {
@@ -29,11 +33,15 @@ impl Accumulator {
             self.w_res_layer.incr_ff::<1>(w_index);
             self.b_input_layer.incr_ff::<1>(b_index);
             self.b_res_layer.incr_ff::<1>(b_index);
+            self.w_policy_input.incr_ff::<1>(b_index);
+            self.b_policy_input.incr_ff::<1>(b_index);
         } else {
             self.w_input_layer.incr_ff::<-1>(w_index);
             self.w_res_layer.incr_ff::<-1>(w_index);
             self.b_input_layer.incr_ff::<-1>(b_index);
             self.b_res_layer.incr_ff::<-1>(b_index);
+            self.w_policy_input.incr_ff::<-1>(b_index);
+            self.b_policy_input.incr_ff::<-1>(b_index);
         }
     }
 }
@@ -51,6 +59,8 @@ impl Nnue {
         let res_layer = Psqt::new(&PSQT);
         let out_layer = Dense::new(&OUT, OUT_BIAS);
 
+        let policy_input = Incremental::new(&P_WEIGHTS_0, P_BIAS_0);
+
         Self {
             accumulator: vec![
                 Accumulator {
@@ -58,6 +68,8 @@ impl Nnue {
                     b_input_layer: input_layer,
                     w_res_layer: res_layer.clone(),
                     b_res_layer: res_layer,
+                    w_policy_input: policy_input.clone(),
+                    b_policy_input: policy_input,
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
@@ -73,6 +85,8 @@ impl Nnue {
         accumulator.b_input_layer.reset(INCREMENTAL_BIAS);
         accumulator.w_res_layer.reset();
         accumulator.b_res_layer.reset();
+        accumulator.w_policy_input.reset(P_BIAS_0);
+        accumulator.b_policy_input.reset(P_BIAS_0);
         for sq in board.occupied() {
             let piece = board.piece_on(sq).unwrap();
             let color = board.color_on(sq).unwrap();
@@ -131,8 +145,8 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
-        let acc = &mut self.accumulator[self.head];
+    pub fn feed_forward(&self, board: &Board, bucket: usize) -> i16 {
+        let acc = &self.accumulator[self.head];
         let (incr_layer, psqt_score) = match board.side_to_move() {
             Color::White => (
                 normal::clipped_relu(*acc.w_input_layer.get()),
@@ -145,5 +159,26 @@ impl Nnue {
         };
 
         psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
+    }
+
+    #[inline]
+    pub fn evaluate_move(&self, board: &Board, make_move: Move) -> i16 {
+        let acc = &self.accumulator[self.head];
+        let incr_layer = match board.side_to_move() {
+            Color::White => (normal::clipped_relu(*acc.w_policy_input.get())),
+            Color::Black => (normal::clipped_relu(*acc.b_policy_input.get())),
+        };
+        let move_piece = board.piece_on(make_move.from).unwrap() as usize;
+        let move_sq = match board.side_to_move() {
+            Color::White => make_move.to as usize,
+            Color::Black => make_move.to as usize ^ 56,
+        };
+        let move_index = move_piece * 64 + move_sq;
+
+        let mut sum = P_BIAS_1[move_index] as i32;
+        for (&weight, &val) in P_WEIGHTS_1[move_index].iter().zip(&incr_layer) {
+            sum += weight as i32 * val as i32;
+        }
+        normal::out(sum)
     }
 }

@@ -1,6 +1,7 @@
 use cozy_chess::{Board, Color, Move};
-
+/*
 include!(concat!(env!("OUT_DIR"), "/policy_weights.rs"));
+
 
 pub fn move_eval(board: &Board, make_move: Move) -> i16 {
     let move_piece = board.piece_on(make_move.from).unwrap() as usize;
@@ -30,3 +31,4 @@ pub fn move_eval(board: &Board, make_move: Move) -> i16 {
     }
     -((score_0 as i64 * score_1 as i64) * 170 / (64 * 64)) as i16
 }
+*/

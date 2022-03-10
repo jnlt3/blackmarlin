@@ -10,25 +10,25 @@ fn parse_policy_net() {
     let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
     let mut nn_bytes = &nn_bytes[..];
 
-    let perceptron_weights_0 = bias_from_bytes_i8(&nn_bytes, 768 * 384);
-    nn_bytes = &nn_bytes[768 * 384..];
-    let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, 384);
-    nn_bytes = &nn_bytes[384..];
-    let perceptron_weights_1 = bias_from_bytes_i8(&nn_bytes, 768 * 384);
-    nn_bytes = &nn_bytes[768 * 384..];
+    let perceptron_weights_0 = dense_from_bytes_i8(&nn_bytes, 768, 128);
+    nn_bytes = &nn_bytes[768 * 128..];
+    let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, 128);
+    nn_bytes = &nn_bytes[128..];
+    let perceptron_weights_1 = dense_rev_from_bytes_i8(&nn_bytes, 128, 384);
+    nn_bytes = &nn_bytes[128 * 384..];
     let perceptron_bias_1 = bias_from_bytes_i8(&nn_bytes, 384);
 
     let mut def_layers = String::new();
     def_layers += &format!(
-        "pub const WEIGHTS_0: [i8; 384 * 768] = {}\n",
+        "pub const P_WEIGHTS_0: [[i8; 128]; 768] = {}\n",
         perceptron_weights_0,
     );
-    def_layers += &format!("pub const BIAS_0: [i8; 384] = {}\n", perceptron_bias_0);
+    def_layers += &format!("pub const P_BIAS_0: [i16; 128] = {}\n", perceptron_bias_0);
     def_layers += &format!(
-        "pub const WEIGHTS_1: [i8; 384 * 768] = {}\n",
+        "pub const P_WEIGHTS_1: [[i8; 128]; 384] = {}\n",
         perceptron_weights_1,
     );
-    def_layers += &format!("pub const BIAS_1: [i8; 384] = {}\n", perceptron_bias_1);
+    def_layers += &format!("pub const P_BIAS_1: [i16; 384] = {}\n", perceptron_bias_1);
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("policy_weights.rs");
@@ -108,6 +108,23 @@ pub fn dense_from_bytes_i8(bytes: &[u8], input: usize, output: usize) -> String 
     for weights in weights.chunks(output) {
         array += "[";
         for &weight in weights {
+            array += &format!("{}, ", weight);
+        }
+        array += "],";
+    }
+    array += "];";
+    array
+}
+
+pub fn dense_rev_from_bytes_i8(bytes: &[u8], input: usize, output: usize) -> String {
+    let mut weights = vec![];
+    for &byte in bytes.iter().take(input * output) {
+        weights.push(i8::from_le_bytes([byte]))
+    }
+    let mut array = "[".to_string();
+    for index in 0..output {
+        array += "[";
+        for &weight in weights[index..].iter().step_by(output).take(input) {
             array += &format!("{}, ", weight);
         }
         array += "],";

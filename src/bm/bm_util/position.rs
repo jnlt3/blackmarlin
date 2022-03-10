@@ -89,9 +89,12 @@ impl Position {
         self.board().hash()
     }
 
-    pub fn get_eval(&mut self) -> Evaluation {
-        let board = self.board().clone();
-        Evaluation::new(self.evaluator.feed_forward(&board, 0))
+    pub fn get_eval(&self) -> Evaluation {
+        Evaluation::new(self.evaluator.feed_forward(self.board(), 0))
+    }
+
+    pub fn get_move_eval(&self, make_move: Move) -> i16 {
+        self.evaluator.evaluate_move(self.board(), make_move)
     }
 
     pub fn insufficient_material(&self) -> bool {
