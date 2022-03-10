@@ -9,7 +9,6 @@ use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
-use crate::bm::policy;
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;

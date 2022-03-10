@@ -16,8 +16,8 @@ pub struct Accumulator {
     w_res_layer: Psqt<'static, INPUT, OUTPUT>,
     b_res_layer: Psqt<'static, INPUT, OUTPUT>,
 
-    w_policy_input: Incremental<'static, INPUT, 128>,
-    b_policy_input: Incremental<'static, INPUT, 128>,
+    w_policy_input: Incremental<'static, INPUT, 256>,
+    b_policy_input: Incremental<'static, INPUT, 256>,
 }
 
 impl Accumulator {

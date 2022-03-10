@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -469,9 +469,8 @@ impl AbRunner {
         self.position.reset();
     }
 
-    #[cfg(feature = "data")]
-    pub fn get_position(&self) -> &Position {
-        &self.position
+    pub fn get_position(&mut self) -> &mut Position {
+        &mut self.position
     }
 
     pub fn get_board(&self) -> &Board {

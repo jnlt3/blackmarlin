@@ -2,7 +2,6 @@ use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::position::Position;
-use crate::bm::policy;
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;

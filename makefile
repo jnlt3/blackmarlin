@@ -9,3 +9,6 @@ endif
 
 rule:
 	POLICYFILE=$(POLICYFILE) EVALFILE=$(EVALFILE) cargo rustc --release -- -C target-cpu=native --emit link=$(NAME)
+
+debug:
+	POLICYFILE=$(POLICYFILE) EVALFILE=$(EVALFILE) cargo rustc -- -C target-cpu=native --emit link=$(NAME)

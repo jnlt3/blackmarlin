@@ -121,11 +121,27 @@ impl UciAdapter {
                 let runner = &mut *self.bm_runner.lock().unwrap();
 
                 println!("eval    : {}", runner.raw_eval().raw());
-                {
-                    let mut nnue = Nnue::new();
-                    for i in 0..1 {
-                        println!("bucket {}: {}", i, nnue.feed_forward(runner.get_board(), i));
+                let pos = runner.get_position();
+                pos.reset();
+                let mut moves = vec![];
+                pos.board().generate_moves(|piece_moves| {
+                    for mv in piece_moves {
+                        moves.push(mv);
                     }
+                    false
+                });
+                let mut highest = i16::MIN;
+                let mut best_move = None;
+                for mv in moves {
+                    let score = pos.get_move_eval(mv);
+                    println!("move: {} policy: {}", mv, score);
+                    if score > highest {
+                        best_move = Some(mv);
+                        highest = score;
+                    }
+                }
+                if let Some(best_move) = best_move {
+                    println!("best move: {}", best_move);
                 }
             }
             UciCommand::Go(commands) => self.go(commands),
