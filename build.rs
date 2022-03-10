@@ -10,23 +10,27 @@ fn parse_policy_net() {
     let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
     let mut nn_bytes = &nn_bytes[..];
 
-    let perceptron_weights_0 = dense_from_bytes_i8(&nn_bytes, 768, 64);
-    nn_bytes = &nn_bytes[768 * 64..];
-    let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, 64);
-    nn_bytes = &nn_bytes[64..];
-    let perceptron_weights_1 = dense_rev_from_bytes_i8(&nn_bytes, 64, 384);
-    nn_bytes = &nn_bytes[64 * 384..];
+    const HIDDEN: usize = 128;
+    let perceptron_weights_0 = dense_from_bytes_i8(&nn_bytes, 768, HIDDEN);
+    nn_bytes = &nn_bytes[768 * HIDDEN..];
+    let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, HIDDEN);
+    nn_bytes = &nn_bytes[HIDDEN..];
+    let perceptron_weights_1 = dense_rev_from_bytes_i8(&nn_bytes, HIDDEN, 384);
+    nn_bytes = &nn_bytes[HIDDEN * 384..];
     let perceptron_bias_1 = bias_from_bytes_i8(&nn_bytes, 384);
 
     let mut def_layers = String::new();
     def_layers += &format!(
-        "pub const P_WEIGHTS_0: [[i8; 64]; 768] = {}\n",
-        perceptron_weights_0,
+        "pub const P_WEIGHTS_0: [[i8; {}]; 768] = {}\n",
+        HIDDEN, perceptron_weights_0,
     );
-    def_layers += &format!("pub const P_BIAS_0: [i16; 64] = {}\n", perceptron_bias_0);
     def_layers += &format!(
-        "pub const P_WEIGHTS_1: [[i8; 64]; 384] = {}\n",
-        perceptron_weights_1,
+        "pub const P_BIAS_0: [i16; {}] = {}\n",
+        HIDDEN, perceptron_bias_0
+    );
+    def_layers += &format!(
+        "pub const P_WEIGHTS_1: [[i8; {}]; 384] = {}\n",
+        HIDDEN, perceptron_weights_1,
     );
     def_layers += &format!("pub const P_BIAS_1: [i16; 384] = {}\n", perceptron_bias_1);
 
