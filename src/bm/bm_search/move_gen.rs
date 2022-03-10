@@ -128,8 +128,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let see_score =
-                        see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
+                    let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
                         *score += LOSING_CAPTURE;
@@ -170,18 +169,6 @@ impl<const K: usize> OrderedMoveGen<K> {
                     }
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
-
-                    score += hist.get(board.side_to_move(), piece, make_move.to);
-                    if let Some(prev_move) = self.prev_move {
-                        let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-                        score += cm_hist.get(
-                            board.side_to_move(),
-                            prev_move_piece,
-                            prev_move.to,
-                            piece,
-                            make_move.to,
-                        );
-                    }
 
                     self.quiets.push((make_move, score));
                 }
