@@ -28,5 +28,5 @@ pub fn move_eval(board: &Board, make_move: Move) -> i16 {
         score_0 += WEIGHTS_0[piece_index * 384 + move_index] as i16;
         score_1 += WEIGHTS_1[piece_index * 384 + move_index] as i16;
     }
-    -((score_0 as i64 * score_1 as i64) * 170 / (64 * 64)) as i16
+    -((score_0 as i64 * score_1.max(0) as i64) * 170 / (64 * 64)) as i16
 }
