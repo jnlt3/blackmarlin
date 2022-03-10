@@ -179,6 +179,6 @@ impl Nnue {
         for (&weight, &val) in P_WEIGHTS_1[move_index].iter().zip(&incr_layer) {
             sum += weight as i32 * val as i32;
         }
-        normal::out(sum)
+        normal::out(-sum)
     }
 }
