@@ -269,7 +269,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         prev_move.unwrap_or(None),
         local_context.get_k_table()[ply as usize].into_iter(),
-        depth >= 8,
+        depth >= 8 && best_move.is_none(),
     );
 
     let mut moves_seen = 0;
