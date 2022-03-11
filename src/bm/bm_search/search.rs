@@ -268,7 +268,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         prev_move.unwrap_or(None),
         local_context.get_k_table()[ply as usize].into_iter(),
-        true,
+        depth <= 4,
     );
 
     let mut moves_seen = 0;
