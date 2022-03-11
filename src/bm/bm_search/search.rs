@@ -268,7 +268,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         prev_move.unwrap_or(None),
         local_context.get_k_table()[ply as usize].into_iter(),
-        true,
+        false,
     );
 
     let mut moves_seen = 0;
@@ -393,6 +393,8 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let policy_score = pos.get_move_eval(make_move);
+
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
@@ -418,6 +420,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
+            reduction -= policy_score / 300;
             if Search::PV {
                 reduction -= 1;
             };
