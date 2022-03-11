@@ -10,7 +10,7 @@ fn parse_policy_net() {
     let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
     let mut nn_bytes = &nn_bytes[..];
 
-    const HIDDEN: usize = 128;
+    const HIDDEN: usize = 32;
     let perceptron_weights_0 = dense_from_bytes_i8(&nn_bytes, 768, HIDDEN);
     nn_bytes = &nn_bytes[768 * HIDDEN..];
     let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, HIDDEN);
