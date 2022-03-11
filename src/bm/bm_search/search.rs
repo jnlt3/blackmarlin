@@ -393,8 +393,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_policy_prune =
-            !Search::PV && moves_seen > 0 && !in_check && !is_capture && depth <= 7;
+        let do_policy_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
         if do_policy_prune && pos.get_move_eval(make_move) < -100 * depth as i16 {
             continue;
         }
