@@ -169,11 +169,11 @@ impl Nnue {
             Color::Black => (normal::clipped_relu(*acc.b_policy_input.get())),
         };
         let move_piece = board.piece_on(make_move.from).unwrap() as usize;
-        let move_sq = match board.side_to_move() {
-            Color::White => make_move.to as usize,
-            Color::Black => make_move.to as usize ^ 56,
+        let (from_sq, to_sq) = match board.side_to_move() {
+            Color::White => (make_move.from as usize, make_move.to as usize),
+            Color::Black => (make_move.from as usize ^ 56, make_move.to as usize ^ 56),
         };
-        let move_index = move_piece * 64 + move_sq;
+        let move_index = from_sq * 64 + to_sq;
 
         let mut sum = P_BIAS_1[move_index] as i32;
         for (&weight, &val) in P_WEIGHTS_1[move_index].iter().zip(&incr_layer) {
