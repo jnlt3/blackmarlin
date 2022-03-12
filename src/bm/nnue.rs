@@ -176,7 +176,7 @@ impl Nnue {
         let from_index = move_piece * 64 + from_sq;
         let to_index = move_piece * 64 + to_sq;
 
-        let mut sum = P_BIAS_1[to_index] as i32;
+        let mut sum = P_BIAS_1[to_index] as i32 - P_BIAS_1[from_index] as i32;
         for ((&to_weight, &from_weight), &val) in P_WEIGHTS_1[to_index]
             .iter()
             .zip(&P_WEIGHTS_1[from_index])
