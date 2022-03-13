@@ -62,7 +62,7 @@ fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 3 + depth / 4 + ((eval - beta) / 200) as u32;
+    let r = 3 + depth / 4 + ((eval - beta) / 100) as u32;
     depth.saturating_sub(r).max(1)
 }
 
