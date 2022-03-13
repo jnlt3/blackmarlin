@@ -314,6 +314,7 @@ pub fn search<Search: SearchType>(
         is singular (only solution) and extend in order to get a more accurate
         estimation of best move/eval
         */
+        let mut is_singular = false;
         if let Some(entry) = tt_entry {
             if moves_seen == 0
                 && entry.table_move() == make_move
@@ -338,6 +339,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension += 1;
+                    is_singular = true;
                 } else if s_beta >= beta {
                     /*
                     Multi-cut:
@@ -505,6 +507,7 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if skip_move.is_none() && !local_context.abort() {
+                        let hist_weight = depth + is_singular as u32;
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
@@ -512,21 +515,21 @@ pub fn search<Search: SearchType>(
                                 pos.board(),
                                 make_move,
                                 &quiets,
-                                depth,
+                                hist_weight,
                             );
                             if let Some(Some(prev_move)) = prev_move {
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
                                     prev_move,
                                     make_move,
-                                    depth,
+                                    hist_weight,
                                 );
                                 local_context.get_cm_hist_mut().cutoff(
                                     pos.board(),
                                     prev_move,
                                     make_move,
                                     &quiets,
-                                    depth,
+                                    hist_weight,
                                 );
                             }
                         } else {
@@ -534,7 +537,7 @@ pub fn search<Search: SearchType>(
                                 pos.board(),
                                 make_move,
                                 &captures,
-                                depth,
+                                hist_weight,
                             );
                         }
                     }
