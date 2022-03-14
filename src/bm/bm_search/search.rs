@@ -507,7 +507,7 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if skip_move.is_none() && !local_context.abort() {
-                        let hist_weight = depth + is_singular as u32;
+                        let hist_weight = depth + if is_singular { 3 } else { 0 };
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
