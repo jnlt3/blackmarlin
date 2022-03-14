@@ -347,6 +347,33 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+        } else if moves_seen == 0 && ply != 0 && depth >= 10 {
+            let main_score = search::<Search::Zw>(
+                pos,
+                local_context,
+                shared_context,
+                ply,
+                depth / 2 - 1,
+                beta - 1,
+                beta,
+            );
+            if main_score >= beta {
+                let s_beta = main_score - depth as i16 * 3;
+                local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
+                let s_score = search::<Search::Zw>(
+                    pos,
+                    local_context,
+                    shared_context,
+                    ply,
+                    depth / 2 - 1,
+                    s_beta - 1,
+                    s_beta,
+                );
+                local_context.search_stack_mut()[ply as usize].skip_move = None;
+                if s_score < s_beta {
+                    extension += 1;
+                }
+            }
         }
 
         /*
