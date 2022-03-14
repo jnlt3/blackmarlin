@@ -91,8 +91,8 @@ const fn hp(depth: u32) -> i32 {
 }
 
 #[inline]
-const fn history_lmr(history: i16) -> i16 {
-    history / 80
+const fn hist_see_lmr(history: i16, see: i16) -> i16 {
+    (history + see) / 80
 }
 
 #[inline]
@@ -384,12 +384,13 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let see = see::<16>(pos.board(), make_move);
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
+        if do_see_prune && eval + see + see_fp(depth) < alpha {
             continue;
         }
 
@@ -417,7 +418,7 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score);
+            reduction -= hist_see_lmr(h_score, see);
             if Search::PV {
                 reduction -= 1;
             };
