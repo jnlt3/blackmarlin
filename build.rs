@@ -15,9 +15,9 @@ fn parse_policy_net() {
     nn_bytes = &nn_bytes[768 * HIDDEN..];
     let perceptron_bias_0 = bias_from_bytes_i8(&nn_bytes, HIDDEN);
     nn_bytes = &nn_bytes[HIDDEN..];
-    let perceptron_weights_1 = dense_rev_from_bytes_i8(&nn_bytes, HIDDEN, 384);
-    nn_bytes = &nn_bytes[HIDDEN * 384..];
-    let perceptron_bias_1 = bias_from_bytes_i8(&nn_bytes, 384);
+    let perceptron_weights_1 = dense_rev_from_bytes_i8(&nn_bytes, HIDDEN, 448);
+    nn_bytes = &nn_bytes[HIDDEN * 448..];
+    let perceptron_bias_1 = bias_from_bytes_i8(&nn_bytes, 448);
 
     let mut def_layers = String::new();
     def_layers += &format!(
@@ -29,10 +29,10 @@ fn parse_policy_net() {
         HIDDEN, perceptron_bias_0
     );
     def_layers += &format!(
-        "pub const P_WEIGHTS_1: [[i8; {}]; 384] = {}\n",
+        "pub const P_WEIGHTS_1: [[i8; {}]; 448] = {}\n",
         HIDDEN, perceptron_weights_1,
     );
-    def_layers += &format!("pub const P_BIAS_1: [i16; 384] = {}\n", perceptron_bias_1);
+    def_layers += &format!("pub const P_BIAS_1: [i16; 448] = {}\n", perceptron_bias_1);
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("policy_weights.rs");
