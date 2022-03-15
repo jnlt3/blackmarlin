@@ -174,9 +174,10 @@ impl Nnue {
             Color::Black => (make_move.from as usize ^ 56, make_move.to as usize ^ 56),
         };
         let move_index = move_piece * 64 + move_sq;
+        let from_index = 384 + from_sq;
 
-        let mut sum = P_BIAS_1[move_index] as i32 + P_BIAS_1[from_sq] as i32;
-        for ((&weight, &from_weight), &val) in P_WEIGHTS_1[move_index].iter().zip(&P_WEIGHTS_1[from_sq]).zip(&incr_layer) {
+        let mut sum = P_BIAS_1[move_index] as i32 + P_BIAS_1[from_index] as i32;
+        for ((&weight, &from_weight), &val) in P_WEIGHTS_1[move_index].iter().zip(&P_WEIGHTS_1[from_index]).zip(&incr_layer) {
             sum += (weight as i32 + from_weight as i32) * val as i32;
         }
         normal::out(sum)
