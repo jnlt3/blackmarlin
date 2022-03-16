@@ -41,6 +41,18 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
+
+#[inline]
+const fn do_impr_p(depth: u32) -> bool {
+    depth <= 2
+}
+
+#[inline]
+const fn impr_p(eval: i16, beta: i16, impr_amt: i16) -> bool {
+    eval >= beta && impr_amt >= 100
+}
+
+
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
     depth < 7
@@ -188,13 +200,17 @@ pub fn search<Search: SearchType>(
     };
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
-    let improving = if ply < 2 || in_check {
-        false
+    let (improving, impr_amt) = if ply < 2 || in_check {
+        (false, 0)
     } else {
-        eval > local_context.search_stack()[ply as usize - 2].eval
+        let prev_eval = local_context.search_stack()[ply as usize - 2].eval;
+        (eval > prev_eval, (eval - prev_eval).raw())
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
+        if do_impr_p(depth) && impr_p(eval.raw(), beta.raw(), impr_amt) {
+            return eval;
+        }
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
