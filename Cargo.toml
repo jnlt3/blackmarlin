@@ -8,13 +8,6 @@ edition = "2021"
 [profile.release]
 lto = "fat"
 codegen-units = 1
-debug = true
-
-[profile.release.build-override]
-opt-level = 3
-
-[profile.dev.build-override]
-opt-level = 3
 
 [dependencies]
 cozy-chess = "0.2.1"

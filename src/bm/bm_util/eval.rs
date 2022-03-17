@@ -1,5 +1,5 @@
 const CHECKMATE: i16 = 64;
-const CHECKMATE_EVAL: i16 = i16::MAX;
+const CHECKMATE_EVAL: i16 = i16::MAX - 1024;
 const MAX_EVAL: i16 = CHECKMATE_EVAL - CHECKMATE;
 
 pub enum Depth {

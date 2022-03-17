@@ -47,6 +47,6 @@ impl<const N: usize> IntoIterator for MoveEntry<N> {
     type IntoIter = MoveEntryIterator<N>;
 
     fn into_iter(self) -> Self::IntoIter {
-        IntoIter::new(self.moves).take(self.size)
+        self.moves.into_iter().take(self.size)
     }
 }

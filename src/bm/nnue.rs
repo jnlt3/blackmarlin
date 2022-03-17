@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
+use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
 use self::normal::{Dense, Incremental, Psqt};
 
