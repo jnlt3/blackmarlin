@@ -49,7 +49,7 @@ const fn do_impr_p(depth: u32) -> bool {
 
 #[inline]
 const fn impr_p(eval: i16, beta: i16, impr_amt: i16) -> bool {
-    eval >= beta && impr_amt >= 100
+    eval >= beta && impr_amt >= 200
 }
 
 
