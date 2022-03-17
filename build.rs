@@ -5,7 +5,7 @@ fn main() {
 }
 
 fn parse_bm_net() {
-    let nn_dir = env::var("EVALFILE").unwrap();
+    let nn_dir = env::var("EVALFILE").unwrap_or_else(|_| "./nn/default.bin".to_string());
     let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
 
     let layers = parse_arch(&nn_bytes);
@@ -56,7 +56,6 @@ fn parse_bm_net() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("nnue_weights.rs");
     std::fs::write(&dest_path, def_nodes + "\n" + &def_layers).unwrap();
-    println!("cargo:rerun-if-changed=./nnue.bin");
 }
 
 pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
