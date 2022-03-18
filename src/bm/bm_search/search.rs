@@ -346,6 +346,14 @@ pub fn search<Search: SearchType>(
                     */
                     return s_beta;
                 }
+            } else if !in_check
+                && skip_move.is_none()
+                && ply > 0
+                && depth < 7
+                && eval + 25 < alpha
+                && entry.entry_type() == LowerBound
+            {
+                extension += 1;
             }
         }
 
