@@ -346,7 +346,8 @@ pub fn search<Search: SearchType>(
                     */
                     return s_beta;
                 }
-            } else if !in_check
+            } else if moves_seen == 0
+                && !in_check
                 && skip_move.is_none()
                 && ply > 0
                 && depth < 7
