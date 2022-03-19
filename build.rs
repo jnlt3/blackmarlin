@@ -24,14 +24,11 @@ fn parse_bm_net() {
     let incremental_bias = bias_from_bytes_i8(&nn_bytes, layers[1]);
     nn_bytes = &nn_bytes[layers[1]..];
 
-    let out = dense_from_bytes_i8(&nn_bytes, layers[1], layers[2]);
-    nn_bytes = &nn_bytes[layers[1] * layers[2]..];
+    let out = dense_from_bytes_i8(&nn_bytes, layers[1] * 2, layers[2]);
+    nn_bytes = &nn_bytes[layers[1] * layers[2] * 2..];
 
     let out_bias = bias_from_bytes_i8(&nn_bytes, layers[2]);
     nn_bytes = &nn_bytes[layers[2]..];
-
-    let res = dense_from_bytes_i32(&nn_bytes, layers[0], layers[2]);
-    nn_bytes = &nn_bytes[layers[0] * layers[2] * 4..];
 
     def_layers += &format!(
         "pub const INCREMENTAL: [[i8; {}]; {}] = {}\n",
@@ -43,13 +40,9 @@ fn parse_bm_net() {
     );
     def_layers += &format!(
         "pub const OUT: [[i8; {}]; {}] = {}\n",
-        layers[2], layers[1], out
+        layers[2], layers[1] * 2, out
     );
     def_layers += &format!("pub const OUT_BIAS: [i32; {}] = {}\n", layers[2], out_bias);
-    def_layers += &format!(
-        "pub const PSQT: [[i32; {}]; {}] = {}\n",
-        layers[2], layers[0], res
-    );
 
     assert!(nn_bytes.is_empty(), "{}", nn_bytes.len());
 

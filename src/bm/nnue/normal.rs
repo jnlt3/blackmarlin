@@ -4,36 +4,6 @@ const MIN: i16 = 0;
 const MAX: i16 = SCALE;
 
 #[derive(Debug, Clone)]
-pub struct Psqt<'a, const INPUT: usize, const OUTPUT: usize> {
-    weights: &'a [[i32; OUTPUT]; INPUT],
-    out: [i32; OUTPUT],
-}
-
-impl<'a, const INPUT: usize, const OUTPUT: usize> Psqt<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i32; OUTPUT]; INPUT]) -> Self {
-        Self {
-            weights,
-            out: [0_i32; OUTPUT],
-        }
-    }
-
-    #[inline]
-    pub fn incr_ff<const CHANGE: i32>(&mut self, index: usize) {
-        for (out, &weight) in self.out.iter_mut().zip(&self.weights[index]) {
-            *out += weight * CHANGE;
-        }
-    }
-
-    pub fn reset(&mut self) {
-        self.out = [0; OUTPUT];
-    }
-
-    pub fn get(&self) -> &[i32; OUTPUT] {
-        &self.out
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {
     weights: &'a [[i8; OUTPUT]; INPUT],
     out: [i16; OUTPUT],
@@ -92,10 +62,8 @@ pub fn out(x: i32) -> i16 {
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N]) -> [i8; N] {
-    let mut out = [0_i8; N];
+pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [i8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
         *clipped = x.max(MIN).min(MAX) as i8;
     }
-    out
 }
