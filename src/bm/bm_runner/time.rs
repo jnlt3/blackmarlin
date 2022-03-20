@@ -1,7 +1,7 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -76,11 +76,13 @@ impl TimeManager {
 impl TimeManager {
     pub fn deepen(
         &self,
+        board: &Board,
         thread: u8,
         depth: u32,
         _: u64,
         eval: Evaluation,
         current_move: Move,
+        root_h_table: &[[i32; 64]; 64],
         _: Duration,
     ) {
         if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
@@ -107,7 +109,22 @@ impl TimeManager {
             self.same_move_depth.fetch_add(1, Ordering::SeqCst)
         };
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
+        let div = (depth * (depth + 1) * (2 * depth + 1) / 6) as f32;
+        let root_hist =
+            (root_h_table[current_move.from as usize][current_move.to as usize] as f32 / div).exp();
+        let mut sum = 0.0;
+        board.generate_moves(|piece_moves| {
+            for make_move in piece_moves.into_iter() {
+                let hist_score =
+                    root_h_table[make_move.from as usize][make_move.to as usize] as f32;
+                sum += (hist_score / div).exp();
+            }
+            false
+        });
+
+        let hist_score = ((1.0 - root_hist / sum) * 10.0).clamp(0.3, 1.7);
+
+        let eval_diff = (current_eval as f32 - last_eval as f32) / 25.0;
 
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
@@ -119,7 +136,7 @@ impl TimeManager {
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.target_duration
-            .store((time * 0.001 * move_change_factor) as u32, Ordering::SeqCst);
+            .store((time * 0.001 * move_change_factor * hist_score) as u32, Ordering::SeqCst);
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 

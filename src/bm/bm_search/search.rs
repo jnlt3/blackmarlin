@@ -495,6 +495,11 @@ pub fn search<Search: SearchType>(
             highest_score = Some(score);
             best_move = Some(make_move);
             if score > alpha {
+                if ply == 0 {
+                    let from = make_move.from as usize;
+                    let to = make_move.to as usize;
+                    local_context.get_root_h_table_mut()[from][to] += (depth * depth) as i32;
+                }
                 if Search::PV || (ply == 0 && moves_seen == 1) {
                     let (child_pv, len) = {
                         let child = &local_context.search_stack()[ply as usize + 1];
@@ -541,6 +546,10 @@ pub fn search<Search: SearchType>(
                     break;
                 }
                 alpha = score;
+            } else if ply == 0 {
+                let from = make_move.from as usize;
+                let to = make_move.to as usize;
+                local_context.get_root_h_table_mut()[from][to] -= (depth * depth) as i32;
             }
         }
         if is_capture {

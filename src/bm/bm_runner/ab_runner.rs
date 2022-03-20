@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -94,6 +94,7 @@ pub struct LocalContext {
     eval: Evaluation,
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
+    root_h_table: [[i32; 64]; 64],
     h_table: HistoryTable,
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
@@ -132,6 +133,10 @@ impl SharedContext {
 
 impl LocalContext {
     #[inline]
+    pub fn get_root_h_table(&mut self) -> &[[i32; 64]; 64] {
+        &self.root_h_table
+    }
+    #[inline]
     pub fn get_h_table(&self) -> &HistoryTable {
         &self.h_table
     }
@@ -149,6 +154,11 @@ impl LocalContext {
     #[inline]
     pub fn get_cm_hist(&self) -> &DoubleMoveHistory {
         &self.cm_hist
+    }
+
+    #[inline]
+    pub fn get_root_h_table_mut(&mut self) -> &mut [[i32; 64]; 64] {
+        &mut self.root_h_table
     }
 
     #[inline]
@@ -292,11 +302,13 @@ impl AbRunner {
                     local_context.eval = score;
 
                     shared_context.time_manager.deepen(
+                        position.board(),
                         thread,
                         depth,
                         nodes,
                         local_context.eval,
                         local_context.search_stack[0].pv[0].unwrap(),
+                        local_context.get_root_h_table(),
                         search_start.elapsed(),
                     );
                     abort = shared_context.abort_deepening(depth, nodes);
@@ -405,6 +417,7 @@ impl AbRunner {
                     MAX_PLY as usize + 1
                 ],
                 sel_depth: 0,
+                root_h_table: [[0; 64]; 64],
                 h_table: HistoryTable::new(),
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
