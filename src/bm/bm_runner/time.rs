@@ -1,14 +1,14 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
 const EXPECTED_MOVES: u32 = 40;
-const MOVE_CHANGE_MARGIN: u32 = 12;
+const MOVE_CHANGE_MARGIN: u32 = 5;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -89,7 +89,7 @@ impl TimeManager {
 
         let current_eval = eval.raw();
         let last_eval = self.last_eval.load(Ordering::SeqCst);
-        let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
+        let time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
 
         let mut move_changed = false;
         let prev_move = &mut *self.prev_move.lock().unwrap();
@@ -107,19 +107,22 @@ impl TimeManager {
             self.same_move_depth.fetch_add(1, Ordering::SeqCst)
         };
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).min(0.0) / -25.0;
+        let eval_diff = current_eval as f32 - last_eval as f32;
 
-        time *= 1.05_f32.powf(eval_diff.min(1.0));
-
-        let move_change_factor = 1.1_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .clamp(0.3, 2.0);
+        let time_factor = 1.5 + (eval_diff / -100.0).clamp(-0.5, 0.5);
+        let move_change_factor = if move_change_depth > MOVE_CHANGE_MARGIN {
+            0.6
+        } else {
+            1.6
+        };
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
-        self.target_duration
-            .store((time * 0.001 * move_change_factor) as u32, Ordering::SeqCst);
+        self.target_duration.store(
+            (time * 0.001 * move_change_factor * time_factor) as u32,
+            Ordering::SeqCst,
+        );
         self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
