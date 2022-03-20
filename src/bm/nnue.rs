@@ -1,6 +1,6 @@
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::normal::{Dense, Incremental, Psqt};
+use self::normal::{Dense, Incremental};
 
 use super::bm_runner::ab_runner;
 
@@ -12,8 +12,6 @@ include!(concat!(env!("OUT_DIR"), "/nnue_weights.rs"));
 pub struct Accumulator {
     w_input_layer: Incremental<'static, INPUT, MID>,
     b_input_layer: Incremental<'static, INPUT, MID>,
-    w_res_layer: Psqt<'static, INPUT, OUTPUT>,
-    b_res_layer: Psqt<'static, INPUT, OUTPUT>,
 }
 
 impl Accumulator {
@@ -26,14 +24,10 @@ impl Accumulator {
 
         if INCR {
             self.w_input_layer.incr_ff::<1>(w_index);
-            self.w_res_layer.incr_ff::<1>(w_index);
             self.b_input_layer.incr_ff::<1>(b_index);
-            self.b_res_layer.incr_ff::<1>(b_index);
         } else {
             self.w_input_layer.incr_ff::<-1>(w_index);
-            self.w_res_layer.incr_ff::<-1>(w_index);
             self.b_input_layer.incr_ff::<-1>(b_index);
-            self.b_res_layer.incr_ff::<-1>(b_index);
         }
     }
 }
@@ -42,13 +36,12 @@ impl Accumulator {
 pub struct Nnue {
     accumulator: Vec<Accumulator>,
     head: usize,
-    out_layer: Dense<'static, MID, OUTPUT>,
+    out_layer: Dense<'static, { MID * 2 }, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
         let input_layer = Incremental::new(&INCREMENTAL, INCREMENTAL_BIAS);
-        let res_layer = Psqt::new(&PSQT);
         let out_layer = Dense::new(&OUT, OUT_BIAS);
 
         Self {
@@ -56,13 +49,11 @@ impl Nnue {
                 Accumulator {
                     w_input_layer: input_layer.clone(),
                     b_input_layer: input_layer,
-                    w_res_layer: res_layer.clone(),
-                    b_res_layer: res_layer,
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
-            head: 0,
             out_layer,
+            head: 0,
         }
     }
 
@@ -71,8 +62,6 @@ impl Nnue {
         let accumulator = &mut self.accumulator[0];
         accumulator.w_input_layer.reset(INCREMENTAL_BIAS);
         accumulator.b_input_layer.reset(INCREMENTAL_BIAS);
-        accumulator.w_res_layer.reset();
-        accumulator.b_res_layer.reset();
         for sq in board.occupied() {
             let piece = board.piece_on(sq).unwrap();
             let color = board.color_on(sq).unwrap();
@@ -133,17 +122,14 @@ impl Nnue {
     #[inline]
     pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
-        let (incr_layer, psqt_score) = match board.side_to_move() {
-            Color::White => (
-                normal::clipped_relu(*acc.w_input_layer.get()),
-                acc.w_res_layer.get()[bucket] / 64,
-            ),
-            Color::Black => (
-                normal::clipped_relu(*acc.b_input_layer.get()),
-                acc.b_res_layer.get()[bucket] / 64,
-            ),
+        let mut incr = [0; MID * 2];
+        let (stm, nstm) = match board.side_to_move() {
+            Color::White => (&acc.w_input_layer, &acc.b_input_layer),
+            Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
+        normal::clipped_relu(*stm.get(), &mut incr);
+        normal::clipped_relu(*nstm.get(), &mut incr[MID..]);
 
-        psqt_score as i16 + normal::out(self.out_layer.ff(&incr_layer, bucket)[bucket])
+        normal::out(self.out_layer.ff(&incr, bucket)[bucket])
     }
 }
