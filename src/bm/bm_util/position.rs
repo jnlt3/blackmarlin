@@ -14,7 +14,7 @@ pub struct Position {
 impl Position {
     pub fn new(board: Board) -> Self {
         let mut evaluator = Nnue::new();
-        evaluator.reset(&board);
+        evaluator.full_reset(&board);
         Self {
             current: board,
             boards: vec![],
@@ -23,7 +23,7 @@ impl Position {
     }
 
     pub fn reset(&mut self) {
-        self.evaluator.reset(&self.current);
+        self.evaluator.full_reset(&self.current);
     }
 
     #[inline]
