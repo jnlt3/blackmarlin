@@ -315,10 +315,11 @@ pub fn search<Search: SearchType>(
         estimation of best move/eval
         */
         if let Some(entry) = tt_entry {
+            let singular_depth = if Search::PV { 9 } else { 7 };
             if moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
-                && depth >= 7
+                && depth >= singular_depth
                 && !entry.score().is_mate()
                 && entry.depth() >= depth - 2
                 && (entry.entry_type() == EntryType::LowerBound
