@@ -1,16 +1,18 @@
+use std::sync::Arc;
+
 const UNITS: i16 = 170_i16;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = SCALE;
 
 #[derive(Debug, Clone)]
-pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {
-    weights: &'a [[i8; OUTPUT]; INPUT],
+pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
+    weights: Arc<[[i8; OUTPUT]; INPUT]>,
     out: [i16; OUTPUT],
 }
 
-impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i16; OUTPUT]) -> Self {
+impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
+    pub fn new(weights: Arc<[[i8; OUTPUT]; INPUT]>, bias: [i16; OUTPUT]) -> Self {
         Self { weights, out: bias }
     }
 
@@ -31,13 +33,13 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
 }
 
 #[derive(Debug, Clone)]
-pub struct Dense<'a, const INPUT: usize, const OUTPUT: usize> {
-    weights: &'a [[i8; OUTPUT]; INPUT],
+pub struct Dense<const INPUT: usize, const OUTPUT: usize> {
+    weights: Arc<[[i8; OUTPUT]; INPUT]>,
     bias: [i32; OUTPUT],
 }
 
-impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i32; OUTPUT]) -> Self {
+impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
+    pub fn new(weights: Arc<[[i8; OUTPUT]; INPUT]>, bias: [i32; OUTPUT]) -> Self {
         Self { weights, bias }
     }
 
