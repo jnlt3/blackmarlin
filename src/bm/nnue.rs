@@ -60,11 +60,11 @@ impl Nnue {
         let mut bytes = &NN_BYTES[12..];
         let incremental = Arc::new(include::dense_from_bytes_i8::<INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID..];
-        let incremental_bias = include::bias_from_bytes_i8::<MID, i16>(bytes);
+        let incremental_bias = include::bias_from_bytes_i8::<i16, MID>(bytes);
         bytes = &bytes[MID..];
         let out = Arc::new(include::dense_from_bytes_i8::<{ MID * 2 }, OUTPUT>(bytes));
         bytes = &bytes[MID * OUTPUT * 2..];
-        let out_bias = include::bias_from_bytes_i8::<OUTPUT, i32>(bytes);
+        let out_bias = include::bias_from_bytes_i8::<i32, OUTPUT>(bytes);
         bytes = &bytes[OUTPUT..];
         assert!(bytes.is_empty(), "{}", bytes.len());
 

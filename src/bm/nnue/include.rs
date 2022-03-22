@@ -14,7 +14,7 @@ pub fn dense_from_bytes_i8<const INPUT: usize, const OUTPUT: usize>(
     dense
 }
 
-pub fn bias_from_bytes_i8<const LEN: usize, T: From<i8> + Copy + Default>(
+pub fn bias_from_bytes_i8<T: From<i8> + Copy + Default, const LEN: usize>(
     bytes: &[u8],
 ) -> [T; LEN] {
     let mut weights = [T::default(); LEN];
