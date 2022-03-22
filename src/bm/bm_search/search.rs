@@ -572,7 +572,8 @@ pub fn search<Search: SearchType>(
                 UpperBound
             };
 
-            let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
+            let tt_score = depth + if Search::PV { 4 } else { 0 };
+            let analysis = Analysis::new(tt_score, entry_type, highest_score, *final_move);
             shared_context.get_t_table().set(pos.board(), analysis);
         }
     }
