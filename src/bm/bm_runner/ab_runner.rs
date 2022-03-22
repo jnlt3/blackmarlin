@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -101,6 +101,7 @@ pub struct LocalContext {
     killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
+    extensions: u32,
 }
 
 impl SharedContext {
@@ -220,6 +221,18 @@ impl LocalContext {
     pub fn abort(&self) -> bool {
         self.abort
     }
+
+    pub fn extensions(&self) -> u32 {
+        self.extensions
+    }
+
+    pub fn extend(&mut self) {
+        self.extensions += 1;
+    }
+
+    pub fn reset_extensions(&mut self) {
+        self.extensions = 0
+    }
 }
 
 pub struct AbRunner {
@@ -275,6 +288,7 @@ impl AbRunner {
                         (Evaluation::min(), Evaluation::max())
                     };
                     local_context.sel_depth = 0;
+                    local_context.reset_extensions();
                     let score = search::search::<Pv>(
                         &mut position,
                         &mut local_context,
@@ -412,6 +426,7 @@ impl AbRunner {
                 killer_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
+                extensions: 0,
             },
             position,
             chess960: false,
