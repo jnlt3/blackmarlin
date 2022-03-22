@@ -276,6 +276,8 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let root_depth = ply + depth;
+
     while let Some(make_move) = move_gen.next(
         pos.board(),
         local_context.get_h_table(),
@@ -318,7 +320,7 @@ pub fn search<Search: SearchType>(
             if moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
-                && depth >= 7
+                && depth >= (root_depth / 2).max(8)
                 && !entry.score().is_mate()
                 && entry.depth() >= depth - 2
                 && (entry.entry_type() == EntryType::LowerBound
