@@ -318,7 +318,7 @@ pub fn search<Search: SearchType>(
             if moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
-                && depth >= 7
+                && depth * depth >= 49 + local_context.extensions()
                 && !entry.score().is_mate()
                 && entry.depth() >= depth - 2
                 && (entry.entry_type() == EntryType::LowerBound
@@ -338,6 +338,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension += 1;
+                    local_context.extend();
                 } else if s_beta >= beta {
                     /*
                     Multi-cut:
