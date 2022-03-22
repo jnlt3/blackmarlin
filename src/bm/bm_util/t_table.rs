@@ -156,7 +156,7 @@ impl TranspositionTable {
 
 fn rate_analysis(entry: &Analysis) -> u8 {
     let mut score = entry.depth;
-    if matches!(entry.entry_type, EntryType::Exact) {
+    if matches!(entry.entry_type, EntryType::Exact | EntryType::UpperBound) {
         score += 2;
     }
     score
