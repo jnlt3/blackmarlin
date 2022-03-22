@@ -142,7 +142,8 @@ impl TranspositionTable {
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-        if !analysis.exists || entry.depth >= analysis.depth / 2 {
+
+        if !analysis.exists || rate_analysis(&entry) > rate_analysis(&analysis) / 2 {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
@@ -151,4 +152,12 @@ impl TranspositionTable {
     pub fn clean(&self) {
         self.table.iter().for_each(|entry| entry.zero());
     }
+}
+
+fn rate_analysis(entry: &Analysis) -> u8 {
+    let mut score = entry.depth;
+    if matches!(entry.entry_type, EntryType::Exact) {
+        score += 2;
+    }
+    score
 }
