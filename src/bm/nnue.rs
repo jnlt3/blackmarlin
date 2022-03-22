@@ -120,7 +120,10 @@ impl Nnue {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
         if from_type == Piece::King {
-            self.reset(board);
+            let mut board_clone = board.clone();
+            board_clone.play_unchecked(make_move);
+            self.reset(&board_clone);
+            return;
         }
         let acc = &mut self.accumulator[self.head];
 
