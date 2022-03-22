@@ -360,10 +360,12 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let root_depth = ply + depth;
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
         if !move_gen.skip_quiets()
+            && ply > root_depth / 4
             && !is_capture
             && quiets.len()
                 >= shared_context
