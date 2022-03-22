@@ -58,11 +58,11 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let mut bytes = &NN_BYTES[12..];
-        let incremental = Arc::new(include::dense_from_bytes_i8::<INPUT, MID>(bytes));
+        let incremental = Arc::new(*include::dense_from_bytes_i8::<INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID..];
         let incremental_bias = include::bias_from_bytes_i8::<i16, MID>(bytes);
         bytes = &bytes[MID..];
-        let out = Arc::new(include::dense_from_bytes_i8::<{ MID * 2 }, OUTPUT>(bytes));
+        let out = Arc::new(*include::dense_from_bytes_i8::<{ MID * 2 }, OUTPUT>(bytes));
         bytes = &bytes[MID * OUTPUT * 2..];
         let out_bias = include::bias_from_bytes_i8::<i32, OUTPUT>(bytes);
         bytes = &bytes[OUTPUT..];

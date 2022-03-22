@@ -1,11 +1,12 @@
+#[inline]
 pub fn dense_from_bytes_i8<const INPUT: usize, const OUTPUT: usize>(
     bytes: &[u8],
-) -> [[i8; OUTPUT]; INPUT] {
+) -> Box<[[i8; OUTPUT]; INPUT]> {
     let mut weights = vec![];
     for &byte in bytes.iter().take(INPUT * OUTPUT) {
         weights.push(i8::from_le_bytes([byte]))
     }
-    let mut dense = [[0; OUTPUT]; INPUT];
+    let mut dense = Box::new([[0; OUTPUT]; INPUT]);
     for (i, weights) in weights.chunks(OUTPUT).enumerate() {
         for (j, &weight) in weights.into_iter().enumerate() {
             dense[i][j] = weight;
@@ -14,6 +15,7 @@ pub fn dense_from_bytes_i8<const INPUT: usize, const OUTPUT: usize>(
     dense
 }
 
+#[inline]
 pub fn bias_from_bytes_i8<T: From<i8> + Copy + Default, const LEN: usize>(
     bytes: &[u8],
 ) -> [T; LEN] {
