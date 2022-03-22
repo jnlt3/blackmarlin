@@ -318,7 +318,7 @@ pub fn search<Search: SearchType>(
             if moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
-                && depth * depth >= 49 + local_context.extensions()
+                && depth * depth >= 49 + local_context.extensions() / 4
                 && !entry.score().is_mate()
                 && entry.depth() >= depth - 2
                 && (entry.entry_type() == EntryType::LowerBound
