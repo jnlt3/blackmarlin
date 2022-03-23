@@ -76,6 +76,10 @@ const fn iir(depth: u32) -> u32 {
     }
 }
 
+const fn singular_threshold(depth: u32) -> i16 {
+    500 + depth as i16 * 50
+}
+
 #[inline]
 const fn fp(depth: u32) -> i16 {
     depth as i16 * 100
@@ -204,7 +208,7 @@ pub fn search<Search: SearchType>(
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
             return eval;
-        } else if eval + rev_fp(depth, improving) <= alpha {
+        } else if eval + singular_threshold(depth) <= alpha {
             adapt.singular = false;
         }
 
