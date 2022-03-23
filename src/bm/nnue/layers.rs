@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 const UNITS: i16 = 170_i16;
-const SCALE: i16 = 64;
+const SCALE: i16 = 256;
 const MIN: i16 = 0;
 const MAX: i16 = SCALE;
 
@@ -44,7 +44,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[i8; INPUT], bucket: usize) -> [i32; OUTPUT] {
+    pub fn ff(&self, inputs: &[u8; INPUT], bucket: usize) -> [i32; OUTPUT] {
         let mut out = self.bias;
         for (&input, weights) in inputs.iter().zip(&*self.weights) {
             for (out, &weight) in out[bucket..bucket + 1]
@@ -60,12 +60,12 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
 
 #[inline]
 pub fn out(x: i32) -> i16 {
-    (x as f32 * UNITS as f32 / (SCALE * SCALE) as f32) as i16
+    (x as f32 * UNITS as f32 / (SCALE as f32 * SCALE as f32)) as i16
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [i8]) {
+pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        *clipped = x.max(MIN).min(MAX) as i8;
+        *clipped = x.max(MIN).min(MAX) as u8;
     }
 }
