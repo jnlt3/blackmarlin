@@ -337,7 +337,7 @@ pub fn search<Search: SearchType>(
                 );
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    extension += 1;
+                    extension = 1;
                 } else if s_beta >= beta {
                     /*
                     Multi-cut:
@@ -347,6 +347,10 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+        }
+        let see = see::<16>(pos.board(), make_move);
+        if depth < 7 && see > 0 && eval < alpha - see {
+            extension = 1;
         }
 
         /*
@@ -388,8 +392,9 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
+
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
+        if do_see_prune && eval + see + see_fp(depth) < alpha {
             continue;
         }
 
