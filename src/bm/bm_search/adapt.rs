@@ -5,8 +5,6 @@ pub struct Adapt {
 
 impl Default for Adapt {
     fn default() -> Self {
-        Self {
-            singular: Default::default(),
-        }
+        Self { singular: true }
     }
 }
