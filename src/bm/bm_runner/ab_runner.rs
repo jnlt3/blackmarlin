@@ -4,11 +4,12 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
+use crate::bm::bm_search::adapt::Adapt;
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -283,6 +284,7 @@ impl AbRunner {
                         depth,
                         alpha,
                         beta,
+                        Adapt::default(),
                     );
                     nodes = local_context.nodes();
                     if depth > 1 && local_context.abort() {

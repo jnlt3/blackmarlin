@@ -10,6 +10,7 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
+use super::adapt::Adapt;
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 
@@ -113,6 +114,7 @@ pub fn search<Search: SearchType>(
     mut depth: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
+    mut adapt: Adapt,
 ) -> Evaluation {
     local_context.search_stack_mut()[ply as usize].pv_len = 0;
 
@@ -200,8 +202,12 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
-            return eval;
+        if eval - rev_fp(depth, improving) >= beta {
+            if do_rev_fp(depth) {
+                return eval;
+            } else {
+                adapt.singular = false;
+            }
         }
 
         /*
@@ -223,6 +229,7 @@ pub fn search<Search: SearchType>(
                 nmp_depth(depth, eval.raw(), beta.raw()),
                 zw,
                 zw + 1,
+                adapt,
             );
             pos.unmake_move();
             let score = search_score << Next;
@@ -316,6 +323,7 @@ pub fn search<Search: SearchType>(
         */
         if let Some(entry) = tt_entry {
             if moves_seen == 0
+                && adapt.singular
                 && entry.table_move() == make_move
                 && ply != 0
                 && depth >= 7
@@ -334,6 +342,7 @@ pub fn search<Search: SearchType>(
                     depth / 2 - 1,
                     s_beta - 1,
                     s_beta,
+                    adapt,
                 );
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
@@ -438,6 +447,7 @@ pub fn search<Search: SearchType>(
                 depth - 1 + extension,
                 beta >> Next,
                 alpha >> Next,
+                adapt,
             );
             score = search_score << Next;
         } else {
@@ -452,6 +462,7 @@ pub fn search<Search: SearchType>(
                 lmr_depth - 1 + extension,
                 zw - 1,
                 zw,
+                adapt,
             );
             score = lmr_score << Next;
 
@@ -468,6 +479,7 @@ pub fn search<Search: SearchType>(
                     depth - 1 + extension,
                     zw - 1,
                     zw,
+                    adapt,
                 );
                 score = zw_score << Next;
             }
@@ -483,6 +495,7 @@ pub fn search<Search: SearchType>(
                     depth - 1 + extension,
                     beta >> Next,
                     alpha >> Next,
+                    adapt,
                 );
                 score = search_score << Next;
             }
