@@ -349,7 +349,7 @@ pub fn search<Search: SearchType>(
             }
         }
         let see = see::<16>(pos.board(), make_move);
-        if depth < 7 && see > 0 && eval < alpha - see {
+        if depth < 7 && see > 400 && eval < alpha - see {
             extension = 1;
         }
 
