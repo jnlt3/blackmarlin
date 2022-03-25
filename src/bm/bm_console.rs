@@ -23,13 +23,13 @@ impl BmConsole {
         }
         #[cfg(any(feature = "trace", feature = "data"))]
         if command.starts_with("!") {
-            let (command, _options) = Self::parse(&command[1..]);
+            let (command, options) = Self::parse(&command[1..]);
             let command: &str = &command;
             match command {
                 #[cfg(feature = "trace")]
-                "tune" => Self::tune(_options),
+                "tune" => Self::tune(options),
                 #[cfg(feature = "data")]
-                "data" => Self::data(),
+                "data" => Self::data(options),
                 _ => {}
             }
             return true;
@@ -38,8 +38,14 @@ impl BmConsole {
     }
 
     #[cfg(feature = "data")]
-    fn data() {
-        gen_eval::gen_eval();
+    fn data(options: Vec<(String, String)>) {
+        use std::collections::HashMap;
+
+        let options = options.into_iter().collect::<HashMap<String, String>>();
+        gen_eval::gen_eval(
+            options.get("depth").unwrap().parse::<u32>().unwrap(),
+            options.get("threads").unwrap().parse::<u32>().unwrap(),
+        );
     }
 
     #[cfg(feature = "trace")]

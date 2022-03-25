@@ -9,12 +9,12 @@ use cozy_chess::{BitBoard, Board, Move};
 use rand::Rng;
 
 use crate::bm::{
-    bm_util::eval::Evaluation,
     bm_runner::{
         ab_runner::AbRunner,
         config::{NoInfo, Run},
         time::{TimeManagementInfo, TimeManager},
     },
+    bm_util::eval::Evaluation,
 };
 
 fn play_single(
@@ -74,14 +74,12 @@ fn play_single(
         .collect::<Vec<_>>()
 }
 
-fn gen_games(iter: usize) -> Vec<(Board, Evaluation, f32)> {
+fn gen_games(iter: usize, depth: u32) -> Vec<(Board, Evaluation, f32)> {
     let mut evals = vec![];
-    let time_management_options = TimeManagementInfo::MaxDepth(6);
+    let time_management_options = TimeManagementInfo::MaxDepth(depth);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
     for i in 0..iter {
-        println!("{}", i);
-
         evals.extend(play_single(
             &mut engine_0,
             &time_manager,
@@ -91,12 +89,12 @@ fn gen_games(iter: usize) -> Vec<(Board, Evaluation, f32)> {
     evals
 }
 
-pub fn gen_eval() {
+pub fn gen_eval(depth: u32, thread_cnt: u32) {
     for _ in 0.. {
         let mut evals = vec![];
         let mut threads = vec![];
-        for _ in 0..6 {
-            threads.push(std::thread::spawn(move || gen_games(100)))
+        for _ in 0..thread_cnt {
+            threads.push(std::thread::spawn(move || gen_games(100, depth)))
         }
         for t in threads {
             evals.extend(t.join().unwrap());
@@ -109,7 +107,7 @@ pub fn gen_eval() {
             .read(true)
             .append(true)
             .create(true)
-            .open("./data/quiet_01.txt")
+            .open("./data.txt")
             .unwrap();
         let mut write = BufWriter::new(file);
         write.write(output.as_bytes()).unwrap();
