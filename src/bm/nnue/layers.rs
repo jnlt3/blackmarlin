@@ -1,16 +1,19 @@
-const UNITS: i16 = 170_i16;
+use std::sync::Arc;
+
+const UNITS: i16 = 400_i16;
+const FT_SCALE: i16 = 255;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
-const MAX: i16 = SCALE;
+const MAX: i16 = FT_SCALE;
 
 #[derive(Debug, Clone)]
-pub struct Incremental<'a, const INPUT: usize, const OUTPUT: usize> {
-    weights: &'a [[i8; OUTPUT]; INPUT],
+pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
+    weights: Arc<[[i16; OUTPUT]; INPUT]>,
     out: [i16; OUTPUT],
 }
 
-impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i16; OUTPUT]) -> Self {
+impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
+    pub fn new(weights: Arc<[[i16; OUTPUT]; INPUT]>, bias: [i16; OUTPUT]) -> Self {
         Self { weights, out: bias }
     }
 
@@ -21,7 +24,7 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
     #[inline]
     pub fn incr_ff<const CHANGE: i16>(&mut self, index: usize) {
         for (out, &weight) in self.out.iter_mut().zip(&self.weights[index]) {
-            *out += weight as i16 * CHANGE;
+            *out += weight * CHANGE;
         }
     }
 
@@ -31,18 +34,18 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<'a, INPUT, OUTPUT>
 }
 
 #[derive(Debug, Clone)]
-pub struct Dense<'a, const INPUT: usize, const OUTPUT: usize> {
-    weights: &'a [[i8; OUTPUT]; INPUT],
+pub struct Dense<const INPUT: usize, const OUTPUT: usize> {
+    weights: Arc<[[i8; OUTPUT]; INPUT]>,
     bias: [i32; OUTPUT],
 }
 
-impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
-    pub fn new(weights: &'a [[i8; OUTPUT]; INPUT], bias: [i32; OUTPUT]) -> Self {
+impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
+    pub fn new(weights: Arc<[[i8; OUTPUT]; INPUT]>, bias: [i32; OUTPUT]) -> Self {
         Self { weights, bias }
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[i8; INPUT], bucket: usize) -> [i32; OUTPUT] {
+    pub fn ff(&self, inputs: &[u8; INPUT], bucket: usize) -> [i32; OUTPUT] {
         let mut out = self.bias;
         for (&input, weights) in inputs.iter().zip(&*self.weights) {
             for (out, &weight) in out[bucket..bucket + 1]
@@ -58,12 +61,12 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Dense<'a, INPUT, OUTPUT> {
 
 #[inline]
 pub fn out(x: i32) -> i16 {
-    (x as f32 * UNITS as f32 / (SCALE * SCALE) as f32) as i16
+    (x as f32 * UNITS as f32 / (FT_SCALE as f32 * SCALE as f32)) as i16
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [i8]) {
+pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        *clipped = x.max(MIN).min(MAX) as i8;
+        *clipped = x.max(MIN).min(MAX) as u8;
     }
 }
