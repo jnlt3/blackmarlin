@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
@@ -377,7 +377,7 @@ impl AbRunner {
                     if depth == 0 || mv == 0 {
                         0
                     } else {
-                        (0.75 + (depth as f32).ln() * (mv as f32).ln() / 1.25) as u32
+                        (1.25 + (depth as f32).ln() * (mv as f32).ln() / 1.75) as u32
                     }
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
