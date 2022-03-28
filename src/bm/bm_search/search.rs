@@ -388,7 +388,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
+        let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7 && h_score <= 0;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
             continue;
         }
