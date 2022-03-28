@@ -45,13 +45,10 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[u8; INPUT], bucket: usize) -> [i32; OUTPUT] {
+    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
         for (&input, weights) in inputs.iter().zip(&*self.weights) {
-            for (out, &weight) in out[bucket..bucket + 1]
-                .iter_mut()
-                .zip(weights[bucket..bucket + 1].iter())
-            {
+            for (out, &weight) in out.iter_mut().zip(weights.iter()) {
                 *out += weight as i32 * input as i32;
             }
         }
@@ -69,4 +66,13 @@ pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
         *clipped = x.max(MIN).min(MAX) as u8;
     }
+}
+
+#[inline]
+pub fn div_reduce_crelu<const N: usize, const D: i32>(array: [i32; N]) -> [u8; N] {
+    let mut out = [0; N];
+    for (x, o) in array.iter().zip(&mut out) {
+        *o = (*x / D).max(MIN as i32).min(MAX as i32) as u8;
+    }
+    out
 }

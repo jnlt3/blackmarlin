@@ -91,7 +91,7 @@ impl Position {
 
     pub fn get_eval(&mut self) -> Evaluation {
         let board = self.board().clone();
-        Evaluation::new(self.evaluator.feed_forward(&board, 0))
+        Evaluation::new(self.evaluator.feed_forward(&board))
     }
 
     pub fn insufficient_material(&self) -> bool {

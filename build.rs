@@ -14,7 +14,7 @@ fn parse_bm_net() {
 
     let arch_path = Path::new(&out_dir).join("arch.rs");
     let mut def_nodes = String::new();
-    const LAYER_SIZES: [&str; 3] = ["INPUT", "MID", "OUTPUT"];
+    const LAYER_SIZES: [&str; 4] = ["INPUT", "HIDDEN_0", "HIDDEN_1", "OUTPUT"];
     for (&size, name) in layers.iter().zip(LAYER_SIZES) {
         def_nodes += &format!("const {}: usize = {};\n", name, size);
     }
@@ -23,9 +23,9 @@ fn parse_bm_net() {
     std::fs::write(&arch_path, def_nodes).unwrap();
 }
 
-pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
-    let mut layers = [0; 3];
-    for (bytes, layer) in bytes.chunks(4).take(3).zip(&mut layers) {
+pub fn parse_arch(bytes: &[u8]) -> [usize; 4] {
+    let mut layers = [0; 4];
+    for (bytes, layer) in bytes.chunks(4).take(4).zip(&mut layers) {
         *layer = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
     }
     layers
