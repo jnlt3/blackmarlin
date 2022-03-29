@@ -14,31 +14,21 @@ use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 
 pub trait SearchType {
-    const NM: bool;
     const PV: bool;
     type Zw: SearchType;
 }
 
 pub struct Pv;
 pub struct Zw;
-pub struct NoNm;
 
 impl SearchType for Pv {
-    const NM: bool = false;
     const PV: bool = true;
     type Zw = Zw;
 }
 
 impl SearchType for Zw {
-    const NM: bool = true;
     const PV: bool = false;
     type Zw = Zw;
-}
-
-impl SearchType for NoNm {
-    const NM: bool = false;
-    const PV: bool = false;
-    type Zw = NoNm;
 }
 
 #[inline]
@@ -52,9 +42,8 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
-fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
-    Search::NM
-        && depth > 4
+fn do_nmp(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
+    depth > 4
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
@@ -212,10 +201,10 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
+        if do_nmp(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
             let zw = beta >> Next;
-            let search_score = search::<NoNm>(
+            let search_score = search::<Zw>(
                 pos,
                 local_context,
                 shared_context,
