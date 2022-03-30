@@ -245,6 +245,6 @@ impl Nnue {
 
         let res_out = res_stm.get()[bucket] as i32 - res_nstm.get()[bucket] as i32;
 
-        layers::out(self.out_layer.ff(&incr, bucket)[bucket]) + (res_out / 64) as i16
+        layers::out(self.out_layer.ff(&incr, bucket)[bucket]) + (res_out / 128) as i16
     }
 }
