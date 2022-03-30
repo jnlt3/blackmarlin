@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    ops::{AddAssign, Mul},
+    sync::Arc,
+};
 
 const UNITS: i16 = 400_i16;
 const FT_SCALE: i16 = 255;
@@ -7,28 +10,38 @@ const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
 
 #[derive(Debug, Clone)]
-pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
+pub struct Incremental<
+    T: From<i16> + Mul<T, Output = T> + AddAssign<T> + Copy,
+    const INPUT: usize,
+    const OUTPUT: usize,
+> {
     weights: Arc<[[i16; OUTPUT]; INPUT]>,
-    out: [i16; OUTPUT],
+    out: [T; OUTPUT],
 }
 
-impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
-    pub fn new(weights: Arc<[[i16; OUTPUT]; INPUT]>, bias: [i16; OUTPUT]) -> Self {
+impl<
+        'a,
+        T: From<i16> + Mul<T, Output = T> + AddAssign<T> + Copy,
+        const INPUT: usize,
+        const OUTPUT: usize,
+    > Incremental<T, INPUT, OUTPUT>
+{
+    pub fn new(weights: Arc<[[i16; OUTPUT]; INPUT]>, bias: [T; OUTPUT]) -> Self {
         Self { weights, out: bias }
     }
 
-    pub fn reset(&mut self, out: [i16; OUTPUT]) {
+    pub fn reset(&mut self, out: [T; OUTPUT]) {
         self.out = out;
     }
 
     #[inline]
     pub fn incr_ff<const CHANGE: i16>(&mut self, index: usize) {
         for (out, &weight) in self.out.iter_mut().zip(&self.weights[index]) {
-            *out += weight * CHANGE;
+            *out += T::from(weight) * T::from(CHANGE);
         }
     }
 
-    pub fn get(&self) -> &[i16; OUTPUT] {
+    pub fn get(&self) -> &[T; OUTPUT] {
         &self.out
     }
 }

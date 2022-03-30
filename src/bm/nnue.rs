@@ -15,8 +15,10 @@ const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
 
 #[derive(Debug, Clone)]
 pub struct Accumulator {
-    w_input_layer: Incremental<INPUT, MID>,
-    b_input_layer: Incremental<INPUT, MID>,
+    w_input_layer: Incremental<i16, INPUT, MID>,
+    b_input_layer: Incremental<i16, INPUT, MID>,
+    w_res_layer: Incremental<i32, INPUT, OUTPUT>,
+    b_res_layer: Incremental<i32, INPUT, OUTPUT>,
 }
 
 impl Accumulator {
@@ -40,9 +42,13 @@ impl Accumulator {
         if INCR {
             self.w_input_layer.incr_ff::<1>(w_index);
             self.b_input_layer.incr_ff::<1>(b_index);
+            self.w_res_layer.incr_ff::<1>(w_index);
+            self.b_res_layer.incr_ff::<1>(b_index);
         } else {
             self.w_input_layer.incr_ff::<-1>(w_index);
             self.b_input_layer.incr_ff::<-1>(b_index);
+            self.w_res_layer.incr_ff::<-1>(w_index);
+            self.b_res_layer.incr_ff::<-1>(b_index);
         }
     }
 }
@@ -51,6 +57,7 @@ impl Accumulator {
 pub struct Nnue {
     accumulator: Vec<Accumulator>,
     bias: Arc<[i16; MID]>,
+    res_bias: Arc<[i32; OUTPUT]>,
     head: usize,
     out_layer: Dense<{ MID * 2 }, OUTPUT>,
 }
@@ -58,10 +65,17 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let mut bytes = &NN_BYTES[12..];
+
         let incremental = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
         bytes = &bytes[MID * 2..];
+
+        let res = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, OUTPUT>(bytes));
+        bytes = &bytes[INPUT..];
+        let res_bias = include::bias_from_bytes_i16::<i32, OUTPUT>(bytes);
+        bytes = &bytes[OUTPUT..];
+
         let out = Arc::new(*include::dense_from_bytes_i8::<i8, { MID * 2 }, OUTPUT>(
             bytes,
         ));
@@ -71,6 +85,7 @@ impl Nnue {
         assert!(bytes.is_empty(), "{}", bytes.len());
 
         let input_layer = Incremental::new(incremental, incremental_bias);
+        let res_layer = Incremental::new(res, res_bias);
         let out_layer = Dense::new(out, out_bias);
 
         Self {
@@ -78,10 +93,13 @@ impl Nnue {
                 Accumulator {
                     w_input_layer: input_layer.clone(),
                     b_input_layer: input_layer,
+                    w_res_layer: res_layer.clone(),
+                    b_res_layer: res_layer,
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
             bias: Arc::new(incremental_bias),
+            res_bias: Arc::new(res_bias),
             out_layer,
             head: 0,
         }
@@ -94,6 +112,8 @@ impl Nnue {
 
         acc.w_input_layer.reset(*self.bias);
         acc.b_input_layer.reset(*self.bias);
+        acc.w_res_layer.reset(*self.res_bias);
+        acc.b_res_layer.reset(*self.res_bias);
 
         for sq in board.occupied() {
             let piece = board.piece_on(sq).unwrap();
@@ -206,13 +226,25 @@ impl Nnue {
     pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
         let mut incr = [0; MID * 2];
-        let (stm, nstm) = match board.side_to_move() {
-            Color::White => (&acc.w_input_layer, &acc.b_input_layer),
-            Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
+        let (stm, nstm, res_stm, res_nstm) = match board.side_to_move() {
+            Color::White => (
+                &acc.w_input_layer,
+                &acc.b_input_layer,
+                &acc.w_res_layer,
+                &acc.b_res_layer,
+            ),
+            Color::Black => (
+                &acc.b_input_layer,
+                &acc.w_input_layer,
+                &acc.b_res_layer,
+                &acc.w_res_layer,
+            ),
         };
         layers::clipped_relu(*stm.get(), &mut incr);
         layers::clipped_relu(*nstm.get(), &mut incr[MID..]);
 
-        layers::out(self.out_layer.ff(&incr, bucket)[bucket])
+        let res_out = res_stm.get()[bucket] as i32 - res_nstm.get()[bucket] as i32;
+
+        layers::out(self.out_layer.ff(&incr, bucket)[bucket] + res_out / 800)
     }
 }
