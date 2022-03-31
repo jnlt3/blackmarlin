@@ -422,6 +422,9 @@ pub fn search<Search: SearchType>(
             reduction -= history_lmr(h_score);
             if Search::PV {
                 reduction -= 1;
+                if alpha + 10 >= beta {
+                    reduction -= 1;
+                }
             };
             if improving {
                 reduction -= 1;
