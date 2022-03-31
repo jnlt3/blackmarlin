@@ -195,6 +195,9 @@ pub fn search<Search: SearchType>(
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
+        if depth <= 2 && eval == q_search(pos, local_context, shared_context, ply, eval, eval + 1) {
+            return eval;
+        }
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
