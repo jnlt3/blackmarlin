@@ -285,6 +285,8 @@ pub fn search<Search: SearchType>(
         if Some(make_move) == skip_move {
             continue;
         }
+        local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
+
         move_exists = true;
         let is_capture = pos
             .board()
