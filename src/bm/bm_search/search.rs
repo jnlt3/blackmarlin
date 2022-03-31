@@ -195,9 +195,9 @@ pub fn search<Search: SearchType>(
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
-        if depth <= 2
+        if depth <= 3
             && eval <= alpha
-            && eval == q_search(pos, local_context, shared_context, ply, eval, eval + 1)
+            && eval >= q_search(pos, local_context, shared_context, ply, eval, eval + 1)
         {
             return eval;
         }
