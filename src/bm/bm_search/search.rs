@@ -293,18 +293,15 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
+        let move_piece = pos.board().piece_on(make_move.from).unwrap();
         let h_score = if is_capture {
-            local_context.get_ch_table().get(
-                pos.board().side_to_move(),
-                pos.board().piece_on(make_move.from).unwrap(),
-                make_move.to,
-            )
+            local_context
+                .get_ch_table()
+                .get(pos.board().side_to_move(), move_piece, make_move.to)
         } else {
-            local_context.get_h_table().get(
-                pos.board().side_to_move(),
-                pos.board().piece_on(make_move.from).unwrap(),
-                make_move.to,
-            )
+            local_context
+                .get_h_table()
+                .get(pos.board().side_to_move(), move_piece, make_move.to)
         };
 
         let mut extension = 0;
@@ -424,6 +421,9 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             };
             if improving {
+                reduction -= 1;
+            }
+            if move_piece == Piece::King {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
