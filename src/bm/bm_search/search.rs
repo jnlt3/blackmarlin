@@ -229,7 +229,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                nmp_depth(depth, eval.raw(), beta.raw()),
+                nmp_depth(depth, eval.raw(), beta.raw(), improving),
                 zw,
                 zw + 1,
             );
