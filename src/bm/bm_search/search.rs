@@ -357,7 +357,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && moves_seen > 0 && !is_capture && depth <= 7;
 
-        if do_fp && eval + fp(depth) < alpha {
+        if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
@@ -391,7 +391,7 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) < alpha {
+        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
 
@@ -632,7 +632,7 @@ pub fn q_search(
         /*
         If stand pat is way below alpha, assume it can't be beaten.
         */
-        if stand_pat + delta() < alpha {
+        if stand_pat + delta() <= alpha {
             return stand_pat;
         }
         if stand_pat > alpha {
@@ -655,7 +655,7 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - q_see_threshold() > beta {
+            if stand_pat + see - q_see_threshold() >= beta {
                 return beta;
             }
             pos.make_move(make_move);
