@@ -67,9 +67,9 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 #[inline]
-const fn iir(depth: u32) -> u32 {
+const fn iir(depth: u32, eval: i16, beta: i16) -> u32 {
     if depth >= 4 {
-        1
+        1 + (eval >= beta + 300) as u32
     } else {
         0
     }
@@ -233,7 +233,7 @@ pub fn search<Search: SearchType>(
     }
 
     if tt_entry.is_none() {
-        depth -= iir(depth)
+        depth -= iir(depth, eval.raw(), beta.raw());
     }
 
     while local_context.get_k_table().len() <= ply as usize {
