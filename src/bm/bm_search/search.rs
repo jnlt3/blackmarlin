@@ -86,8 +86,12 @@ const fn see_fp(depth: u32) -> i16 {
 }
 
 #[inline]
-const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+const fn hp(depth: u32, is_killer: bool) -> i32 {
+    let mut hist = -h_table::MAX_VALUE * ((depth * depth) as i32) / 64;
+    if is_killer {
+        hist -= h_table::MAX_VALUE / 4;
+    }
+    hist
 }
 
 #[inline]
@@ -381,8 +385,10 @@ pub fn search<Search: SearchType>(
         if it has very low history
         */
         let do_hp = !Search::PV && moves_seen > 0 && depth <= 8 && eval <= alpha;
-
-        if do_hp && (h_score as i32) < hp(depth) {
+        let is_killer = local_context.get_k_table()[ply as usize]
+            .into_iter()
+            .any(|killer| killer == make_move);
+        if do_hp && (h_score as i32) < hp(depth, is_killer) {
             continue;
         }
 
