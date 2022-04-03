@@ -31,7 +31,7 @@ impl HistoryTable {
         let to_index = make_move.to as usize;
 
         let value = self.table[index][to_index];
-        let change = (amt * amt + amt + 1) as i16 * 4;
+        let change = (amt * amt + amt + 1) as i16;
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
@@ -127,7 +127,7 @@ impl DoubleMoveHistory {
         let to_index = make_move.to as usize;
 
         let value = self.table[prev_index][prev_to_index][index][to_index];
-        let change = (amt * amt + amt + 1) as i16 * 4;
+        let change = (amt * amt + amt + 1) as i16;
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
