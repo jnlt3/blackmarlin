@@ -400,6 +400,8 @@ pub fn search<Search: SearchType>(
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension += 1;
+        } else if !Search::PV && depth >= 7 && h_score >= h_table::MAX_VALUE as i16 {
+            extension += 1;
         }
 
         /*
