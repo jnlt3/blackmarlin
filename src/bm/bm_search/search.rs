@@ -230,6 +230,14 @@ pub fn search<Search: SearchType>(
                 return score;
             }
         }
+
+        if depth <= 2 && pos.null_move() {
+            let stm_rev_eval = pos.get_eval();
+            pos.unmake_move();
+            if -stm_rev_eval >= beta {
+                return stm_rev_eval;
+            }
+        }
     }
 
     if tt_entry.is_none() {
