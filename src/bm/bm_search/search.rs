@@ -318,6 +318,7 @@ pub fn search<Search: SearchType>(
         */
         if let Some(entry) = tt_entry {
             if moves_seen == 0
+                && depth > ply
                 && entry.table_move() == make_move
                 && ply != 0
                 && !entry.score().is_mate()
