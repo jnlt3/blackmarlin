@@ -52,10 +52,9 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
-fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
+fn do_nmp<Search: SearchType>(board: &Board, depth: u32) -> bool {
     Search::NM
         && depth > 4
-        && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
@@ -212,22 +211,27 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
-            local_context.search_stack_mut()[ply as usize].move_played = None;
-            let zw = beta >> Next;
-            let search_score = search::<NoNm>(
-                pos,
-                local_context,
-                shared_context,
-                ply + 1,
-                nmp_depth(depth, eval.raw(), beta.raw()),
-                zw,
-                zw + 1,
-            );
-            pos.unmake_move();
-            let score = search_score << Next;
-            if score >= beta {
-                return score;
+        if do_nmp::<Search>(pos.board(), depth) && pos.null_move() {
+            let eval = -pos.get_eval();
+            if eval >= beta {
+                local_context.search_stack_mut()[ply as usize].move_played = None;
+                let zw = beta >> Next;
+                let search_score = search::<NoNm>(
+                    pos,
+                    local_context,
+                    shared_context,
+                    ply + 1,
+                    nmp_depth(depth, eval.raw(), beta.raw()),
+                    zw,
+                    zw + 1,
+                );
+                pos.unmake_move();
+                let score = search_score << Next;
+                if score >= beta {
+                    return score;
+                }
+            } else {
+                pos.unmake_move();
             }
         }
     }
