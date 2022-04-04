@@ -307,6 +307,7 @@ pub fn search<Search: SearchType>(
             )
         };
 
+        let mut reduce = 0;
         let mut extension = 0;
         let mut score;
 
@@ -353,6 +354,8 @@ pub fn search<Search: SearchType>(
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
+                } else if multi_cut && entry.score() >= beta {
+                    reduce = 1;
                 }
             }
         }
@@ -443,7 +446,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                depth - 1 + extension,
+                (depth - 1 + extension).saturating_sub(reduce),
                 beta >> Next,
                 alpha >> Next,
             );
