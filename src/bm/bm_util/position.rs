@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
@@ -28,7 +28,10 @@ impl Position {
 
     #[inline]
     pub fn forced_draw(&self, ply: u32) -> bool {
-        if self.insufficient_material() || self.half_ply() >= 100 {
+        if self.insufficient_material()
+            || (self.half_ply() >= 100
+                && (self.current.checkers().is_empty() || self.current.status() != GameStatus::Won))
+        {
             return true;
         }
         let hash = self.hash();
