@@ -213,6 +213,14 @@ impl Nnue {
         layers::clipped_relu(*stm.get(), &mut incr);
         layers::clipped_relu(*nstm.get(), &mut incr[MID..]);
 
-        layers::out(self.out_layer.ff(&incr, bucket)[bucket])
+        let scale = Self::eval_scale(board);
+
+        layers::out(self.out_layer.ff(&incr, bucket)[bucket], scale)
+    }
+
+    fn eval_scale(board: &Board) -> i32 {
+        let piece_cnt = board.occupied().popcnt().min(32);
+        let scale = (2024 - piece_cnt * piece_cnt) / 10;
+        scale as i32
     }
 }

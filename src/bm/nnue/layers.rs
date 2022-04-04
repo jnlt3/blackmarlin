@@ -60,8 +60,8 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
 }
 
 #[inline]
-pub fn out(x: i32) -> i16 {
-    (x as f32 * UNITS as f32 / (FT_SCALE as f32 * SCALE as f32)) as i16
+pub fn out(x: i32, scale: i32) -> i16 {
+    (x as i64 * UNITS as i64 * scale as i64 / (FT_SCALE as i64 * SCALE as i64 * 100)) as i16
 }
 
 #[inline]
