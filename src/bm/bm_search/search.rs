@@ -361,7 +361,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && moves_seen > 0 && !is_capture && depth <= 7;
+        let do_fp = !Search::PV && moves_seen > 0 && !in_check && !is_capture && depth <= 7;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -386,7 +386,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && moves_seen > 0 && depth <= 8 && eval <= alpha;
+        let do_hp = !Search::PV && moves_seen > 0 && !in_check && depth <= 8 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
