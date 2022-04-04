@@ -128,8 +128,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let see_score =
-                        see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
+                    let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
                         *score += LOSING_CAPTURE;
@@ -250,16 +249,20 @@ impl<const K: usize> OrderedMoveGen<K> {
 pub enum QSearchGenType {
     CalcCaptures,
     Captures,
+    CalcEvasions,
+    Evasions,
 }
 
 pub struct QuiescenceSearchMoveGen {
     gen_type: QSearchGenType,
+    evasions: bool,
     queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
 }
 
 impl QuiescenceSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(evasions: bool) -> Self {
         Self {
+            evasions,
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
         }
@@ -279,24 +282,44 @@ impl QuiescenceSearchMoveGen {
             });
             self.gen_type = QSearchGenType::Captures;
         }
-        let mut max = 0;
-        let mut best_index = None;
-        for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
-            if best_index.is_none() || *score > max {
-                let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
-                *see = Some(see_score);
-                if see_score < 0 {
-                    continue;
+        if self.gen_type == QSearchGenType::Captures {
+            let mut max = 0;
+            let mut best_index = None;
+            for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
+                if best_index.is_none() || *score > max {
+                    let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
+                    *see = Some(see_score);
+                    if see_score < 0 {
+                        continue;
+                    }
+                    max = *score;
+                    best_index = Some(index);
                 }
-                max = *score;
-                best_index = Some(index);
+            }
+            if let Some(index) = best_index {
+                let out = self.queue.swap_remove(index);
+                return Some((out.0, out.2.unwrap()));
+            } else if self.evasions {
+                self.gen_type = QSearchGenType::CalcEvasions;
             }
         }
-        if let Some(index) = best_index {
-            let out = self.queue.swap_remove(index);
-            Some((out.0, out.2.unwrap()))
-        } else {
-            None
+        if self.gen_type == QSearchGenType::CalcEvasions {
+            self.gen_type = QSearchGenType::Evasions;
+            let stm = board.side_to_move();
+            let stm_king = board.colors(stm) & board.pieces(Piece::King);
+            board.generate_moves_for(stm_king, |king_moves| {
+                for king_move in king_moves {
+                    self.queue.push((king_move, 0, None))
+                }
+                true
+            });
         }
+        if self.gen_type == QSearchGenType::Evasions {
+            if let Some((evasion, _, _)) = self.queue.swap_pop(0) {
+                return Some((evasion, 0));
+            }
+        }
+
+        None
     }
 }

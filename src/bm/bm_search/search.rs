@@ -131,7 +131,7 @@ pub fn search<Search: SearchType>(
     At depth 0, we run Quiescence Search
     */
     if depth == 0 || ply >= MAX_PLY {
-        return q_search(pos, local_context, shared_context, ply, alpha, beta);
+        return q_search(pos, local_context, shared_context, ply, 0, alpha, beta);
     }
 
     let skip_move = local_context.search_stack()[ply as usize].skip_move;
@@ -597,6 +597,7 @@ pub fn q_search(
     local_context: &mut LocalContext,
     shared_context: &SharedContext,
     ply: u32,
+    neg_depth: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
@@ -650,7 +651,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QuiescenceSearchMoveGen::new();
+    let mut move_gen = QuiescenceSearchMoveGen::new(neg_depth == 0);
     while let Some((make_move, see)) = move_gen.next(pos.board(), local_context.get_ch_table()) {
         let is_capture = pos
             .board()
@@ -670,6 +671,7 @@ pub fn q_search(
                 local_context,
                 shared_context,
                 ply + 1,
+                neg_depth + 1,
                 beta >> Next,
                 alpha >> Next,
             );
