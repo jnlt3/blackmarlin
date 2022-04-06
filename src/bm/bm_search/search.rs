@@ -404,7 +404,7 @@ pub fn search<Search: SearchType>(
         let do_hist_beta_prune =
             !Search::PV && moves_seen > 0 && !in_check && depth == 1 && eval >= beta;
         if do_hist_beta_prune && (h_score as i32) >= h_table::MAX_VALUE {
-            return eval;
+            return beta;
         }
 
         pos.make_move(make_move);
