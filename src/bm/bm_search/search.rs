@@ -105,6 +105,10 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+const fn high_see(depth: u32, eval: i16, beta: i16, see: i16) -> bool {
+    depth == 1 && see >= piece_pts(Piece::Queen) && eval + see >= beta
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -397,8 +401,13 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        let see = see::<16>(pos.board(), make_move);
+        if do_see_prune && eval + see + see_fp(depth) <= alpha {
             continue;
+        }
+
+        if high_see(depth, eval.raw(), beta.raw(), see) {
+            return eval + see;
         }
 
         pos.make_move(make_move);
@@ -775,7 +784,7 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
     gains[0]
 }
 
-fn piece_pts(piece: Piece) -> i16 {
+const fn piece_pts(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 100,
         Piece::Knight => 300,
