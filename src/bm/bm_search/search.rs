@@ -106,7 +106,7 @@ const fn q_see_threshold() -> i16 {
 }
 
 const fn high_see(depth: u32, eval: i16, beta: i16, see: i16) -> bool {
-    depth == 1 && see >= piece_pts(Piece::Queen) && eval + see >= beta
+    depth == 1 && see >= piece_pts(Piece::Queen) && eval >= beta
 }
 
 pub fn search<Search: SearchType>(
@@ -407,7 +407,7 @@ pub fn search<Search: SearchType>(
         }
 
         if high_see(depth, eval.raw(), beta.raw(), see) {
-            return eval + see;
+            return eval;
         }
 
         pos.make_move(make_move);
