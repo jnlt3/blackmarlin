@@ -401,6 +401,12 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let do_hist_beta_prune =
+            !Search::PV && moves_seen > 0 && !in_check && depth == 1 && eval >= beta;
+        if do_hist_beta_prune && (h_score as i32) >= h_table::MAX_VALUE {
+            return eval;
+        }
+
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
