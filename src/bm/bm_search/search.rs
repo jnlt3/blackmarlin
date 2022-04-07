@@ -346,7 +346,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension += 1;
-                    if !Search::PV && (h_score as i32) >= h_table::MAX_VALUE * 3 / 4 {
+                    if !Search::PV && (h_score as i32) >= h_table::MAX_VALUE {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
