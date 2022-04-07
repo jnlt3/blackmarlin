@@ -340,7 +340,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    eval + 100
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
