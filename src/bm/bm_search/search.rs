@@ -214,6 +214,7 @@ pub fn search<Search: SearchType>(
         */
         if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
+            local_context.search_stack_mut()[ply as usize].is_capture = false;
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
                 pos,
@@ -246,10 +247,11 @@ pub fn search<Search: SearchType>(
 
     let mut highest_score = None;
 
-    let prev_move = if ply != 0 {
-        Some(local_context.search_stack()[ply as usize - 1].move_played)
+    let (prev_move, prev_is_capture) = if ply != 0 {
+        let ss = &local_context.search_stack()[ply as usize - 1];
+        (Some(ss.move_played), ss.is_capture)
     } else {
-        None
+        (None, false)
     };
 
     let counter_move = if let Some(Some(prev_move)) = prev_move {
@@ -403,8 +405,11 @@ pub fn search<Search: SearchType>(
 
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+        local_context.search_stack_mut()[ply as usize].is_capture = is_capture;
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
+            extension += 1;
+        } else if Search::PV && prev_is_capture && is_capture && depth >= 7 {
             extension += 1;
         }
 
