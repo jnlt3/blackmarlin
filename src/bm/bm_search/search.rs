@@ -91,6 +91,11 @@ const fn hp(depth: u32) -> i32 {
 }
 
 #[inline]
+const fn see_hp(depth: u32) -> i32 {
+    h_table::MAX_VALUE + hp(depth) / 2
+}
+
+#[inline]
 const fn history_lmr(history: i16) -> i16 {
     history / 80
 }
@@ -397,7 +402,10 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        if do_see_prune
+            && (h_score as i32) < see_hp(depth)
+            && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
+        {
             continue;
         }
 
