@@ -409,8 +409,6 @@ pub fn search<Search: SearchType>(
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension += 1;
-        } else if Search::PV && prev_is_capture && is_capture && depth >= 7 {
-            extension += 1;
         }
 
         /*
@@ -436,6 +434,9 @@ pub fn search<Search: SearchType>(
             };
             if improving {
                 reduction -= 1;
+            }
+            if prev_is_capture && !is_capture {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
