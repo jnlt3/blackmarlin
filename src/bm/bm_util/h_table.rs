@@ -150,3 +150,50 @@ impl DoubleMoveHistory {
 fn piece_index(color: Color, piece: Piece) -> usize {
     color as usize * PIECE_COUNT / 2 + piece as usize
 }
+
+#[derive(Debug, Clone)]
+pub struct PieceFromTable {
+    table: Box<[[i16; SQUARE_COUNT]; PIECE_COUNT]>,
+}
+
+impl PieceFromTable {
+    pub fn new() -> Self {
+        Self {
+            table: Box::new([[0_i16; SQUARE_COUNT]; PIECE_COUNT]),
+        }
+    }
+
+    pub fn get(&self, color: Color, piece: Piece, from: Square) -> i16 {
+        let piece_index = piece_index(color, piece);
+        let to_index = from as usize;
+        self.table[piece_index][to_index]
+    }
+
+    pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
+        if amt > 20 {
+            return;
+        }
+        let piece = board.piece_on(make_move.from).unwrap();
+        let index = piece_index(board.side_to_move(), piece);
+        let from_index = make_move.from as usize;
+
+        let value = self.table[index][from_index];
+        let change = (amt * amt) as i16;
+        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+
+        let increment = change - decay;
+
+        self.table[index][from_index] += increment;
+
+        for &quiet in fails {
+            let piece = board.piece_on(quiet.from).unwrap();
+            let index = piece_index(board.side_to_move(), piece);
+            let from_index = quiet.from as usize;
+            let value = self.table[index][from_index];
+            let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+            let decrement = change + decay;
+
+            self.table[index][from_index] -= decrement;
+        }
+    }
+}

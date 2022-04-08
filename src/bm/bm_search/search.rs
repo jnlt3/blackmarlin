@@ -279,6 +279,7 @@ pub fn search<Search: SearchType>(
     while let Some(make_move) = move_gen.next(
         pos.board(),
         local_context.get_h_table(),
+        local_context.get_fh_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
     ) {
@@ -513,6 +514,12 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if skip_move.is_none() && !local_context.abort() {
+                        local_context.get_fh_table_mut().cutoff(
+                            pos.board(),
+                            make_move,
+                            &quiets,
+                            depth,
+                        );
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
