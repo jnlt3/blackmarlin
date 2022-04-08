@@ -401,7 +401,7 @@ pub fn search<Search: SearchType>(
             && moves_seen > 0
             && !in_check
             && depth <= 7
-            && !is_discovery(pos.board(), make_move);
+            && (eval >= beta || !is_discovery(pos.board(), make_move));
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
