@@ -322,7 +322,7 @@ pub fn search<Search: SearchType>(
                 && ply != 0
                 && !entry.score().is_mate()
                 && entry.depth() >= depth - 2
-                && eval < entry.score() + 400
+                && eval < entry.score() + 200
                 && (entry.entry_type() == EntryType::LowerBound
                     || entry.entry_type() == EntryType::Exact)
             {
