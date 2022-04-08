@@ -1,7 +1,7 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, Ordering, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -190,6 +190,9 @@ impl TimeManager {
 
         if move_cnt == 0 {
             self.target_duration.store(0, Ordering::SeqCst);
+        } else if let Some(move_time) = move_time {
+            self.target_duration
+                .store(move_time.as_millis() as u32, Ordering::SeqCst);
         } else {
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
             let default = if move_cnt > 1 {
