@@ -12,7 +12,7 @@ use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
-use super::tactics::{is_check_capture, see};
+use super::tactics::{is_discovery, see};
 
 pub trait SearchType {
     const NM: bool;
@@ -401,7 +401,7 @@ pub fn search<Search: SearchType>(
             && moves_seen > 0
             && !in_check
             && depth <= 7
-            && !is_check_capture(pos.board(), make_move);
+            && !is_discovery(pos.board(), make_move);
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
