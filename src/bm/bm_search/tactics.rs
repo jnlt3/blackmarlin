@@ -5,7 +5,7 @@ pub fn is_check_capture(board: &Board, make_move: Move) -> bool {
     let opp_pieces = board.colors(!stm);
     let opp_king = board.king(!stm);
     let opp_king_attacks = cozy_chess::get_king_moves(opp_king);
-    if !opp_pieces.has(make_move.to) && !opp_king_attacks.has(make_move.to) {
+    if !opp_pieces.has(make_move.to) || opp_king_attacks.has(make_move.to) {
         return false;
     }
 
