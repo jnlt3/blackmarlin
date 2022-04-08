@@ -1,11 +1,10 @@
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece, Square};
 
-pub fn is_check_capture(board: &Board, make_move: Move) -> bool {
+pub fn is_discovery(board: &Board, make_move: Move) -> bool {
     let stm = board.side_to_move();
-    let opp_pieces = board.colors(!stm);
     let opp_king = board.king(!stm);
     let opp_king_attacks = cozy_chess::get_king_moves(opp_king);
-    if !opp_pieces.has(make_move.to) || opp_king_attacks.has(make_move.to) {
+    if opp_king_attacks.has(make_move.to) {
         return false;
     }
 
@@ -20,6 +19,34 @@ pub fn is_check_capture(board: &Board, make_move: Move) -> bool {
         }
     }
     false
+}
+
+pub fn threatens(board: &Board, make_move: Move) -> bool {
+    let piece = board.piece_on(make_move.from).unwrap();
+    let stm = board.side_to_move();
+    let opp = board.colors(!stm);
+
+    let opp_minors = opp & (board.pieces(Piece::Knight) | board.pieces(Piece::Bishop));
+    let opp_majors = opp & (board.pieces(Piece::Rook) | board.pieces(Piece::Queen));
+
+    let from_attacks = get_piece_attacks(piece, stm, make_move.from, opp_minors, opp_majors);
+    let to_attacks = get_piece_attacks(piece, stm, make_move.to, opp_minors, opp_majors);
+    !(to_attacks & !from_attacks).is_empty()
+}
+
+fn get_piece_attacks(
+    piece: Piece,
+    color: Color,
+    sq: Square,
+    opp_minors: BitBoard,
+    opp_majors: BitBoard,
+) -> BitBoard {
+    match piece {
+        Piece::Pawn => cozy_chess::get_pawn_attacks(sq, color) & (opp_minors | opp_majors),
+        Piece::Knight => cozy_chess::get_knight_moves(sq) & opp_majors,
+        Piece::Bishop => cozy_chess::get_bishop_moves(sq, opp_majors),
+        _ => BitBoard::EMPTY,
+    }
 }
 
 pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
