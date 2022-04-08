@@ -12,7 +12,7 @@ use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
-use super::tactics::{is_tactical, see};
+use super::tactics::{is_check_capture, see};
 
 pub trait SearchType {
     const NM: bool;
@@ -397,12 +397,14 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
+        let do_see_prune = !Search::PV
+            && moves_seen > 0
+            && !in_check
+            && depth <= 7
+            && !is_check_capture(pos.board(), make_move);
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
-
-        let is_tactical = is_tactical(pos.board(), make_move);
 
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
@@ -434,9 +436,6 @@ pub fn search<Search: SearchType>(
             };
             if improving {
                 reduction -= 1;
-            }
-            if is_tactical && reduction > 0 {
-                reduction = 0;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }

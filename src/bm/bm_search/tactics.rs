@@ -1,10 +1,6 @@
 use cozy_chess::{BitBoard, Board, Move, Piece};
 
-pub fn is_tactical(board: &Board, make_move: Move) -> bool {
-    is_check_capture(board, make_move)
-}
-
-fn is_check_capture(board: &Board, make_move: Move) -> bool {
+pub fn is_check_capture(board: &Board, make_move: Move) -> bool {
     let stm = board.side_to_move();
     let opp_pieces = board.colors(!stm);
     let opp_king = board.king(!stm);
