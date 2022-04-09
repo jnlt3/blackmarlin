@@ -106,8 +106,8 @@ const fn q_see_threshold() -> i16 {
 }
 
 #[inline]
-const fn s_eval_margin(depth: u32) -> i16 {
-    depth as i16 * 10
+const fn s_eval_margin() -> i16 {
+    300
 }
 
 pub fn search<Search: SearchType>(
@@ -351,7 +351,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension += 1;
-                    if eval - s_eval_margin(depth) > s_beta {
+                    if eval - s_eval_margin() > s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
