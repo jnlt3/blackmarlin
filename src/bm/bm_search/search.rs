@@ -105,6 +105,11 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn s_eval_margin(depth: u32) -> i16 {
+    depth as i16 * 10
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -346,6 +351,9 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension += 1;
+                    if eval - s_eval_margin(depth) > s_beta {
+                        extension += 1;
+                    }
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
@@ -392,12 +400,13 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let see = see::<16>(pos.board(), make_move);
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        if do_see_prune && eval + see + see_fp(depth) <= alpha {
             continue;
         }
 
