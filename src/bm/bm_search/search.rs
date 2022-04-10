@@ -239,8 +239,14 @@ pub fn search<Search: SearchType>(
     while local_context.get_k_table().len() <= ply as usize {
         local_context.get_k_table().push(MoveEntry::new());
     }
+    while local_context.get_s_table().len() <= ply as usize {
+        local_context.get_s_table().push(MoveEntry::new());
+    }
 
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 1) {
+        entry.clear();
+    }
+    if let Some(entry) = local_context.get_s_table().get_mut(ply as usize + 1) {
         entry.clear();
     }
 
@@ -268,6 +274,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         prev_move.unwrap_or(None),
         local_context.get_k_table()[ply as usize].into_iter(),
+        local_context.get_s_table()[ply as usize].into_iter(),
     );
 
     let mut moves_seen = 0;
@@ -345,6 +352,9 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
+                    let singulars = local_context.get_s_table();
+                    singulars[ply as usize].push(make_move);
+
                     extension += 1;
                 } else if multi_cut && s_beta >= beta {
                     /*

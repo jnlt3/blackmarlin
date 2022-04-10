@@ -99,6 +99,7 @@ pub struct LocalContext {
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
     killer_moves: Vec<MoveEntry<2>>,
+    singulars: Vec<MoveEntry<1>>,
     nodes: Nodes,
     abort: bool,
 }
@@ -174,6 +175,11 @@ impl LocalContext {
     #[inline]
     pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<2>> {
         &mut self.killer_moves
+    }
+
+    #[inline]
+    pub fn get_s_table(&mut self) -> &mut Vec<MoveEntry<1>> {
+        &mut self.singulars
     }
 
     #[inline]
@@ -410,6 +416,7 @@ impl AbRunner {
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
                 killer_moves: vec![],
+                singulars: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
             },

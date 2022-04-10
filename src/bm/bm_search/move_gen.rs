@@ -16,18 +16,20 @@ enum GenType {
     CalcCaptures,
     Captures,
     GenQuiet,
-    CounterMove,
     Killer,
+    CounterMove,
+    Singular,
     Quiet,
     BadCaptures,
 }
 
 type LazySee = Option<i16>;
 
-pub struct OrderedMoveGen<const K: usize> {
+pub struct OrderedMoveGen<const K: usize, const S: usize> {
     move_list: ArrayVec<PieceMoves, 18>,
     pv_move: Option<Move>,
     killer_entry: MoveEntryIterator<K>,
+    singular: MoveEntryIterator<S>,
     counter_move: Option<Move>,
     prev_move: Option<Move>,
     gen_type: GenType,
@@ -37,13 +39,14 @@ pub struct OrderedMoveGen<const K: usize> {
     skip_quiets: bool,
 }
 
-impl<const K: usize> OrderedMoveGen<K> {
+impl<const K: usize, const S: usize> OrderedMoveGen<K, S> {
     pub fn new(
         board: &Board,
         pv_move: Option<Move>,
         counter_move: Option<Move>,
         prev_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
+        singular: MoveEntryIterator<S>,
     ) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
@@ -57,6 +60,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             prev_move,
             pv_move,
             killer_entry,
+            singular,
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -128,8 +132,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let see_score =
-                        see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
+                    let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
                         *score += LOSING_CAPTURE;
@@ -203,7 +206,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             self.gen_type = GenType::CounterMove;
         }
         if self.gen_type == GenType::CounterMove {
-            self.gen_type = GenType::Quiet;
+            self.gen_type = GenType::Singular;
             if let Some(counter_move) = self.counter_move {
                 let position = self
                     .quiets
@@ -214,6 +217,19 @@ impl<const K: usize> OrderedMoveGen<K> {
                     return Some(counter_move);
                 }
             }
+        }
+        if self.gen_type == GenType::Singular {
+            for make_move in self.singular.clone() {
+                let position = self
+                    .quiets
+                    .iter()
+                    .position(|(cmp_move, _)| make_move == *cmp_move);
+                if let Some(position) = position {
+                    self.quiets.swap_remove(position);
+                    return Some(make_move);
+                }
+            }
+            self.gen_type = GenType::Quiet;
         }
         if self.gen_type == GenType::Quiet {
             let mut max = 0;
