@@ -101,7 +101,12 @@ const fn delta() -> i16 {
 }
 
 #[inline]
-const fn q_see_threshold() -> i16 {
+const fn q_see_a_threshold() -> i16 {
+    50
+}
+
+#[inline]
+const fn q_see_b_threshold() -> i16 {
     200
 }
 
@@ -661,10 +666,10 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - q_see_threshold() >= beta {
+            if stand_pat + see - q_see_b_threshold() >= beta {
                 return beta;
             }
-            if stand_pat + see + q_see_threshold() <= alpha {
+            if stand_pat + see + q_see_a_threshold() <= alpha {
                 continue;
             }
             pos.make_move(make_move);
