@@ -664,6 +664,9 @@ pub fn q_search(
             if stand_pat + see - q_see_threshold() >= beta {
                 return beta;
             }
+            if stand_pat + see + q_see_threshold() <= alpha {
+                continue;
+            }
             pos.make_move(make_move);
             let search_score = q_search(
                 pos,
