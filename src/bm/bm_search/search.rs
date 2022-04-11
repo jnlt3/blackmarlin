@@ -328,7 +328,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 7;
+                let multi_cut = depth >= 7 || eval + 400 < s_beta;
                 let s_score = if multi_cut {
                     search::<Search::Zw>(
                         pos,
