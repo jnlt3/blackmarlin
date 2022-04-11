@@ -381,7 +381,7 @@ impl AbRunner {
                     }
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
-                    let mut x = 3.0 + depth as f32 * depth as f32;
+                    let mut x = 5.0 + depth as f32 * depth as f32;
                     if improving == 0 {
                         x /= 1.5;
                     }
