@@ -52,6 +52,11 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
+const fn do_razor(depth: u32, eval: i16, alpha: i16) -> bool {
+    depth <= 3 && eval + 100 * (depth as i16) <= alpha
+}
+
+#[inline]
 fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
     Search::NM
         && depth > 4
@@ -202,6 +207,13 @@ pub fn search<Search: SearchType>(
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
             return eval;
+        }
+
+        if do_razor(depth, eval.raw(), alpha.raw()) {
+            let score = q_search(pos, local_context, shared_context, ply, alpha, beta);
+            if score <= alpha {
+                return score;
+            }
         }
 
         /*
@@ -392,12 +404,13 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let see_eval = eval + see::<16>(pos.board(), make_move);
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        if do_see_prune && see_eval + see_fp(depth) <= alpha {
             continue;
         }
 
