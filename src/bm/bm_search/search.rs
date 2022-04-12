@@ -310,6 +310,10 @@ pub fn search<Search: SearchType>(
         let mut extension = 0;
         let mut score;
 
+        if ply == 0 && moves_seen == 0 {
+            extension += 1;
+        }
+
         /*
         Singular Extensions:
         If a move can't be beaten by any other move, we assume the move
