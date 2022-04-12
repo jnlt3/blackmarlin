@@ -730,38 +730,17 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
         for &piece in &Piece::ALL {
             last_piece_pts = piece_pts(piece);
             let mut potential = match piece {
-                Piece::Pawn => {
-                    cozy_chess::get_pawn_attacks(target_square, !color)
-                        & defenders
-                        & board.pieces(Piece::Pawn)
-                }
-                Piece::Knight => {
-                    cozy_chess::get_knight_moves(target_square)
-                        & board.pieces(Piece::Knight)
-                        & defenders
-                }
-                Piece::Bishop => {
-                    cozy_chess::get_bishop_moves(target_square, blockers)
-                        & defenders
-                        & board.pieces(Piece::Bishop)
-                }
-                Piece::Rook => {
-                    cozy_chess::get_rook_moves(target_square, blockers)
-                        & board.pieces(Piece::Rook)
-                        & defenders
-                }
+                Piece::Pawn => cozy_chess::get_pawn_attacks(target_square, !color),
+                Piece::Knight => cozy_chess::get_knight_moves(target_square),
+                Piece::Bishop => cozy_chess::get_bishop_moves(target_square, blockers),
+                Piece::Rook => cozy_chess::get_rook_moves(target_square, blockers),
                 Piece::Queen => {
                     cozy_chess::get_rook_moves(target_square, blockers)
-                        & cozy_chess::get_bishop_moves(target_square, blockers)
-                        & board.pieces(Piece::Queen)
-                        & defenders
+                        | cozy_chess::get_bishop_moves(target_square, blockers)
                 }
-                Piece::King => {
-                    cozy_chess::get_king_moves(target_square)
-                        & board.pieces(Piece::King)
-                        & defenders
-                }
-            };
+                Piece::King => cozy_chess::get_king_moves(target_square),
+            } & board.pieces(piece)
+                & defenders;
             if potential != BitBoard::EMPTY {
                 let attacker = potential.next().unwrap();
                 blockers &= !attacker.bitboard();
