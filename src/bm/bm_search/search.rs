@@ -179,6 +179,11 @@ pub fn search<Search: SearchType>(
         *local_context.tt_misses() += 1;
     }
 
+    let root_move = local_context.search_stack()[0].pv[0];
+    if root_move.is_some() {
+        best_move = root_move;
+    }
+
     let in_check = pos.board().checkers() != BitBoard::EMPTY;
 
     let eval = if skip_move.is_none() {
