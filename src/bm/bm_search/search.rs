@@ -53,7 +53,7 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 
 #[inline]
 const fn do_razor(depth: u32, eval: i16, alpha: i16) -> bool {
-    depth <= 3 && eval + 300 * (depth as i16) <= alpha
+    depth <= 3 && eval + 100 * ((depth * depth) as i16) <= alpha
 }
 
 #[inline]
