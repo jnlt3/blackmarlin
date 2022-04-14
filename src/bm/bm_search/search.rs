@@ -232,7 +232,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.is_none() {
+    if tt_entry.is_none() && skip_move.is_none() {
         depth -= iir(depth)
     }
 
