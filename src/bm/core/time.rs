@@ -1,11 +1,11 @@
-use crate::bm::bm_util::eval::Evaluation;
+use crate::bm::util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use super::ab_runner::MAX_PLY;
+use super::MAX_PLY;
 
 const EXPECTED_MOVES: u32 = 40;
 const MOVE_CHANGE_MARGIN: u32 = 9;

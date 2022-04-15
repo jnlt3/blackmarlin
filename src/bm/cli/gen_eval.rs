@@ -9,12 +9,12 @@ use cozy_chess::{BitBoard, Board, Move};
 use rand::Rng;
 
 use crate::bm::{
-    bm_runner::{
-        ab_runner::AbRunner,
+    util::eval::Evaluation,
+    core::{
         config::{NoInfo, Run},
         time::{TimeManagementInfo, TimeManager},
+        AbRunner,
     },
-    bm_util::eval::Evaluation,
 };
 
 fn play_single(

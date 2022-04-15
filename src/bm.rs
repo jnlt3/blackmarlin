@@ -1,6 +1,6 @@
-pub mod bm_console;
-pub mod bm_runner;
-pub mod bm_search;
-pub mod bm_util;
+pub mod cli;
+pub mod core;
+pub mod search;
+pub mod util;
 pub mod nnue;
 pub mod uci;

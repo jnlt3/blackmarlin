@@ -5,10 +5,10 @@ use std::time::{Duration, Instant};
 
 use cozy_chess::{Board, File, Move, Piece, Square};
 
-use crate::bm::bm_runner::ab_runner::AbRunner;
-use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
+use crate::bm::core::AbRunner;
+use crate::bm::core::config::{NoInfo, Run, UciInfo};
 
-use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
+use crate::bm::core::time::{TimeManagementInfo, TimeManager};
 use crate::bm::nnue::Nnue;
 
 const VERSION: &str = "5.0";

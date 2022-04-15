@@ -55,7 +55,7 @@ impl BmConsole {
         use cozy_chess::Board;
 
         use crate::bm::{
-            bm_console::gen_fen::DataPoint,
+            cli::gen_fen::DataPoint,
             bm_eval::evaluator::{EvalTrace, StdEvaluator},
         };
 

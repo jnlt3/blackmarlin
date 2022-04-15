@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Dense, Incremental};
+use crate::bm::core::MAX_PLY;
 
-use super::bm_runner::ab_runner;
+use self::layers::{Dense, Incremental};
 
 mod include;
 mod layers;
@@ -79,7 +79,7 @@ impl Nnue {
                     w_input_layer: input_layer.clone(),
                     b_input_layer: input_layer,
                 };
-                ab_runner::MAX_PLY as usize + 1
+                MAX_PLY as usize + 1
             ],
             bias: Arc::new(incremental_bias),
             out_layer,

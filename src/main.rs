@@ -1,4 +1,4 @@
-use crate::bm::bm_console::BmConsole;
+use crate::bm::cli::BmConsole;
 use text_io::read;
 
 mod bm;

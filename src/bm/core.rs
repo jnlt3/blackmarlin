@@ -1,22 +1,25 @@
+pub mod config;
+pub mod time;
+
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
-use crate::bm::bm_search::move_entry::MoveEntry;
-use crate::bm::bm_search::search;
-use crate::bm::bm_search::search::Pv;
-use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
-use crate::bm::bm_util::lookup::LookUp2d;
-use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::TranspositionTable;
-use crate::bm::bm_util::window::Window;
+use crate::bm::core::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::uci;
+use crate::bm::util::eval::Evaluation;
+use crate::bm::util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
+use crate::bm::util::lookup::LookUp2d;
+use crate::bm::util::move_entry::MoveEntry;
+use crate::bm::util::position::Position;
+use crate::bm::util::t_table::TranspositionTable;
+use crate::bm::util::window::Window;
 
-use super::time::TimeManager;
+use time::TimeManager;
+
+use super::search::{self, Pv};
 
 pub const MAX_PLY: u32 = 128;
 

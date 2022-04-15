@@ -1,4 +1,4 @@
-use crate::bm::bm_util::eval::Evaluation;
+use crate::bm::util::eval::Evaluation;
 
 #[derive(Debug, Clone)]
 pub struct Window {
