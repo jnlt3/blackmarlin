@@ -92,20 +92,6 @@ impl History {
             [cutoff_move.to as usize];
         update_hist::<true>(piece_to, weight);
 
-        let prev_piece = pos
-            .prev_board()
-            .zip(prev_move)
-            .map_or(None, |(board, prev_move)| board.piece_on(prev_move.from));
-
-        if let Some((prev_piece, prev_move)) = prev_piece.zip(prev_move) {
-            let counter_move = &mut self.counter_move[stm as usize][prev_piece as usize]
-                [prev_move.to as usize][piece as usize][cutoff_move.to as usize];
-            update_hist::<true>(counter_move, weight);
-
-            self.refutation[stm as usize][prev_piece as usize][prev_move.to as usize] =
-                Some(cutoff_move);
-        }
-
         if is_capture {
             for &fail in cap_fails {
                 let piece = board.piece_on(fail.from).unwrap();
@@ -114,6 +100,19 @@ impl History {
                 update_hist::<false>(piece_to, weight);
             }
         } else {
+            let prev_piece = pos
+                .prev_board()
+                .zip(prev_move)
+                .map_or(None, |(board, prev_move)| board.piece_on(prev_move.from));
+
+            if let Some((prev_piece, prev_move)) = prev_piece.zip(prev_move) {
+                let counter_move = &mut self.counter_move[stm as usize][prev_piece as usize]
+                    [prev_move.to as usize][piece as usize][cutoff_move.to as usize];
+                update_hist::<true>(counter_move, weight);
+
+                self.refutation[stm as usize][prev_piece as usize][prev_move.to as usize] =
+                    Some(cutoff_move);
+            }
             for &fail in quiet_fails {
                 let piece = board.piece_on(fail.from).unwrap();
                 let piece_to = &mut self.piece_to[stm as usize][is_capture as usize]
