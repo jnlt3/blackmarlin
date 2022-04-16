@@ -10,16 +10,17 @@ use cozy_chess::{Board, Move};
 use crate::bm::core::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::uci;
 use crate::bm::util::eval::Evaluation;
-use crate::bm::util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
+use crate::bm::util::history::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::util::lookup::LookUp2d;
 use crate::bm::util::move_entry::MoveEntry;
 use crate::bm::util::position::Position;
-use crate::bm::util::t_table::TranspositionTable;
+use crate::bm::util::tt::TranspositionTable;
 use crate::bm::util::window::Window;
 
 use time::TimeManager;
 
 use super::search::{self, Pv};
+use super::util::history_new::History;
 
 pub const MAX_PLY: u32 = 128;
 
@@ -97,10 +98,7 @@ pub struct LocalContext {
     eval: Evaluation,
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
-    h_table: HistoryTable,
-    ch_table: HistoryTable,
-    cm_table: CounterMoveTable,
-    cm_hist: DoubleMoveHistory,
+    history: History,
     killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
@@ -135,43 +133,12 @@ impl SharedContext {
 
 impl LocalContext {
     #[inline]
-    pub fn get_h_table(&self) -> &HistoryTable {
-        &self.h_table
+    pub fn get_history(&self) -> &History {
+        &self.history
     }
-
-    #[inline]
-    pub fn get_ch_table(&self) -> &HistoryTable {
-        &self.ch_table
-    }
-
-    #[inline]
-    pub fn get_cm_table(&self) -> &CounterMoveTable {
-        &self.cm_table
-    }
-
-    #[inline]
-    pub fn get_cm_hist(&self) -> &DoubleMoveHistory {
-        &self.cm_hist
-    }
-
-    #[inline]
-    pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
-        &mut self.h_table
-    }
-
-    #[inline]
-    pub fn get_ch_table_mut(&mut self) -> &mut HistoryTable {
-        &mut self.ch_table
-    }
-
-    #[inline]
-    pub fn get_cm_table_mut(&mut self) -> &mut CounterMoveTable {
-        &mut self.cm_table
-    }
-
-    #[inline]
-    pub fn get_cm_hist_mut(&mut self) -> &mut DoubleMoveHistory {
-        &mut self.cm_hist
+    
+    pub fn get_history_mut(&mut self) -> &mut History {
+        &mut self.history
     }
 
     #[inline]
@@ -408,10 +375,7 @@ impl AbRunner {
                     MAX_PLY as usize + 1
                 ],
                 sel_depth: 0,
-                h_table: HistoryTable::new(),
-                ch_table: HistoryTable::new(),
-                cm_table: CounterMoveTable::new(),
-                cm_hist: DoubleMoveHistory::new(),
+                history: History::new(),
                 killer_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,

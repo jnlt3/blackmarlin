@@ -1,7 +1,8 @@
 pub mod eval;
-pub mod h_table;
+pub mod history;
+pub mod history_new;
 pub mod lookup;
 pub mod move_entry;
 pub mod position;
-pub mod t_table;
+pub mod tt;
 pub mod window;

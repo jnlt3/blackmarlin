@@ -9,12 +9,12 @@ use see::see;
 
 use crate::bm::util::{
     eval::{Depth::Next, Evaluation},
-    h_table,
+    history,
 };
 use crate::bm::util::{
     move_entry::MoveEntry,
     position::Position,
-    t_table::{
+    tt::{
         Analysis,
         EntryType::{self, Exact, LowerBound, UpperBound},
     },
@@ -97,7 +97,7 @@ const fn see_fp(depth: u32) -> i16 {
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+    -history::MAX_VALUE * ((depth * depth) as i32) / 64
 }
 
 #[inline]
@@ -262,15 +262,9 @@ pub fn search<Search: SearchType>(
         None
     };
 
-    let counter_move = if let Some(Some(prev_move)) = prev_move {
-        local_context.get_cm_table().get(
-            pos.board().side_to_move(),
-            pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
-            prev_move.to,
-        )
-    } else {
-        None
-    };
+    let counter_move = local_context
+        .get_history()
+        .get_refutation(pos, prev_move.unwrap_or(None));
 
     let mut move_gen = OrderedMoveGen::new(
         pos.board(),
@@ -286,12 +280,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    while let Some(make_move) = move_gen.next(
-        pos.board(),
-        local_context.get_h_table(),
-        local_context.get_ch_table(),
-        local_context.get_cm_hist(),
-    ) {
+    while let Some(make_move) = move_gen.next(pos, local_context.get_history()) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -303,19 +292,7 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
-        let h_score = if is_capture {
-            local_context.get_ch_table().get(
-                pos.board().side_to_move(),
-                pos.board().piece_on(make_move.from).unwrap(),
-                make_move.to,
-            )
-        } else {
-            local_context.get_h_table().get(
-                pos.board().side_to_move(),
-                pos.board().piece_on(make_move.from).unwrap(),
-                make_move.to,
-            )
-        };
+        let h_score = local_context.get_history().get_hist(pos, make_move);
 
         let mut extension = 0;
         let mut score;
@@ -328,10 +305,11 @@ pub fn search<Search: SearchType>(
         */
         if let Some(entry) = tt_entry {
             if moves_seen == 0
+                && depth >= 2
                 && entry.table_move() == make_move
                 && ply != 0
                 && !entry.score().is_mate()
-                && entry.depth() >= depth - 2
+                && entry.depth() + 2 >= depth
                 && (entry.entry_type() == EntryType::LowerBound
                     || entry.entry_type() == EntryType::Exact)
             {
@@ -526,35 +504,15 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
-                            local_context.get_h_table_mut().cutoff(
-                                pos.board(),
-                                make_move,
-                                &quiets,
-                                depth,
-                            );
-                            if let Some(Some(prev_move)) = prev_move {
-                                local_context.get_cm_table_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                    depth,
-                                );
-                                local_context.get_cm_hist_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                    &quiets,
-                                    depth,
-                                );
-                            }
-                        } else {
-                            local_context.get_ch_table_mut().cutoff(
-                                pos.board(),
-                                make_move,
-                                &captures,
-                                depth,
-                            );
                         }
+                        local_context.get_history_mut().update(
+                            pos,
+                            make_move,
+                            &quiets,
+                            &captures,
+                            prev_move.unwrap_or(None),
+                            depth,
+                        )
                     }
                     break;
                 }
@@ -661,7 +619,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QuiescenceSearchMoveGen::new();
-    while let Some((make_move, see)) = move_gen.next(pos.board(), local_context.get_ch_table()) {
+    while let Some((make_move, see)) = move_gen.next(pos, local_context.get_history()) {
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())

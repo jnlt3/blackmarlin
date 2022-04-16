@@ -1,9 +1,6 @@
-use cozy_chess::{Board, Move, Piece, PieceMoves};
+use cozy_chess::{Board, Move, PieceMoves};
 
-use crate::bm::util::{
-    h_table::{DoubleMoveHistory, HistoryTable},
-    move_entry::MoveEntryIterator,
-};
+use crate::bm::util::{history_new::History, move_entry::MoveEntryIterator, position::Position};
 use arrayvec::ArrayVec;
 
 use super::see;
@@ -84,13 +81,8 @@ impl<const K: usize> OrderedMoveGen<K> {
         }
     }
 
-    pub fn next(
-        &mut self,
-        board: &Board,
-        hist: &HistoryTable,
-        c_hist: &HistoryTable,
-        cm_hist: &DoubleMoveHistory,
-    ) -> Option<Move> {
+    pub fn next(&mut self, pos: &Position, hist: &History) -> Option<Move> {
+        let board = pos.board();
         self.set_phase();
         if self.gen_type == GenType::PvMove {
             self.gen_type = GenType::CalcCaptures;
@@ -117,8 +109,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let expected_gain =
-                        c_hist.get(board.side_to_move(), piece_moves.piece, make_move.to)
-                            + see::see::<1>(&board, make_move) * 32;
+                        hist.get_hist(pos, make_move) + see::see::<1>(&board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -169,21 +160,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         };
                         continue;
                     }
-                    let mut score = 0;
-                    let piece = board.piece_on(make_move.from).unwrap();
-
-                    score += hist.get(board.side_to_move(), piece, make_move.to);
-                    if let Some(prev_move) = self.prev_move {
-                        let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-                        score += cm_hist.get(
-                            board.side_to_move(),
-                            prev_move_piece,
-                            prev_move.to,
-                            piece,
-                            make_move.to,
-                        );
-                    }
-
+                    let score = hist.get_hist(pos, make_move)
+                        + hist.get_counter_move_hist(pos, make_move, self.prev_move);
                     self.quiets.push((make_move, score));
                 }
             }
@@ -266,14 +244,14 @@ impl QuiescenceSearchMoveGen {
         }
     }
 
-    pub fn next(&mut self, board: &Board, c_hist: &HistoryTable) -> Option<(Move, i16)> {
+    pub fn next(&mut self, pos: &Position, hist: &History) -> Option<(Move, i16)> {
+        let board = pos.board();
         if self.gen_type == QSearchGenType::CalcCaptures {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     let expected_gain =
-                        c_hist.get(board.side_to_move(), piece_moves.piece, make_move.to)
-                            + see::see::<1>(&board, make_move) * 32;
+                        hist.get_hist(pos, make_move) + see::see::<1>(&board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false

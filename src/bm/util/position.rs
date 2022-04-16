@@ -56,6 +56,10 @@ impl Position {
         &self.current
     }
 
+    pub fn prev_board(&self) -> Option<&Board> {
+        self.boards.last()
+    }
+
     #[inline]
     pub fn half_ply(&self) -> u8 {
         self.current.halfmove_clock()

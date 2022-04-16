@@ -9,12 +9,12 @@ use cozy_chess::{BitBoard, Board, Move};
 use rand::Rng;
 
 use crate::bm::{
-    util::eval::Evaluation,
     core::{
         config::{NoInfo, Run},
         time::{TimeManagementInfo, TimeManager},
         AbRunner,
     },
+    util::eval::Evaluation,
 };
 
 fn play_single(
@@ -79,7 +79,7 @@ fn gen_games(iter: usize, depth: u32) -> Vec<(Board, Evaluation, f32)> {
     let time_management_options = TimeManagementInfo::MaxDepth(depth);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
-    for i in 0..iter {
+    for _ in 0..iter {
         evals.extend(play_single(
             &mut engine_0,
             &time_manager,
