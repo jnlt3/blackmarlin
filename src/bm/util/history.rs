@@ -1,152 +1,139 @@
-use cozy_chess::{Board, Color, Move, Piece, Square};
+use cozy_chess::Move;
+
+use super::position::Position;
 
 pub const MAX_VALUE: i32 = 512;
-const SQUARE_COUNT: usize = 64;
-const PIECE_COUNT: usize = 12;
+const STM_CNT: usize = 2;
+const CAP_CNT: usize = 2;
+const PIECE_CNT: usize = 6;
+const SQ_CNT: usize = 64;
 
 #[derive(Debug, Clone)]
-pub struct HistoryTable {
-    table: Box<[[i16; SQUARE_COUNT]; PIECE_COUNT]>,
+pub struct History {
+    piece_to: Box<[[[[i16; SQ_CNT]; PIECE_CNT]; CAP_CNT]; STM_CNT]>,
+    counter_move: Box<[[[[[i16; SQ_CNT]; PIECE_CNT]; SQ_CNT]; PIECE_CNT]; STM_CNT]>,
+
+    refutation: Box<[[[Option<Move>; SQ_CNT]; PIECE_CNT]; STM_CNT]>,
 }
 
-impl HistoryTable {
+impl History {
     pub fn new() -> Self {
         Self {
-            table: Box::new([[0_i16; SQUARE_COUNT]; PIECE_COUNT]),
+            piece_to: Box::new([[[[0_i16; SQ_CNT]; PIECE_CNT]; CAP_CNT]; STM_CNT]),
+            counter_move: Box::new([[[[[0_i16; SQ_CNT]; PIECE_CNT]; SQ_CNT]; PIECE_CNT]; STM_CNT]),
+
+            refutation: Box::new([[[None; SQ_CNT]; PIECE_CNT]; STM_CNT]),
         }
     }
 
-    pub fn get(&self, color: Color, piece: Piece, to: Square) -> i16 {
-        let piece_index = piece_index(color, piece);
-        let to_index = to as usize;
-        self.table[piece_index][to_index]
-    }
-
-    pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
-        if amt > 20 {
-            return;
-        }
+    pub fn get_hist(&self, pos: &Position, make_move: Move) -> i16 {
+        let board = pos.board();
+        let stm = board.side_to_move();
+        let is_capture = board.colors(!stm).has(make_move.to);
         let piece = board.piece_on(make_move.from).unwrap();
-        let index = piece_index(board.side_to_move(), piece);
-        let to_index = make_move.to as usize;
 
-        let value = self.table[index][to_index];
-        let change = (amt * amt) as i16;
-        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
-
-        let increment = change - decay;
-
-        self.table[index][to_index] += increment;
-
-        for &quiet in fails {
-            let piece = board.piece_on(quiet.from).unwrap();
-            let index = piece_index(board.side_to_move(), piece);
-            let to_index = quiet.to as usize;
-            let value = self.table[index][to_index];
-            let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
-            let decrement = change + decay;
-
-            self.table[index][to_index] -= decrement;
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CounterMoveTable {
-    table: Box<[[Option<Move>; SQUARE_COUNT]; PIECE_COUNT]>,
-}
-
-impl CounterMoveTable {
-    pub fn new() -> Self {
-        Self {
-            table: Box::new([[None; SQUARE_COUNT]; PIECE_COUNT]),
-        }
+        self.piece_to[stm as usize][is_capture as usize][piece as usize][make_move.to as usize]
     }
 
-    pub fn get(&self, color: Color, piece: Piece, to: Square) -> Option<Move> {
-        let piece_index = piece_index(color, piece);
-        let to_index = to as usize;
-        self.table[piece_index][to_index]
-    }
-
-    pub fn cutoff(&mut self, board: &Board, prev_move: Move, cutoff_move: Move, amt: u32) {
-        if amt > 20 {
-            return;
-        }
-        let piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-        let piece_index = piece_index(board.side_to_move(), piece);
-        let to_index = prev_move.to as usize;
-        self.table[piece_index][to_index] = Some(cutoff_move);
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct DoubleMoveHistory {
-    table: Box<[[[[i16; SQUARE_COUNT]; PIECE_COUNT / 2]; SQUARE_COUNT]; PIECE_COUNT]>,
-}
-
-impl DoubleMoveHistory {
-    pub fn new() -> Self {
-        Self {
-            table: Box::new([[[[0; SQUARE_COUNT]; PIECE_COUNT / 2]; SQUARE_COUNT]; PIECE_COUNT]),
-        }
-    }
-
-    pub fn get(
+    pub fn get_counter_move_hist(
         &self,
-        color: Color,
-        piece_0: Piece,
-        to_0: Square,
-        piece_1: Piece,
-        to_1: Square,
-    ) -> i16 {
-        let piece_0_index = piece_index(color, piece_0);
-        let to_0_index = to_0 as usize;
-        let piece_1_index = piece_1 as usize;
-        let to_1_index = to_1 as usize;
-        self.table[piece_0_index][to_0_index][piece_1_index][to_1_index]
-    }
-
-    pub fn cutoff(
-        &mut self,
-        board: &Board,
-        prev_move: Move,
+        pos: &Position,
         make_move: Move,
-        fails: &[Move],
-        amt: u32,
-    ) {
-        if amt > 20 {
-            return;
+        prev_move: Option<Move>,
+    ) -> i16 {
+        if prev_move.is_none() || pos.prev_board().is_none() {
+            return 0;
         }
-        let prev_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-        let prev_index = piece_index(board.side_to_move(), prev_piece);
-        let prev_to_index = prev_move.to as usize;
+        let prev_move = prev_move.unwrap();
+        let prev_board = pos.prev_board().unwrap();
+        let board = pos.board();
+        let stm = board.side_to_move();
 
         let piece = board.piece_on(make_move.from).unwrap();
-        let index = piece as usize;
-        let to_index = make_move.to as usize;
+        let prev_piece = prev_board.piece_on(prev_move.from).unwrap();
 
-        let value = self.table[prev_index][prev_to_index][index][to_index];
-        let change = (amt * amt) as i16;
-        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+        self.counter_move[stm as usize][prev_piece as usize][prev_move.to as usize][piece as usize]
+            [make_move.to as usize]
+    }
 
-        let increment = change - decay;
+    pub fn get_refutation(&self, pos: &Position, prev_move: Option<Move>) -> Option<Move> {
+        if prev_move.is_none() || pos.prev_board().is_none() {
+            return None;
+        }
+        let prev_move = prev_move.unwrap();
+        let prev_board = pos.prev_board().unwrap();
+        let board = pos.board();
+        let stm = board.side_to_move();
 
-        self.table[prev_index][prev_to_index][index][to_index] += increment;
+        let prev_piece = prev_board.piece_on(prev_move.from).unwrap();
+        self.refutation[stm as usize][prev_piece as usize][prev_move.to as usize]
+    }
 
-        for &quiet in fails {
-            let piece = board.piece_on(quiet.from).unwrap();
-            let index = piece as usize;
-            let to_index = quiet.to as usize;
-            let value = self.table[prev_index][prev_to_index][index][to_index];
-            let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
-            let decrement = change + decay;
+    pub fn update(
+        &mut self,
+        pos: &Position,
+        cutoff_move: Move,
+        quiet_fails: &[Move],
+        cap_fails: &[Move],
+        prev_move: Option<Move>,
+        depth: u32,
+    ) {
+        if depth > 20 {
+            return;
+        }
+        let board = pos.board();
+        let stm = board.side_to_move();
+        let is_capture = board.colors(!stm).has(cutoff_move.to);
+        let piece = board.piece_on(cutoff_move.from).unwrap();
 
-            self.table[prev_index][prev_to_index][index][to_index] -= decrement;
+        let weight = (depth * depth) as i16;
+
+        let piece_to = &mut self.piece_to[stm as usize][is_capture as usize][piece as usize]
+            [cutoff_move.to as usize];
+        update_hist::<true>(piece_to, weight);
+
+        let prev_piece = pos
+            .prev_board()
+            .zip(prev_move)
+            .map_or(None, |(board, prev_move)| board.piece_on(prev_move.from));
+
+        if let Some((prev_piece, prev_move)) = prev_piece.zip(prev_move) {
+            let counter_move = &mut self.counter_move[stm as usize][prev_piece as usize]
+                [prev_move.to as usize][piece as usize][cutoff_move.to as usize];
+            update_hist::<true>(counter_move, weight);
+
+            self.refutation[stm as usize][prev_piece as usize][prev_move.to as usize] =
+                Some(cutoff_move);
+        }
+
+        if is_capture {
+            for &fail in cap_fails {
+                let piece = board.piece_on(fail.from).unwrap();
+                let piece_to = &mut self.piece_to[stm as usize][is_capture as usize]
+                    [piece as usize][fail.to as usize];
+                update_hist::<false>(piece_to, weight);
+            }
+        } else {
+            for &fail in quiet_fails {
+                let piece = board.piece_on(fail.from).unwrap();
+                let piece_to = &mut self.piece_to[stm as usize][is_capture as usize]
+                    [piece as usize][fail.to as usize];
+                update_hist::<false>(piece_to, weight);
+                if let Some((prev_piece, prev_move)) = prev_piece.zip(prev_move) {
+                    let counter_move = &mut self.counter_move[stm as usize][prev_piece as usize]
+                        [prev_move.to as usize][piece as usize][fail.to as usize];
+                    update_hist::<false>(counter_move, weight)
+                }
+            }
         }
     }
 }
 
-fn piece_index(color: Color, piece: Piece) -> usize {
-    color as usize * PIECE_COUNT / 2 + piece as usize
+fn update_hist<const CUTOFF: bool>(value: &mut i16, weight: i16) {
+    let decay = (weight as i32 * *value as i32 / MAX_VALUE) as i16;
+    if CUTOFF {
+        *value += weight - decay;
+    } else {
+        *value -= weight + decay;
+    }
 }

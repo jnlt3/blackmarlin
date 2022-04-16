@@ -1,6 +1,6 @@
 use cozy_chess::{Board, Move, PieceMoves};
 
-use crate::bm::util::{history_new::History, move_entry::MoveEntryIterator, position::Position};
+use crate::bm::util::{history::History, move_entry::MoveEntryIterator, position::Position};
 use arrayvec::ArrayVec;
 
 use super::see;

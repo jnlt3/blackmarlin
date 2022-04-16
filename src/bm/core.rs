@@ -10,7 +10,6 @@ use cozy_chess::{Board, Move};
 use crate::bm::core::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::uci;
 use crate::bm::util::eval::Evaluation;
-use crate::bm::util::history::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
 use crate::bm::util::lookup::LookUp2d;
 use crate::bm::util::move_entry::MoveEntry;
 use crate::bm::util::position::Position;
@@ -20,7 +19,7 @@ use crate::bm::util::window::Window;
 use time::TimeManager;
 
 use super::search::{self, Pv};
-use super::util::history_new::History;
+use super::util::history::History;
 
 pub const MAX_PLY: u32 = 128;
 
@@ -136,7 +135,7 @@ impl LocalContext {
     pub fn get_history(&self) -> &History {
         &self.history
     }
-    
+
     pub fn get_history_mut(&mut self) -> &mut History {
         &mut self.history
     }
