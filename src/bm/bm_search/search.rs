@@ -359,7 +359,7 @@ pub fn search<Search: SearchType>(
                 && depth < 7
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
                 && entry.score() >= beta
-                && eval + 100 <= alpha
+                && eval + 250 <= alpha
             {
                 extension += 1;
             }
