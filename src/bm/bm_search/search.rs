@@ -357,6 +357,7 @@ pub fn search<Search: SearchType>(
             }
             if moves_seen == 0
                 && depth < 7
+                && entry.depth() + 2 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
                 && entry.score() >= beta
                 && eval + 100 <= alpha
