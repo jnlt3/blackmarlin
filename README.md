@@ -11,7 +11,7 @@ Black Marlin is a UCI compliant chess engine fully written in Rust by Doruk Seke
 
 Black Marlin supports Chess960 as of December 26, 2021 although no extensive testing has been done.
 
-Make sure to compile the chess engine with the `make` command in the root directory. Building otherwise doesn't ensure that the neural network file will get updated.
+Make sure to have Git LFS and compile the engine with `make` in the root directory. This will output a BlackMarlin executable.
 
 Black Marlin doesn't come with a built-in GUI. The recommended way of playing against the engine is to get the latest release or compile it locally and use it along with a Chess GUI that supports the UCI protocol. 
 
