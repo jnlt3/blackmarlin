@@ -34,16 +34,17 @@ The above repo has been replaced by [Marlinflow](https://github.com/dsekercioglu
     - [SEE Assisted Futility Pruning](#see-assisted-futility-pruning)
   - [Reductions](#late-move-reductions)
     - [History Based Reductions](#history-based-reductions)
-    - [Reduce Tactical Moves Less](#other-reductions)
     - [Reduce Principal Variation Nodes Less](#other-reductions)
   - [Extensions](#extensions)
     - [Singular Extensions](#singular-extensions)
+    - [Multi Cut](#multi-cut)
+    - [Low Depth Singular Extensions](#low-depth-singular-extensions)
     - [Check Extensions](#check-extensions)
   - [Move Ordering](#move-ordering)
     - [Move from Transposition Table](#move-from-transposition-table)
     - [Winning Captures](#winning-captures)
     - [Killer Heuristic](#killer-heuristic)
-    - [Null Move Threats](#null-move-threats)
+    - [Refutation Move](#refutation-move)
     - [History Heuristic](#history-heuristic)
     - [Bad Captures](#bad-captures)
     - [Under Promotions](#under-promotions)
@@ -102,10 +103,10 @@ Doing Futility Pruning at higher depths by correcting the evaluation based on st
 Late Move Reductions (LMR) are a way of proving if a move is lower than alpha quickly. This is done by searching moves that are expected to underperform at a lower depth.
 
 ### History Based Reductions
-History Based Reductions are the idea of adjusting LMR reductions based on the history score of a move.
+History Based Reductions are the idea of adjusting LMR reductions based on the history score of a move. This is done for both quiet and noisy (non-quiet) moves as history is kept separately for both.
 
 ### Other Reductions
-Black Marlin additionally reduces less in principal variation nodes and when a move is tactical.
+Black Marlin additionally reduces less in principal variation nodes and nodes that improve the static evaluation of a position compared to its parent.
 
 ### Extensions
 Usually the search algortihm is optimized by pruning or reducing where moves aren't promising. However, it can also be done by executing a deeper search on promising moves.
@@ -116,6 +117,11 @@ We don't want to miss three-fold repetition lines or forcing sequences, so we ex
 ### Singular Extensions
 If a move is better than all other moves by a margin, we can extend the search on this move. Candidate singular moves are usually decided based on the transposition table.
 
+### Multi Cut
+If a move isn't singular and the singular move is above beta, we know that there is more than one move that beats beta. We can thus fail soft and return the singular move beta.
+
+### Low Depth Singular Extensions
+This idea is inspired by Koivisto however the implementation is slightly different. At lower depths, Black Marlin doesn't search to prove singularity but rather uses the static evaluation directly. Since static evaluation isn't a reliable estimate, Black Marlin doesn't apply [multi cut](#multi-cut) pruning if low depth singular extensions are done.
 
 ### Move Ordering
 In order to maximize the efficiency of alpha beta search, we optimally want to try the best moves first.
@@ -124,19 +130,19 @@ In order to maximize the efficiency of alpha beta search, we optimally want to t
 The Transposition Table (TT) gives us the move we have found to be the best in case we have visited the position previously. TT moves are one of the most crucial ways of improving move ordering.
 
 ### Winning Captures
-We can evaluate each move by using SEE and put winning captures first in move ordering.
+We can evaluate each move by using SEE and put winning captures first in move ordering. Although moves aren't ordered by SEE but rather by their capture history scores and the value of the piece the move is capturing. This both provides more performance over pure SEE and benefits from the adaptive nature of history.
 
 ### Killer Heuristic
 Killer Heuristic is the idea of using quiet moves that produced a beta cutoff in sibling nodes. This is based on the assumption that a move doesn't change the position a lot and we can benefit from moves that worked in very similar positions.
 
-### Null Move Threats
-A Null Move Threat is the best move we get after executing a search for Null Move Pruning. This move can later be used to augment move ordering as it'll likely eliminate moves that don't defend a threat.
+### Refutation Move
+Black Marlin keeps a table of the last best quiet response to each move. These moves are later used in quiet move ordering.
 
 ### History Based Quiet Ordering
 We can order quiet moves based on their history scores in order to search quiets that historically performed better than others first.
 
 ### Bad Captures
-Bad Captures are moves that most likely make the position worse. They are usually put last as they rarely improve the position.
+Bad Captures are moves that most likely make the position worse. They are usually put last as they rarely improve the position. Similar to winning captures, bad captures are also sorted by capture history.
 
 ### Under Promotions
 There isn't really a reason to promote to a piece other than the queen in most positions. All promotions other than queen promotions are put to the very last of the move ordering list.
