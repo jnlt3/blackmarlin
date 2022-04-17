@@ -105,6 +105,17 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn pv_reduce(depth: u32) -> i16 {
+    if depth >= 16 {
+        0
+    } else if depth >= 8 {
+        1
+    } else {
+        2
+    }
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -427,7 +438,7 @@ pub fn search<Search: SearchType>(
 
             reduction -= history_lmr(h_score);
             if Search::PV {
-                reduction -= 1;
+                reduction -= pv_reduce(depth);
             };
             if improving {
                 reduction -= 1;
