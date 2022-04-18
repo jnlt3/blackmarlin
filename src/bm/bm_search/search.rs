@@ -306,6 +306,20 @@ pub fn search<Search: SearchType>(
                 make_move.to,
             )
         };
+        let from_h_score = if is_capture {
+            local_context.get_ch_table().get(
+                pos.board().side_to_move(),
+                pos.board().piece_on(make_move.from).unwrap(),
+                make_move.from,
+            )
+        } else {
+            local_context.get_h_table().get(
+                pos.board().side_to_move(),
+                pos.board().piece_on(make_move.from).unwrap(),
+                make_move.from,
+            )
+        };
+        let hist_delta = (h_score - from_h_score) / 2;
 
         let mut extension = 0;
         let mut score;
@@ -389,6 +403,12 @@ pub fn search<Search: SearchType>(
         let do_hp = !Search::PV && moves_seen > 0 && depth <= 8 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
+
+        let do_fhp = !Search::PV && moves_seen > 0 && !is_capture && depth <= 4 && eval <= alpha;
+
+        if do_fhp && (hist_delta as i32) < hp(depth) {
             continue;
         }
 
