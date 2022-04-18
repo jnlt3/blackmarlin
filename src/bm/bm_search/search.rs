@@ -328,8 +328,10 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 7;
-                let s_score = if multi_cut {
+                let low_depth = depth < 7;
+                let s_score = if low_depth {
+                    eval
+                } else {
                     search::<Search::Zw>(
                         pos,
                         local_context,
@@ -339,14 +341,15 @@ pub fn search<Search: SearchType>(
                         s_beta - 1,
                         s_beta,
                     )
-                } else {
-                    eval
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension += 1;
-                } else if multi_cut && s_beta >= beta {
+                    if low_depth && s_score < s_beta - 200 {
+                        extension += 1;
+                    }
+                } else if !low_depth && s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
