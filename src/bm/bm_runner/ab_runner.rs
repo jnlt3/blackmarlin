@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
-use cozy_chess::{Board, Move};
+use cozy_chess::{Board, Color, Move};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -92,6 +92,7 @@ pub struct LocalContext {
     tt_hits: u32,
     tt_misses: u32,
     eval: Evaluation,
+    stm: Color,
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     h_table: HistoryTable,
@@ -201,6 +202,14 @@ impl LocalContext {
         self.sel_depth = self.sel_depth.max(ply);
     }
 
+    pub fn eval(&self) -> Evaluation {
+        self.eval
+    }
+
+    pub fn stm(&self) -> Color {
+        self.stm
+    }
+
     pub fn reset_nodes(&self) {
         self.nodes.0.store(0, Ordering::Relaxed);
     }
@@ -253,6 +262,7 @@ impl AbRunner {
         move || {
             let mut nodes = 0;
             local_context.reset_nodes();
+            local_context.stm = position.board().side_to_move();
             let start_time = Instant::now();
             let mut best_move = None;
             let mut eval: Option<Evaluation> = None;
@@ -393,7 +403,7 @@ impl AbRunner {
                 window: Window::new(25, 1, 4, 5),
                 tt_hits: 0,
                 tt_misses: 0,
-                eval: position.get_eval(),
+                eval: position.get_eval(Color::White, Evaluation::new(0)),
                 search_stack: vec![
                     SearchStack {
                         eval: Evaluation::new(0),
@@ -412,6 +422,7 @@ impl AbRunner {
                 killer_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
+                stm: Color::White,
             },
             position,
             chess960: false,
@@ -453,7 +464,7 @@ impl AbRunner {
     }
 
     pub fn raw_eval(&mut self) -> Evaluation {
-        self.position.get_eval()
+        self.position.get_eval(Color::White, Evaluation::new(0))
     }
 
     pub fn new_game(&self) {
