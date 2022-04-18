@@ -82,7 +82,7 @@ const fn fp(depth: u32) -> i16 {
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    ((depth * depth) as i16) * 30
+    ((depth * depth) as i16) * 40
 }
 
 #[inline]
