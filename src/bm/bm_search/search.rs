@@ -317,7 +317,10 @@ pub fn search<Search: SearchType>(
         estimation of best move/eval
         */
         if let Some(entry) = tt_entry {
+            let singular_ext = depth >= 7;
+            let ld_ext = depth < 7 && h_score > 0;
             if moves_seen == 0
+                && (singular_ext || ld_ext)
                 && entry.table_move() == make_move
                 && ply != 0
                 && !entry.score().is_mate()
@@ -328,8 +331,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 7;
-                let s_score = if multi_cut {
+                let s_score = if singular_ext {
                     search::<Search::Zw>(
                         pos,
                         local_context,
@@ -346,7 +348,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                } else if multi_cut && s_beta >= beta {
+                } else if singular_ext && s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
