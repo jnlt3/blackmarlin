@@ -406,6 +406,8 @@ pub fn search<Search: SearchType>(
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension = 1;
+        } else if Search::PV && is_capture && depth <= 2 {
+            extension = 1;
         }
 
         /*
