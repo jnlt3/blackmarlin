@@ -6,28 +6,27 @@ const PIECE_COUNT: usize = 12;
 
 #[derive(Debug, Clone)]
 pub struct HistoryTable {
-    table: Box<[[i16; SQUARE_COUNT]; PIECE_COUNT]>,
+    table: Box<[[i16; SQUARE_COUNT]; SQUARE_COUNT * 2]>,
 }
 
 impl HistoryTable {
     pub fn new() -> Self {
         Self {
-            table: Box::new([[0_i16; SQUARE_COUNT]; PIECE_COUNT]),
+            table: Box::new([[0_i16; SQUARE_COUNT]; SQUARE_COUNT * 2]),
         }
     }
 
-    pub fn get(&self, color: Color, piece: Piece, to: Square) -> i16 {
-        let piece_index = piece_index(color, piece);
+    pub fn get(&self, color: Color, from: Square, to: Square) -> i16 {
+        let from_index = sq_index(color, from);
         let to_index = to as usize;
-        self.table[piece_index][to_index]
+        self.table[from_index][to_index]
     }
 
     pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
         if amt > 20 {
             return;
         }
-        let piece = board.piece_on(make_move.from).unwrap();
-        let index = piece_index(board.side_to_move(), piece);
+        let index = sq_index(board.side_to_move(), make_move.from);
         let to_index = make_move.to as usize;
 
         let value = self.table[index][to_index];
@@ -39,8 +38,7 @@ impl HistoryTable {
         self.table[index][to_index] += increment;
 
         for &quiet in fails {
-            let piece = board.piece_on(quiet.from).unwrap();
-            let index = piece_index(board.side_to_move(), piece);
+            let index = sq_index(board.side_to_move(), quiet.from);
             let to_index = quiet.to as usize;
             let value = self.table[index][to_index];
             let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
@@ -149,4 +147,8 @@ impl DoubleMoveHistory {
 
 fn piece_index(color: Color, piece: Piece) -> usize {
     color as usize * PIECE_COUNT / 2 + piece as usize
+}
+
+fn sq_index(color: Color, sq: Square) -> usize {
+    color as usize * SQUARE_COUNT + sq as usize
 }

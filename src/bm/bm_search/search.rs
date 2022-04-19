@@ -296,13 +296,13 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_ch_table().get(
                 pos.board().side_to_move(),
-                pos.board().piece_on(make_move.from).unwrap(),
+                make_move.from,
                 make_move.to,
             )
         } else {
             local_context.get_h_table().get(
                 pos.board().side_to_move(),
-                pos.board().piece_on(make_move.from).unwrap(),
+                make_move.from,
                 make_move.to,
             )
         };
