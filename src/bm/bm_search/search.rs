@@ -345,7 +345,7 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    extension += 1;
+                    extension = 1;
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
@@ -405,7 +405,7 @@ pub fn search<Search: SearchType>(
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
-            extension += 1;
+            extension = 1;
         }
 
         /*
