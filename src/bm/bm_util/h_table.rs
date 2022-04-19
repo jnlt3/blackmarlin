@@ -51,30 +51,29 @@ impl HistoryTable {
 
 #[derive(Debug, Clone)]
 pub struct CounterMoveTable {
-    table: Box<[[Option<Move>; SQUARE_COUNT]; PIECE_COUNT]>,
+    table: Box<[[Option<Move>; SQUARE_COUNT]; SQUARE_COUNT * 2]>,
 }
 
 impl CounterMoveTable {
     pub fn new() -> Self {
         Self {
-            table: Box::new([[None; SQUARE_COUNT]; PIECE_COUNT]),
+            table: Box::new([[None; SQUARE_COUNT]; SQUARE_COUNT * 2]),
         }
     }
 
-    pub fn get(&self, color: Color, piece: Piece, to: Square) -> Option<Move> {
-        let piece_index = piece_index(color, piece);
+    pub fn get(&self, color: Color, from: Square, to: Square) -> Option<Move> {
+        let from_index = sq_index(color, from);
         let to_index = to as usize;
-        self.table[piece_index][to_index]
+        self.table[from_index][to_index]
     }
 
     pub fn cutoff(&mut self, board: &Board, prev_move: Move, cutoff_move: Move, amt: u32) {
         if amt > 20 {
             return;
         }
-        let piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-        let piece_index = piece_index(board.side_to_move(), piece);
+        let from_index = sq_index(board.side_to_move(), prev_move.from);
         let to_index = prev_move.to as usize;
-        self.table[piece_index][to_index] = Some(cutoff_move);
+        self.table[from_index][to_index] = Some(cutoff_move);
     }
 }
 

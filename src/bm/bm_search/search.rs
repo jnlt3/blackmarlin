@@ -253,11 +253,9 @@ pub fn search<Search: SearchType>(
     };
 
     let counter_move = if let Some(Some(prev_move)) = prev_move {
-        local_context.get_cm_table().get(
-            pos.board().side_to_move(),
-            pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
-            prev_move.to,
-        )
+        local_context
+            .get_cm_table()
+            .get(pos.board().side_to_move(), prev_move.from, prev_move.to)
     } else {
         None
     };
