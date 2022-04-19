@@ -182,7 +182,7 @@ pub fn search<Search: SearchType>(
     let in_check = pos.board().checkers() != BitBoard::EMPTY;
 
     let eval = if skip_move.is_none() {
-        pos.get_eval()
+        pos.get_eval(local_context.stm(), local_context.eval())
     } else {
         local_context.search_stack()[ply as usize].eval
     };
@@ -604,7 +604,7 @@ pub fn q_search(
 
     local_context.update_sel_depth(ply);
     if ply >= MAX_PLY {
-        return pos.get_eval();
+        return pos.get_eval(local_context.stm(), local_context.eval());
     }
 
     let initial_alpha = alpha;
@@ -629,7 +629,7 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = pos.board().checkers() != BitBoard::EMPTY;
 
-    let stand_pat = pos.get_eval();
+    let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
