@@ -357,6 +357,11 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        let tt_move = tt_entry.map_or(None, |entry| Some(entry.table_move()));
+        if tt_move == Some(make_move) && h_score as i32 >= h_table::MAX_VALUE {
+            extension = 1;
+        }
+
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
