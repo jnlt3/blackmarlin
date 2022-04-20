@@ -358,7 +358,7 @@ pub fn search<Search: SearchType>(
         }
 
         let tt_move = tt_entry.map_or(None, |entry| Some(entry.table_move()));
-        if tt_move == Some(make_move) && h_score as i32 >= h_table::MAX_VALUE {
+        if depth >= 7 && tt_move == Some(make_move) && h_score as i32 >= h_table::MAX_VALUE {
             extension = 1;
         }
 
