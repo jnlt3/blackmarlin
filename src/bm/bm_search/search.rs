@@ -321,7 +321,7 @@ pub fn search<Search: SearchType>(
                 && entry.table_move() == make_move
                 && ply != 0
                 && !entry.score().is_mate()
-                && entry.depth() + 2 >= depth
+                && entry.depth() * 2 >= depth
                 && (entry.entry_type() == EntryType::LowerBound
                     || entry.entry_type() == EntryType::Exact)
             {
