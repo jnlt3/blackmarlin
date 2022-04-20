@@ -105,6 +105,15 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn check_ext(depth: u32) -> u32 {
+    if depth < 2 {
+        2
+    } else {
+        1
+    }
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -405,7 +414,7 @@ pub fn search<Search: SearchType>(
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
-            extension = 1;
+            extension = check_ext(depth);
         }
 
         /*
