@@ -466,11 +466,12 @@ pub fn search<Search: SearchType>(
             );
             score = lmr_score << Next;
 
+            let skip = score - 75 > beta;
             /*
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
-            if lmr_depth < depth && score > alpha {
+            if lmr_depth < depth && score > alpha && !skip {
                 let zw_score = search::<Search::Zw>(
                     pos,
                     local_context,
