@@ -317,14 +317,14 @@ pub fn search<Search: SearchType>(
         estimation of best move/eval
         */
         if let Some(entry) = tt_entry {
-            if moves_seen == 0
+            let sing_ext_candidate = moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
                 && !entry.score().is_mate()
                 && entry.depth() + 2 >= depth
                 && (entry.entry_type() == EntryType::LowerBound
-                    || entry.entry_type() == EntryType::Exact)
-            {
+                    || entry.entry_type() == EntryType::Exact);
+            if sing_ext_candidate {
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
@@ -354,6 +354,9 @@ pub fn search<Search: SearchType>(
                     */
                     return s_beta;
                 }
+            }
+            if sing_ext_candidate && entry.score() >= beta && eval <= alpha {
+                extension = 1;
             }
         }
 
