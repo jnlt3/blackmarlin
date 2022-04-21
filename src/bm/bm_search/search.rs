@@ -435,6 +435,9 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
+            if captures.len() > 3 {
+                reduction += 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
