@@ -80,29 +80,29 @@ impl CounterMoveTable {
 
 #[derive(Debug, Clone)]
 pub struct DoubleMoveHistory {
-    table: Box<[[[[i16; SQUARE_COUNT]; PIECE_COUNT / 2]; SQUARE_COUNT]; PIECE_COUNT]>,
+    table: Box<[[[[i16; SQUARE_COUNT]; SQUARE_COUNT]; SQUARE_COUNT]; PIECE_COUNT]>,
 }
 
 impl DoubleMoveHistory {
     pub fn new() -> Self {
         Self {
-            table: Box::new([[[[0; SQUARE_COUNT]; PIECE_COUNT / 2]; SQUARE_COUNT]; PIECE_COUNT]),
+            table: Box::new([[[[0; SQUARE_COUNT]; SQUARE_COUNT]; SQUARE_COUNT]; PIECE_COUNT]),
         }
     }
 
     pub fn get(
         &self,
         color: Color,
-        piece_0: Piece,
+        piece: Piece,
         to_0: Square,
-        piece_1: Piece,
+        from_0: Piece,
         to_1: Square,
     ) -> i16 {
-        let piece_0_index = piece_index(color, piece_0);
+        let piece_index = piece_index(color, piece);
         let to_0_index = to_0 as usize;
-        let piece_1_index = piece_1 as usize;
+        let from_index = from_0 as usize;
         let to_1_index = to_1 as usize;
-        self.table[piece_0_index][to_0_index][piece_1_index][to_1_index]
+        self.table[piece_index][to_0_index][from_index][to_1_index]
     }
 
     pub fn cutoff(
@@ -120,27 +120,25 @@ impl DoubleMoveHistory {
         let prev_index = piece_index(board.side_to_move(), prev_piece);
         let prev_to_index = prev_move.to as usize;
 
-        let piece = board.piece_on(make_move.from).unwrap();
-        let index = piece as usize;
+        let from_index = make_move.from as usize;
         let to_index = make_move.to as usize;
 
-        let value = self.table[prev_index][prev_to_index][index][to_index];
+        let value = self.table[prev_index][prev_to_index][from_index][to_index];
         let change = (amt * amt) as i16;
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
 
-        self.table[prev_index][prev_to_index][index][to_index] += increment;
+        self.table[prev_index][prev_to_index][from_index][to_index] += increment;
 
         for &quiet in fails {
-            let piece = board.piece_on(quiet.from).unwrap();
-            let index = piece as usize;
+            let from_index = quiet.from as usize;
             let to_index = quiet.to as usize;
-            let value = self.table[prev_index][prev_to_index][index][to_index];
+            let value = self.table[prev_index][prev_to_index][from_index][to_index];
             let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
             let decrement = change + decay;
 
-            self.table[prev_index][prev_to_index][index][to_index] -= decrement;
+            self.table[prev_index][prev_to_index][from_index][to_index] -= decrement;
         }
     }
 }
