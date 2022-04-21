@@ -466,7 +466,7 @@ pub fn search<Search: SearchType>(
             );
             score = lmr_score << Next;
 
-            let skip = score - 75 > beta;
+            let skip = score - 250 > beta;
             /*
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
