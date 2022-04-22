@@ -372,14 +372,13 @@ pub fn search<Search: SearchType>(
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
-        if !move_gen.skip_quiets()
-            && non_mate_line
-            && !is_capture
-            && quiets.len()
-                >= shared_context
-                    .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
-        {
+        let mut lmp_move_cnt = shared_context
+            .get_lmp_lookup()
+            .get(depth as usize, improving as usize);
+        if Search::PV {
+            lmp_move_cnt += 2;
+        }
+        if !move_gen.skip_quiets() && non_mate_line && !is_capture && quiets.len() >= lmp_move_cnt {
             move_gen.set_skip_quiets(true);
             continue;
         }
