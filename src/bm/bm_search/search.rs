@@ -55,7 +55,7 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
     Search::NM
         && depth > 4
-        && eval >= beta
+        && eval >= beta + 100
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
