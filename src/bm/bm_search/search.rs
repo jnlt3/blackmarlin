@@ -358,13 +358,16 @@ pub fn search<Search: SearchType>(
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
+
+
+        let prune_depth = depth.saturating_sub(moves_seen as u32 / 8);
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && prune_depth <= 7;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(prune_depth) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
