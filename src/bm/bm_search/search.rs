@@ -346,7 +346,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if eval - 150 > s_beta {
+                    if eval - 50 > s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
