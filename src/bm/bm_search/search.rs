@@ -407,7 +407,7 @@ pub fn search<Search: SearchType>(
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-        if gives_check {
+        if gives_check && depth >= 9 {
             extension = 1;
         }
 
