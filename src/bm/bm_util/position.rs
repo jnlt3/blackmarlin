@@ -99,9 +99,9 @@ impl Position {
 
         let clamped_eval = root_eval.raw().clamp(-100, 100);
         let eval_bonus = if board.side_to_move() == stm {
-            piece_cnt * clamped_eval / 100
+            piece_cnt * clamped_eval / 50
         } else {
-            -piece_cnt * clamped_eval / 100
+            -piece_cnt * clamped_eval / 50
         };
 
         Evaluation::new(self.evaluator.feed_forward(&board, 0) + eval_bonus)
