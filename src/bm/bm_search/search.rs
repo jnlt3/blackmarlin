@@ -200,7 +200,7 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving || Search::NM) >= beta {
             return eval;
         }
 
