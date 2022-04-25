@@ -52,6 +52,11 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
+const fn rev_fp_near_miss(depth: u32, improving: bool) -> i16 {
+    (depth as i16 - improving as i16) * 40
+}
+
+#[inline]
 fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
     Search::NM
         && depth > 4
@@ -194,6 +199,7 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let mut rfp_near_miss = false;
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -202,6 +208,8 @@ pub fn search<Search: SearchType>(
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
             return eval;
+        } else {
+            rfp_near_miss = eval - rev_fp_near_miss(depth, improving) >= beta;
         }
 
         /*
@@ -400,7 +408,10 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune =
             !Search::PV && non_mate_line && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        if !rfp_near_miss
+            && do_see_prune
+            && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
+        {
             continue;
         }
 
