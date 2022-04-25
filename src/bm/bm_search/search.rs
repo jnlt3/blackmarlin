@@ -335,7 +335,7 @@ pub fn search<Search: SearchType>(
                         local_context,
                         shared_context,
                         ply,
-                        depth / 2 - 1,
+                        depth / 2 + 1,
                         s_beta - 1,
                         s_beta,
                     )
