@@ -343,8 +343,17 @@ pub fn search<Search: SearchType>(
                     eval
                 };
 
+                /*
+                lower bound for best move
+                less reliable score for second best move
+                static eval
+                beta
+                 */
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
+                    if s_beta + 250 <= alpha {
+                        return alpha;
+                    }
                     extension = 1;
                 } else if multi_cut && s_beta >= beta {
                     /*
