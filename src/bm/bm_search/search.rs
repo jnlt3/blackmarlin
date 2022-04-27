@@ -408,8 +408,8 @@ pub fn search<Search: SearchType>(
         }
 
         if let Some(entry) = tt_entry {
-            if moves_seen == 0
-                && tt_entry.is_some()
+            if !Search::PV
+                && moves_seen == 0
                 && depth <= 4
                 && entry.depth() + 2 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
