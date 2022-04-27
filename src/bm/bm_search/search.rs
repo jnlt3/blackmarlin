@@ -408,6 +408,7 @@ pub fn search<Search: SearchType>(
         }
 
         if moves_seen == 0
+            && tt_entry.is_some()
             && depth <= 4
             && eval >= beta
             && !is_capture
