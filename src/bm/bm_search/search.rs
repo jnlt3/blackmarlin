@@ -408,6 +408,7 @@ pub fn search<Search: SearchType>(
         }
 
         if moves_seen == 0
+            && depth <= 4
             && eval >= beta
             && !is_capture
             && h_score >= h_table::MAX_VALUE as i16
