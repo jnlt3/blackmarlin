@@ -407,15 +407,18 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        if moves_seen == 0
-            && tt_entry.is_some()
-            && depth <= 4
-            && eval >= beta
-            && !is_capture
-            && h_score >= h_table::MAX_VALUE as i16
-            && see::<16>(pos.board(), make_move) >= 0
-        {
-            move_gen.set_skip_quiets(true);
+        if let Some(entry) = tt_entry {
+            if moves_seen == 0
+                && tt_entry.is_some()
+                && depth <= 4
+                && entry.depth() + 2 >= depth
+                && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
+                && eval <= alpha
+                && h_score >= h_table::MAX_VALUE as i16
+                && see::<16>(pos.board(), make_move) >= 0
+            {
+                move_gen.set_skip_quiets(true);
+            }
         }
 
         pos.make_move(make_move);
