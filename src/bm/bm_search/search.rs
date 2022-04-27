@@ -408,7 +408,13 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        if moves_seen <= 3 && depth <= 4 && eval >= beta && h_score >= 512 && see >= 0 {
+        if !Search::PV
+            && moves_seen <= 3
+            && depth <= 4
+            && eval >= beta
+            && h_score >= 512
+            && see >= 0
+        {
             return beta;
         }
 
