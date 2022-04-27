@@ -346,7 +346,21 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     if s_beta + 250 <= alpha {
-                        return alpha;
+                        let zw = alpha >> Next;
+                        pos.make_move(make_move);
+                        let score = search::<Search::Zw>(
+                            pos,
+                            local_context,
+                            shared_context,
+                            ply,
+                            depth,
+                            zw - 1,
+                            zw,
+                        ) << Next;
+                        pos.unmake_move();
+                        if score <= alpha {
+                            return score;
+                        }
                     }
                     extension = 1;
                 } else if multi_cut && s_beta >= beta {
