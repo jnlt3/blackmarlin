@@ -105,6 +105,11 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn rev_mul_cut(depth: u32) -> i16 {
+    150 + 25 * depth as i16
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -345,7 +350,7 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    if s_beta + 250 <= alpha {
+                    if s_beta + rev_mul_cut(depth) <= alpha {
                         return alpha;
                     }
                     extension = 1;
