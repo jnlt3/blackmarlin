@@ -347,6 +347,8 @@ pub fn search<Search: SearchType>(
                 if s_score < s_beta {
                     if s_beta + 250 <= alpha {
                         return alpha;
+                    } else if s_score - 250 >= beta {
+                        return beta;
                     }
                     extension = 1;
                 } else if multi_cut && s_beta >= beta {
