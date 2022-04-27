@@ -407,6 +407,15 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        if moves_seen == 0
+            && eval >= beta
+            && !is_capture
+            && h_score >= h_table::MAX_VALUE as i16
+            && see::<16>(pos.board(), make_move) >= 0
+        {
+            move_gen.set_skip_quiets(true);
+        }
+
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
