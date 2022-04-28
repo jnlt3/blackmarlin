@@ -518,7 +518,7 @@ pub fn search<Search: SearchType>(
                         .update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
-                    if skip_move.is_none() && !local_context.abort() {
+                    if !local_context.abort() {
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
