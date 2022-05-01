@@ -76,8 +76,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 100
+const fn fp(depth: u32, history: i16) -> i16 {
+    depth as i16 * 100 + history / 8
 }
 
 #[inline]
@@ -367,7 +367,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(depth, h_score) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
@@ -518,7 +518,7 @@ pub fn search<Search: SearchType>(
                         .update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
-                    if !local_context.abort() {
+                    if skip_move.is_none() && !local_context.abort() {
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
