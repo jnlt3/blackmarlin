@@ -403,8 +403,14 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune =
             !Search::PV && non_mate_line && moves_seen > 0 && !in_check && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        let see = see::<16>(pos.board(), make_move);
+        if do_see_prune && eval + see + see_fp(depth) <= alpha {
             continue;
+        }
+
+        let do_ghp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 1 && eval >= beta;
+        if do_ghp && h_score as i32 >= h_table::MAX_VALUE {
+            return beta;
         }
 
         pos.make_move(make_move);
