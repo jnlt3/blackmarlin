@@ -87,7 +87,7 @@ const fn see_fp(depth: u32) -> i16 {
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+    -h_table::MAX_VALUE * ((depth * depth) as i32) / 144
 }
 
 #[inline]
@@ -391,7 +391,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 12 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
