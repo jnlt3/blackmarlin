@@ -407,6 +407,11 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let opp_king = pos.board().king(!pos.board().side_to_move());
+        if cozy_chess::get_king_moves(opp_king).has(make_move.to) {
+            extension = 1;
+        }
+
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
