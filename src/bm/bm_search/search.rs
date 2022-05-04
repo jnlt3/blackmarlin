@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, File, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -52,8 +52,15 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
-fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
+fn do_nmp<Search: SearchType>(
+    board: &Board,
+    depth: u32,
+    eval: i16,
+    beta: i16,
+    threats: BitBoard,
+) -> bool {
     Search::NM
+        && threats.is_empty()
         && depth > 4
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
@@ -212,7 +219,9 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
+        let threats = pawn_threats(pos.board(), !pos.board().side_to_move());
+        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw(), threats) && pos.null_move()
+        {
             local_context.search_stack_mut()[ply as usize].move_played = None;
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
@@ -772,4 +781,18 @@ fn piece_pts(piece: Piece) -> i16 {
         Piece::Queen => 900,
         Piece::King => 20000,
     }
+}
+
+const A_FILE: BitBoard = File::A.bitboard();
+const H_FILE: BitBoard = File::H.bitboard();
+
+fn pawn_threats(board: &Board, perspective: Color) -> BitBoard {
+    let pawns = board.pieces(Piece::Pawn);
+    let opp_pawns = board.pieces(Piece::Pawn) & board.colors(!perspective);
+
+    let opp_pawn_attacks = ((!A_FILE & opp_pawns) << 7) | ((!H_FILE & opp_pawns) << 9);
+
+    let pieces = (board.occupied() & board.colors(perspective)) & !pawns;
+
+    opp_pawn_attacks & pieces
 }
