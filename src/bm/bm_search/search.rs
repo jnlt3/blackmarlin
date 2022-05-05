@@ -435,7 +435,7 @@ pub fn search<Search: SearchType>(
             if Search::PV {
                 reduction -= 1;
             };
-            if improving {
+            if improving && moves_seen < 5 {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
