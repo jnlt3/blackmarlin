@@ -4,6 +4,11 @@ pub const MAX_VALUE: i32 = 512;
 const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 
+const fn hist_score(depth: u32) -> i16 {
+    let depth = 20_u32.saturating_sub(depth);
+    200 - (depth * depth / 2) as i16
+}
+
 #[derive(Debug, Clone)]
 pub struct HistoryTable {
     table: Box<[[i16; SQUARE_COUNT]; SQUARE_COUNT * 2]>,
@@ -30,7 +35,7 @@ impl HistoryTable {
         let to_index = make_move.to as usize;
 
         let value = self.table[index][to_index];
-        let change = (amt * amt) as i16;
+        let change = hist_score(amt);
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
@@ -125,7 +130,7 @@ impl DoubleMoveHistory {
         let to_index = make_move.to as usize;
 
         let value = self.table[prev_index][prev_to_index][index][to_index];
-        let change = (amt * amt) as i16;
+        let change = hist_score(amt);
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
