@@ -219,7 +219,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let threats = pawn_threats(pos.board(), !pos.board().side_to_move());
+        let threats = threats(pos.board(), !pos.board().side_to_move());
         if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw(), threats) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
@@ -786,13 +786,29 @@ fn piece_pts(piece: Piece) -> i16 {
 const A_FILE: BitBoard = File::A.bitboard();
 const H_FILE: BitBoard = File::H.bitboard();
 
-fn pawn_threats(board: &Board, perspective: Color) -> BitBoard {
+fn threats(board: &Board, perspective: Color) -> BitBoard {
+    let occupied = board.occupied();
+
+    let this = board.colors(perspective);
+    let opp = board.colors(!perspective);
+
     let pawns = board.pieces(Piece::Pawn);
-    let opp_pawns = board.pieces(Piece::Pawn) & board.colors(!perspective);
+
+    let opp_pawns = pawns & opp;
 
     let opp_pawn_attacks = ((!A_FILE & opp_pawns) << 7) | ((!H_FILE & opp_pawns) << 9);
 
-    let pieces = (board.occupied() & board.colors(perspective)) & !pawns;
+    let pieces = this & !pawns;
 
-    opp_pawn_attacks & pieces
+    let mut opp_minor_attacks = BitBoard::EMPTY;
+    for sq in opp & board.pieces(Piece::Knight) {
+        opp_minor_attacks |= cozy_chess::get_knight_moves(sq);
+    }
+    for sq in opp & board.pieces(Piece::Bishop) {
+        opp_minor_attacks |= cozy_chess::get_bishop_moves(sq, occupied);
+    }
+
+    let majors = this & (board.pieces(Piece::Rook) | board.pieces(Piece::Queen));
+
+    (opp_pawn_attacks & pieces) | (opp_minor_attacks & majors)
 }
