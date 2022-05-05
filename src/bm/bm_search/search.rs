@@ -412,6 +412,8 @@ pub fn search<Search: SearchType>(
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension = 1;
+        } else if eval + 500 + (50 * depth as i16) <= alpha {
+            extension = 1;
         }
 
         /*
