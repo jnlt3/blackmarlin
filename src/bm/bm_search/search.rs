@@ -271,6 +271,7 @@ pub fn search<Search: SearchType>(
     );
 
     let mut moves_seen = 0;
+    let mut legal_moves = 0;
     let mut move_exists = false;
 
     let mut quiets = ArrayVec::<Move, 64>::new();
@@ -285,6 +286,7 @@ pub fn search<Search: SearchType>(
         if Some(make_move) == skip_move {
             continue;
         }
+        legal_moves += 1;
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
         move_exists = true;
@@ -378,8 +380,8 @@ pub fn search<Search: SearchType>(
         if !move_gen.skip_quiets()
             && non_mate_line
             && !is_capture
-            && quiets.len()
-                >= shared_context
+            && legal_moves
+                > shared_context
                     .get_lmp_lookup()
                     .get(depth as usize, improving as usize)
         {
@@ -410,6 +412,7 @@ pub fn search<Search: SearchType>(
         pos.make_move(make_move);
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
+
         if gives_check {
             extension = 1;
         }
