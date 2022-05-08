@@ -378,7 +378,7 @@ pub fn search<Search: SearchType>(
         if !move_gen.skip_quiets()
             && non_mate_line
             && !is_capture
-            && quiets.len()
+            && quiets.len() + captures.len()
                 >= shared_context
                     .get_lmp_lookup()
                     .get(depth as usize, improving as usize)
