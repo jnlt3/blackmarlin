@@ -107,15 +107,20 @@ impl Nnue {
         self.reset(board);
     }
 
-    pub fn null_move(&mut self) {
-        self.accumulator[self.head + 1] = self.accumulator[self.head].clone();
+    fn push_accumulator(&mut self) {
+        let w_out = *self.accumulator[self.head].w_input_layer.get();
+        let b_out = *self.accumulator[self.head].b_input_layer.get();
+        self.accumulator[self.head + 1].w_input_layer.reset(w_out);
+        self.accumulator[self.head + 1].b_input_layer.reset(b_out);
         self.head += 1;
     }
 
-    pub fn make_move(&mut self, board: &Board, make_move: Move) {
-        self.accumulator[self.head + 1] = self.accumulator[self.head].clone();
-        self.head += 1;
+    pub fn null_move(&mut self) {
+        self.push_accumulator();
+    }
 
+    pub fn make_move(&mut self, board: &Board, make_move: Move) {
+        self.push_accumulator();
         let from_sq = make_move.from;
         let from_type = board.piece_on(from_sq).unwrap();
         let stm = board.side_to_move();
