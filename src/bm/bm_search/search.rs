@@ -345,7 +345,8 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    if s_beta + 250 <= alpha {
+                    let margin = 250 + if improving { 50 } else { 0 };
+                    if s_beta + margin <= alpha {
                         return alpha;
                     }
                     extension = 1;
