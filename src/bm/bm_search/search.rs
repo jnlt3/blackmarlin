@@ -433,7 +433,7 @@ pub fn search<Search: SearchType>(
 
             reduction -= history_lmr(h_score);
             if Search::PV {
-                reduction -= 1;
+                reduction -= 2;
             };
             if improving {
                 reduction -= 1;
