@@ -675,6 +675,7 @@ pub fn q_search(
                 continue;
             }
             pos.make_move(make_move);
+            shared_context.get_t_table().prefetch(pos.board());
             let search_score = q_search(
                 pos,
                 local_context,
