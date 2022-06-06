@@ -117,6 +117,20 @@ impl TranspositionTable {
         (hash as usize) & self.mask
     }
 
+    #[cfg(not(target_feature = "sse"))]
+    pub fn prefetch(&self, _: &Board) {}
+
+    #[cfg(target_feature = "sse")]
+    pub fn prefetch(&self, board: &Board) {
+        use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+        let hash = board.hash();
+        let index = self.index(hash);
+        unsafe {
+            let ptr = self.table.as_ptr().offset(index as isize);
+            _mm_prefetch(ptr as *const i8, _MM_HINT_T0);
+        }
+    }
+
     pub fn get(&self, board: &Board) -> Option<Analysis> {
         let hash = board.hash();
         let index = self.index(hash);
