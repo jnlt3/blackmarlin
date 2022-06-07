@@ -48,7 +48,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 50
+    (depth as i16 - improving as i16) * 65
 }
 
 #[inline]
