@@ -99,6 +99,7 @@ pub struct LocalContext {
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
+    fu_hist: DoubleMoveHistory,
     killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
@@ -153,6 +154,11 @@ impl LocalContext {
     }
 
     #[inline]
+    pub fn get_fu_hist(&self) -> &DoubleMoveHistory {
+        &self.fu_hist
+    }
+
+    #[inline]
     pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
         &mut self.h_table
     }
@@ -170,6 +176,11 @@ impl LocalContext {
     #[inline]
     pub fn get_cm_hist_mut(&mut self) -> &mut DoubleMoveHistory {
         &mut self.cm_hist
+    }
+    
+    #[inline]
+    pub fn get_fu_hist_mut(&mut self) -> &mut DoubleMoveHistory {
+        &mut self.fu_hist
     }
 
     #[inline]
@@ -419,6 +430,7 @@ impl AbRunner {
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
+                fu_hist: DoubleMoveHistory::new(),
                 killer_moves: vec![],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,

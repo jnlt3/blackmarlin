@@ -29,6 +29,7 @@ pub struct OrderedMoveGen<const K: usize> {
     pv_move: Option<Move>,
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
+    opp_move: Option<Move>,
     prev_move: Option<Move>,
     gen_type: GenType,
 
@@ -42,6 +43,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         board: &Board,
         pv_move: Option<Move>,
         counter_move: Option<Move>,
+        opp_move: Option<Move>,
         prev_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
@@ -54,6 +56,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             gen_type: GenType::PvMove,
             move_list,
             counter_move,
+            opp_move,
             prev_move,
             pv_move,
             killer_entry,
@@ -88,6 +91,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         hist: &HistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
+        fu_hist: &DoubleMoveHistory,
     ) -> Option<Move> {
         self.set_phase();
         if self.gen_type == GenType::PvMove {
@@ -171,9 +175,19 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let piece = board.piece_on(make_move.from).unwrap();
 
                     score += hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    if let Some(opp_move) = self.opp_move {
+                        let opp_move_piece = board.piece_on(opp_move.to).unwrap_or(Piece::King);
+                        score += cm_hist.get(
+                            board.side_to_move(),
+                            opp_move_piece,
+                            opp_move.to,
+                            piece,
+                            make_move.to,
+                        );
+                    }
                     if let Some(prev_move) = self.prev_move {
                         let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-                        score += cm_hist.get(
+                        score += fu_hist.get(
                             board.side_to_move(),
                             prev_move_piece,
                             prev_move.to,

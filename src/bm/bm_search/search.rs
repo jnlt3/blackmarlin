@@ -246,13 +246,19 @@ pub fn search<Search: SearchType>(
 
     let mut highest_score = None;
 
-    let prev_move = if ply != 0 {
-        Some(local_context.search_stack()[ply as usize - 1].move_played)
+    let opp_move = if ply != 0 {
+        local_context.search_stack()[ply as usize - 1].move_played
     } else {
         None
     };
 
-    let counter_move = if let Some(Some(prev_move)) = prev_move {
+    let prev_move = if ply > 1 {
+        local_context.search_stack()[ply as usize - 2].move_played
+    } else {
+        None
+    };
+
+    let counter_move = if let Some(prev_move) = opp_move {
         local_context.get_cm_table().get(
             pos.board().side_to_move(),
             pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
@@ -266,7 +272,8 @@ pub fn search<Search: SearchType>(
         pos.board(),
         best_move,
         counter_move,
-        prev_move.unwrap_or(None),
+        opp_move,
+        prev_move,
         local_context.get_k_table()[ply as usize].into_iter(),
     );
 
@@ -281,6 +288,7 @@ pub fn search<Search: SearchType>(
         local_context.get_h_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
+        local_context.get_fu_hist(),
     ) {
         if Some(make_move) == skip_move {
             continue;
@@ -529,14 +537,23 @@ pub fn search<Search: SearchType>(
                                 &quiets,
                                 depth,
                             );
-                            if let Some(Some(prev_move)) = prev_move {
+                            if let Some(opp_move) = opp_move {
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
-                                    prev_move,
+                                    opp_move,
                                     make_move,
                                     depth,
                                 );
                                 local_context.get_cm_hist_mut().cutoff(
+                                    pos.board(),
+                                    opp_move,
+                                    make_move,
+                                    &quiets,
+                                    depth,
+                                );
+                            }
+                            if let Some(prev_move) = prev_move {
+                                local_context.get_fu_hist_mut().cutoff(
                                     pos.board(),
                                     prev_move,
                                     make_move,
