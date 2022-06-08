@@ -7,7 +7,7 @@ use super::move_entry::MoveEntryIterator;
 use super::search;
 
 const MAX_MOVES: usize = 218;
-const THRESHOLD: i16 = -(2_i16.pow(10));
+const THRESHOLD: i16 = -(2_i16.pow(11));
 const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -174,7 +174,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    score += hist.get(board.side_to_move(), make_move.from, make_move.to) * 2;
                     if let Some(opp_move) = self.opp_move {
                         let opp_move_piece = board.piece_on(opp_move.to).unwrap_or(Piece::King);
                         score += cm_hist.get(
