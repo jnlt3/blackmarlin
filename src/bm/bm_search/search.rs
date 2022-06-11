@@ -262,12 +262,13 @@ pub fn search<Search: SearchType>(
         None
     };
 
+    let killers = local_context.get_k_table()[ply as usize];
     let mut move_gen = OrderedMoveGen::new(
         pos.board(),
         best_move,
         counter_move,
         prev_move.unwrap_or(None),
-        local_context.get_k_table()[ply as usize].into_iter(),
+        killers.into_iter(),
     );
 
     let mut moves_seen = 0;
@@ -437,6 +438,9 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             };
             if improving {
+                reduction -= 1;
+            }
+            if killers.into_iter().any(|killer| killer == make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
