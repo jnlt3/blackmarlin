@@ -77,7 +77,7 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32, is_capture: bool) -> i16 {
-    depth as i16 * if is_capture { 200 } else { 100 }
+    depth as i16 * if is_capture { 300 } else { 100 }
 }
 
 #[inline]
