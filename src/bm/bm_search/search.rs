@@ -76,8 +76,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 100
+const fn fp(depth: u32, is_capture: bool) -> i16 {
+    depth as i16 * if is_capture { 200 } else { 100 }
 }
 
 #[inline]
@@ -366,9 +366,9 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(depth, is_capture) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
