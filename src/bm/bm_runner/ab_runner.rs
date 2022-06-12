@@ -455,6 +455,7 @@ impl AbRunner {
         if final_move.is_none() {
             panic!("# All move generation has failed");
         }
+        self.shared_context.t_table.age();
         (final_move.unwrap(), final_eval, max_depth, node_count)
     }
 
@@ -478,7 +479,6 @@ impl AbRunner {
     pub fn make_move(&mut self, make_move: Move) {
         self.position.make_move(make_move);
         self.position.reset();
-        self.shared_context.t_table.age();
     }
 
     #[cfg(feature = "data")]
