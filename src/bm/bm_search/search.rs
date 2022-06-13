@@ -91,6 +91,11 @@ const fn hp(depth: u32) -> i32 {
 }
 
 #[inline]
+const fn cmhp_margin() -> i16 {
+    -h_table::MAX_VALUE as i16 / 2
+}
+
+#[inline]
 const fn history_lmr(history: i16) -> i16 {
     history / 80
 }
@@ -411,7 +416,7 @@ pub fn search<Search: SearchType>(
         }
 
         let do_cmhp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && eval <= alpha;
-        if do_cmhp && cmh_score.is_some() && cmh_score.unwrap() < 0 {
+        if do_cmhp && cmh_score.is_some() && cmh_score.unwrap() < cmhp_margin() {
             continue;
         }
 
