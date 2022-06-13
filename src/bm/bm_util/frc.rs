@@ -14,17 +14,17 @@ pub fn frc_corner_bishop(board: &Board) -> i16 {
     let b_bishops = board.pieces(Piece::Bishop) & black;
 
     if w_bishops.has(Square::A1) && w_pawns.has(Square::B2) {
-        score += CORNER_BISHOP_FACTOR;
+        score -= CORNER_BISHOP_FACTOR;
     }
     if w_bishops.has(Square::H1) && w_pawns.has(Square::G2) {
-        score += CORNER_BISHOP_FACTOR;
+        score -= CORNER_BISHOP_FACTOR;
     }
 
     if b_bishops.has(Square::A8) && b_pawns.has(Square::B7) {
-        score -= CORNER_BISHOP_FACTOR;
+        score += CORNER_BISHOP_FACTOR;
     }
     if b_bishops.has(Square::H8) && b_pawns.has(Square::G7) {
-        score -= CORNER_BISHOP_FACTOR;
+        score += CORNER_BISHOP_FACTOR;
     }
 
     match board.side_to_move() {
