@@ -308,6 +308,18 @@ pub fn search<Search: SearchType>(
             )
         };
 
+        let cmh_score = if let Some(Some(prev_move)) = prev_move {
+            Some(local_context.get_cm_hist().get(
+                pos.board().side_to_move(),
+                pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
+                prev_move.to,
+                pos.board().piece_on(make_move.from).unwrap(),
+                make_move.to,
+            ))
+        } else {
+            None
+        };
+
         let mut extension = 0;
         let mut score;
 
@@ -395,6 +407,11 @@ pub fn search<Search: SearchType>(
         let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
+
+        let do_cmhp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && eval <= alpha;
+        if do_cmhp && cmh_score.is_some() && cmh_score.unwrap() < 0 {
             continue;
         }
 
