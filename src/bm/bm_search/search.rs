@@ -415,7 +415,12 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_cmhp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && eval <= alpha;
+        let do_cmhp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && depth <= 4
+            && eval <= alpha;
         if do_cmhp && cmh_score.is_some() && cmh_score.unwrap() < cmhp_margin() {
             continue;
         }
