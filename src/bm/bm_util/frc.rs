@@ -1,6 +1,6 @@
 use cozy_chess::{Board, Color, Piece, Square};
 
-const CORNER_BISHOP_FACTOR: i16 = 50;
+const CORNER_BISHOP_FACTOR: i16 = 75;
 
 pub fn frc_corner_bishop(board: &Board) -> i16 {
     let mut score = 0;
