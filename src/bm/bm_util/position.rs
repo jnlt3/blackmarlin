@@ -2,7 +2,7 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::eval::Evaluation;
+use super::{eval::Evaluation, frc};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -104,7 +104,9 @@ impl Position {
             -piece_cnt * clamped_eval / 50
         };
 
-        Evaluation::new(self.evaluator.feed_forward(&board, 0) + eval_bonus)
+        let frc_score = frc::frc_corner_bishop(&board);
+
+        Evaluation::new(self.evaluator.feed_forward(&board, 0) + frc_score + eval_bonus)
     }
 
     pub fn insufficient_material(&self) -> bool {
