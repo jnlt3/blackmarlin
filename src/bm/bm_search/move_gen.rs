@@ -269,9 +269,12 @@ impl QuiescenceSearchMoveGen {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain =
-                        c_hist.get(board.side_to_move(), make_move.from, make_move.to)
-                            + search::see::<1>(&board, make_move) * 32;
+                    let capture_history =
+                        c_hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    let expected_gain = capture_history + search::see::<1>(&board, make_move) * 32;
+                    if capture_history < 0 {
+                        continue;
+                    }
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
