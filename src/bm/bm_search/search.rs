@@ -91,8 +91,8 @@ const fn hp(depth: u32) -> i32 {
 }
 
 #[inline]
-const fn cmhp_margin() -> i16 {
-    -h_table::MAX_VALUE as i16 / 2
+const fn cmhp_margin(depth: u32) -> i16 {
+    -h_table::MAX_VALUE as i16 * (depth as i16) / 4
 }
 
 #[inline]
@@ -421,7 +421,7 @@ pub fn search<Search: SearchType>(
             && !is_capture
             && depth <= 4
             && eval <= alpha;
-        if do_cmhp && cmh_score.is_some() && cmh_score.unwrap() < cmhp_margin() {
+        if do_cmhp && cmh_score.is_some() && cmh_score.unwrap() < cmhp_margin(depth) {
             continue;
         }
 
