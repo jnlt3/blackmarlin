@@ -294,6 +294,9 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
+        let strong_quiet = Some(make_move) == counter_move
+            || killers.into_iter().any(|killer| killer == make_move);
+
         let h_score = if is_capture {
             local_context.get_ch_table().get(
                 pos.board().side_to_move(),
@@ -366,7 +369,12 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
+        let do_fp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && !strong_quiet
+            && depth <= 7;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -440,9 +448,7 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
-            if Some(make_move) == counter_move
-                || killers.into_iter().any(|killer| killer == make_move)
-            {
+            if strong_quiet {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
