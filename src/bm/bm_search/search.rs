@@ -10,8 +10,8 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::{Analysis, EntryType};
 
-use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
+use super::move_gen::{GenType, OrderedMoveGen};
 
 pub trait SearchType {
     const NM: bool;
@@ -440,7 +440,8 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
-            if Some(make_move) == counter_move
+            if move_gen.phase() == GenType::Captures
+                || Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
             {
                 reduction -= 1;

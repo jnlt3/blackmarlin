@@ -11,7 +11,7 @@ const THRESHOLD: i16 = -(2_i16.pow(10));
 const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum GenType {
+pub enum GenType {
     PvMove,
     CalcCaptures,
     Captures,
@@ -80,6 +80,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                 _ => {}
             }
         }
+    }
+
+    pub fn phase(&self) -> GenType {
+        self.gen_type
     }
 
     pub fn next(
