@@ -440,8 +440,12 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
-            if move_gen.phase() == GenType::Captures
-                || Some(make_move) == counter_move
+
+            if move_gen.phase() == GenType::Captures {
+                reduction -= 2;
+            }
+
+            if Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
             {
                 reduction -= 1;
