@@ -1,14 +1,14 @@
 use cozy_chess::{Board, Move, Piece, PieceMoves};
 
-use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{self, DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
 use super::search;
 
 const MAX_MOVES: usize = 218;
-const THRESHOLD: i16 = -(2_i16.pow(10));
-const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
+const THRESHOLD: i32 = -h_table::MAX_VALUE * 2;
+const LOSING_CAPTURE: i32 = -h_table::MAX_VALUE * 4;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -32,8 +32,8 @@ pub struct OrderedMoveGen<const K: usize> {
     prev_move: Option<Move>,
     gen_type: GenType,
 
-    captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
-    quiets: ArrayVec<(Move, i16), MAX_MOVES>,
+    captures: ArrayVec<(Move, i32, LazySee), MAX_MOVES>,
+    quiets: ArrayVec<(Move, i32), MAX_MOVES>,
     skip_quiets: bool,
 }
 
@@ -117,7 +117,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let expected_gain =
                         c_hist.get(board.side_to_move(), make_move.from, make_move.to)
                             + search::see::<1>(&board, make_move) * 32;
-                    self.captures.push((make_move, expected_gain, None));
+                    self.captures.push((make_move, expected_gain as i32, None));
                 }
             }
 
@@ -159,10 +159,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                     if let Some(piece) = make_move.promotion {
                         match piece {
                             cozy_chess::Piece::Queen => {
-                                self.quiets.push((make_move, i16::MAX));
+                                self.quiets.push((make_move, i32::MAX));
                             }
                             _ => {
-                                self.quiets.push((make_move, i16::MIN));
+                                self.quiets.push((make_move, i32::MIN));
                             }
                         };
                         continue;
@@ -182,7 +182,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                         );
                     }
 
-                    self.quiets.push((make_move, score));
+                    self.quiets.push((make_move, score as i32));
                 }
             }
             self.gen_type = GenType::Killer;
