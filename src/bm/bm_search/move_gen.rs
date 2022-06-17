@@ -1,14 +1,14 @@
 use cozy_chess::{Board, Move, Piece, PieceMoves};
 
-use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{self, DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
 use super::search;
 
 const MAX_MOVES: usize = 218;
-const THRESHOLD: i16 = -(2_i16.pow(10));
-const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
+const THRESHOLD: i32 = -h_table::MAX_VALUE * 2;
+const LOSING_CAPTURE: i32 = -(2_i32.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -32,8 +32,8 @@ pub struct OrderedMoveGen<const K: usize> {
     prev_move: Option<Move>,
     gen_type: GenType,
 
-    captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
-    quiets: ArrayVec<(Move, i16), MAX_MOVES>,
+    captures: ArrayVec<(Move, i32, LazySee), MAX_MOVES>,
+    quiets: ArrayVec<(Move, i32), MAX_MOVES>,
     skip_quiets: bool,
 }
 
@@ -115,8 +115,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let expected_gain =
-                        c_hist.get(board.side_to_move(), make_move.from, make_move.to)
-                            + search::see::<1>(&board, make_move) * 32;
+                        c_hist.get(board.side_to_move(), make_move.from, make_move.to) as i32
+                            + search::see::<1>(&board, make_move) as i32 * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -159,10 +159,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                     if let Some(piece) = make_move.promotion {
                         match piece {
                             cozy_chess::Piece::Queen => {
-                                self.quiets.push((make_move, i16::MAX));
+                                self.quiets.push((make_move, i32::MAX));
                             }
                             _ => {
-                                self.quiets.push((make_move, i16::MIN));
+                                self.quiets.push((make_move, i32::MIN));
                             }
                         };
                         continue;
@@ -170,7 +170,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    score += hist.get(board.side_to_move(), make_move.from, make_move.to) as i32;
                     if let Some(prev_move) = self.prev_move {
                         let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
                         score += cm_hist.get(
@@ -179,7 +179,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                             prev_move.to,
                             piece,
                             make_move.to,
-                        );
+                        ) as i32;
                     }
 
                     self.quiets.push((make_move, score));
