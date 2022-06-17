@@ -1,6 +1,6 @@
 use cozy_chess::{Board, Color, Move, Piece, Square};
 
-pub const MAX_VALUE: i32 = 512;
+pub const MAX_VALUE: i32 = 8192;
 const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 

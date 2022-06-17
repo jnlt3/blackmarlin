@@ -92,7 +92,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 80
+    history / ((h_table::MAX_VALUE * 10) / 64) as i16
 }
 
 #[inline]
