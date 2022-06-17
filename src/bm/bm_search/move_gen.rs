@@ -253,7 +253,7 @@ pub enum QSearchGenType {
 
 pub struct QuiescenceSearchMoveGen {
     gen_type: QSearchGenType,
-    queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
+    queue: ArrayVec<(Move, i32, LazySee), MAX_MOVES>,
 }
 
 impl QuiescenceSearchMoveGen {
