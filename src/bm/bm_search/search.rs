@@ -416,7 +416,7 @@ pub fn search<Search: SearchType>(
         shared_context.get_t_table().prefetch(pos.board());
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-        if gives_check {
+        if extension == 0 && gives_check {
             extension = 1;
         }
 
