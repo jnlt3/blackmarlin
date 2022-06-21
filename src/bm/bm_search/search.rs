@@ -359,6 +359,9 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+            if !Search::PV && entry.table_move() == make_move && eval <= alpha {
+                extension = 1;
+            }
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
