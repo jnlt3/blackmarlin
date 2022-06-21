@@ -359,6 +359,13 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+            if moves_seen == 0
+                && entry.table_move() == make_move
+                && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
+                && entry.score() - 200 > beta
+            {
+                extension = 1;
+            }
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
