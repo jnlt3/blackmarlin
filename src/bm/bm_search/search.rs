@@ -362,7 +362,7 @@ pub fn search<Search: SearchType>(
             if moves_seen == 0
                 && entry.table_move() == make_move
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
-                && entry.score() - 200 > beta
+                && entry.score() - 100 > beta
             {
                 extension = 1;
             }
