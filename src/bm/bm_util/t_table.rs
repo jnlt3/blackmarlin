@@ -156,7 +156,9 @@ impl TranspositionTable {
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-        if !analysis.exists || entry.depth >= analysis.depth / 2 {
+
+        let extra_depth = matches!(entry.entry_type(), EntryType::Exact) as u8;
+        if !analysis.exists || entry.depth + extra_depth >= analysis.depth / 2 {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
