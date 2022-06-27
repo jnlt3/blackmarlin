@@ -159,6 +159,13 @@ pub fn search<Search: SearchType>(
         best_move = Some(entry.table_move());
         if !Search::PV && entry.depth() >= depth {
             let score = entry.score();
+            if matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
+                && score >= beta
+            {
+                local_context
+                    .get_h_table_mut()
+                    .cutoff(pos.board(), entry.table_move(), &[], depth);
+            }
             match entry.entry_type() {
                 Exact => {
                     return score;
@@ -402,8 +409,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
