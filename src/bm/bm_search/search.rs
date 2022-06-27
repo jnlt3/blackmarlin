@@ -349,7 +349,11 @@ pub fn search<Search: SearchType>(
                     if s_beta + 250 <= alpha {
                         return alpha;
                     }
-                    extension = 1;
+                    extension = if !Search::PV && s_score + 25 < s_beta {
+                        2
+                    } else {
+                        1
+                    };
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
@@ -402,8 +406,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
@@ -412,7 +415,7 @@ pub fn search<Search: SearchType>(
         shared_context.get_t_table().prefetch(pos.board());
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-        if gives_check {
+        if extension == 0 && gives_check {
             extension = 1;
         }
 
