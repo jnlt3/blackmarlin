@@ -165,9 +165,9 @@ impl TranspositionTable {
 
     fn do_replace(a: &Analysis, b: &Analysis) -> bool {
         let a_extra_depth =
-            matches!(a.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
+            matches!(a.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8 * 2;
         let b_extra_depth =
-            matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
+            matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8 * 2;
         (a.depth + a_extra_depth) >= (b.depth + b_extra_depth) / 2
     }
 
