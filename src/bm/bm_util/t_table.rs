@@ -157,11 +157,18 @@ impl TranspositionTable {
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
 
-        let extra_depth = matches!(entry.entry_type(), EntryType::Exact) as u8;
-        if !analysis.exists || entry.depth + extra_depth >= analysis.depth / 2 {
+        if !analysis.exists || Self::do_replace(&entry, &analysis) {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
+    }
+
+    fn do_replace(a: &Analysis, b: &Analysis) -> bool {
+        let a_extra_depth =
+            matches!(a.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
+        let b_extra_depth =
+            matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
+        (a.depth + a_extra_depth) >= (b.depth + b_extra_depth) / 2
     }
 
     pub fn clean(&self) {
