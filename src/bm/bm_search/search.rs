@@ -181,10 +181,17 @@ pub fn search<Search: SearchType>(
 
     let in_check = pos.board().checkers() != BitBoard::EMPTY;
 
-    let eval = if skip_move.is_none() {
+    let mut eval = if skip_move.is_none() {
         pos.get_eval(local_context.stm(), local_context.eval())
     } else {
         local_context.search_stack()[ply as usize].eval
+    };
+    if let Some(entry) = tt_entry {
+        eval = match entry.entry_type() {
+            EntryType::LowerBound => eval.max(entry.score()),
+            EntryType::Exact => entry.score(),
+            EntryType::UpperBound => eval.min(entry.score()),
+        }
     };
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
@@ -402,8 +409,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
