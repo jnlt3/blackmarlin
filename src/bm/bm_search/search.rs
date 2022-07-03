@@ -186,7 +186,7 @@ pub fn search<Search: SearchType>(
     } else {
         local_context.search_stack()[ply as usize].eval
     };
-    
+
     local_context.search_stack_mut()[ply as usize].eval = eval;
     let improving = if ply < 2 || in_check {
         false
@@ -194,15 +194,14 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    if let Some(entry) = tt_entry {
-        eval = match entry.entry_type() {
-            EntryType::LowerBound => eval.max(entry.score()),
-            EntryType::Exact => entry.score(),
-            EntryType::UpperBound => eval.min(entry.score()),
-        }
-    };
-
     if !Search::PV && !in_check && skip_move.is_none() {
+        if let Some(entry) = tt_entry {
+            eval = match entry.entry_type() {
+                EntryType::LowerBound => eval.max(entry.score()),
+                EntryType::Exact => entry.score(),
+                EntryType::UpperBound => eval.min(entry.score()),
+            }
+        };
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
