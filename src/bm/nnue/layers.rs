@@ -65,8 +65,8 @@ pub fn out(x: i32) -> i16 {
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
-    for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        *clipped = x.max(MIN).min(MAX) as u8;
+pub fn mul_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
+    for ((&x_0, &x_1), clipped) in array.iter().zip(&array[N / 2..]).zip(out) {
+        *clipped = (x_0.max(MIN).min(MAX) as u16 * x_1.max(MIN).min(MAX) as u16 / MAX as u16) as u8;
     }
 }

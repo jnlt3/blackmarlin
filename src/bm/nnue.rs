@@ -52,20 +52,21 @@ pub struct Nnue {
     accumulator: Vec<Accumulator>,
     bias: Arc<[i16; MID]>,
     head: usize,
-    out_layer: Dense<{ MID * 2 }, OUTPUT>,
+    out_layer: Dense<MID, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
+        assert_eq!(MID % 2, 0);
         let mut bytes = &NN_BYTES[12..];
         let incremental = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
         bytes = &bytes[MID * 2..];
-        let out = Arc::new(*include::dense_from_bytes_i8::<i8, { MID * 2 }, OUTPUT>(
+        let out = Arc::new(*include::dense_from_bytes_i8::<i8, MID, OUTPUT>(
             bytes,
         ));
-        bytes = &bytes[MID * OUTPUT * 2..];
+        bytes = &bytes[MID * OUTPUT..];
         let out_bias = include::bias_from_bytes_i8::<i32, OUTPUT>(bytes);
         bytes = &bytes[OUTPUT..];
         assert!(bytes.is_empty(), "{}", bytes.len());
@@ -210,13 +211,13 @@ impl Nnue {
     #[inline]
     pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
-        let mut incr = [0; MID * 2];
+        let mut incr = [0; MID];
         let (stm, nstm) = match board.side_to_move() {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
-        layers::clipped_relu(*stm.get(), &mut incr);
-        layers::clipped_relu(*nstm.get(), &mut incr[MID..]);
+        layers::mul_clipped_relu(*stm.get(), &mut incr[0..MID / 2]);
+        layers::mul_clipped_relu(*nstm.get(), &mut incr[MID / 2..]);
 
         layers::out(self.out_layer.ff(&incr, bucket)[bucket])
     }
