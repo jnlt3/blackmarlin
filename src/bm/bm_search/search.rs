@@ -361,12 +361,19 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        let special_quiet = Some(make_move) == counter_move
+            || killers.into_iter().any(|killer| killer == make_move);
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
+        let do_fp = !Search::PV
+            && non_mate_line
+            && !special_quiet
+            && moves_seen > 0
+            && !is_capture
+            && depth <= 7;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -402,8 +409,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
@@ -440,9 +446,7 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
-            if Some(make_move) == counter_move
-                || killers.into_iter().any(|killer| killer == make_move)
-            {
+            if special_quiet {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
