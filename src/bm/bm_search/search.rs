@@ -54,7 +54,7 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 #[inline]
 fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
     Search::NM
-        && depth > 4
+        && depth > 5
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
@@ -62,7 +62,7 @@ fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 3 + depth / 4 + ((eval - beta) / 200) as u32;
+    let r = 4 + depth / 4 + ((eval - beta) / 200) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -402,8 +402,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
