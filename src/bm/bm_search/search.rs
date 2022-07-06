@@ -96,11 +96,6 @@ const fn history_lmr(history: i16) -> i16 {
 }
 
 #[inline]
-const fn delta() -> i16 {
-    1000
-}
-
-#[inline]
 const fn q_see_threshold() -> i16 {
     200
 }
@@ -402,8 +397,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
@@ -647,19 +641,11 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check {
-        /*
-        If stand pat is way below alpha, assume it can't be beaten.
-        */
-        if stand_pat + delta() <= alpha {
+    if !in_check && stand_pat > alpha {
+        alpha = stand_pat;
+        highest_score = Some(stand_pat);
+        if stand_pat >= beta {
             return stand_pat;
-        }
-        if stand_pat > alpha {
-            alpha = stand_pat;
-            highest_score = Some(stand_pat);
-            if stand_pat >= beta {
-                return stand_pat;
-            }
         }
     }
 
