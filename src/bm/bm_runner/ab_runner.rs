@@ -455,6 +455,7 @@ impl AbRunner {
         if final_move.is_none() {
             panic!("# All move generation has failed");
         }
+        self.shared_context.t_table.age();
         (final_move.unwrap(), final_eval, max_depth, node_count)
     }
 

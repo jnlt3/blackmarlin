@@ -1,8 +1,51 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 
-use cozy_chess::{Board, Move, Square};
+use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::bm::bm_util::eval::Evaluation;
+
+#[derive(Debug, Copy, Clone)]
+struct TTMove(u16);
+
+impl TTMove {
+    fn new(make_move: Move) -> Self {
+        let mut bits = 0;
+        bits |= make_move.from as u16;
+        bits |= (make_move.to as u16) << 6;
+        bits |= (make_move.promotion.map_or(0b1111, |piece| piece as u16)) << 12;
+        Self(bits)
+    }
+
+    fn to_move(self) -> Move {
+        const MASK_4: u16 = 0b1111;
+        const MASK_6: u16 = 0b111111;
+        let bits = self.0;
+
+        let promotion = (bits >> 12) & MASK_4;
+        let promotion = if promotion == 0b1111 {
+            None
+        } else {
+            Piece::try_index(promotion as usize)
+        };
+
+        Move {
+            from: Square::index((bits & MASK_6) as usize),
+            to: Square::index(((bits >> 6) & MASK_6) as usize),
+            promotion,
+        }
+    }
+}
+
+#[test]
+fn compressed_moves() {
+    let board = Board::default();
+    board.generate_moves(|piece_moves| {
+        for make_move in piece_moves {
+            assert_eq!(make_move, TTMove::new(make_move).to_move());
+        }
+        false
+    });
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
@@ -17,31 +60,40 @@ pub struct Analysis {
     depth: u8,
     entry_type: EntryType,
     score: Evaluation,
-    table_move: Move,
+    table_move: TTMove,
+    age: u8,
 }
 
 impl Analysis {
-    pub fn new(depth: u32, entry_type: EntryType, score: Evaluation, table_move: Move) -> Self {
+    fn new(
+        depth: u32,
+        entry_type: EntryType,
+        score: Evaluation,
+        table_move: Move,
+        age: u8,
+    ) -> Self {
         Self {
             exists: true,
             depth: depth as u8,
             entry_type,
             score,
-            table_move,
+            table_move: TTMove::new(table_move),
+            age,
         }
     }
 
-    pub fn zero() -> Self {
+    fn zero() -> Self {
         Self {
             exists: false,
             depth: 0,
             entry_type: EntryType::LowerBound,
             score: Evaluation::new(0),
-            table_move: Move {
+            table_move: TTMove::new(Move {
                 from: Square::A1,
                 to: Square::A1,
                 promotion: None,
-            },
+            }),
+            age: 0,
         }
     }
 
@@ -62,7 +114,7 @@ impl Analysis {
 
     #[inline]
     pub fn table_move(&self) -> Move {
-        self.table_move
+        self.table_move.to_move()
     }
 }
 
@@ -100,6 +152,7 @@ impl Entry {
 pub struct TranspositionTable {
     table: Box<[Entry]>,
     mask: usize,
+    age: AtomicU8,
 }
 
 impl TranspositionTable {
@@ -109,6 +162,7 @@ impl TranspositionTable {
         Self {
             table,
             mask: size - 1,
+            age: AtomicU8::new(0),
         }
     }
 
@@ -150,13 +204,26 @@ impl TranspositionTable {
         }
     }
 
-    pub fn set(&self, board: &Board, entry: Analysis) {
+    pub fn set(
+        &self,
+        board: &Board,
+        depth: u32,
+        entry_type: EntryType,
+        score: Evaluation,
+        table_move: Move,
+    ) {
+        let entry = Analysis::new(
+            depth,
+            entry_type,
+            score,
+            table_move,
+            self.age.load(Ordering::Relaxed),
+        );
         let hash = board.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-
         if !analysis.exists || Self::do_replace(&entry, &analysis) {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
@@ -172,6 +239,11 @@ impl TranspositionTable {
     }
 
     pub fn clean(&self) {
+        self.age.store(0, Ordering::Relaxed);
         self.table.iter().for_each(|entry| entry.zero());
+    }
+
+    pub fn age(&self) {
+        self.age.fetch_add(1, Ordering::Relaxed);
     }
 }
