@@ -8,7 +8,7 @@ use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
-use crate::bm::bm_util::t_table::{Analysis, EntryType};
+use crate::bm::bm_util::t_table::EntryType;
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -586,9 +586,13 @@ pub fn search<Search: SearchType>(
             } else {
                 UpperBound
             };
-
-            let analysis = Analysis::new(depth, entry_type, highest_score, *final_move);
-            shared_context.get_t_table().set(pos.board(), analysis);
+            shared_context.get_t_table().set(
+                pos.board(),
+                depth,
+                entry_type,
+                highest_score,
+                *final_move,
+            );
         }
     }
     highest_score
@@ -701,8 +705,9 @@ pub fn q_search(
             UpperBound
         };
 
-        let analysis = Analysis::new(0, entry_type, highest_score, best_move);
-        shared_context.get_t_table().set(pos.board(), analysis);
+        shared_context
+            .get_t_table()
+            .set(pos.board(), 0, entry_type, highest_score, best_move);
     }
     highest_score.unwrap_or(alpha)
 }
