@@ -7,8 +7,8 @@ use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::EntryType;
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -645,7 +645,7 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check && stand_pat > alpha {
+    if stand_pat > alpha {
         alpha = stand_pat;
         highest_score = Some(stand_pat);
         if stand_pat >= beta {
