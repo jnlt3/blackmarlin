@@ -106,8 +106,8 @@ impl UciAdapter {
                 println!("option name UCI_Chess960 type check default false");
 
                 println!("option name RFP type spin default 50 min 40 max 100");
-                println!("option name FP type spin default 100 min 40 max 100");
-                println!("option name SEE_FP type spin default 100 min 40 max 100");
+                println!("option name FP type spin default 100 min 40 max 200");
+                println!("option name SEE_FP type spin default 100 min 40 max 200");
 
                 println!("uciok");
             }
