@@ -11,6 +11,8 @@ use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
 use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
 use crate::bm::nnue::Nnue;
 
+use super::bm_search::search::{REV_FP, SEE_FP, FP};
+
 const VERSION: &str = "5.0";
 
 const POSITIONS: &[&str] = &[
@@ -102,6 +104,11 @@ impl UciAdapter {
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_Chess960 type check default false");
+
+                println!("option name RFP type spin default 50 min 40 max 100");
+                println!("option name FP type spin default 100 min 40 max 100");
+                println!("option name SEE_FP type spin default 100 min 40 max 100");
+
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -159,6 +166,15 @@ impl UciAdapter {
                         self.chess960 = value.to_lowercase().parse::<bool>().unwrap();
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
                     }
+                    "RFP" => unsafe {
+                        REV_FP = value.parse::<i16>().unwrap();
+                    },
+                    "FP" => unsafe {
+                        FP = value.parse::<i16>().unwrap();
+                    },
+                    "SEE_FP" => unsafe {
+                        SEE_FP = value.parse::<i16>().unwrap();
+                    },
                     _ => {}
                 }
             }
