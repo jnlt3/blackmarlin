@@ -237,7 +237,7 @@ impl TranspositionTable {
         let b_extra_depth =
             matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
         ((a.depth + a_extra_depth).saturating_add(current_age.wrapping_sub(b.age) / 2))
-            >= (b.depth + b_extra_depth) / 2
+            >= ((b.depth + b_extra_depth) as u16 * 2 / 3) as u8
     }
 
     pub fn clean(&self) {
