@@ -7,8 +7,8 @@ use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::EntryType;
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -272,12 +272,17 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let mut quit_early = false;
+
     while let Some(make_move) = move_gen.next(
         pos.board(),
         local_context.get_h_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
     ) {
+        if quit_early {
+            break;
+        }
         if Some(make_move) == skip_move {
             continue;
         }
@@ -342,7 +347,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     if s_beta + 250 <= alpha {
-                        return alpha;
+                        quit_early = true;
                     }
                     extension = 1;
                 } else if multi_cut && s_beta >= beta {
