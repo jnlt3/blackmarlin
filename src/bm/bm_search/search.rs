@@ -7,8 +7,8 @@ use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::EntryType;
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -430,13 +430,13 @@ pub fn search<Search: SearchType>(
             reduction -= history_lmr(h_score);
             if Search::PV {
                 reduction -= 1;
-            };
-            if improving {
-                reduction -= 1;
-            }
-            if Some(make_move) == counter_move
+            } else if Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
             {
+                reduction -= 1;
+            }
+
+            if improving {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
