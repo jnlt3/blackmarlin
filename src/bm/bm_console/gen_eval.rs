@@ -44,9 +44,10 @@ fn play_single(
 
         let board = engine.get_board().clone();
 
-        if !board
-            .colors(!engine.get_board().side_to_move())
-            .has(make_move.to)
+        if ply > 8
+            && !board
+                .colors(!engine.get_board().side_to_move())
+                .has(make_move.to)
             && board.checkers() == BitBoard::EMPTY
         {
             evals.push((engine.get_board().clone(), eval * turn));
@@ -85,6 +86,7 @@ fn gen_games(iter: usize, depth: u32) -> Vec<(Board, Evaluation, f32)> {
             &time_manager,
             &[time_management_options],
         ));
+        engine_0.new_game();
     }
     evals
 }
