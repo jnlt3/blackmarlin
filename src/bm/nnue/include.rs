@@ -47,13 +47,3 @@ pub fn dense_from_bytes_i8<
     }
     dense
 }
-
-pub fn bias_from_bytes_i8<T: From<i8> + Copy + Default, const LEN: usize>(
-    bytes: &[u8],
-) -> [T; LEN] {
-    let mut weights = [T::default(); LEN];
-    for (&byte, weight) in bytes.iter().zip(&mut weights).take(LEN) {
-        *weight = T::from(i8::from_le_bytes([byte]));
-    }
-    weights
-}

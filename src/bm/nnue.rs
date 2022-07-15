@@ -66,8 +66,8 @@ impl Nnue {
             bytes,
         ));
         bytes = &bytes[MID * OUTPUT * 2..];
-        let out_bias = include::bias_from_bytes_i8::<i32, OUTPUT>(bytes);
-        bytes = &bytes[OUTPUT..];
+        let out_bias = include::bias_from_bytes_i16::<i32, OUTPUT>(bytes);
+        bytes = &bytes[OUTPUT * 2..];
         assert!(bytes.is_empty(), "{}", bytes.len());
 
         let input_layer = Incremental::new(incremental, incremental_bias);
