@@ -15,8 +15,8 @@ const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
 
 #[derive(Debug, Clone)]
 pub struct Accumulator {
-    w_input_layer: Incremental<INPUT, MID>,
-    b_input_layer: Incremental<INPUT, MID>,
+    w_input_layer: Incremental<INPUT, MID_0>,
+    b_input_layer: Incremental<INPUT, MID_0>,
 }
 
 impl Accumulator {
@@ -28,14 +28,11 @@ impl Accumulator {
         piece: Piece,
         color: Color,
     ) {
-        if piece == Piece::King {
-            return;
-        }
-        let w_piece_index = color as usize * 5 + piece as usize;
-        let b_piece_index = (!color) as usize * 5 + piece as usize;
+        let w_piece_index = color as usize * 6 + piece as usize;
+        let b_piece_index = (!color) as usize * 6 + piece as usize;
 
-        let w_index = w_king as usize * 640 + w_piece_index * 64 + sq as usize;
-        let b_index = (b_king as usize ^ 56) * 640 + b_piece_index * 64 + sq as usize ^ 56;
+        let w_index = w_king as usize * 768 + w_piece_index * 64 + sq as usize;
+        let b_index = (b_king as usize ^ 56) * 768 + b_piece_index * 64 + sq as usize ^ 56;
 
         if INCR {
             self.w_input_layer.incr_ff::<1>(w_index);
@@ -50,27 +47,34 @@ impl Accumulator {
 #[derive(Debug, Clone)]
 pub struct Nnue {
     accumulator: Vec<Accumulator>,
-    bias: Arc<[i16; MID]>,
+    bias: Arc<[i16; MID_0]>,
     head: usize,
-    out_layer: Dense<{ MID * 2 }, OUTPUT>,
+    hidden_layer: Dense<{ MID_0 * 2 }, MID_1>,
+    out_layer: Dense<MID_1, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
-        let mut bytes = &NN_BYTES[12..];
-        let incremental = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, MID>(bytes));
-        bytes = &bytes[INPUT * MID * 2..];
-        let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
-        bytes = &bytes[MID * 2..];
-        let out = Arc::new(*include::dense_from_bytes_i8::<i8, { MID * 2 }, OUTPUT>(
+        let mut bytes = &NN_BYTES[16..];
+        let incremental = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, MID_0>(bytes));
+        bytes = &bytes[INPUT * MID_0 * 2..];
+        let incremental_bias = include::bias_from_bytes_i16::<i16, MID_0>(bytes);
+        bytes = &bytes[MID_0 * 2..];
+        let hidden = Arc::new(*include::dense_from_bytes_i8::<i8, { MID_0 * 2 }, MID_1>(
             bytes,
         ));
-        bytes = &bytes[MID * OUTPUT * 2..];
-        let out_bias = include::bias_from_bytes_i8::<i32, OUTPUT>(bytes);
-        bytes = &bytes[OUTPUT..];
+        bytes = &bytes[MID_0 * MID_1 * 2..];
+        let hidden_bias = include::bias_from_bytes_i16::<i32, MID_1>(bytes);
+        bytes = &bytes[MID_1 * 2..];
+
+        let out = Arc::new(*include::dense_from_bytes_i8::<i8, MID_1, OUTPUT>(bytes));
+        bytes = &bytes[MID_1 * OUTPUT..];
+        let out_bias = include::bias_from_bytes_i16::<i32, OUTPUT>(bytes);
+        bytes = &bytes[OUTPUT * 2..];
         assert!(bytes.is_empty(), "{}", bytes.len());
 
         let input_layer = Incremental::new(incremental, incremental_bias);
+        let hidden_layer = Dense::new(hidden, hidden_bias);
         let out_layer = Dense::new(out, out_bias);
 
         Self {
@@ -82,6 +86,7 @@ impl Nnue {
                 ab_runner::MAX_PLY as usize + 1
             ],
             bias: Arc::new(incremental_bias),
+            hidden_layer,
             out_layer,
             head: 0,
         }
@@ -207,17 +212,19 @@ impl Nnue {
         self.head -= 1;
     }
 
-    #[inline]
     pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
-        let mut incr = [0; MID * 2];
+        let mut incr = [0; MID_0 * 2];
         let (stm, nstm) = match board.side_to_move() {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
         layers::clipped_relu(*stm.get(), &mut incr);
-        layers::clipped_relu(*nstm.get(), &mut incr[MID..]);
+        layers::clipped_relu(*nstm.get(), &mut incr[MID_0..]);
 
-        layers::out(self.out_layer.ff(&incr, bucket)[bucket])
+        let hidden = self.hidden_layer.ff(&incr);
+        let mut out_in = [0; MID_1];
+        layers::clipped_relu_rescale(hidden, &mut out_in);
+        layers::out(self.out_layer.ff(&out_in)[0])
     }
 }
