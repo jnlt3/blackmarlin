@@ -35,20 +35,20 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
 
 #[derive(Debug, Clone)]
 pub struct Dense<const INPUT: usize, const OUTPUT: usize> {
-    weights: Arc<[[i8; OUTPUT]; INPUT]>,
+    weights: Arc<[[i8; INPUT]; OUTPUT]>,
     bias: [i32; OUTPUT],
 }
 
 impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
-    pub fn new(weights: Arc<[[i8; OUTPUT]; INPUT]>, bias: [i32; OUTPUT]) -> Self {
+    pub fn new(weights: Arc<[[i8; INPUT]; OUTPUT]>, bias: [i32; OUTPUT]) -> Self {
         Self { weights, bias }
     }
 
     #[inline]
     pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
-        for (&input, weights) in inputs.iter().zip(&*self.weights) {
-            for (out, &weight) in out.iter_mut().zip(weights.iter()) {
+        for (weights, out) in self.weights.iter().zip(&mut out) {
+            for (&input, &weight) in inputs.iter().zip(weights.iter()) {
                 *out += weight as i32 * input as i32;
             }
         }
@@ -62,7 +62,7 @@ pub fn out(x: i32) -> i16 {
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize,>(array: [i16; N], out: &mut [u8]) {
+pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
         *clipped = x.max(MIN).min(MAX) as u8;
     }

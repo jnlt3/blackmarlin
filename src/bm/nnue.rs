@@ -28,11 +28,14 @@ impl Accumulator {
         piece: Piece,
         color: Color,
     ) {
-        let w_piece_index = color as usize * 6 + piece as usize;
-        let b_piece_index = (!color) as usize * 6 + piece as usize;
+        if piece == Piece::King {
+            return;
+        }
+        let w_piece_index = color as usize * 5 + piece as usize;
+        let b_piece_index = (!color) as usize * 5 + piece as usize;
 
-        let w_index = w_king as usize * 768 + w_piece_index * 64 + sq as usize;
-        let b_index = (b_king as usize ^ 56) * 768 + b_piece_index * 64 + sq as usize ^ 56;
+        let w_index = w_king as usize * 640 + w_piece_index * 64 + sq as usize;
+        let b_index = (b_king as usize ^ 56) * 640 + b_piece_index * 64 + sq as usize ^ 56;
 
         if INCR {
             self.w_input_layer.incr_ff::<1>(w_index);
@@ -56,7 +59,7 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let mut bytes = &NN_BYTES[16..];
-        let incremental = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, MID_0>(bytes));
+        let incremental = Arc::new(*include::sparse_from_bytes_i16::<i16, INPUT, MID_0>(bytes));
         bytes = &bytes[INPUT * MID_0 * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID_0>(bytes);
         bytes = &bytes[MID_0 * 2..];
