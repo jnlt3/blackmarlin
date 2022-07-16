@@ -35,23 +35,20 @@ impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
 
 #[derive(Debug, Clone)]
 pub struct Dense<const INPUT: usize, const OUTPUT: usize> {
-    weights: Arc<[[i8; OUTPUT]; INPUT]>,
+    weights: Arc<[[i8; INPUT]; OUTPUT]>,
     bias: [i32; OUTPUT],
 }
 
 impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
-    pub fn new(weights: Arc<[[i8; OUTPUT]; INPUT]>, bias: [i32; OUTPUT]) -> Self {
+    pub fn new(weights: Arc<[[i8; INPUT]; OUTPUT]>, bias: [i32; OUTPUT]) -> Self {
         Self { weights, bias }
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[u8; INPUT], bucket: usize) -> [i32; OUTPUT] {
+    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
-        for (&input, weights) in inputs.iter().zip(&*self.weights) {
-            for (out, &weight) in out[bucket..bucket + 1]
-                .iter_mut()
-                .zip(weights[bucket..bucket + 1].iter())
-            {
+        for (out, weights) in out.iter_mut().zip(&*self.weights) {
+            for (&input, &weight) in inputs.iter().zip(weights.iter()) {
                 *out += weight as i32 * input as i32;
             }
         }

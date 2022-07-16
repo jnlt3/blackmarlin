@@ -9,7 +9,6 @@ use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
 
 use crate::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
-use crate::bm::nnue::Nnue;
 
 const VERSION: &str = "6.0";
 
@@ -121,12 +120,6 @@ impl UciAdapter {
                 let runner = &mut *self.bm_runner.lock().unwrap();
 
                 println!("eval    : {}", runner.raw_eval().raw());
-                {
-                    let mut nnue = Nnue::new();
-                    for i in 0..1 {
-                        println!("bucket {}: {}", i, nnue.feed_forward(runner.get_board(), i));
-                    }
-                }
             }
             UciCommand::Go(commands) => self.go(commands),
             UciCommand::NewGame => {
