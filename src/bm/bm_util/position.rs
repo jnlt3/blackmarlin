@@ -106,7 +106,7 @@ impl Position {
 
         let frc_score = frc::frc_corner_bishop(&board);
 
-        Evaluation::new(self.evaluator.feed_forward(&board, 0) + frc_score + eval_bonus)
+        Evaluation::new(self.evaluator.feed_forward(&board) + frc_score + eval_bonus)
     }
 
     pub fn insufficient_material(&self) -> bool {

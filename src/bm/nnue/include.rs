@@ -1,4 +1,4 @@
-pub fn dense_from_bytes_i16<
+pub fn sparse_from_bytes_i16<
     T: From<i16> + Copy + Default,
     const INPUT: usize,
     const OUTPUT: usize,
@@ -34,13 +34,13 @@ pub fn dense_from_bytes_i8<
     const OUTPUT: usize,
 >(
     bytes: &[u8],
-) -> Box<[[T; OUTPUT]; INPUT]> {
+) -> Box<[[T; INPUT]; OUTPUT]> {
     let mut weights = vec![];
     for &byte in bytes.iter().take(INPUT * OUTPUT) {
         weights.push(i8::from_le_bytes([byte]))
     }
-    let mut dense = Box::new([[T::default(); OUTPUT]; INPUT]);
-    for (i, weights) in weights.chunks(OUTPUT).enumerate() {
+    let mut dense = Box::new([[T::default(); INPUT]; OUTPUT]);
+    for (i, weights) in weights.chunks(INPUT).enumerate() {
         for (j, &weight) in weights.into_iter().enumerate() {
             dense[i][j] = T::from(weight);
         }

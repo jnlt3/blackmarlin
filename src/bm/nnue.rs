@@ -58,7 +58,7 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let mut bytes = &NN_BYTES[12..];
-        let incremental = Arc::new(*include::dense_from_bytes_i16::<i16, INPUT, MID>(bytes));
+        let incremental = Arc::new(*include::sparse_from_bytes_i16::<i16, INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
         bytes = &bytes[MID * 2..];
@@ -208,7 +208,7 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, board: &Board, bucket: usize) -> i16 {
+    pub fn feed_forward(&mut self, board: &Board) -> i16 {
         let acc = &mut self.accumulator[self.head];
         let mut incr = [0; MID * 2];
         let (stm, nstm) = match board.side_to_move() {
@@ -218,6 +218,6 @@ impl Nnue {
         layers::clipped_relu(*stm.get(), &mut incr);
         layers::clipped_relu(*nstm.get(), &mut incr[MID..]);
 
-        layers::out(self.out_layer.ff(&incr, bucket)[bucket])
+        layers::out(self.out_layer.ff(&incr)[0])
     }
 }
