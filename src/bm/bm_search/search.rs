@@ -7,8 +7,8 @@ use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::EntryType;
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -67,9 +67,13 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 #[inline]
-const fn iir(depth: u32) -> u32 {
+const fn iir<Search: SearchType>(depth: u32) -> u32 {
     if depth >= 4 {
-        1
+        if Search::PV {
+            1
+        } else {
+            2
+        }
     } else {
         0
     }
@@ -228,7 +232,7 @@ pub fn search<Search: SearchType>(
     }
 
     if tt_entry.is_none() {
-        depth -= iir(depth)
+        depth -= iir::<Search>(depth)
     }
 
     while local_context.get_k_table().len() <= ply as usize {
