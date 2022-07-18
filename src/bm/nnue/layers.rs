@@ -5,6 +5,7 @@ const FT_SCALE: i16 = 255;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
+const SHIFT: i16 = 8;
 
 #[derive(Debug, Clone)]
 pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
@@ -62,8 +63,9 @@ pub fn out(x: i32) -> i16 {
 }
 
 #[inline]
-pub fn clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
+pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        *clipped = x.max(MIN).min(MAX) as u8;
+        let tmp = x.max(MIN).min(MAX);
+        *clipped = ((tmp * tmp) >> SHIFT) as u8;
     }
 }

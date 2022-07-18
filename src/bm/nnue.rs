@@ -212,8 +212,8 @@ impl Nnue {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
-        layers::clipped_relu(*stm.get(), &mut incr);
-        layers::clipped_relu(*nstm.get(), &mut incr[MID..]);
+        layers::sq_clipped_relu(*stm.get(), &mut incr);
+        layers::sq_clipped_relu(*nstm.get(), &mut incr[MID..]);
 
         layers::out(self.out_layer.ff(&incr)[0])
     }
