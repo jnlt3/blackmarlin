@@ -222,7 +222,22 @@ pub fn search<Search: SearchType>(
             pos.unmake_move();
             let score = search_score << Next;
             if score >= beta {
-                return score;
+                let mut verified = depth < 10;
+                if !verified {
+                    let verification = search::<NoNm>(
+                        pos,
+                        local_context,
+                        shared_context,
+                        ply + 1,
+                        depth,
+                        alpha,
+                        beta,
+                    );
+                    verified = verification >= beta;
+                }
+                if verified {
+                    return score;
+                }
             }
         }
     }
