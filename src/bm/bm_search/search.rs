@@ -372,6 +372,10 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        if ply == 0 && tt_entry.map_or(false, |entry| entry.table_move() == make_move) {
+            extension = 1;
+        }
+
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
