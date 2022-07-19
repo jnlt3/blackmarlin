@@ -335,7 +335,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    eval + see::<16>(pos.board(), make_move)
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
