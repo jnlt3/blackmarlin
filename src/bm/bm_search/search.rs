@@ -209,13 +209,15 @@ pub fn search<Search: SearchType>(
         */
         if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
+
+            let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
                 pos,
                 local_context,
                 shared_context,
                 ply + 1,
-                nmp_depth(depth, eval.raw(), beta.raw()),
+                nmp_depth,
                 zw,
                 zw + 1,
             );
@@ -229,7 +231,7 @@ pub fn search<Search: SearchType>(
                         local_context,
                         shared_context,
                         ply + 1,
-                        depth,
+                        nmp_depth,
                         alpha,
                         beta,
                     );
