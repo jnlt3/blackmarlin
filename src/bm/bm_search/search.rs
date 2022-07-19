@@ -519,6 +519,7 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
+                        let amt = depth + extension;
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
@@ -526,21 +527,21 @@ pub fn search<Search: SearchType>(
                                 pos.board(),
                                 make_move,
                                 &quiets,
-                                depth,
+                                amt,
                             );
                             if let Some(Some(prev_move)) = prev_move {
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
                                     prev_move,
                                     make_move,
-                                    depth,
+                                    amt,
                                 );
                                 local_context.get_cm_hist_mut().cutoff(
                                     pos.board(),
                                     prev_move,
                                     make_move,
                                     &quiets,
-                                    depth,
+                                    amt,
                                 );
                             }
                         } else {
@@ -548,7 +549,7 @@ pub fn search<Search: SearchType>(
                                 pos.board(),
                                 make_move,
                                 &captures,
-                                depth,
+                                amt,
                             );
                         }
                     }

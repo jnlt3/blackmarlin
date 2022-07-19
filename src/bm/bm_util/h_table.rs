@@ -23,9 +23,6 @@ impl HistoryTable {
     }
 
     pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
-        if amt > 20 {
-            return;
-        }
         let index = sq_index(board.side_to_move(), make_move.from);
         let to_index = make_move.to as usize;
 
@@ -113,9 +110,6 @@ impl DoubleMoveHistory {
         fails: &[Move],
         amt: u32,
     ) {
-        if amt > 20 {
-            return;
-        }
         let prev_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
         let prev_index = piece_index(board.side_to_move(), prev_piece);
         let prev_to_index = prev_move.to as usize;
