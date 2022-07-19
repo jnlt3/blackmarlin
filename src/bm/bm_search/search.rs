@@ -7,8 +7,8 @@ use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::h_table;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use crate::bm::bm_util::t_table::EntryType;
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -318,8 +318,7 @@ pub fn search<Search: SearchType>(
                 && ply != 0
                 && !entry.score().is_mate()
                 && entry.depth() + 2 >= depth
-                && (entry.entry_type() == EntryType::LowerBound
-                    || entry.entry_type() == EntryType::Exact)
+                && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
