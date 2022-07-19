@@ -427,7 +427,11 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if Search::PV {
+            if Search::PV
+                && tt_entry.map_or(true, |entry| {
+                    !matches!(entry.entry_type(), EntryType::Exact)
+                })
+            {
                 reduction -= 1;
             };
             if improving {
