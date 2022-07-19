@@ -93,20 +93,20 @@ impl Position {
     }
 
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
-        let board = self.board().clone();
-
-        let piece_cnt = board.occupied().popcnt() as i16;
+        let piece_cnt = self.board().occupied().popcnt() as i16;
 
         let clamped_eval = root_eval.raw().clamp(-100, 100);
-        let eval_bonus = if board.side_to_move() == stm {
+        let eval_bonus = if self.board().side_to_move() == stm {
             piece_cnt * clamped_eval / 50
         } else {
             -piece_cnt * clamped_eval / 50
         };
 
-        let frc_score = frc::frc_corner_bishop(&board);
+        let frc_score = frc::frc_corner_bishop(self.board());
 
-        Evaluation::new(self.evaluator.feed_forward(&board) + frc_score + eval_bonus)
+        Evaluation::new(
+            self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus,
+        )
     }
 
     pub fn insufficient_material(&self) -> bool {

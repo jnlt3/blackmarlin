@@ -205,10 +205,10 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, board: &Board) -> i16 {
+    pub fn feed_forward(&mut self, stm: Color) -> i16 {
         let acc = &mut self.accumulator[self.head];
         let mut incr = [0; MID * 2];
-        let (stm, nstm) = match board.side_to_move() {
+        let (stm, nstm) = match stm {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
