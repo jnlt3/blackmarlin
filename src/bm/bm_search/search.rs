@@ -714,6 +714,9 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
+            if see < 0 {
+                continue;
+            }
             if stand_pat + see - q_see_threshold() >= beta {
                 return beta;
             }
