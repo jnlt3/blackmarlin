@@ -65,7 +65,7 @@ pub fn out(x: i32) -> i16 {
 #[inline]
 pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        let tmp = x.max(MIN).min(MAX);
+        let tmp = x.max(MIN).min(MAX) as u16;
         *clipped = ((tmp * tmp) >> SHIFT) as u8;
     }
 }
