@@ -85,6 +85,11 @@ const fn see_fp(depth: u32) -> i16 {
     depth as i16 * 100
 }
 
+const fn ld_ext_correction(hist: i16) -> i16 {
+    const DIVISOR: i16 = h_table::MAX_VALUE as i16 / 128;
+    return hist / DIVISOR;
+}
+
 #[inline]
 const fn hp(depth: u32) -> i32 {
     -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
@@ -352,7 +357,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    eval + ld_ext_correction(h_score)
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
