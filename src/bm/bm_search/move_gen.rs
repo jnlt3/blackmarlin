@@ -168,7 +168,6 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let mut score = 0;
-                    let piece = board.piece_on(make_move.from).unwrap();
 
                     score += hist.get(board.side_to_move(), make_move.from, make_move.to);
                     if let Some(prev_move) = self.prev_move {
@@ -177,8 +176,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                             board.side_to_move(),
                             prev_move_piece,
                             prev_move.to,
-                            piece,
-                            make_move.to,
+                            make_move,
                         );
                     }
 
