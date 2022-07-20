@@ -86,7 +86,7 @@ const fn see_fp(depth: u32) -> i16 {
 }
 
 const fn ld_ext_correction(hist: i16) -> i16 {
-    const DIVISOR: i16 = h_table::MAX_VALUE as i16 / 128;
+    const DIVISOR: i16 = h_table::MAX_VALUE as i16 / 64;
     return hist / DIVISOR;
 }
 
