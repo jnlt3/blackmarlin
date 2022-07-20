@@ -107,17 +107,16 @@ impl DoubleMoveHistory {
         let prev_index = piece_index(board.side_to_move(), prev_piece);
         let prev_to_index = prev_move.to as usize;
 
-        let piece = board.piece_on(make_move.from).unwrap();
-        let index = piece as usize;
+        let from_index = make_move.from as usize;
         let to_index = make_move.to as usize;
 
-        let value = self.table[prev_index][prev_to_index][index][to_index];
+        let value = self.table[prev_index][prev_to_index][from_index][to_index];
         let change = (amt * amt) as i16;
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
 
-        self.table[prev_index][prev_to_index][index][to_index] += increment;
+        self.table[prev_index][prev_to_index][from_index][to_index] += increment;
 
         for &quiet in fails {
             let from_index = quiet.from as usize;
