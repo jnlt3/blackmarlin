@@ -111,7 +111,7 @@ pub fn search<Search: SearchType>(
 ) -> Evaluation {
     local_context.search_stack_mut()[ply as usize].pv_len = 0;
 
-    if ply != 0 && shared_context.abort_search() {
+    if ply != 0 && shared_context.abort_search(local_context.nodes()) {
         local_context.trigger_abort();
         return Evaluation::min();
     }
