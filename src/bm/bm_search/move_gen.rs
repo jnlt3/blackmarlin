@@ -284,9 +284,6 @@ impl QuiescenceSearchMoveGen {
             if best_index.is_none() || *score > max {
                 let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
                 *see = Some(see_score);
-                if see_score < 0 {
-                    continue;
-                }
                 max = *score;
                 best_index = Some(index);
             }
