@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 const UNITS: i16 = 400_i16;
-const FT_SCALE: i16 = 255;
+const FT_SCALE: i16 = 127;
 const SCALE: i16 = 64;
-const SCALE_SHIFT: i16 = 6;
+const SCALE_SHIFT: i16 = 5;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
-const SHIFT: i16 = 8;
+const SHIFT: i16 = 7;
 
 #[derive(Debug, Clone)]
 pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
@@ -58,6 +58,29 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct DenseLarge<const INPUT: usize, const OUTPUT: usize> {
+    weights: Arc<[[i16; INPUT]; OUTPUT]>,
+    bias: [i16; OUTPUT],
+}
+
+impl<const INPUT: usize, const OUTPUT: usize> DenseLarge<INPUT, OUTPUT> {
+    pub fn new(weights: Arc<[[i16; INPUT]; OUTPUT]>, bias: [i16; OUTPUT]) -> Self {
+        Self { weights, bias }
+    }
+
+    #[inline(never)]
+    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i16; OUTPUT] {
+        let mut out = self.bias;
+        for (out, weights) in out.iter_mut().zip(&*self.weights) {
+            for (&input, &weight) in inputs.iter().zip(weights.iter()) {
+                *out += weight as i16 * input as i16;
+            }
+        }
+        out
+    }
+}
+
 #[inline]
 pub fn out(x: i32) -> i16 {
     (x as f32 * UNITS as f32 / (FT_SCALE as f32 * SCALE as f32)) as i16
@@ -72,9 +95,9 @@ pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
 }
 
 #[inline]
-pub fn scaled_sq_clipped_relu<const N: usize>(array: [i32; N], out: &mut [u8]) {
+pub fn scaled_sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        let tmp = ((x >> SCALE_SHIFT) as i16).max(MIN).min(MAX) as u16;
+        let tmp = (x >> SCALE_SHIFT).max(MIN).min(MAX) as u16;
         *clipped = ((tmp * tmp) >> SHIFT) as u8;
     }
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Dense, Incremental};
+use self::layers::{Dense, Incremental, DenseLarge};
 
 use super::bm_runner::ab_runner;
 
@@ -49,7 +49,7 @@ pub struct Nnue {
     accumulator: Vec<Accumulator>,
     bias: Arc<[i16; MID_0]>,
     head: usize,
-    hidden_layer: Dense<{ MID_0 * 2 }, MID_1>,
+    hidden_layer: DenseLarge<{ MID_0 * 2 }, MID_1>,
     out_layer: Dense<MID_1, OUTPUT>,
 }
 
@@ -61,11 +61,11 @@ impl Nnue {
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID_0>(bytes);
         bytes = &bytes[MID_0 * 2..];
 
-        let hidden = Arc::new(*include::dense_from_bytes_i8::<i8, { MID_0 * 2 }, MID_1>(
+        let hidden = Arc::new(*include::dense_from_bytes_i8::<i16, { MID_0 * 2 }, MID_1>(
             bytes,
         ));
         bytes = &bytes[MID_0 * MID_1 * 2..];
-        let hidden_bias = include::bias_from_bytes_i16::<i32, MID_1>(bytes);
+        let hidden_bias = include::bias_from_bytes_i16::<i16, MID_1>(bytes);
         bytes = &bytes[MID_1 * 2..];
 
         let out = Arc::new(*include::dense_from_bytes_i8::<i8, MID_1, OUTPUT>(bytes));
@@ -76,7 +76,7 @@ impl Nnue {
         assert!(bytes.is_empty(), "{}", bytes.len());
 
         let input_layer = Incremental::new(incremental, incremental_bias);
-        let hidden_layer = Dense::new(hidden, hidden_bias);
+        let hidden_layer = DenseLarge::new(hidden, hidden_bias);
         let out_layer = Dense::new(out, out_bias);
 
         Self {
