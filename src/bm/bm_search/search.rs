@@ -199,7 +199,7 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
-        if depth <= 2 && eval >= beta && pos.null_move() {
+        if depth == 1 && eval >= beta && pos.null_move() {
             let nm_eval = -pos.get_eval(pos.board().side_to_move(), local_context.eval());
             pos.unmake_move();
             if nm_eval >= beta {
