@@ -48,7 +48,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 50
+    (depth as i16 - improving as i16) * 42
 }
 
 #[inline]
@@ -77,27 +77,32 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 100
+    depth as i16 * 68
 }
 
 #[inline]
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 100
+const fn see_fp(depth: u32, is_capture: bool) -> i16 {
+    depth as i16 * if is_capture { 112 } else { 96 }
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+    -h_table::MAX_VALUE * ((depth * depth) as i32) / 62
 }
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 80
+    history / 99
 }
 
 #[inline]
-const fn q_see_threshold() -> i16 {
-    200
+const fn q_see_a_threshold() -> i16 {
+    209
+}
+
+#[inline]
+const fn q_see_b_threshold() -> i16 {
+    213
 }
 
 pub fn search<Search: SearchType>(
@@ -357,7 +362,7 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    if s_beta + 250 <= alpha {
+                    if s_beta + 264 <= alpha {
                         return alpha;
                     }
                     extension = 1;
@@ -414,7 +419,9 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        if do_see_prune
+            && eval + see::<16>(pos.board(), make_move) + see_fp(depth, is_capture) <= alpha
+        {
             continue;
         }
 
@@ -681,10 +688,10 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - q_see_threshold() >= beta {
+            if stand_pat + see - q_see_b_threshold() >= beta {
                 return beta;
             }
-            if stand_pat + see + q_see_threshold() <= alpha {
+            if stand_pat + see + q_see_a_threshold() <= alpha {
                 continue;
             }
             pos.make_move(make_move);
