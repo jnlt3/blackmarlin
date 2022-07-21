@@ -45,6 +45,7 @@ impl BmConsole {
         gen_eval::gen_eval(
             options.get("depth").unwrap().parse::<u32>().unwrap(),
             options.get("threads").unwrap().parse::<u32>().unwrap(),
+            options.get("path").unwrap(),
         );
     }
 

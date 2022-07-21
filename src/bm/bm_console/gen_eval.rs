@@ -1,7 +1,8 @@
 use std::{
     fs::OpenOptions,
     io::{BufWriter, Write},
-    sync::Arc,
+    sync::{mpsc::channel, Arc},
+    time::{Duration, Instant},
 };
 
 use arrayvec::ArrayVec;
@@ -16,6 +17,8 @@ use crate::bm::{
     },
     bm_util::eval::Evaluation,
 };
+
+use threadpool::{self, ThreadPool};
 
 fn play_single(
     engine: &mut AbRunner,
@@ -75,12 +78,13 @@ fn play_single(
         .collect::<Vec<_>>()
 }
 
-fn gen_games(iter: usize, depth: u32) -> Vec<(Board, Evaluation, f32)> {
+fn gen_games(duration: Duration, depth: u32) -> Vec<(Board, Evaluation, f32)> {
+    let start = Instant::now();
     let mut evals = vec![];
     let time_management_options = TimeManagementInfo::MaxDepth(depth);
     let time_manager = Arc::new(TimeManager::new());
     let mut engine_0 = AbRunner::new(Board::default(), time_manager.clone());
-    for i in 0..iter {
+    while start.elapsed() < duration {
         evals.extend(play_single(
             &mut engine_0,
             &time_manager,
@@ -91,25 +95,25 @@ fn gen_games(iter: usize, depth: u32) -> Vec<(Board, Evaluation, f32)> {
     evals
 }
 
-pub fn gen_eval(depth: u32, thread_cnt: u32) {
-    for _ in 0.. {
-        let mut evals = vec![];
-        let mut threads = vec![];
+pub fn gen_eval(depth: u32, thread_cnt: u32, target_path: &str) {
+    let pool = ThreadPool::new(thread_cnt as usize);
+    loop {
+        let (tx, rx) = channel();
         for _ in 0..thread_cnt {
-            threads.push(std::thread::spawn(move || gen_games(100, depth)))
-        }
-        for t in threads {
-            evals.extend(t.join().unwrap());
+            let tx = tx.clone();
+            pool.execute(move || {
+                tx.send(gen_games(Duration::from_secs(30), depth)).unwrap();
+            });
         }
         let mut output = String::new();
-        for (board, eval, wdl) in evals {
+        for (board, eval, wdl) in rx.iter().take(thread_cnt as usize).flatten() {
             output += &format!("{} | {} | {}\n", &board.to_string(), eval.raw(), wdl);
         }
         let file = OpenOptions::new()
             .read(true)
             .append(true)
             .create(true)
-            .open("./data.txt")
+            .open(target_path)
             .unwrap();
         let mut write = BufWriter::new(file);
         write.write(output.as_bytes()).unwrap();
