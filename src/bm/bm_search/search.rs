@@ -352,7 +352,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    eval + improving as i16 * 50
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
