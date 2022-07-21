@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Dense, Incremental, DenseLarge};
+use self::layers::{Dense, DenseLarge, Incremental};
 
 use super::bm_runner::ab_runner;
 
@@ -65,7 +65,7 @@ impl Nnue {
             bytes,
         ));
         bytes = &bytes[MID_0 * MID_1 * 2..];
-        let hidden_bias = include::bias_from_bytes_i16::<i32, MID_1>(bytes);
+        let hidden_bias = include::bias_from_bytes_i16::<i16, MID_1>(bytes);
         bytes = &bytes[MID_1 * 2..];
 
         let out = Arc::new(*include::dense_from_bytes_i8::<i8, MID_1, OUTPUT>(bytes));
