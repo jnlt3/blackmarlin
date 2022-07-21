@@ -289,6 +289,8 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let nstm_king_area = cozy_chess::get_king_moves(pos.board().king(!pos.board().side_to_move()));
+
     while let Some(make_move) = move_gen.next(
         pos.board(),
         local_context.get_h_table(),
@@ -448,6 +450,9 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             };
             if improving {
+                reduction -= 1;
+            }
+            if nstm_king_area.has(make_move.to) {
                 reduction -= 1;
             }
             if Some(make_move) == counter_move
