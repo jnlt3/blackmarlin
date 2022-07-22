@@ -289,6 +289,8 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let mut sing_ext_strong = false;
+
     while let Some(make_move) = move_gen.next(
         pos.board(),
         local_context.get_h_table(),
@@ -359,6 +361,9 @@ pub fn search<Search: SearchType>(
                 if s_score < s_beta {
                     if s_beta + 250 <= alpha {
                         return alpha;
+                    }
+                    if s_score + 100 < s_beta {
+                        sing_ext_strong = true;
                     }
                     extension = 1;
                 } else if multi_cut && s_beta >= beta {
@@ -454,6 +459,9 @@ pub fn search<Search: SearchType>(
                 || killers.into_iter().any(|killer| killer == make_move)
             {
                 reduction -= 1;
+            }
+            if sing_ext_strong {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
