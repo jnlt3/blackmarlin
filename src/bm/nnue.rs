@@ -227,7 +227,7 @@ impl Nnue {
 
         let hidden_in = self.hidden_layer.ff(&incr);
         let mut out = [0; MID_1];
-        layers::scaled_sq_clipped_relu(hidden_in, &mut out);
+        layers::scaled_relu(hidden_in, &mut out);
         layers::out(self.out_layer.ff(&out)[0])
     }
 }
