@@ -409,7 +409,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_tp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 2 && eval <= alpha;
+        let do_tp = !Search::PV && non_mate_line && moves_seen > 0 && depth == 1 && eval <= alpha;
 
         if do_tp && into_threat(pos.board(), make_move) {
             continue;
