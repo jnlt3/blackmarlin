@@ -76,8 +76,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 100
+const fn fp(depth: u32, into_threat: bool) -> i16 {
+    (depth as i16 - into_threat as i16) * 100
 }
 
 #[inline]
@@ -382,7 +382,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(depth, into_threat(pos.board(), make_move)) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
@@ -409,12 +409,6 @@ pub fn search<Search: SearchType>(
         let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
-            continue;
-        }
-
-        let do_tp = !Search::PV && non_mate_line && moves_seen > 0 && depth == 1 && eval <= alpha;
-
-        if do_tp && into_threat(pos.board(), make_move) {
             continue;
         }
 
