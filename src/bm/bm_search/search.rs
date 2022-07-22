@@ -409,6 +409,12 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let do_tp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 2 && eval <= alpha;
+
+        if do_tp && into_threat(pos.board(), make_move) {
+            continue;
+        }
+
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -727,6 +733,32 @@ pub fn q_search(
             .set(pos.board(), 0, entry_type, highest_score, best_move);
     }
     highest_score.unwrap_or(alpha)
+}
+
+pub fn into_threat(board: &Board, make_move: Move) -> bool {
+    let piece = board.piece_on(make_move.from).unwrap();
+    if piece == Piece::Pawn {
+        return false;
+    }
+
+    let threat_side = !board.side_to_move();
+
+    let threat_pieces = board.colors(threat_side);
+
+    let mut blockers = board.occupied();
+    blockers &= !make_move.from.bitboard();
+
+    let mut attacks =
+        cozy_chess::get_pawn_attacks(make_move.to, !threat_side) & board.pieces(Piece::Pawn);
+    if matches!(piece, Piece::Rook | Piece::Queen) {
+        attacks |= cozy_chess::get_knight_moves(make_move.to) & board.pieces(Piece::Knight);
+        attacks |=
+            cozy_chess::get_bishop_moves(make_move.to, blockers) & board.pieces(Piece::Bishop);
+    }
+    if matches!(piece, Piece::Queen) {
+        attacks |= cozy_chess::get_rook_moves(make_move.to, blockers) & board.pieces(Piece::Rook);
+    }
+    !(attacks & threat_pieces).is_empty()
 }
 
 pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
