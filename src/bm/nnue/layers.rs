@@ -3,7 +3,7 @@ use std::sync::Arc;
 const UNITS: i16 = 400_i16;
 const FT_SCALE: i16 = 255;
 const SCALE: i16 = 64;
-const SCALE_SHIFT: i16 = 2;
+const SCALE_SHIFT: i16 = 6;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
 const SHIFT: i16 = 8;
@@ -48,11 +48,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
+    pub fn ff(&self, inputs: &[u16; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
         for (out, weights) in out.iter_mut().zip(&*self.weights) {
             for (&input, &weight) in inputs.iter().zip(weights.iter()) {
-                *out += (weight as i16 * input as i16) as i32;
+                *out += weight as i32 * input as i32;
             }
         }
         out
@@ -97,9 +97,8 @@ pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
 }
 
 #[inline]
-pub fn scaled_sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
+pub fn scaled_relu<const N: usize>(array: [i16; N], out: &mut [u16]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        let tmp = (x >> SCALE_SHIFT).max(MIN).min(MAX) as u16;
-        *clipped = ((tmp * tmp) >> SHIFT) as u8;
+        *clipped = (x >> (SCALE_SHIFT - OUT_SHIFT)).max(MIN) as u16;
     }
 }
