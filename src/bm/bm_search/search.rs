@@ -352,7 +352,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    q_search(pos, local_context, shared_context, ply, s_beta - 1, s_beta)
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
