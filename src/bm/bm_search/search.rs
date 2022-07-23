@@ -48,7 +48,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 54
+    (depth as i16 - improving as i16) * 61
 }
 
 #[inline]
@@ -77,22 +77,22 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 94
+    depth as i16 * 58
 }
 
 #[inline]
 const fn see_fp(depth: u32, is_capture: bool) -> i16 {
-    depth as i16 * if is_capture { 104 } else { 79 }
+    depth as i16 * if is_capture { 71 } else { 93 }
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 59
+    -h_table::MAX_VALUE * ((depth * depth) as i32) / 45
 }
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 98
+    history / 44
 }
 
 #[inline]
@@ -362,7 +362,7 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    if s_beta + 276 <= alpha {
+                    if s_beta + 207 <= alpha {
                         return alpha;
                     }
                     extension = 1;
