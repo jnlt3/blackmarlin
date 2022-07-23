@@ -362,7 +362,7 @@ pub fn search<Search: SearchType>(
                     if s_beta + 250 <= alpha {
                         return alpha;
                     }
-                    if s_score + 100 < s_beta {
+                    if multi_cut && s_score + 100 < s_beta {
                         sing_ext_strong = true;
                     }
                     extension = 1;
