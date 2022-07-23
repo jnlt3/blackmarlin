@@ -13,6 +13,9 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 
+static mut THREAT_PRUNE: usize = 0;
+static mut THREAT_PASS: usize = 0;
+
 pub trait SearchType {
     const NM: bool;
     const PV: bool;
@@ -289,6 +292,13 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    unsafe {
+        println!(
+            "{}",
+            THREAT_PRUNE as f32 / (THREAT_PRUNE + THREAT_PASS) as f32
+        )
+    }
+
     while let Some(make_move) = move_gen.next(
         pos.board(),
         local_context.get_h_table(),
@@ -412,12 +422,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_tp = !Search::PV
-            && non_mate_line
-            && moves_seen > 0
-            && depth <= 5
-            && !is_capture
-            && eval <= alpha;
+        let do_tp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 5 && !is_capture;
 
         if do_tp && into_threat(pos.board(), make_move) {
             continue;
