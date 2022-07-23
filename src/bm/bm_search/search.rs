@@ -415,7 +415,7 @@ pub fn search<Search: SearchType>(
         let do_tp = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 7
+            && depth <= 5
             && !is_capture
             && eval <= alpha;
 
