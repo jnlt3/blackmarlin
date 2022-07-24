@@ -424,8 +424,17 @@ pub fn search<Search: SearchType>(
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+
+        let is_recapture = ply > 0
+            && is_capture
+            && Some(make_move.to)
+                == local_context.search_stack()[ply as usize - 1]
+                    .move_played
+                    .map_or(None, |move_played| Some(move_played.to));
+
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-        if gives_check {
+
+        if gives_check || (!Search::PV && is_recapture) {
             extension = extension.max(1);
         }
 
