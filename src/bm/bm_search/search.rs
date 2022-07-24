@@ -209,6 +209,7 @@ pub fn search<Search: SearchType>(
         */
         if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
+            local_context.search_stack_mut()[ply as usize].is_capture = false;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
@@ -424,13 +425,17 @@ pub fn search<Search: SearchType>(
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+        local_context.search_stack_mut()[ply as usize].is_capture = is_capture;
 
-        let is_recapture = ply > 0
-            && is_capture
-            && Some(make_move.to)
-                == local_context.search_stack()[ply as usize - 1]
-                    .move_played
-                    .map_or(None, |move_played| Some(move_played.to));
+        let is_recapture = ply > 0 && {
+            let ss = &local_context.search_stack()[ply as usize - 1];
+            is_capture
+                && ss.is_capture
+                && Some(make_move.to)
+                    == ss
+                        .move_played
+                        .map_or(None, |move_played| Some(move_played.to))
+        };
 
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
 
