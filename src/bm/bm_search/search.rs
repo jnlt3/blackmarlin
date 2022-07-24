@@ -282,7 +282,10 @@ pub fn search<Search: SearchType>(
         entry.clear();
     }
 
-    if Search::SKIP && pos.null_move() {
+    if Search::SKIP {
+        if !pos.null_move() {
+            return eval;
+        }
         local_context.search_stack_mut()[ply as usize].move_played = None;
         let score = search::<Search::Zw>(
             pos,
