@@ -16,12 +16,15 @@ use super::move_gen::QuiescenceSearchMoveGen;
 pub trait SearchType {
     const NM: bool;
     const PV: bool;
+    const SKIP: bool = false;
     type Zw: SearchType;
 }
 
 pub struct Pv;
 pub struct Zw;
 pub struct NoNm;
+pub struct Defender;
+pub struct Attacker;
 
 impl SearchType for Pv {
     const NM: bool = false;
@@ -39,6 +42,19 @@ impl SearchType for NoNm {
     const NM: bool = false;
     const PV: bool = false;
     type Zw = NoNm;
+}
+
+impl SearchType for Defender {
+    const SKIP: bool = true;
+    const NM: bool = false;
+    const PV: bool = false;
+    type Zw = Attacker;
+}
+
+impl SearchType for Attacker {
+    const NM: bool = false;
+    const PV: bool = false;
+    type Zw = Defender;
 }
 
 #[inline]
@@ -64,6 +80,18 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
     let r = 3 + depth / 4 + ((eval - beta) / 200) as u32;
     depth.saturating_sub(r).max(1)
+}
+
+#[inline]
+fn do_da<Search: SearchType>(board: &Board, depth: u32) -> bool {
+    Search::NM
+        && depth > 2
+        && depth < 7
+        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
+}
+
+const fn da_depth() -> u32 {
+    4
 }
 
 #[inline]
@@ -199,6 +227,21 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
+        if do_da::<Search>(pos.board(), depth) {
+            let da_score = search::<Defender>(
+                pos,
+                local_context,
+                shared_context,
+                ply,
+                da_depth(),
+                alpha,
+                beta,
+            );
+            if da_score >= beta {
+                return da_score;
+            }
+        }
+
         /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
@@ -254,6 +297,21 @@ pub fn search<Search: SearchType>(
 
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 1) {
         entry.clear();
+    }
+
+    if Search::SKIP && pos.null_move() {
+        local_context.search_stack_mut()[ply as usize].move_played = None;
+        let score = search::<Search::Zw>(
+            pos,
+            local_context,
+            shared_context,
+            ply + 1,
+            depth - 1,
+            alpha >> Next,
+            beta >> Next,
+        ) << Next;
+        pos.unmake_move();
+        return score;
     }
 
     let mut highest_score = None;
