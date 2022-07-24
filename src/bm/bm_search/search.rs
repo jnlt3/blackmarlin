@@ -83,19 +83,6 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 #[inline]
-fn do_da<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
-    Search::NM
-        && depth > 2
-        && depth < 7
-        && eval >= beta
-        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
-}
-
-const fn da_depth() -> u32 {
-    4
-}
-
-#[inline]
 const fn iir(depth: u32) -> u32 {
     if depth >= 4 {
         1
@@ -227,22 +214,6 @@ pub fn search<Search: SearchType>(
         if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
             return eval;
         }
-
-        if do_da::<Search>(pos.board(), depth, eval.raw(), beta.raw()) {
-            let da_score = search::<Defender>(
-                pos,
-                local_context,
-                shared_context,
-                ply,
-                da_depth(),
-                alpha,
-                beta,
-            );
-            if da_score >= beta {
-                return da_score;
-            }
-        }
-
         /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
@@ -256,7 +227,8 @@ pub fn search<Search: SearchType>(
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
-            let search_score = search::<NoNm>(
+
+            let mut score = search::<Attacker>(
                 pos,
                 local_context,
                 shared_context,
@@ -264,9 +236,19 @@ pub fn search<Search: SearchType>(
                 nmp_depth,
                 zw,
                 zw + 1,
-            );
+            ) << Next;
+            if score < beta {
+                score = search::<NoNm>(
+                    pos,
+                    local_context,
+                    shared_context,
+                    ply + 1,
+                    nmp_depth,
+                    zw,
+                    zw + 1,
+                ) << Next;
+            }
             pos.unmake_move();
-            let score = search_score << Next;
             if score >= beta {
                 let mut verified = depth < 10;
                 if !verified {
