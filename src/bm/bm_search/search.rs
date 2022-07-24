@@ -100,6 +100,14 @@ const fn q_see_threshold() -> i16 {
     200
 }
 
+#[inline]
+const fn double_ext_limit(depth: u32) -> u32 {
+    if depth < 10 {
+        return 0;
+    }
+    22 * depth * depth - 580 * depth
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -361,7 +369,12 @@ pub fn search<Search: SearchType>(
                         return alpha;
                     }
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 50 < s_beta {
+                    if !Search::PV
+                        && multi_cut
+                        && s_score + 50 < s_beta
+                        && local_context.double_ext_cnt() < double_ext_limit(depth)
+                    {
+                        local_context.double_ext();
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {

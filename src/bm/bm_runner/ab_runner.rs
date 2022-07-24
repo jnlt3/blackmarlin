@@ -95,6 +95,7 @@ pub struct LocalContext {
     stm: Color,
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
+    double_ext_cnt: u32,
     h_table: HistoryTable,
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
@@ -231,6 +232,14 @@ impl LocalContext {
 
     pub fn abort(&self) -> bool {
         self.abort
+    }
+
+    pub fn double_ext(&mut self) {
+        self.double_ext_cnt += 1;
+    }
+
+    pub fn double_ext_cnt(&mut self) -> u32 {
+        self.double_ext_cnt
     }
 }
 
@@ -417,6 +426,7 @@ impl AbRunner {
                     };
                     MAX_PLY as usize + 1
                 ],
+                double_ext_cnt: 0,
                 sel_depth: 0,
                 h_table: HistoryTable::new(),
                 ch_table: HistoryTable::new(),
