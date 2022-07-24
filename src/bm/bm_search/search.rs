@@ -83,10 +83,11 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 #[inline]
-fn do_da<Search: SearchType>(board: &Board, depth: u32) -> bool {
+fn do_da<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
     Search::NM
         && depth > 2
         && depth < 7
+        && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
@@ -227,7 +228,7 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
-        if do_da::<Search>(pos.board(), depth) {
+        if do_da::<Search>(pos.board(), depth, eval.raw(), beta.raw()) {
             let da_score = search::<Defender>(
                 pos,
                 local_context,
