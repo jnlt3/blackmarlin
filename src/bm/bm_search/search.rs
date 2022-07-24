@@ -537,41 +537,38 @@ pub fn search<Search: SearchType>(
                     local_context.search_stack_mut()[ply as usize]
                         .update_pv(make_move, &child_pv[..len]);
                 }
+                let amt = depth + extension;
+                if !is_capture {
+                    if let Some(Some(prev_move)) = prev_move {
+                        local_context.get_cm_table_mut().cutoff(
+                            pos.board(),
+                            prev_move,
+                            make_move,
+                            amt,
+                        );
+                        local_context.get_cm_hist_mut().cutoff(
+                            pos.board(),
+                            prev_move,
+                            make_move,
+                            &quiets,
+                            amt,
+                        );
+                    }
+                } else {
+                    local_context
+                        .get_ch_table_mut()
+                        .cutoff(pos.board(), make_move, &captures, amt);
+                }
                 if score >= beta {
-                    if !local_context.abort() {
-                        let amt = depth + extension;
-                        if !is_capture {
-                            let killer_table = local_context.get_k_table();
-                            killer_table[ply as usize].push(make_move);
-                            local_context.get_h_table_mut().cutoff(
-                                pos.board(),
-                                make_move,
-                                &quiets,
-                                amt,
-                            );
-                            if let Some(Some(prev_move)) = prev_move {
-                                local_context.get_cm_table_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                    amt,
-                                );
-                                local_context.get_cm_hist_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                    &quiets,
-                                    amt,
-                                );
-                            }
-                        } else {
-                            local_context.get_ch_table_mut().cutoff(
-                                pos.board(),
-                                make_move,
-                                &captures,
-                                amt,
-                            );
-                        }
+                    if !is_capture {
+                        let killer_table = local_context.get_k_table();
+                        killer_table[ply as usize].push(make_move);
+                        local_context.get_h_table_mut().cutoff(
+                            pos.board(),
+                            make_move,
+                            &quiets,
+                            amt,
+                        );
                     }
                     break;
                 }
