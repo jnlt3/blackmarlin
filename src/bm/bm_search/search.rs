@@ -434,7 +434,7 @@ pub fn search<Search: SearchType>(
 
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
 
-        if gives_check || (!Search::PV && is_recapture) {
+        if gives_check || (Search::PV && is_recapture) {
             extension = extension.max(1);
         }
 
