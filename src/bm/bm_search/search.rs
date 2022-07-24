@@ -360,6 +360,9 @@ pub fn search<Search: SearchType>(
                     if s_beta + 250 <= alpha {
                         return alpha;
                     }
+                    if multi_cut && s_score + 250 >= beta {
+                        return beta;
+                    }
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + 50 < s_beta {
                         extension += 1;
