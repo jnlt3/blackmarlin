@@ -418,6 +418,12 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+            let table = if is_capture {
+                local_context.get_ch_table_mut()
+            } else {
+                local_context.get_h_table_mut()
+            };
+            table.update::<-1>(pos.board(), make_move, 1);
             continue;
         }
 

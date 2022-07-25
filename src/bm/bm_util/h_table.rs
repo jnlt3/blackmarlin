@@ -22,6 +22,20 @@ impl HistoryTable {
         self.table[from_index][to_index]
     }
 
+    pub fn update<const DIR: i16>(&mut self, board: &Board, make_move: Move, amt: u32) {
+        assert!(DIR == 1 || DIR == -1);
+        let index = sq_index(board.side_to_move(), make_move.from);
+        let to_index = make_move.to as usize;
+
+        let value = self.table[index][to_index];
+        let change = (amt * amt) as i16;
+        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+
+        let increment = change * DIR - decay;
+
+        self.table[index][to_index] += increment;
+    }
+
     pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
         let index = sq_index(board.side_to_move(), make_move.from);
         let to_index = make_move.to as usize;
