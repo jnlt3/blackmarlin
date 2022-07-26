@@ -1,6 +1,6 @@
 use cozy_chess::{Board, Move, Piece, PieceMoves};
 
-use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{DoubleMoveHistory, FromToHistoryTable, PieceToHistoryTable};
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
@@ -85,8 +85,8 @@ impl<const K: usize> OrderedMoveGen<K> {
     pub fn next(
         &mut self,
         board: &Board,
-        hist: &HistoryTable,
-        c_hist: &HistoryTable,
+        hist: &FromToHistoryTable,
+        c_hist: &PieceToHistoryTable,
         cm_hist: &DoubleMoveHistory,
     ) -> Option<Move> {
         self.set_phase();
@@ -114,9 +114,11 @@ impl<const K: usize> OrderedMoveGen<K> {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
-                    let expected_gain =
-                        c_hist.get(board.side_to_move(), make_move.from, make_move.to)
-                            + search::see::<1>(&board, make_move) * 32;
+                    let expected_gain = c_hist.get(
+                        board.side_to_move(),
+                        board.piece_on(make_move.from).unwrap(),
+                        make_move.to,
+                    ) + search::see::<1>(&board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -264,14 +266,16 @@ impl QuiescenceSearchMoveGen {
         }
     }
 
-    pub fn next(&mut self, board: &Board, c_hist: &HistoryTable) -> Option<(Move, i16)> {
+    pub fn next(&mut self, board: &Board, c_hist: &PieceToHistoryTable) -> Option<(Move, i16)> {
         if self.gen_type == QSearchGenType::CalcCaptures {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain =
-                        c_hist.get(board.side_to_move(), make_move.from, make_move.to)
-                            + search::see::<1>(&board, make_move) * 32;
+                    let expected_gain = c_hist.get(
+                        board.side_to_move(),
+                        board.piece_on(make_move.from).unwrap(),
+                        make_move.to,
+                    ) + search::see::<1>(&board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false

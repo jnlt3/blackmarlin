@@ -5,11 +5,56 @@ const SQUARE_COUNT: usize = 64;
 const PIECE_COUNT: usize = 12;
 
 #[derive(Debug, Clone)]
-pub struct HistoryTable {
+pub struct PieceToHistoryTable {
+    table: Box<[[i16; SQUARE_COUNT]; PIECE_COUNT]>,
+}
+
+impl PieceToHistoryTable {
+    pub fn new() -> Self {
+        Self {
+            table: Box::new([[0_i16; SQUARE_COUNT]; PIECE_COUNT]),
+        }
+    }
+
+    pub fn get(&self, color: Color, piece: Piece, to: Square) -> i16 {
+        let from_index = piece_index(color, piece);
+        let to_index = to as usize;
+        self.table[from_index][to_index]
+    }
+
+    pub fn cutoff(&mut self, board: &Board, make_move: Move, fails: &[Move], amt: u32) {
+        let index = piece_index(
+            board.side_to_move(),
+            board.piece_on(make_move.from).unwrap(),
+        );
+        let to_index = make_move.to as usize;
+
+        let value = self.table[index][to_index];
+        let change = (amt * amt) as i16;
+        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+
+        let increment = change - decay;
+
+        self.table[index][to_index] += increment;
+
+        for &quiet in fails {
+            let index = piece_index(board.side_to_move(), board.piece_on(quiet.from).unwrap());
+            let to_index = quiet.to as usize;
+            let value = self.table[index][to_index];
+            let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+            let decrement = change + decay;
+
+            self.table[index][to_index] -= decrement;
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FromToHistoryTable {
     table: Box<[[i16; SQUARE_COUNT]; SQUARE_COUNT * 2]>,
 }
 
-impl HistoryTable {
+impl FromToHistoryTable {
     pub fn new() -> Self {
         Self {
             table: Box::new([[0_i16; SQUARE_COUNT]; SQUARE_COUNT * 2]),

@@ -309,7 +309,7 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_ch_table().get(
                 pos.board().side_to_move(),
-                make_move.from,
+                pos.board().piece_on(make_move.from).unwrap(),
                 make_move.to,
             )
         } else {
