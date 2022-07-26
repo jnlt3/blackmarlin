@@ -447,6 +447,9 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
+            if ply <= (depth + ply) / 3 {
+                reduction -= 1;
+            }
             if Search::PV {
                 reduction -= 1;
             };
