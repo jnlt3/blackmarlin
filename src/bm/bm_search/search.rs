@@ -453,6 +453,13 @@ pub fn search<Search: SearchType>(
             if improving {
                 reduction -= 1;
             }
+            if tt_entry.map_or(false, |entry| {
+                matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
+                    && entry.depth() + 2 >= depth
+                    && entry.score() >= beta
+            }) {
+                reduction += 1;
+            }
             if Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
             {
