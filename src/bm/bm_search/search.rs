@@ -81,8 +81,8 @@ const fn fp(depth: u32) -> i16 {
 }
 
 #[inline]
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 100
+const fn see_fp(depth: u32, is_capture: bool) -> i16 {
+    depth as i16 * if is_capture { 166 } else { 58 }
 }
 
 #[inline]
@@ -417,7 +417,9 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+        if do_see_prune
+            && eval + see::<16>(pos.board(), make_move) + see_fp(depth, is_capture) <= alpha
+        {
             continue;
         }
 
@@ -783,11 +785,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 100,
-        Piece::Knight => 300,
-        Piece::Bishop => 300,
-        Piece::Rook => 500,
-        Piece::Queen => 900,
+        Piece::Pawn => 59,
+        Piece::Knight => 313,
+        Piece::Bishop => 313,
+        Piece::Rook => 581,
+        Piece::Queen => 909,
         Piece::King => 20000,
     }
 }
