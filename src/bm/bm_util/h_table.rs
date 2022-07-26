@@ -27,7 +27,7 @@ impl HistoryTable {
         let to_index = make_move.to as usize;
 
         let value = self.table[index][to_index];
-        let change = (amt * amt + 3 * amt / 10) as i16;
+        let change = (amt * amt + 3 * amt / 5) as i16;
         let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
 
         let increment = change - decay;
