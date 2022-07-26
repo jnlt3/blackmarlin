@@ -82,7 +82,7 @@ const fn fp(depth: u32) -> i16 {
 
 #[inline]
 const fn see_fp(depth: u32, is_capture: bool) -> i16 {
-    depth as i16 * if is_capture { 166 } else { 58 }
+    depth as i16 * if is_capture { 186 } else { 75 }
 }
 
 #[inline]
@@ -788,11 +788,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 59,
-        Piece::Knight => 313,
-        Piece::Bishop => 313,
-        Piece::Rook => 581,
-        Piece::Queen => 909,
+        Piece::Pawn => 74,
+        Piece::Knight => 353,
+        Piece::Bishop => 353,
+        Piece::Rook => 522,
+        Piece::Queen => 801,
         Piece::King => 20000,
     }
 }
