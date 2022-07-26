@@ -38,7 +38,7 @@ impl SearchType for Zw {
 impl SearchType for NoNm {
     const NM: bool = false;
     const PV: bool = false;
-    type Zw = NoNm;
+    type Zw = Zw;
 }
 
 #[inline]
