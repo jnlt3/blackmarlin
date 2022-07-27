@@ -361,7 +361,9 @@ pub fn search<Search: SearchType>(
                         return alpha;
                     }
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 50 < s_beta {
+
+                    let d_ext_margin = if Search::PV { 150 } else { 50 };
+                    if multi_cut && s_score + d_ext_margin < s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
