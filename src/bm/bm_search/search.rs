@@ -372,6 +372,13 @@ pub fn search<Search: SearchType>(
             }
         }
 
+
+        let mut reduction = shared_context
+            .get_lmr_lookup()
+            .get(depth as usize, moves_seen) as i16;
+
+        let lmr_depth = depth.saturating_sub(reduction as u32);
+
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
@@ -403,9 +410,9 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && lmr_depth <= 8 && eval <= alpha;
 
-        if do_hp && (h_score as i32) < hp(depth) {
+        if do_hp && (h_score as i32) < hp(lmr_depth) {
             continue;
         }
 
@@ -432,9 +439,6 @@ pub fn search<Search: SearchType>(
         If the move proves to be worse than alpha, we don't have to do a
         full depth search
         */
-        let mut reduction = shared_context
-            .get_lmr_lookup()
-            .get(depth as usize, moves_seen) as i16;
 
         if moves_seen > 0 {
             /*
