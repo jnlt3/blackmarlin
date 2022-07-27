@@ -13,6 +13,11 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 
+pub static mut PAWN: i16 = 100;
+pub static mut MINOR: i16 = 100;
+pub static mut ROOK: i16 = 100;
+pub static mut QUEEN: i16 = 100;
+
 pub trait SearchType {
     const NM: bool;
     const PV: bool;
@@ -786,11 +791,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 100,
-        Piece::Knight => 300,
-        Piece::Bishop => 300,
-        Piece::Rook => 500,
-        Piece::Queen => 900,
+        Piece::Pawn => unsafe { PAWN },
+        Piece::Knight => unsafe { MINOR },
+        Piece::Bishop => unsafe { MINOR },
+        Piece::Rook => unsafe { ROOK },
+        Piece::Queen => unsafe { QUEEN },
         Piece::King => 20000,
     }
 }
