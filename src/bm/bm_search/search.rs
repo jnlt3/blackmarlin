@@ -14,9 +14,10 @@ use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 
 pub static mut PAWN: i16 = 100;
-pub static mut MINOR: i16 = 100;
-pub static mut ROOK: i16 = 100;
-pub static mut QUEEN: i16 = 100;
+pub static mut MINOR: i16 = 300;
+pub static mut ROOK: i16 = 500;
+pub static mut QUEEN: i16 = 900;
+//862
 
 pub trait SearchType {
     const NM: bool;
@@ -53,7 +54,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 50
+    (depth as i16 - improving as i16) * 0
 }
 
 #[inline]

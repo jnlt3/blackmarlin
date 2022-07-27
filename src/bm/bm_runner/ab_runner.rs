@@ -110,7 +110,7 @@ impl SharedContext {
         if node_cnt % 1024 != 0 {
             return false;
         }
-        self.time_manager.abort_search(self.start)
+        self.time_manager.abort_search(self.start, node_cnt)
     }
 
     #[inline]

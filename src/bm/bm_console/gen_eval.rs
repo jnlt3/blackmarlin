@@ -24,7 +24,7 @@ fn play_single(
     engine: &mut AbRunner,
     time_manager: &TimeManager,
     time_management_info: &[TimeManagementInfo],
-) -> Vec<(Board, Evaluation, f32)> {
+) -> Vec<(Board, Move)> {
     let mut evals = Vec::new();
     engine.set_board(Board::default());
     let mut result = 0.5;
@@ -47,14 +47,7 @@ fn play_single(
 
         let board = engine.get_board().clone();
 
-        if ply > 8
-            && !board
-                .colors(!engine.get_board().side_to_move())
-                .has(make_move.to)
-            && board.checkers() == BitBoard::EMPTY
-        {
-            evals.push((engine.get_board().clone(), eval * turn));
-        }
+        evals.push((board.clone(), make_move));
 
         if ply < 8 {
             let mut moves = ArrayVec::<Move, 218>::new();
@@ -73,12 +66,9 @@ fn play_single(
         }
     }
     evals
-        .into_iter()
-        .map(|(b, e)| (b, e, result))
-        .collect::<Vec<_>>()
 }
 
-fn gen_games(duration: Duration, depth: u32) -> Vec<(Board, Evaluation, f32)> {
+fn gen_games(duration: Duration, depth: u32) -> Vec<(Board, Move)> {
     let start = Instant::now();
     let mut evals = vec![];
     let time_management_options = TimeManagementInfo::MaxDepth(depth);
@@ -106,8 +96,8 @@ pub fn gen_eval(depth: u32, thread_cnt: u32, target_path: &str) {
             });
         }
         let mut output = String::new();
-        for (board, eval, wdl) in rx.iter().take(thread_cnt as usize).flatten() {
-            output += &format!("{} | {} | {}\n", &board.to_string(), eval.raw(), wdl);
+        for (board, mv) in rx.iter().take(thread_cnt as usize).flatten() {
+            output += &format!("{} | {}\n", &board.to_string(), mv);
         }
         let file = OpenOptions::new()
             .read(true)

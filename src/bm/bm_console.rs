@@ -6,7 +6,7 @@ mod gen_eval;
 mod gen_fen;
 #[cfg(feature = "trace")]
 mod grad;
-mod search_tuner;
+pub mod search_tuner;
 pub struct BmConsole {
     uci: UciAdapter,
 }
