@@ -439,6 +439,7 @@ pub fn search<Search: SearchType>(
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
 
+        let low_ply = (depth + ply) / 3;
         if moves_seen > 0 {
             /*
             If a move is quiet, we already have information on this move
@@ -447,7 +448,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
+            if ply <= low_ply {
                 reduction -= 1;
             }
             if Search::PV {
@@ -542,7 +543,11 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
-                        let amt = depth + extension + (eval <= alpha) as u32 + (h_score < 0) as u32;
+                        let amt = depth
+                            + extension
+                            + (eval <= alpha) as u32
+                            + (h_score < 0) as u32
+                            + low_ply as u32;
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
