@@ -372,60 +372,6 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
-        /*
-        In non-PV nodes If a move isn't good enough to beat alpha - a static margin
-        we assume it's safe to prune this move
-        */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
-
-        if do_fp && eval + fp(depth) <= alpha {
-            move_gen.set_skip_quiets(true);
-            continue;
-        }
-
-        /*
-        If a move is placed late in move ordering, we can safely prune it based on a depth related margin
-        */
-        if !move_gen.skip_quiets()
-            && non_mate_line
-            && !is_capture
-            && quiets.len()
-                >= shared_context
-                    .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
-        {
-            move_gen.set_skip_quiets(true);
-            continue;
-        }
-
-        /*
-        In low depth, non-PV nodes, we assume it's safe to prune a move
-        if it has very low history
-        */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
-
-        if do_hp && (h_score as i32) < hp(depth) {
-            continue;
-        }
-
-        /*
-        In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
-        we assume it's safe to prune this move
-        */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
-        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
-            continue;
-        }
-
-        pos.make_move(make_move);
-        shared_context.get_t_table().prefetch(pos.board());
-        local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
-        let gives_check = pos.board().checkers() != BitBoard::EMPTY;
-        if gives_check {
-            extension = extension.max(1);
-        }
-
         /*
         LMR
         We try to prove a move is worse than alpha at a reduced depth
@@ -462,6 +408,60 @@ pub fn search<Search: SearchType>(
         }
 
         let lmr_depth = (depth as i16 - reduction) as u32;
+
+        let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
+        /*
+        In non-PV nodes If a move isn't good enough to beat alpha - a static margin
+        we assume it's safe to prune this move
+        */
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
+
+        if do_fp && eval + fp(depth) <= alpha {
+            move_gen.set_skip_quiets(true);
+            continue;
+        }
+
+        /*
+        If a move is placed late in move ordering, we can safely prune it based on a depth related margin
+        */
+        if !move_gen.skip_quiets()
+            && non_mate_line
+            && !is_capture
+            && quiets.len()
+                >= shared_context
+                    .get_lmp_lookup()
+                    .get(depth as usize, improving as usize)
+        {
+            move_gen.set_skip_quiets(true);
+            continue;
+        }
+
+        /*
+        In low depth, non-PV nodes, we assume it's safe to prune a move
+        if it has very low history
+        */
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
+
+        if do_hp && (h_score as i32) < hp(lmr_depth) {
+            continue;
+        }
+
+        /*
+        In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
+        we assume it's safe to prune this move
+        */
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
+            continue;
+        }
+
+        pos.make_move(make_move);
+        shared_context.get_t_table().prefetch(pos.board());
+        local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+        let gives_check = pos.board().checkers() != BitBoard::EMPTY;
+        if gives_check {
+            extension = extension.max(1);
+        }
 
         if moves_seen == 0 {
             let search_score = search::<Search>(
