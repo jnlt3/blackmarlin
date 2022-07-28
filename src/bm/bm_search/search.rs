@@ -47,8 +47,8 @@ const fn do_rev_fp(depth: u32) -> bool {
 }
 
 #[inline]
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    (depth as i16 - improving as i16) * 50
+const fn rev_fp(depth: u32, improving: bool, last_is_capture: bool) -> i16 {
+    (depth as i16 - improving as i16 + last_is_capture as i16) * 50
 }
 
 #[inline]
@@ -189,13 +189,15 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let last_is_capture = ply > 0 && local_context.search_stack()[ply as usize - 1].is_capture;
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving, last_is_capture) >= beta {
             return eval;
         }
 
@@ -209,6 +211,7 @@ pub fn search<Search: SearchType>(
         */
         if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
+            local_context.search_stack_mut()[ply as usize].is_capture = false;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
@@ -421,6 +424,7 @@ pub fn search<Search: SearchType>(
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
+        local_context.search_stack_mut()[ply as usize].is_capture = is_capture;
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension = extension.max(1);
