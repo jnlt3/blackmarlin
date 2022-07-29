@@ -48,7 +48,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 43 - improving as i16 * 26
+    depth as i16 * 40 - improving as i16 * 34
 }
 
 #[inline]
@@ -77,12 +77,12 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 56
+    depth as i16 * 54
 }
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 80
+    depth as i16 * 87
 }
 
 #[inline]
