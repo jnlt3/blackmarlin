@@ -48,7 +48,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 42 - improving as i16 * 33
+    depth as i16 * 41 - improving as i16 * 33
 }
 
 #[inline]
@@ -82,7 +82,7 @@ const fn fp(depth: u32) -> i16 {
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 94
+    depth as i16 * 97
 }
 
 #[inline]
@@ -358,7 +358,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 47 < s_beta {
+                    if !Search::PV && multi_cut && s_score + 46 < s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
@@ -377,7 +377,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 7;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 6;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -413,7 +413,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
