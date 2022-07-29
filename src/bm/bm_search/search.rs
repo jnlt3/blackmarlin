@@ -43,7 +43,7 @@ impl SearchType for NoNm {
 
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
-    depth < 7
+    depth <= 8
 }
 
 #[inline]
