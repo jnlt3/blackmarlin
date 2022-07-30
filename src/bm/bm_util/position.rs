@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
+use cozy_chess::{BitBoard, Board, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
@@ -92,21 +92,10 @@ impl Position {
         self.board().hash()
     }
 
-    pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
-        let piece_cnt = self.board().occupied().popcnt() as i16;
-
-        let clamped_eval = root_eval.raw().clamp(-100, 100);
-        let eval_bonus = if self.board().side_to_move() == stm {
-            piece_cnt * clamped_eval / 50
-        } else {
-            -piece_cnt * clamped_eval / 50
-        };
-
+    pub fn get_eval(&mut self) -> Evaluation {
         let frc_score = frc::frc_corner_bishop(self.board());
 
-        Evaluation::new(
-            self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus,
-        )
+        Evaluation::new(self.evaluator.feed_forward(self.board().side_to_move()) + frc_score)
     }
 
     pub fn insufficient_material(&self) -> bool {
