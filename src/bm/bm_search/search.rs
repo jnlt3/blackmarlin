@@ -43,12 +43,12 @@ impl SearchType for NoNm {
 
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
-    depth <= 6
+    depth <= 7
 }
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 41 - improving as i16 * 33
+    depth as i16 * 51 - improving as i16 * 39
 }
 
 #[inline]
@@ -77,17 +77,17 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 63
+    depth as i16 * 60
 }
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 97
+    depth as i16 * 79
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -h_table::MAX_VALUE * ((depth * depth) as i32) / 64
+    -((depth * depth) as i32) * 15 / 2
 }
 
 #[inline]
@@ -358,7 +358,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 46 < s_beta {
+                    if !Search::PV && multi_cut && s_score + 27 < s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
@@ -403,7 +403,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
