@@ -687,7 +687,7 @@ pub fn q_search(
             if stand_pat + see - q_see_threshold() >= beta {
                 return beta;
             }
-            if stand_pat + see + q_see_threshold() <= alpha {
+            if stand_pat + see <= alpha {
                 continue;
             }
             pos.make_move(make_move);
