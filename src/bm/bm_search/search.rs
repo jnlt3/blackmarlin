@@ -41,14 +41,25 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
+const RFP: i16 = 48;
+const RFP_IMPR: i16 = 11;
+const RFP_DEPTH: u32 = 8;
+const FP: i16 = 56;
+const FP_DEPTH: u32 = 6;
+const SEE_FP: i16 = 82;
+const SEE_FP_DEPTH: u32 = 8;
+const D_EXT: i16 = 25;
+const HP: i32 = 77;
+const HP_DEPTH: u32 = 8;
+
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
-    depth <= 7
+    depth <= RFP_DEPTH
 }
 
 #[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 51 - improving as i16 * 39
+    depth as i16 * RFP - improving as i16 * RFP_IMPR
 }
 
 #[inline]
@@ -77,17 +88,17 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 60
+    depth as i16 * FP
 }
 
 #[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 79
+    depth as i16 * SEE_FP
 }
 
 #[inline]
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 15 / 2
+    -((depth * depth) as i32) * HP / 10
 }
 
 #[inline]
@@ -358,7 +369,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 27 < s_beta {
+                    if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
@@ -377,7 +388,8 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 6;
+        let do_fp =
+            !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -403,7 +415,8 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8 && eval <= alpha;
+        let do_hp =
+            !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -413,7 +426,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
         if do_see_prune && eval + see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha {
             continue;
         }
