@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -52,6 +52,68 @@ const D_EXT: i16 = 21;
 const HP: i32 = 69;
 const HP_DEPTH: u32 = 7;
 
+fn threats(board: &Board) -> (BitBoard, BitBoard) {
+    let occupied = board.occupied();
+    let white = board.colors(Color::White);
+    let black = board.colors(Color::Black);
+
+    let pawns = board.pieces(Piece::Pawn);
+    let knights = board.pieces(Piece::Knight);
+    let bishops = board.pieces(Piece::Bishop);
+    let rooks = board.pieces(Piece::Rook);
+    let queens = board.pieces(Piece::Queen);
+
+    let minors = knights | bishops;
+    let majors = rooks | queens;
+    let pieces = minors | majors;
+
+    let mut w_pawn_attacks = BitBoard::EMPTY;
+    let mut b_pawn_attacks = BitBoard::EMPTY;
+    for pawn in pawns & white {
+        w_pawn_attacks |= cozy_chess::get_pawn_attacks(pawn, Color::White);
+    }
+    for pawn in pawns & black {
+        b_pawn_attacks |= cozy_chess::get_pawn_attacks(pawn, Color::Black);
+    }
+
+    let mut w_minor_attacks = BitBoard::EMPTY;
+    let mut b_minor_attacks = BitBoard::EMPTY;
+    for knight in knights & white {
+        w_minor_attacks |= cozy_chess::get_knight_moves(knight);
+    }
+    for knight in knights & black {
+        b_minor_attacks |= cozy_chess::get_knight_moves(knight);
+    }
+
+    for bishop in bishops & white {
+        w_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
+    }
+    for bishop in bishops & black {
+        b_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
+    }
+
+    let mut w_rook_attacks = BitBoard::EMPTY;
+    let mut b_rook_attacks = BitBoard::EMPTY;
+
+    for rook in rooks & white {
+        w_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
+    }
+    for rook in rooks & black {
+        b_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
+    }
+
+    let w_threats =
+        ((w_pawn_attacks & pieces) | (w_minor_attacks & majors) | (w_rook_attacks & queens))
+            & black;
+    let b_threats =
+        ((b_pawn_attacks & pieces) | (b_minor_attacks & majors) | (b_rook_attacks & queens))
+            & white;
+    match board.side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
+    }
+}
+
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
     depth <= RFP_DEPTH
@@ -63,10 +125,17 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
-fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
+fn do_nmp<Search: SearchType>(
+    board: &Board,
+    depth: u32,
+    eval: i16,
+    beta: i16,
+    nstm_threat: BitBoard,
+) -> bool {
     Search::NM
         && depth > 4
         && eval >= beta
+        && nstm_threat.is_empty()
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
@@ -200,6 +269,8 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let (_, nstm_threat) = threats(pos.board());
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -218,7 +289,9 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
+        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw(), nstm_threat)
+            && pos.null_move()
+        {
             local_context.search_stack_mut()[ply as usize].move_played = None;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
