@@ -42,14 +42,14 @@ impl SearchType for NoNm {
 }
 
 const RFP: i16 = 55;
-const RFP_IMPR: i16 = 47;
+const RFP_IMPR: i16 = 45;
 const RFP_DEPTH: u32 = 8;
-const FP: i16 = 59;
+const FP: i16 = 66;
 const FP_DEPTH: u32 = 6;
-const SEE_FP: i16 = 84;
-const SEE_FP_DEPTH: u32 = 8;
-const D_EXT: i16 = 21;
-const HP: i32 = 69;
+const SEE_FP: i16 = 83;
+const SEE_FP_DEPTH: u32 = 9;
+const D_EXT: i16 = 22;
+const HP: i32 = 70;
 const HP_DEPTH: u32 = 7;
 
 #[inline]
