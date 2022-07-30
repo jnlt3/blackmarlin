@@ -41,16 +41,16 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const RFP: i16 = 48;
-const RFP_IMPR: i16 = 11;
+const RFP: i16 = 55;
+const RFP_IMPR: i16 = 47;
 const RFP_DEPTH: u32 = 8;
-const FP: i16 = 56;
+const FP: i16 = 59;
 const FP_DEPTH: u32 = 6;
-const SEE_FP: i16 = 82;
+const SEE_FP: i16 = 84;
 const SEE_FP_DEPTH: u32 = 8;
-const D_EXT: i16 = 25;
-const HP: i32 = 77;
-const HP_DEPTH: u32 = 8;
+const D_EXT: i16 = 21;
+const HP: i32 = 69;
+const HP_DEPTH: u32 = 7;
 
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
