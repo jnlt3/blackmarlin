@@ -796,11 +796,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 100,
-        Piece::Knight => 300,
-        Piece::Bishop => 300,
-        Piece::Rook => 500,
-        Piece::Queen => 900,
+        Piece::Pawn => 97,
+        Piece::Knight => 324,
+        Piece::Bishop => 324,
+        Piece::Rook => 545,
+        Piece::Queen => 867,
         Piece::King => 20000,
     }
 }
