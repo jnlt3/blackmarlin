@@ -194,11 +194,16 @@ pub fn search<Search: SearchType>(
     };
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
-    let improving = if ply < 2 || in_check {
-        false
+    let (improving, eval_diff) = if ply < 2 || in_check {
+        (false, 0)
     } else {
-        eval > local_context.search_stack()[ply as usize - 2].eval
+        let eval_diff = eval - local_context.search_stack()[ply as usize - 2].eval;
+        (eval_diff.raw() > 0, eval_diff.raw())
     };
+
+    if eval_diff.abs() > 800 {
+        depth += 1;
+    }
 
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
