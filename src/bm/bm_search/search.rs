@@ -125,17 +125,10 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 #[inline]
-fn do_nmp<Search: SearchType>(
-    board: &Board,
-    depth: u32,
-    eval: i16,
-    beta: i16,
-    nstm_threat: BitBoard,
-) -> bool {
+fn do_nmp<Search: SearchType>(board: &Board, depth: u32, eval: i16, beta: i16) -> bool {
     Search::NM
         && depth > 4
         && eval >= beta
-        && nstm_threat.is_empty()
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
@@ -269,15 +262,14 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let (_, nstm_threat) = threats(pos.board());
-
     if !Search::PV && !in_check && skip_move.is_none() {
+        let (_, nstm_threat) = threats(pos.board());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
             return eval;
         }
 
@@ -289,9 +281,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw(), nstm_threat)
-            && pos.null_move()
-        {
+        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
             local_context.search_stack_mut()[ply as usize].move_played = None;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
