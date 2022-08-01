@@ -238,8 +238,27 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let stm = pos.board().side_to_move();
+
+    let nstm_threat = threats(pos.board(), !stm);
+    if depth >= 4 {
+        let stm_threat = threats(pos.board(), stm);
+
+        let pinned = pos.board().pinned();
+        let stm_pieces = pos.board().colors(stm);
+        let nstm_pieces = pos.board().colors(!stm);
+
+        let interest = stm_threat.popcnt() as i16 * -18
+            + nstm_threat.popcnt() as i16 * -9
+            + (pinned & stm_pieces).popcnt() as i16 * 21
+            + (pinned & nstm_pieces).popcnt() as i16 * 55;
+
+        if interest > depth as i16 * 17 {
+            depth += 1;
+        }
+    }
+
     if !Search::PV && !in_check && skip_move.is_none() {
-        let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
