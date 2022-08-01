@@ -238,6 +238,14 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    if depth >= 4 {
+        if local_context.nodes() % 2 == 0 {
+            depth -= 1;
+        } else {
+            depth += 1;
+        };
+    }
+
     if !Search::PV && !in_check && skip_move.is_none() {
         let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
         /*
