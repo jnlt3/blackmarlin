@@ -257,7 +257,10 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw()) && pos.null_move() {
+        if do_nmp::<Search>(pos.board(), depth, eval.raw(), beta.raw())
+            && nstm_threat.is_empty()
+            && pos.null_move()
+        {
             local_context.search_stack_mut()[ply as usize].move_played = None;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
