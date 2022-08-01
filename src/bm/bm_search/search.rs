@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -51,6 +51,44 @@ const SEE_FP_DEPTH: u32 = 8;
 const D_EXT: i16 = 21;
 const HP: i32 = 69;
 const HP_DEPTH: u32 = 7;
+
+fn threats(board: &Board, threats_of: Color) -> BitBoard {
+    let occupied = board.occupied();
+    let color = board.colors(threats_of);
+    let n_color = board.colors(!threats_of);
+
+    let pawns = board.pieces(Piece::Pawn);
+    let knights = board.pieces(Piece::Knight);
+    let bishops = board.pieces(Piece::Bishop);
+    let rooks = board.pieces(Piece::Rook);
+    let queens = board.pieces(Piece::Queen);
+
+    let minors = knights | bishops;
+    let majors = rooks | queens;
+    let pieces = minors | majors;
+
+    let mut pawn_attacks = BitBoard::EMPTY;
+    for pawn in pawns & color {
+        pawn_attacks |= cozy_chess::get_pawn_attacks(pawn, threats_of);
+    }
+
+    let mut minor_attacks = BitBoard::EMPTY;
+    for knight in knights & color {
+        minor_attacks |= cozy_chess::get_knight_moves(knight);
+    }
+
+    for bishop in bishops & color {
+        minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
+    }
+
+    let mut rook_attacks = BitBoard::EMPTY;
+
+    for rook in rooks & color {
+        rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
+    }
+
+    ((pawn_attacks & pieces) | (minor_attacks & majors) | (rook_attacks & queens)) & n_color
+}
 
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
@@ -201,12 +239,13 @@ pub fn search<Search: SearchType>(
     };
 
     if !Search::PV && !in_check && skip_move.is_none() {
+        let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
             return eval;
         }
 
