@@ -8,7 +8,6 @@ use super::search;
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
-const LOSING_CAPTURE: i16 = -(2_i16.pow(12));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -131,7 +130,6 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let see_score = see.unwrap_or_else(|| search::see::<16>(&board, *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
-                        *score += LOSING_CAPTURE;
                         continue;
                     }
                     max = *score;
