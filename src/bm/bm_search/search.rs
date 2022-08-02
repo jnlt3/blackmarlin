@@ -525,7 +525,7 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             if nstm_threat.has(make_move.from) {
-                reduction -= 1;
+                reduction -= 2;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
