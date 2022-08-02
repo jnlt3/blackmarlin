@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
 use arrayvec::ArrayVec;
@@ -87,6 +87,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         hist: &HistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
+        nstm_threat: BitBoard,
     ) -> Option<Move> {
         self.set_phase();
         if self.gen_type == GenType::PvMove {
@@ -178,6 +179,9 @@ impl<const K: usize> OrderedMoveGen<K> {
                             piece,
                             make_move.to,
                         );
+                    }
+                    if nstm_threat.has(make_move.from) {
+                        score += 64;
                     }
 
                     self.quiets.push((make_move, score));
