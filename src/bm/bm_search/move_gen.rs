@@ -181,7 +181,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                         );
                     }
                     if nstm_threat.has(make_move.from) {
-                        score += 64;
+                        score += 128;
                     }
 
                     self.quiets.push((make_move, score));
