@@ -245,8 +245,8 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
-        let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
@@ -441,8 +441,12 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp =
-            !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
+        let do_fp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && !nstm_threat.has(make_move.from)
+            && depth <= FP_DEPTH;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
