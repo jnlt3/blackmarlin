@@ -245,8 +245,8 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
-        let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
@@ -523,6 +523,9 @@ pub fn search<Search: SearchType>(
                 || killers.into_iter().any(|killer| killer == make_move)
             {
                 reduction -= 1;
+            }
+            if nstm_threat.has(make_move.from) {
+                reduction -= 2;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
