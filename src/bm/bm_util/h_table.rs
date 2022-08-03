@@ -63,16 +63,10 @@ impl ThreatHistoryTable {
         let to_index = to as usize;
 
         let mut hist = 0;
-        let mut cnt = 0;
         for threat in threats {
             hist += self.table[threat as usize][from_index][to_index];
-            cnt += 1;
         }
-        if cnt == 0 {
-            0
-        } else {
-            hist / cnt
-        }
+        hist
     }
 
     pub fn cutoff(
