@@ -170,7 +170,9 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    if nstm_threats.is_empty() {
+                        score += hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    }
                     score += t_hist.get(
                         board.side_to_move(),
                         make_move.from,
