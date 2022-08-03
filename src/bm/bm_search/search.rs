@@ -355,7 +355,9 @@ pub fn search<Search: SearchType>(
 
     while let Some(make_move) = move_gen.next(
         pos.board(),
+        nstm_threat,
         local_context.get_h_table(),
+        local_context.get_th_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
     ) {
@@ -614,6 +616,13 @@ pub fn search<Search: SearchType>(
                             killer_table[ply as usize].push(make_move);
                             local_context.get_h_table_mut().cutoff(
                                 pos.board(),
+                                make_move,
+                                &quiets,
+                                amt,
+                            );
+                            local_context.get_th_table_mut().cutoff(
+                                pos.board(),
+                                nstm_threat,
                                 make_move,
                                 &quiets,
                                 amt,

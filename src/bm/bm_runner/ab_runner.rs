@@ -9,7 +9,9 @@ use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::h_table::{CounterMoveTable, DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{
+    CounterMoveTable, DoubleMoveHistory, HistoryTable, ThreatHistoryTable,
+};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
@@ -96,6 +98,7 @@ pub struct LocalContext {
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     h_table: HistoryTable,
+    th_table: ThreatHistoryTable,
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
@@ -141,6 +144,11 @@ impl LocalContext {
     }
 
     #[inline]
+    pub fn get_th_table(&self) -> &ThreatHistoryTable {
+        &self.th_table
+    }
+
+    #[inline]
     pub fn get_ch_table(&self) -> &HistoryTable {
         &self.ch_table
     }
@@ -158,6 +166,11 @@ impl LocalContext {
     #[inline]
     pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
         &mut self.h_table
+    }
+
+    #[inline]
+    pub fn get_th_table_mut(&mut self) -> &mut ThreatHistoryTable {
+        &mut self.th_table
     }
 
     #[inline]
@@ -419,6 +432,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 h_table: HistoryTable::new(),
+                th_table: ThreatHistoryTable::new(),
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
