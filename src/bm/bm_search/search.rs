@@ -42,14 +42,14 @@ impl SearchType for NoNm {
 }
 
 const RFP: i16 = 54;
-const RFP_IMPR: i16 = 50;
-const RFP_DEPTH: u32 = 9;
-const FP: i16 = 65;
-const FP_DEPTH: u32 = 6;
-const SEE_FP: i16 = 85;
-const SEE_FP_DEPTH: u32 = 8;
-const D_EXT: i16 = 18;
-const HP: i32 = 70;
+const RFP_IMPR: i16 = 49;
+const RFP_DEPTH: u32 = 8;
+const FP: i16 = 62;
+const FP_DEPTH: u32 = 5;
+const SEE_FP: i16 = 81;
+const SEE_FP_DEPTH: u32 = 7;
+const D_EXT: i16 = 19;
+const HP: i32 = 71;
 const HP_DEPTH: u32 = 7;
 
 fn threats(board: &Board, threats_of: Color) -> BitBoard {
@@ -118,7 +118,7 @@ fn do_nmp<Search: SearchType>(
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 3 + depth / 3 + ((eval - beta) / 205) as u32;
+    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -148,12 +148,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 87
-}
-
-#[inline]
-const fn q_see_threshold() -> i16 {
-    198
+    history / 92
 }
 
 pub fn search<Search: SearchType>(
@@ -404,7 +399,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 4;
+                let multi_cut = depth >= 5;
                 let s_score = if multi_cut {
                     search::<Search::Zw>(
                         pos,
@@ -753,10 +748,10 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - q_see_threshold() >= beta {
+            if stand_pat + see - 193 >= beta {
                 return beta;
             }
-            if stand_pat + see + q_see_threshold() <= alpha {
+            if stand_pat + see + 196 <= alpha {
                 continue;
             }
             pos.make_move(make_move);
@@ -852,11 +847,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 95,
-        Piece::Knight => 320,
-        Piece::Bishop => 320,
-        Piece::Rook => 561,
-        Piece::Queen => 860,
+        Piece::Pawn => 96,
+        Piece::Knight => 323,
+        Piece::Bishop => 323,
+        Piece::Rook => 551,
+        Piece::Queen => 864,
         Piece::King => 20000,
     }
 }
