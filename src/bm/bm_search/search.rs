@@ -41,12 +41,12 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const RFP: i16 = 55;
-const RFP_IMPR: i16 = 48;
-const RFP_DEPTH: u32 = 8;
-const FP: i16 = 63;
+const RFP: i16 = 54;
+const RFP_IMPR: i16 = 50;
+const RFP_DEPTH: u32 = 9;
+const FP: i16 = 65;
 const FP_DEPTH: u32 = 6;
-const SEE_FP: i16 = 89;
+const SEE_FP: i16 = 85;
 const SEE_FP_DEPTH: u32 = 8;
 const D_EXT: i16 = 18;
 const HP: i32 = 70;
@@ -118,7 +118,7 @@ fn do_nmp<Search: SearchType>(
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
+    let r = 3 + depth / 3 + ((eval - beta) / 205) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -148,12 +148,12 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 82
+    history / 87
 }
 
 #[inline]
 const fn q_see_threshold() -> i16 {
-    200
+    198
 }
 
 pub fn search<Search: SearchType>(
@@ -852,11 +852,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 98,
-        Piece::Knight => 323,
-        Piece::Bishop => 323,
-        Piece::Rook => 559,
-        Piece::Queen => 863,
+        Piece::Pawn => 95,
+        Piece::Knight => 320,
+        Piece::Bishop => 320,
+        Piece::Rook => 561,
+        Piece::Queen => 860,
         Piece::King => 20000,
     }
 }
