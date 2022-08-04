@@ -42,14 +42,14 @@ impl SearchType for NoNm {
 }
 
 const RFP: i16 = 55;
-const RFP_IMPR: i16 = 47;
+const RFP_IMPR: i16 = 48;
 const RFP_DEPTH: u32 = 8;
-const FP: i16 = 59;
+const FP: i16 = 63;
 const FP_DEPTH: u32 = 6;
-const SEE_FP: i16 = 84;
+const SEE_FP: i16 = 89;
 const SEE_FP_DEPTH: u32 = 8;
-const D_EXT: i16 = 21;
-const HP: i32 = 69;
+const D_EXT: i16 = 18;
+const HP: i32 = 70;
 const HP_DEPTH: u32 = 7;
 
 fn threats(board: &Board, threats_of: Color) -> BitBoard {
@@ -118,7 +118,7 @@ fn do_nmp<Search: SearchType>(
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 3 + depth / 4 + ((eval - beta) / 200) as u32;
+    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -148,7 +148,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 80
+    history / 82
 }
 
 #[inline]
@@ -852,11 +852,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 97,
-        Piece::Knight => 324,
-        Piece::Bishop => 324,
-        Piece::Rook => 545,
-        Piece::Queen => 867,
+        Piece::Pawn => 98,
+        Piece::Knight => 323,
+        Piece::Bishop => 323,
+        Piece::Rook => 559,
+        Piece::Queen => 863,
         Piece::King => 20000,
     }
 }
