@@ -390,13 +390,13 @@ impl AbRunner {
                     if depth == 0 || mv == 0 {
                         0
                     } else {
-                        (2.0 + (depth as f32).ln() * (mv as f32).ln() / 1.75) as u32
+                        (2.01 + (depth as f32).ln() * (mv as f32).ln() / 1.79) as u32
                     }
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
-                    let mut x = 3.0 + depth as f32 * depth as f32;
+                    let mut x = 2.94 + depth as f32 * depth as f32;
                     if improving == 0 {
-                        x /= 2.0;
+                        x /= 2.07;
                     }
                     x as usize
                 })),
