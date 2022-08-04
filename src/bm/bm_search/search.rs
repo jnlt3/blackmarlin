@@ -357,7 +357,6 @@ pub fn search<Search: SearchType>(
         pos.board(),
         nstm_threat,
         local_context.get_h_table(),
-        local_context.get_th_table(),
         local_context.get_ch_table(),
         local_context.get_cm_hist(),
     ) {
@@ -383,6 +382,7 @@ pub fn search<Search: SearchType>(
                 pos.board().side_to_move(),
                 make_move.from,
                 make_move.to,
+                nstm_threat.into_iter().next(),
             )
         };
 
@@ -616,13 +616,7 @@ pub fn search<Search: SearchType>(
                             killer_table[ply as usize].push(make_move);
                             local_context.get_h_table_mut().cutoff(
                                 pos.board(),
-                                make_move,
-                                &quiets,
-                                amt,
-                            );
-                            local_context.get_th_table_mut().cutoff(
-                                pos.board(),
-                                nstm_threat,
+                                nstm_threat.into_iter().next(),
                                 make_move,
                                 &quiets,
                                 amt,

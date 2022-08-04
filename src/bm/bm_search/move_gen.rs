@@ -85,8 +85,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         &mut self,
         board: &Board,
         nstm_threats: BitBoard,
-        hist: &HistoryTable,
-        t_hist: &ThreatHistoryTable,
+        hist: &ThreatHistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
     ) -> Option<Move> {
@@ -170,12 +169,11 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(board.side_to_move(), make_move.from, make_move.to);
-                    score += t_hist.get(
+                    score += hist.get(
                         board.side_to_move(),
                         make_move.from,
                         make_move.to,
-                        nstm_threats,
+                        nstm_threats.into_iter().next(),
                     );
                     if let Some(prev_move) = self.prev_move {
                         let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);

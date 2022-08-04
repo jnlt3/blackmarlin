@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, Move, Piece, Square};
+use cozy_chess::{Board, Color, Move, Piece, Square};
 
 pub const MAX_VALUE: i32 = 512;
 const SQUARE_COUNT: usize = 64;
@@ -48,56 +48,53 @@ impl HistoryTable {
 
 #[derive(Debug, Clone)]
 pub struct ThreatHistoryTable {
-    table: Box<[[[i16; SQUARE_COUNT]; SQUARE_COUNT * 2]; SQUARE_COUNT]>,
+    table: Box<[[[i16; SQUARE_COUNT]; SQUARE_COUNT * 2]; SQUARE_COUNT + 1]>,
 }
 
 impl ThreatHistoryTable {
     pub fn new() -> Self {
         Self {
-            table: Box::new([[[0_i16; SQUARE_COUNT]; SQUARE_COUNT * 2]; SQUARE_COUNT]),
+            table: Box::new([[[0_i16; SQUARE_COUNT]; SQUARE_COUNT * 2]; SQUARE_COUNT + 1]),
         }
     }
 
-    pub fn get(&self, color: Color, from: Square, to: Square, threats: BitBoard) -> i16 {
+    pub fn get(&self, color: Color, from: Square, to: Square, threat: Option<Square>) -> i16 {
         let from_index = sq_index(color, from);
         let to_index = to as usize;
+        let threat_index = threat.map_or(64, |threat| threat as usize);
 
-        let mut hist = 0;
-        for threat in threats {
-            hist += self.table[threat as usize][from_index][to_index];
-        }
-        hist
+        self.table[threat_index][from_index][to_index]
     }
 
     pub fn cutoff(
         &mut self,
         board: &Board,
-        threats: BitBoard,
+        threat: Option<Square>,
         make_move: Move,
         fails: &[Move],
         amt: u32,
     ) {
         let index = sq_index(board.side_to_move(), make_move.from);
         let to_index = make_move.to as usize;
-        for threat in threats {
-            let value = self.table[threat as usize][index][to_index];
-            let change = ((amt * amt) as i16).min(MAX_VALUE as i16);
+        let threat_index = threat.map_or(64, |threat| threat as usize);
+
+        let value = self.table[threat_index][index][to_index];
+        let change = ((amt * amt) as i16).min(MAX_VALUE as i16);
+        let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+
+        let increment = change - decay;
+
+        self.table[threat_index][index][to_index] += increment;
+
+        for &quiet in fails {
+            let index = sq_index(board.side_to_move(), quiet.from);
+            let to_index = quiet.to as usize;
+
+            let value = self.table[threat_index][index][to_index];
             let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
+            let decrement = change + decay;
 
-            let increment = change - decay;
-
-            self.table[threat as usize][index][to_index] += increment;
-
-            for &quiet in fails {
-                let index = sq_index(board.side_to_move(), quiet.from);
-                let to_index = quiet.to as usize;
-
-                let value = self.table[threat as usize][index][to_index];
-                let decay = (change as i32 * value as i32 / MAX_VALUE) as i16;
-                let decrement = change + decay;
-
-                self.table[threat as usize][index][to_index] -= decrement;
-            }
+            self.table[threat_index][index][to_index] -= decrement;
         }
     }
 }

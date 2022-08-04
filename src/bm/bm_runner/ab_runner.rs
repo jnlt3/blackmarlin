@@ -97,8 +97,7 @@ pub struct LocalContext {
     stm: Color,
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
-    h_table: HistoryTable,
-    th_table: ThreatHistoryTable,
+    h_table: ThreatHistoryTable,
     ch_table: HistoryTable,
     cm_table: CounterMoveTable,
     cm_hist: DoubleMoveHistory,
@@ -139,13 +138,8 @@ impl SharedContext {
 
 impl LocalContext {
     #[inline]
-    pub fn get_h_table(&self) -> &HistoryTable {
+    pub fn get_h_table(&self) -> &ThreatHistoryTable {
         &self.h_table
-    }
-
-    #[inline]
-    pub fn get_th_table(&self) -> &ThreatHistoryTable {
-        &self.th_table
     }
 
     #[inline]
@@ -164,13 +158,8 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_h_table_mut(&mut self) -> &mut HistoryTable {
+    pub fn get_h_table_mut(&mut self) -> &mut ThreatHistoryTable {
         &mut self.h_table
-    }
-
-    #[inline]
-    pub fn get_th_table_mut(&mut self) -> &mut ThreatHistoryTable {
-        &mut self.th_table
     }
 
     #[inline]
@@ -431,8 +420,7 @@ impl AbRunner {
                     MAX_PLY as usize + 1
                 ],
                 sel_depth: 0,
-                h_table: HistoryTable::new(),
-                th_table: ThreatHistoryTable::new(),
+                h_table: ThreatHistoryTable::new(),
                 ch_table: HistoryTable::new(),
                 cm_table: CounterMoveTable::new(),
                 cm_hist: DoubleMoveHistory::new(),
