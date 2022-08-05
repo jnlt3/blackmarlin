@@ -43,14 +43,14 @@ impl SearchType for NoNm {
 
 const RFP: i16 = 54;
 const RFP_IMPR: i16 = 49;
-const RFP_DEPTH: u32 = 8;
-const FP: i16 = 62;
+const RFP_DEPTH: u32 = 9;
+const FP: i16 = 64;
 const FP_DEPTH: u32 = 5;
-const SEE_FP: i16 = 81;
-const SEE_FP_DEPTH: u32 = 7;
-const D_EXT: i16 = 19;
+const SEE_FP: i16 = 88;
+const SEE_FP_DEPTH: u32 = 8;
+const D_EXT: i16 = 16;
 const HP: i32 = 71;
-const HP_DEPTH: u32 = 7;
+const HP_DEPTH: u32 = 6;
 
 fn threats(board: &Board, threats_of: Color) -> BitBoard {
     let occupied = board.occupied();
@@ -110,7 +110,7 @@ fn do_nmp<Search: SearchType>(
 ) -> bool {
     Search::NM
         && depth > 4
-        && !(nstm_threat && depth <= 8)
+        && !(nstm_threat && depth <= 7)
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
@@ -118,7 +118,7 @@ fn do_nmp<Search: SearchType>(
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
+    let r = 4 + depth / 3 + ((eval - beta) / 193) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -148,7 +148,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 92
+    history / 94
 }
 
 pub fn search<Search: SearchType>(
@@ -748,10 +748,10 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - 193 >= beta {
+            if stand_pat + see - 184 >= beta {
                 return beta;
             }
-            if stand_pat + see + 196 <= alpha {
+            if stand_pat + see + 195 <= alpha {
                 continue;
             }
             pos.make_move(make_move);
@@ -847,11 +847,11 @@ pub fn see<const N: usize>(board: &Board, make_move: Move) -> i16 {
 
 fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 96,
+        Piece::Pawn => 95,
         Piece::Knight => 323,
         Piece::Bishop => 323,
-        Piece::Rook => 551,
-        Piece::Queen => 864,
+        Piece::Rook => 552,
+        Piece::Queen => 863,
         Piece::King => 20000,
     }
 }
