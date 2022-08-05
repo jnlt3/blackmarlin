@@ -1,6 +1,6 @@
-use cozy_chess::{Board, Move, Piece, PieceMoves};
+use cozy_chess::{Board, Move, Piece, PieceMoves, Square};
 
-use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable};
+use crate::bm::bm_util::h_table::{DoubleMoveHistory, HistoryTable, ThreatHistoryTable};
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
@@ -84,7 +84,8 @@ impl<const K: usize> OrderedMoveGen<K> {
     pub fn next(
         &mut self,
         board: &Board,
-        hist: &HistoryTable,
+        threat: Option<Square>,
+        hist: &ThreatHistoryTable,
         c_hist: &HistoryTable,
         cm_hist: &DoubleMoveHistory,
     ) -> Option<Move> {
@@ -168,7 +169,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let mut score = 0;
                     let piece = board.piece_on(make_move.from).unwrap();
 
-                    score += hist.get(board.side_to_move(), make_move.from, make_move.to);
+                    score += hist.get(board.side_to_move(), make_move.from, make_move.to, threat);
                     if let Some(prev_move) = self.prev_move {
                         let prev_move_piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
                         score += cm_hist.get(
