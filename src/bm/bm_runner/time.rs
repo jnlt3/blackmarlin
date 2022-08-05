@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 42;
-const MOVE_CHANGE_MARGIN: f32 = 9.3;
+const EXPECTED_MOVES: u32 = 39;
+const MOVE_CHANGE_MARGIN: f32 = 8.5;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -107,13 +107,13 @@ impl TimeManager {
             self.same_move_depth.fetch_add(1, Ordering::SeqCst)
         };
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
+        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 38.0;
 
-        time *= 1.06_f32.powf(eval_diff.min(1.02));
+        time *= 1.08_f32.powf(eval_diff.min(1.06));
 
-        let move_change_factor = 1.07_f32
+        let move_change_factor = 1.08_f32
             .powf(MOVE_CHANGE_MARGIN - move_change_depth as f32)
-            .max(0.39);
+            .max(0.34);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
@@ -225,7 +225,7 @@ impl TimeManager {
             true
         } else {
             let abort_std = self.target_duration.load(Ordering::SeqCst)
-                < (start.elapsed().as_millis() * 81 / 100) as u32
+                < (start.elapsed().as_millis() * 85 / 100) as u32
                 && !self.infinite.load(Ordering::SeqCst);
             abort_std
                 || self.max_depth.load(Ordering::SeqCst) < depth
