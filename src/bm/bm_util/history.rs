@@ -111,7 +111,7 @@ impl History {
                 let to = make_move.to as usize;
                 malus(
                     &mut self.counter_move[stm][prev_piece][prev_to][piece][to],
-                    -amt,
+                    amt,
                 );
             }
         }
