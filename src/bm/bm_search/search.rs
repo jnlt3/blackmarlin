@@ -317,12 +317,12 @@ pub fn search<Search: SearchType>(
     let mut highest_score = None;
 
     let prev_move = if ply != 0 {
-        Some(local_context.search_stack()[ply as usize - 1].move_played)
+        local_context.search_stack()[ply as usize - 1].move_played
     } else {
         None
     };
 
-    let counter_move = if let Some(Some(prev_move)) = prev_move {
+    let counter_move = if let Some(prev_move) = prev_move {
         local_context.get_cm_table().get(
             pos.board().side_to_move(),
             pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
@@ -337,7 +337,7 @@ pub fn search<Search: SearchType>(
         pos.board(),
         best_move,
         counter_move,
-        prev_move.unwrap_or(None),
+        prev_move,
         killers.into_iter(),
     );
 
@@ -347,12 +347,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    while let Some(make_move) = move_gen.next(
-        pos.board(),
-        local_context.get_h_table(),
-        local_context.get_ch_table(),
-        local_context.get_cm_hist(),
-    ) {
+    while let Some(make_move) = move_gen.next(pos, local_context.get_hist()) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -365,17 +360,9 @@ pub fn search<Search: SearchType>(
             .has(make_move.to);
 
         let h_score = if is_capture {
-            local_context.get_ch_table().get(
-                pos.board().side_to_move(),
-                make_move.from,
-                make_move.to,
-            )
+            local_context.get_hist().get_capture(pos, make_move)
         } else {
-            local_context.get_h_table().get(
-                pos.board().side_to_move(),
-                make_move.from,
-                make_move.to,
-            )
+            local_context.get_hist().get_quiet(pos, make_move)
         };
 
         let mut extension = 0;
@@ -606,34 +593,24 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
-                            local_context.get_h_table_mut().cutoff(
-                                pos.board(),
-                                make_move,
-                                &quiets,
-                                amt,
-                            );
-                            if let Some(Some(prev_move)) = prev_move {
+                            local_context
+                                .get_hist_mut()
+                                .update_quiet(pos, make_move, &quiets, amt as i16);
+                            if let Some(prev_move) = prev_move {
+                                local_context.get_hist_mut().update_counter_move(
+                                    pos, make_move, &quiets, prev_move, amt as i16,
+                                );
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
                                     prev_move,
                                     make_move,
                                     amt,
                                 );
-                                local_context.get_cm_hist_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                    &quiets,
-                                    amt,
-                                );
                             }
                         } else {
-                            local_context.get_ch_table_mut().cutoff(
-                                pos.board(),
-                                make_move,
-                                &captures,
-                                amt,
-                            );
+                            local_context
+                                .get_hist_mut()
+                                .update_capture(pos, make_move, &captures, amt as i16)
                         }
                     }
                     break;
@@ -737,7 +714,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QuiescenceSearchMoveGen::new();
-    while let Some((make_move, see)) = move_gen.next(pos.board(), local_context.get_ch_table()) {
+    while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())
