@@ -595,8 +595,11 @@ pub fn search<Search: SearchType>(
                             killer_table[ply as usize].push(make_move);
                             local_context
                                 .get_hist_mut()
-                                .update_quiet(pos, make_move, &quiets, prev_move, amt as i16);
+                                .update_quiet(pos, make_move, &quiets, amt as i16);
                             if let Some(prev_move) = prev_move {
+                                local_context.get_hist_mut().update_counter_move(
+                                    pos, make_move, &quiets, prev_move, amt as i16,
+                                );
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
                                     prev_move,
