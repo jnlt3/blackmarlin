@@ -1,5 +1,5 @@
 use super::position::Position;
-use cozy_chess::Move;
+use cozy_chess::{Move, Piece};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -65,11 +65,7 @@ impl History {
         let stm = pos.board().side_to_move() as usize;
         let current_piece = pos.board().piece_on(make_move.from).unwrap() as usize;
         let current_to = make_move.to as usize;
-        let prev_piece = pos
-            .prev_board::<1>()
-            .unwrap()
-            .piece_on(prev_move.from)
-            .unwrap() as usize;
+        let prev_piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King) as usize;
         let prev_to = prev_move.to as usize;
         self.counter_move[stm][prev_piece][prev_to][current_piece][current_to]
     }
@@ -92,15 +88,11 @@ impl History {
         for make_move in fails {
             let from = make_move.from as usize;
             let to = make_move.to as usize;
-            malus(&mut self.quiet[stm][from][to], -amt);
+            malus(&mut self.quiet[stm][from][to], amt);
         }
 
         if let Some(prev_move) = prev_move {
-            let prev_piece = pos
-                .prev_board::<1>()
-                .unwrap()
-                .piece_on(prev_move.from)
-                .unwrap() as usize;
+            let prev_piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King) as usize;
             let prev_to = prev_move.to as usize;
             bonus(
                 &mut self.counter_move[stm][prev_piece][prev_to][piece][to],

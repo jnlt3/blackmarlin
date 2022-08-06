@@ -56,14 +56,6 @@ impl Position {
         &self.current
     }
 
-    pub fn prev_board<const BACK: usize>(&self) -> Option<&Board> {
-        if BACK == 0 {
-            Some(self.board())
-        } else {
-            self.boards.get(self.boards.len() - BACK)
-        }
-    }
-
     pub fn len(&self) -> usize {
         self.boards.len() + 1
     }

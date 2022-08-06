@@ -607,7 +607,7 @@ pub fn search<Search: SearchType>(
                         } else {
                             local_context
                                 .get_hist_mut()
-                                .update_capture(pos, make_move, &quiets, amt as i16)
+                                .update_capture(pos, make_move, &captures, amt as i16)
                         }
                     }
                     break;
