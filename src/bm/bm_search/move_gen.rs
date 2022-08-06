@@ -30,6 +30,7 @@ pub struct OrderedMoveGen<const K: usize> {
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
     prev_move: Option<Move>,
+    prev_stm_move: Option<Move>,
     gen_type: GenType,
 
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
@@ -43,6 +44,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         pv_move: Option<Move>,
         counter_move: Option<Move>,
         prev_move: Option<Move>,
+        prev_stm_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
         let mut move_list = ArrayVec::new();
@@ -55,6 +57,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             move_list,
             counter_move,
             prev_move,
+            prev_stm_move,
             pv_move,
             killer_entry,
             captures: ArrayVec::new(),
@@ -165,6 +168,9 @@ impl<const K: usize> OrderedMoveGen<K> {
                     score += hist.get_quiet(pos, make_move);
                     if let Some(prev_move) = self.prev_move {
                         score += hist.get_counter_move_hist(pos, prev_move, make_move);
+                    }
+                    if let Some(prev_stm_move) = self.prev_stm_move {
+                        score += hist.get_followup_move_hist(pos, prev_stm_move, make_move);
                     }
 
                     self.quiets.push((make_move, score));

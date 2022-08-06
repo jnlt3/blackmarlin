@@ -321,6 +321,11 @@ pub fn search<Search: SearchType>(
     } else {
         None
     };
+    let prev_stm_move = if ply > 1 {
+        local_context.search_stack()[ply as usize - 2].move_played
+    } else {
+        None
+    };
 
     let counter_move = if let Some(prev_move) = prev_move {
         local_context.get_cm_table().get(
@@ -338,6 +343,7 @@ pub fn search<Search: SearchType>(
         best_move,
         counter_move,
         prev_move,
+        prev_stm_move,
         killers.into_iter(),
     );
 
@@ -605,6 +611,15 @@ pub fn search<Search: SearchType>(
                                     prev_move,
                                     make_move,
                                     amt,
+                                );
+                            }
+                            if let Some(prev_stm_move) = prev_stm_move {
+                                local_context.get_hist_mut().update_followup_move(
+                                    pos,
+                                    make_move,
+                                    &quiets,
+                                    prev_stm_move,
+                                    amt as i16,
                                 );
                             }
                         } else {
