@@ -56,6 +56,11 @@ impl Position {
         &self.current
     }
 
+    #[inline]
+    pub fn prev_board(&self, back: usize) -> Option<&Board> {
+        self.boards.get(self.boards.len() - back)
+    }
+
     pub fn len(&self) -> usize {
         self.boards.len() + 1
     }

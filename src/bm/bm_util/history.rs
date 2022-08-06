@@ -33,6 +33,7 @@ pub struct History {
     quiet: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
     capture: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; SIDE_TO_MOVE]>,
+    followup_move: Box<[PieceTo<PieceTo<i16>>; SIDE_TO_MOVE]>,
 }
 
 impl History {
@@ -41,6 +42,7 @@ impl History {
             quiet: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
             capture: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
             counter_move: Box::new([[[[[0; SQUARE]; PIECE]; SQUARE]; PIECE]; SIDE_TO_MOVE]),
+            followup_move: Box::new([[[[[0; SQUARE]; PIECE]; SQUARE]; PIECE]; SIDE_TO_MOVE]),
         }
     }
 
@@ -68,6 +70,27 @@ impl History {
         let prev_piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King) as usize;
         let prev_to = prev_move.to as usize;
         self.counter_move[stm][prev_piece][prev_to][current_piece][current_to]
+    }
+
+    pub fn get_followup_move_hist(
+        &self,
+        pos: &Position,
+        prev_stm_move: Move,
+        make_move: Move,
+    ) -> i16 {
+        if pos.len() == 0 {
+            return 0;
+        }
+        let stm = pos.board().side_to_move() as usize;
+        let current_piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+        let current_to = make_move.to as usize;
+        let prev_piece = pos
+            .prev_board(1)
+            .unwrap()
+            .piece_on(prev_stm_move.to)
+            .unwrap_or(Piece::King) as usize;
+        let prev_to = prev_stm_move.to as usize;
+        self.followup_move[stm][prev_piece][prev_to][current_piece][current_to]
     }
 
     pub fn update_quiet(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
@@ -108,6 +131,39 @@ impl History {
             let to = make_move.to as usize;
             malus(
                 &mut self.counter_move[stm][prev_piece][prev_to][piece][to],
+                amt,
+            );
+        }
+    }
+    
+    pub fn update_followup_move(
+        &mut self,
+        pos: &Position,
+        make_move: Move,
+        fails: &[Move],
+        prev_stm_move: Move,
+        amt: i16,
+    ) {
+        let stm = pos.board().side_to_move() as usize;
+
+        let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+        let to = make_move.to as usize;
+
+        let prev_piece = pos
+            .prev_board(1)
+            .unwrap()
+            .piece_on(prev_stm_move.to)
+            .unwrap_or(Piece::King) as usize;
+        let prev_to = prev_stm_move.to as usize;
+        bonus(
+            &mut self.followup_move[stm][prev_piece][prev_to][piece][to],
+            amt,
+        );
+        for make_move in fails {
+            let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+            let to = make_move.to as usize;
+            malus(
+                &mut self.followup_move[stm][prev_piece][prev_to][piece][to],
                 amt,
             );
         }
