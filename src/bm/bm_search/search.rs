@@ -464,12 +464,8 @@ pub fn search<Search: SearchType>(
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
         }
-        let do_chp = !Search::PV
-            && non_mate_line
-            && moves_seen > 0
-            && !is_capture
-            && depth <= CHP_DEPTH
-            && eval <= alpha;
+        let do_chp =
+            !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= CHP_DEPTH;
 
         if do_chp && (c_hist as i32) < hp(depth) {
             continue;
