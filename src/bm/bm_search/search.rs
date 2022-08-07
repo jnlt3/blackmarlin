@@ -321,6 +321,11 @@ pub fn search<Search: SearchType>(
     } else {
         None
     };
+    let prev_stm_move = if ply > 1 {
+        local_context.search_stack()[ply as usize - 2].move_played
+    } else {
+        None
+    };
 
     let counter_move = if let Some(prev_move) = prev_move {
         local_context.get_cm_table().get(
@@ -342,7 +347,9 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let mut hist = local_context.get_hist_mut().fetch_hist(pos, prev_move);
+    let mut hist = local_context
+        .get_hist_mut()
+        .fetch_hist(pos, prev_move, prev_stm_move);
     while let Some(make_move) = move_gen.next(pos, hist) {
         if Some(make_move) == skip_move {
             continue;
@@ -704,7 +711,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QuiescenceSearchMoveGen::new();
-    let hist = local_context.get_hist_mut().fetch_hist(pos, None);
+    let hist = local_context.get_hist_mut().fetch_hist(pos, None, None);
     while let Some((make_move, see)) = move_gen.next(pos, hist) {
         let is_capture = pos
             .board()

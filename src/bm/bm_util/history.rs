@@ -33,6 +33,7 @@ pub struct HistoryFetched {
     quiet: *mut Butterfly<i16>,
     capture: *mut Butterfly<i16>,
     counter_move: Option<*mut PieceTo<i16>>,
+    followup_move: Option<*mut PieceTo<i16>>,
 }
 
 impl HistoryFetched {
@@ -48,6 +49,17 @@ impl HistoryFetched {
         if let Some(counter_move) = self.counter_move {
             unsafe {
                 (*counter_move)[pos.board().piece_on(make_move.from).unwrap() as usize]
+                    [make_move.to as usize]
+            }
+        } else {
+            0
+        }
+    }
+
+    pub fn get_followup_move(&self, pos: &Position, make_move: Move) -> i16 {
+        if let Some(followup_move) = self.followup_move {
+            unsafe {
+                (*followup_move)[pos.board().piece_on(make_move.from).unwrap() as usize]
                     [make_move.to as usize]
             }
         } else {
@@ -75,6 +87,15 @@ impl HistoryFetched {
                     malus(&mut (*counter_move)[piece][to], amt);
                 }
             }
+            if let Some(followup_move) = self.followup_move {
+                let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+                bonus(&mut (*followup_move)[piece][to], amt);
+                for make_move in fails {
+                    let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+                    let to = make_move.to as usize;
+                    malus(&mut (*followup_move)[piece][to], amt);
+                }
+            }
         }
     }
 
@@ -98,6 +119,7 @@ pub struct History {
     quiet: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
     capture: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; SIDE_TO_MOVE]>,
+    followup_move: Box<[PieceTo<PieceTo<i16>>; SIDE_TO_MOVE]>,
 }
 
 impl History {
@@ -106,11 +128,17 @@ impl History {
             quiet: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
             capture: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
             counter_move: Box::new([[[[[0; SQUARE]; PIECE]; SQUARE]; PIECE]; SIDE_TO_MOVE]),
+            followup_move: Box::new([[[[[0; SQUARE]; PIECE]; SQUARE]; PIECE]; SIDE_TO_MOVE]),
         }
     }
 
     #[inline(never)]
-    pub fn fetch_hist(&mut self, pos: &Position, prev_move: Option<Move>) -> HistoryFetched {
+    pub fn fetch_hist(
+        &mut self,
+        pos: &Position,
+        prev_move: Option<Move>,
+        prev_stm_move: Option<Move>,
+    ) -> HistoryFetched {
         let stm = pos.board().side_to_move() as usize;
         let quiet = &mut self.quiet[stm] as *mut _;
         let capture = &mut self.capture[stm] as *mut _;
@@ -120,10 +148,21 @@ impl History {
         } else {
             None
         };
+        let followup_move = if let Some(prev_stm_move) = prev_stm_move {
+            let piece = pos
+                .prev_board(1)
+                .unwrap()
+                .piece_on(prev_stm_move.to)
+                .unwrap_or(Piece::King);
+            Some(&mut self.followup_move[stm][piece as usize][prev_stm_move.to as usize] as *mut _)
+        } else {
+            None
+        };
         HistoryFetched {
             quiet,
             capture,
             counter_move,
+            followup_move,
         }
     }
 }
