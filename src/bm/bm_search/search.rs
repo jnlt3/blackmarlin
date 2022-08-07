@@ -50,6 +50,7 @@ const SEE_FP_DEPTH: u32 = 7;
 const D_EXT: i16 = 19;
 const HP: i32 = 71;
 const HP_DEPTH: u32 = 7;
+const CHP_DEPTH: u32 = 4;
 
 fn threats(board: &Board, threats_of: Color) -> BitBoard {
     let occupied = board.occupied();
@@ -463,8 +464,14 @@ pub fn search<Search: SearchType>(
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
         }
+        let do_chp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && depth <= CHP_DEPTH
+            && eval <= alpha;
 
-        if do_hp && !is_capture && (c_hist as i32) < hp(depth) {
+        if do_chp && (c_hist as i32) < hp(depth) {
             continue;
         }
 
