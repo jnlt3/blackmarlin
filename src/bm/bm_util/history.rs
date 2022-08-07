@@ -28,6 +28,71 @@ fn malus(hist: &mut i16, amt: i16) {
     *hist -= decrement;
 }
 
+#[derive(Copy, Clone)]
+pub struct HistoryFetched {
+    quiet: *mut Butterfly<i16>,
+    capture: *mut Butterfly<i16>,
+    counter_move: Option<*mut PieceTo<i16>>,
+}
+
+impl HistoryFetched {
+    pub fn get_quiet(&self, make_move: Move) -> i16 {
+        unsafe { (*self.quiet)[make_move.from as usize][make_move.to as usize] }
+    }
+
+    pub fn get_capture(&self, make_move: Move) -> i16 {
+        unsafe { (*self.capture)[make_move.from as usize][make_move.to as usize] }
+    }
+
+    pub fn get_counter_move(&self, pos: &Position, make_move: Move) -> i16 {
+        if let Some(counter_move) = self.counter_move {
+            unsafe {
+                (*counter_move)[pos.board().piece_on(make_move.from).unwrap() as usize]
+                    [make_move.to as usize]
+            }
+        } else {
+            0
+        }
+    }
+
+    pub fn update_quiet(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
+        let from = make_move.from as usize;
+        let to = make_move.to as usize;
+
+        unsafe {
+            bonus(&mut (*self.quiet)[from][to], amt);
+            for make_move in fails {
+                let from = make_move.from as usize;
+                let to = make_move.to as usize;
+                malus(&mut (*self.quiet)[from][to], amt);
+            }
+            if let Some(counter_move) = self.counter_move {
+                let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+                bonus(&mut (*counter_move)[piece][to], amt);
+                for make_move in fails {
+                    let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
+                    let to = make_move.to as usize;
+                    malus(&mut (*counter_move)[piece][to], amt);
+                }
+            }
+        }
+    }
+
+    pub fn update_captures(&mut self, make_move: Move, fails: &[Move], amt: i16) {
+        let from = make_move.from as usize;
+        let to = make_move.to as usize;
+
+        unsafe {
+            bonus(&mut (*self.capture)[from][to], amt);
+            for make_move in fails {
+                let from = make_move.from as usize;
+                let to = make_move.to as usize;
+                malus(&mut (*self.capture)[from][to], amt);
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
@@ -44,84 +109,21 @@ impl History {
         }
     }
 
-    pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
-        let stm = pos.board().side_to_move();
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-        self.quiet[stm as usize][from][to]
-    }
-
-    pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
-        let stm = pos.board().side_to_move();
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-        self.capture[stm as usize][from][to]
-    }
-
-    pub fn get_counter_move_hist(&self, pos: &Position, prev_move: Move, make_move: Move) -> i16 {
-        if pos.len() == 0 {
-            return 0;
-        }
+    #[inline(never)]
+    pub fn fetch_hist(&mut self, pos: &Position, prev_move: Option<Move>) -> HistoryFetched {
         let stm = pos.board().side_to_move() as usize;
-        let current_piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-        let current_to = make_move.to as usize;
-        let prev_piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King) as usize;
-        let prev_to = prev_move.to as usize;
-        self.counter_move[stm][prev_piece][prev_to][current_piece][current_to]
-    }
-
-    pub fn update_quiet(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
-        let stm = pos.board().side_to_move() as usize;
-
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-
-        bonus(&mut self.quiet[stm][from][to], amt);
-        for make_move in fails {
-            let from = make_move.from as usize;
-            let to = make_move.to as usize;
-            malus(&mut self.quiet[stm][from][to], amt);
-        }
-    }
-
-    pub fn update_counter_move(
-        &mut self,
-        pos: &Position,
-        make_move: Move,
-        fails: &[Move],
-        prev_move: Move,
-        amt: i16,
-    ) {
-        let stm = pos.board().side_to_move() as usize;
-
-        let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-        let to = make_move.to as usize;
-
-        let prev_piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King) as usize;
-        let prev_to = prev_move.to as usize;
-        bonus(
-            &mut self.counter_move[stm][prev_piece][prev_to][piece][to],
-            amt,
-        );
-        for make_move in fails {
-            let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-            let to = make_move.to as usize;
-            malus(
-                &mut self.counter_move[stm][prev_piece][prev_to][piece][to],
-                amt,
-            );
-        }
-    }
-
-    pub fn update_capture(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
-        let stm = pos.board().side_to_move() as usize;
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-        bonus(&mut self.capture[stm][from][to], amt);
-        for make_move in fails {
-            let from = make_move.from as usize;
-            let to = make_move.to as usize;
-            malus(&mut self.capture[stm][from][to], amt);
+        let quiet = &mut self.quiet[stm] as *mut _;
+        let capture = &mut self.capture[stm] as *mut _;
+        let counter_move = if let Some(prev_move) = prev_move {
+            let piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King);
+            Some(&mut self.counter_move[stm][piece as usize][prev_move.to as usize] as *mut _)
+        } else {
+            None
+        };
+        HistoryFetched {
+            quiet,
+            capture,
+            counter_move,
         }
     }
 }
