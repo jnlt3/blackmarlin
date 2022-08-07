@@ -44,6 +44,14 @@ impl History {
         }
     }
 
+    pub fn get_all_quiet(&self, pos: &Position, make_move: Move, prev_move: Option<Move>) -> i16 {
+        let mut value = self.get_quiet(pos, make_move);
+        if let Some(prev_move) = prev_move {
+            value += self.get_counter_move_hist(pos, prev_move, make_move);
+        }
+        value / 2
+    }
+
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         let from = make_move.from as usize;

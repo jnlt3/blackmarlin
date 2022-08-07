@@ -362,7 +362,9 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            local_context.get_hist().get_quiet(pos, make_move)
+            local_context
+                .get_hist()
+                .get_all_quiet(pos, make_move, prev_move)
         };
 
         let mut extension = 0;
