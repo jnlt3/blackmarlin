@@ -126,45 +126,4 @@ impl History {
             counter_move,
         }
     }
-
-    pub fn update_counter_move(
-        &mut self,
-        pos: &Position,
-        make_move: Move,
-        fails: &[Move],
-        prev_move: Move,
-        amt: i16,
-    ) {
-        let stm = pos.board().side_to_move() as usize;
-
-        let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-        let to = make_move.to as usize;
-
-        let prev_piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King) as usize;
-        let prev_to = prev_move.to as usize;
-        bonus(
-            &mut self.counter_move[stm][prev_piece][prev_to][piece][to],
-            amt,
-        );
-        for make_move in fails {
-            let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-            let to = make_move.to as usize;
-            malus(
-                &mut self.counter_move[stm][prev_piece][prev_to][piece][to],
-                amt,
-            );
-        }
-    }
-
-    pub fn update_capture(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
-        let stm = pos.board().side_to_move() as usize;
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-        bonus(&mut self.capture[stm][from][to], amt);
-        for make_move in fails {
-            let from = make_move.from as usize;
-            let to = make_move.to as usize;
-            malus(&mut self.capture[stm][from][to], amt);
-        }
-    }
 }
