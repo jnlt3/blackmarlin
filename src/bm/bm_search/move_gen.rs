@@ -170,7 +170,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                         score += hist.get_counter_move_hist(pos, prev_move, make_move);
                     }
                     if let Some(prev_stm_move) = self.prev_stm_move {
-                        score += hist.get_followup_move_hist(pos, prev_stm_move, make_move);
+                        score += hist.get_followup_move_hist(pos, prev_stm_move, make_move) / 513;
                     }
 
                     self.quiets.push((make_move, score));
