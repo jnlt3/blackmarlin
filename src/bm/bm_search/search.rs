@@ -359,6 +359,11 @@ pub fn search<Search: SearchType>(
         } else {
             hist.get_quiet(make_move)
         };
+        let cm_score = if is_capture {
+            0
+        } else {
+            hist.get_counter_move(pos, make_move)
+        };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
         let mut extension = 0;
@@ -449,6 +454,10 @@ pub fn search<Search: SearchType>(
             !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
+
+        if do_hp && !is_capture && (cm_score as i32) < hp(depth) {
             continue;
         }
 
