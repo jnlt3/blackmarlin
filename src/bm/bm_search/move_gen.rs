@@ -1,6 +1,6 @@
 use cozy_chess::{Board, Move, PieceMoves};
 
-use crate::bm::bm_util::history::HistoryFetched;
+use crate::bm::bm_util::history::{History, HistoryIndices};
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 
@@ -79,7 +79,12 @@ impl<const K: usize> OrderedMoveGen<K> {
         }
     }
 
-    pub fn next(&mut self, pos: &Position, hist: HistoryFetched) -> Option<Move> {
+    pub fn next(
+        &mut self,
+        pos: &Position,
+        hist: &History,
+        hist_indices: &HistoryIndices,
+    ) -> Option<Move> {
         let board = pos.board();
         self.set_phase();
         if self.gen_type == GenType::PvMove {
@@ -106,8 +111,9 @@ impl<const K: usize> OrderedMoveGen<K> {
                     if Some(make_move) == self.pv_move {
                         continue;
                     }
+
                     let expected_gain =
-                        hist.get_capture(make_move) + search::see::<1>(&board, make_move) * 32;
+                        hist.get_capture(pos, make_move) + search::see::<1>(&board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -157,7 +163,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                         };
                         continue;
                     }
-                    let score = hist.get_quiet(make_move) + hist.get_counter_move(pos, make_move);
+                    let counter_move_hist = hist
+                        .get_counter_move(pos, hist_indices, make_move)
+                        .unwrap_or_default();
+                    let score = hist.get_quiet(pos, make_move) + counter_move_hist;
 
                     self.quiets.push((make_move, score));
                 }
@@ -241,14 +250,14 @@ impl QuiescenceSearchMoveGen {
         }
     }
 
-    pub fn next(&mut self, pos: &Position, hist: HistoryFetched) -> Option<(Move, i16)> {
+    pub fn next(&mut self, pos: &Position, hist: &History) -> Option<(Move, i16)> {
         let board = pos.board();
         if self.gen_type == QSearchGenType::CalcCaptures {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     let expected_gain =
-                        hist.get_capture(make_move) + search::see::<1>(&board, make_move) * 32;
+                        hist.get_capture(pos, make_move) + search::see::<1>(&board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false

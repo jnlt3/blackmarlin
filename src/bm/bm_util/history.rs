@@ -1,14 +1,9 @@
+use cozy_chess::{Color, Move, Piece, Square};
+
 use super::position::Position;
-use cozy_chess::{Move, Piece};
+use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
 pub const MAX_HIST: i16 = 512;
-
-const SIDE_TO_MOVE: usize = 2;
-const SQUARE: usize = 64;
-const PIECE: usize = 6;
-
-type Butterfly<T> = [[T; SQUARE]; SQUARE];
-type PieceTo<T> = [[T; SQUARE]; PIECE];
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * amt).min(MAX_HIST)
@@ -28,102 +23,115 @@ fn malus(hist: &mut i16, amt: i16) {
     *hist -= decrement;
 }
 
+/// Contains information calculated to index the history tables
 #[derive(Copy, Clone)]
-pub struct HistoryFetched {
-    quiet: *mut Butterfly<i16>,
-    capture: *mut Butterfly<i16>,
-    counter_move: Option<*mut PieceTo<i16>>,
+pub struct HistoryIndices {
+    counter_move: Option<(Piece, Square)>,
 }
 
-impl HistoryFetched {
-    pub fn get_quiet(&self, make_move: Move) -> i16 {
-        unsafe { (*self.quiet)[make_move.from as usize][make_move.to as usize] }
-    }
-
-    pub fn get_capture(&self, make_move: Move) -> i16 {
-        unsafe { (*self.capture)[make_move.from as usize][make_move.to as usize] }
-    }
-
-    pub fn get_counter_move(&self, pos: &Position, make_move: Move) -> i16 {
-        if let Some(counter_move) = self.counter_move {
-            unsafe {
-                (*counter_move)[pos.board().piece_on(make_move.from).unwrap() as usize]
-                    [make_move.to as usize]
-            }
-        } else {
-            0
-        }
-    }
-
-    pub fn update_quiet(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-
-        unsafe {
-            bonus(&mut (*self.quiet)[from][to], amt);
-            for make_move in fails {
-                let from = make_move.from as usize;
-                let to = make_move.to as usize;
-                malus(&mut (*self.quiet)[from][to], amt);
-            }
-            if let Some(counter_move) = self.counter_move {
-                let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-                bonus(&mut (*counter_move)[piece][to], amt);
-                for make_move in fails {
-                    let piece = pos.board().piece_on(make_move.from).unwrap() as usize;
-                    let to = make_move.to as usize;
-                    malus(&mut (*counter_move)[piece][to], amt);
-                }
-            }
-        }
-    }
-
-    pub fn update_captures(&mut self, make_move: Move, fails: &[Move], amt: i16) {
-        let from = make_move.from as usize;
-        let to = make_move.to as usize;
-
-        unsafe {
-            bonus(&mut (*self.capture)[from][to], amt);
-            for make_move in fails {
-                let from = make_move.from as usize;
-                let to = make_move.to as usize;
-                malus(&mut (*self.capture)[from][to], amt);
-            }
-        }
+impl HistoryIndices {
+    pub fn new(pos: &Position, prev_move: Option<Move>) -> Self {
+        let counter_move = prev_move.map(|prev_move| {
+            let piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King);
+            (piece, prev_move.to)
+        });
+        Self { counter_move }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct History {
-    quiet: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
-    capture: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
-    counter_move: Box<[PieceTo<PieceTo<i16>>; SIDE_TO_MOVE]>,
+    quiet: Box<[Butterfly<i16>; Color::NUM]>,
+    capture: Box<[Butterfly<i16>; Color::NUM]>,
+    counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
-            capture: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
-            counter_move: Box::new([[[[[0; SQUARE]; PIECE]; SQUARE]; PIECE]; SIDE_TO_MOVE]),
+            quiet: Box::new([new_butterfly_table(0); Color::NUM]),
+            capture: Box::new([new_butterfly_table(0); Color::NUM]),
+            counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
 
-    #[inline(never)]
-    pub fn fetch_hist(&mut self, pos: &Position, prev_move: Option<Move>) -> HistoryFetched {
-        let stm = pos.board().side_to_move() as usize;
-        let quiet = &mut self.quiet[stm] as *mut _;
-        let capture = &mut self.capture[stm] as *mut _;
-        let counter_move = if let Some(prev_move) = prev_move {
-            let piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King);
-            Some(&mut self.counter_move[stm][piece as usize][prev_move.to as usize] as *mut _)
-        } else {
-            None
-        };
-        HistoryFetched {
-            quiet,
-            capture,
-            counter_move,
+    pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        &mut self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        &mut self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    pub fn get_counter_move(
+        &self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<i16> {
+        let (prev_piece, prev_to) = indices.counter_move?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    fn get_counter_move_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<&mut i16> {
+        let (prev_piece, prev_to) = indices.counter_move?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    pub fn update_quiet(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+        fails: &[Move],
+        amt: i16,
+    ) {
+        bonus(self.get_quiet_mut(pos, make_move), amt);
+        for &failed_move in fails {
+            malus(self.get_quiet_mut(pos, failed_move), amt);
+        }
+        if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
+            bonus(counter_move_hist, amt);
+            for &failed_move in fails {
+                let failed_hist = self
+                    .get_counter_move_mut(pos, indices, failed_move)
+                    .unwrap();
+                malus(failed_hist, amt);
+            }
+        }
+    }
+
+    pub fn update_captures(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
+        bonus(self.get_capture_mut(pos, make_move), amt);
+        for &failed_move in fails {
+            malus(self.get_capture_mut(pos, failed_move), amt);
         }
     }
 }
