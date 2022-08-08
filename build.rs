@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::{env, path::Path};
 
 fn main() {
@@ -16,7 +17,7 @@ fn parse_bm_net() {
     let mut def_nodes = String::new();
     const LAYER_SIZES: [&str; 3] = ["INPUT", "MID", "OUTPUT"];
     for (&size, name) in layers.iter().zip(LAYER_SIZES) {
-        def_nodes += &format!("const {}: usize = {};\n", name, size);
+        writeln!(&mut def_nodes, "const {}: usize = {};", name, size).unwrap();
     }
 
     std::fs::write(&eval_path, nn_bytes).unwrap();
@@ -26,7 +27,8 @@ fn parse_bm_net() {
 pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
     let mut layers = [0; 3];
     for (bytes, layer) in bytes.chunks(4).take(3).zip(&mut layers) {
-        *layer = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
+        let bytes = bytes.try_into().unwrap();
+        *layer = u32::from_le_bytes(bytes) as usize;
     }
     layers
 }

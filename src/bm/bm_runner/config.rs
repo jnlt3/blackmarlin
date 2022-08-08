@@ -1,6 +1,6 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
-use std::fmt::Display;
+use std::fmt::{Display, Write as FmtWrite};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Duration;
@@ -173,8 +173,7 @@ impl GuiInfo for UciInfo {
             format!("cp {}", eval.raw())
         };
         let nps = (node_cnt as u128 * 1000) / elapsed.as_millis().max(1);
-        let mut buffer = String::new();
-        buffer += &format!(
+        let mut output = format!(
             "info depth {} seldepth {} score {} time {} nodes {} nps {} pv",
             depth,
             seldepth,
@@ -184,8 +183,8 @@ impl GuiInfo for UciInfo {
             nps
         );
         for make_move in pv {
-            buffer += &format!(" {}", make_move);
+            write!(&mut output, " {}", make_move).unwrap();
         }
-        println!("{}", buffer);
+        println!("{}", output);
     }
 }
