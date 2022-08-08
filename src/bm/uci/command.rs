@@ -28,10 +28,8 @@ impl UciCommand {
         }
         let mut split = input.split_ascii_whitespace();
         let token = match split.next() {
-            None => {
-                return UciCommand::Empty;
-            }
             Some(string) => string,
+            None => return UciCommand::Empty
         };
         match token {
             "uci" => UciCommand::Uci,
@@ -87,27 +85,27 @@ impl UciCommand {
                             TimeManagementInfo::BTime(Duration::from_millis(millis))
                         }
                         "winc" => {
-                            let millis = split.next().unwrap().parse::<u64>().unwrap();
+                            let millis = split.next().unwrap().parse().unwrap();
                             TimeManagementInfo::WInc(Duration::from_millis(millis))
                         }
                         "binc" => {
-                            let millis = split.next().unwrap().parse::<u64>().unwrap();
+                            let millis = split.next().unwrap().parse().unwrap();
                             TimeManagementInfo::BInc(Duration::from_millis(millis))
                         }
                         "movetime" => {
-                            let millis = split.next().unwrap().parse::<u64>().unwrap();
+                            let millis = split.next().unwrap().parse().unwrap();
                             TimeManagementInfo::MoveTime(Duration::from_millis(millis))
                         }
                         "movestogo" => {
-                            let moves_to_go = split.next().unwrap().parse::<u32>().unwrap();
+                            let moves_to_go = split.next().unwrap().parse().unwrap();
                             TimeManagementInfo::MovesToGo(moves_to_go)
                         }
                         "depth" => {
-                            let depth = split.next().unwrap().parse::<u32>().unwrap();
+                            let depth = split.next().unwrap().parse().unwrap();
                             TimeManagementInfo::MaxDepth(depth)
                         }
                         "nodes" => {
-                            let nodes = split.next().unwrap().parse::<u64>().unwrap();
+                            let nodes = split.next().unwrap().parse().unwrap();
                             TimeManagementInfo::MaxNodes(nodes)
                         }
                         _ => TimeManagementInfo::Unknown,
