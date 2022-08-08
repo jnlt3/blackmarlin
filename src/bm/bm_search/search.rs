@@ -465,7 +465,7 @@ pub fn search<Search: SearchType>(
 
         let do_cmhp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && eval <= alpha;
 
-        if do_cmhp && (c_score as i32) < -256 {
+        if do_cmhp && (c_score as i32) < 0 {
             continue;
         }
 
