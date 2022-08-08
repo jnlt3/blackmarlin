@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
+use cozy_chess::{Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
@@ -110,15 +110,13 @@ impl Position {
     }
 
     pub fn insufficient_material(&self) -> bool {
-        if self.current.occupied().popcnt() == 2 {
-            true
-        } else if self.current.occupied().popcnt() == 3 {
-            (self.current.pieces(Piece::Rook)
-                | self.current.pieces(Piece::Queen)
-                | self.current.pieces(Piece::Pawn))
-                == BitBoard::EMPTY
-        } else {
-            false
+        let rooks = self.current.pieces(Piece::Rook);
+        let queens = self.current.pieces(Piece::Queen);
+        let pawns = self.current.pieces(Piece::Pawn);
+        match self.current.occupied().popcnt() {
+            2 => true,
+            3 => (rooks | queens | pawns).is_empty(),
+            _ => false,
         }
     }
 }
