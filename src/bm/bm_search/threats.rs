@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, Piece};
+use cozy_chess::{BitBoard, Board, Color, Piece, Rank};
 
 pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
     let occupied = board.occupied();
@@ -38,6 +38,7 @@ pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
 }
 
 pub fn promo_threats(board: &Board, threat_of: Color) -> BitBoard {
+    let promo = Rank::First.bitboard() | Rank::Eighth.bitboard();
     let occupied = board.occupied();
     let opponent = board.colors(!threat_of);
 
@@ -49,5 +50,5 @@ pub fn promo_threats(board: &Board, threat_of: Color) -> BitBoard {
         threats |= cozy_chess::get_pawn_quiets(pawn, threat_of, occupied)
             | (cozy_chess::get_pawn_attacks(pawn, threat_of) & opponent);
     }
-    threats
+    threats & promo
 }
