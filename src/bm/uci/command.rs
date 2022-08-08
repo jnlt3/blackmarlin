@@ -37,7 +37,7 @@ impl UciCommand {
             "uci" => UciCommand::Uci,
             "ucinewgame" => UciCommand::NewGame,
             "position" => {
-                let mut board = "".to_string();
+                let mut board = String::new();
                 let mut chess_board = None;
                 let split = split.into_iter().collect::<Vec<_>>();
 

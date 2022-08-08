@@ -87,20 +87,19 @@ impl UciAdapter {
                 }
             }
             UciCommand::SetOption(name, value) => {
-                let name: &str = &name;
                 self.time_manager.abort_now();
-                match name {
+                match name.as_str() {
                     "Hash" => {
                         self.bm_runner
                             .lock()
                             .unwrap()
-                            .hash(value.parse::<usize>().unwrap());
+                            .hash(value.parse().unwrap());
                     }
                     "Threads" => {
-                        self.threads = value.parse::<u8>().unwrap();
+                        self.threads = value.parse().unwrap();
                     }
                     "UCI_Chess960" => {
-                        self.chess960 = value.to_lowercase().parse::<bool>().unwrap();
+                        self.chess960 = value.to_lowercase().parse().unwrap();
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
                     }
                     _ => {}
