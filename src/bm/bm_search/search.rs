@@ -13,7 +13,7 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 use super::see::calculate_see;
-use super::threats::threats;
+use super::threats::{promo_threats, threats};
 
 pub trait SearchType {
     const NM: bool;
@@ -206,6 +206,7 @@ pub fn search<Search: SearchType>(
 
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
+        let promo_threat = promo_threats(pos.board(), !pos.board().side_to_move());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
@@ -228,7 +229,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threat.is_empty(),
+            !(nstm_threat | promo_threat).is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;

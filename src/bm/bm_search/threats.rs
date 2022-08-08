@@ -36,3 +36,18 @@ pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
 
     ((pawn_attacks & pieces) | (minor_attacks & majors) | (rook_attacks & queens)) & n_color
 }
+
+pub fn promo_threats(board: &Board, threat_of: Color) -> BitBoard {
+    let occupied = board.occupied();
+    let opponent = board.colors(!threat_of);
+
+    let pawns = board.pieces(Piece::Pawn);
+    let stm_pawns = pawns & board.colors(threat_of);
+
+    let mut threats = BitBoard::EMPTY;
+    for pawn in stm_pawns {
+        threats |= cozy_chess::get_pawn_quiets(pawn, threat_of, occupied)
+            | (cozy_chess::get_pawn_attacks(pawn, threat_of) & opponent);
+    }
+    threats
+}
