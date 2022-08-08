@@ -5,6 +5,7 @@ use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
+use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
@@ -342,8 +343,8 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let mut hist = local_context.get_hist_mut().fetch_hist(pos, prev_move);
-    while let Some(make_move) = move_gen.next(pos, hist) {
+    let hist_indices = HistoryIndices::new(pos, prev_move);
+    while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -355,9 +356,9 @@ pub fn search<Search: SearchType>(
             .has(make_move.to);
 
         let h_score = if is_capture {
-            hist.get_capture(make_move)
+            local_context.get_hist().get_capture(pos, make_move)
         } else {
-            hist.get_quiet(make_move)
+            local_context.get_hist().get_quiet(pos, make_move)
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
@@ -590,7 +591,13 @@ pub fn search<Search: SearchType>(
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
 
-                            hist.update_quiet(pos, make_move, &quiets, amt as i16);
+                            local_context.get_hist_mut().update_quiet(
+                                pos,
+                                &hist_indices,
+                                make_move,
+                                &quiets,
+                                amt as i16,
+                            );
                             if let Some(prev_move) = prev_move {
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
@@ -600,7 +607,9 @@ pub fn search<Search: SearchType>(
                                 );
                             }
                         } else {
-                            hist.update_captures(make_move, &captures, amt as i16);
+                            local_context
+                                .get_hist_mut()
+                                .update_captures(pos, make_move, &captures, amt as i16);
                         }
                     }
                     break;
@@ -704,8 +713,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QuiescenceSearchMoveGen::new();
-    let hist = local_context.get_hist_mut().fetch_hist(pos, None);
-    while let Some((make_move, see)) = move_gen.next(pos, hist) {
+    while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())
