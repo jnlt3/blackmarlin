@@ -4,7 +4,7 @@ use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
 pub const MAX_HIST: i16 = 512;
-pub const MAX_STAT: i16 = 64;
+pub const MAX_STAT: i16 = 128;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * amt).min(MAX_STAT)
