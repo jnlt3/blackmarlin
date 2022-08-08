@@ -5,7 +5,7 @@ use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
-use super::search;
+use super::see::calculate_see;
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
@@ -112,8 +112,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
 
-                    let expected_gain =
-                        hist.get_capture(pos, make_move) + search::see::<1>(board, make_move) * 32;
+                    let expected_gain = hist.get_capture(pos, make_move)
+                        + calculate_see::<1>(board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -125,7 +125,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let see_score = see.unwrap_or_else(|| search::see::<16>(board, *make_move));
+                    let see_score = see.unwrap_or_else(|| calculate_see::<16>(board, *make_move));
                     *see = Some(see_score);
                     if see_score < 0 {
                         continue;
@@ -256,8 +256,8 @@ impl QuiescenceSearchMoveGen {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain =
-                        hist.get_capture(pos, make_move) + search::see::<1>(board, make_move) * 32;
+                    let expected_gain = hist.get_capture(pos, make_move)
+                        + calculate_see::<1>(board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
@@ -268,7 +268,7 @@ impl QuiescenceSearchMoveGen {
         let mut best_index = None;
         for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
             if best_index.is_none() || *score > max {
-                let see_score = see.unwrap_or_else(|| search::see::<16>(board, *make_move));
+                let see_score = see.unwrap_or_else(|| calculate_see::<16>(board, *make_move));
                 *see = Some(see_score);
                 if see_score < 0 {
                     continue;
