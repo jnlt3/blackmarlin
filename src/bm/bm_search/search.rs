@@ -240,14 +240,14 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
+    let nstm_threats = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
             return eval;
         }
 
@@ -264,7 +264,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threat.is_empty(),
+            !nstm_threats.is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
@@ -343,7 +343,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(pos, prev_move);
+    let hist_indices = HistoryIndices::new(pos, prev_move, nstm_threats);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -358,7 +358,9 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            local_context.get_hist().get_quiet(pos, make_move)
+            local_context
+                .get_hist()
+                .get_quiet(pos, &hist_indices, make_move)
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
@@ -502,7 +504,7 @@ pub fn search<Search: SearchType>(
             {
                 reduction -= 1;
             }
-            if nstm_threat.has(make_move.from) {
+            if nstm_threats.has(make_move.from) {
                 reduction -= 2;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
