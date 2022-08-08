@@ -180,7 +180,7 @@ impl TranspositionTable {
         let hash = board.hash();
         let index = self.index(hash);
         unsafe {
-            let ptr = self.table.as_ptr().offset(index as isize);
+            let ptr = self.table.as_ptr().add(index);
             _mm_prefetch(ptr as *const i8, _MM_HINT_T0);
         }
     }

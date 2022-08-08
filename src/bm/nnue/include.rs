@@ -11,7 +11,7 @@ pub fn sparse_from_bytes_i16<
     }
     let mut dense = Box::new([[T::default(); OUTPUT]; INPUT]);
     for (i, weights) in weights.chunks(OUTPUT).enumerate() {
-        for (j, &weight) in weights.into_iter().enumerate() {
+        for (j, &weight) in weights.iter().enumerate() {
             dense[i][j] = T::from(weight);
         }
     }
@@ -41,7 +41,7 @@ pub fn dense_from_bytes_i8<
     }
     let mut dense = Box::new([[T::default(); INPUT]; OUTPUT]);
     for (i, weights) in weights.chunks(INPUT).enumerate() {
-        for (j, &weight) in weights.into_iter().enumerate() {
+        for (j, &weight) in weights.iter().enumerate() {
             dense[i][j] = T::from(weight);
         }
     }

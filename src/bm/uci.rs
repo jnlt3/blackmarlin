@@ -184,27 +184,25 @@ impl UciAdapter {
                     sum_time += elapsed;
                     sum_node_cnt += node_cnt;
                 }
-                let mut buffer = String::new();
-                let mut line_len = 0;
+                let mut divider_size = 0;
                 for (index, (cp, mv, nodes, nps)) in bench_data.into_iter().enumerate() {
                     let line = &format!(
-                        "[#{:>3}]{:>8} cp  Best: {:>8} {:>8} nodes {:>8} nps\n",
+                        "[#{:>3}]{:>8} cp  Best: {:>8} {:>8} nodes {:>8} nps",
                         index + 1,
                         cp,
                         mv,
                         nodes,
                         nps
                     );
-                    buffer += line;
-                    line_len = line.len();
+                    divider_size = divider_size.max(line.chars().count());
+                    println!("{}", line);
                 }
-                buffer += &("=".repeat(line_len) + "\n");
-                buffer += &format!(
+                println!("{}", "=".repeat(divider_size));
+                println!(
                     "OVERALL {:>30} nodes {:>8} nps",
                     sum_node_cnt,
                     (sum_node_cnt as f32 / sum_time.as_secs_f32()) as u32
                 );
-                println!("{}", buffer);
             }
             UciCommand::Static => {
                 let runner = &mut *self.bm_runner.lock().unwrap();

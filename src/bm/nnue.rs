@@ -19,10 +19,16 @@ pub struct Accumulator {
     b_input_layer: Incremental<INPUT, MID>,
 }
 
-fn halfka_feature(perspective: Color, king: Square, color: Color, piece: Piece, square: Square) -> usize {
+fn halfka_feature(
+    perspective: Color,
+    king: Square,
+    color: Color,
+    piece: Piece,
+    square: Square,
+) -> usize {
     let (king, square, color) = match perspective {
         Color::White => (king, square, color),
-        Color::Black => (king.flip_rank(), square.flip_rank(), !color)
+        Color::Black => (king.flip_rank(), square.flip_rank(), !color),
     };
     let mut index = 0;
     index = index * Square::NUM + king as usize;

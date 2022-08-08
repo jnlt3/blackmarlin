@@ -13,7 +13,7 @@ pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
     out: [i16; OUTPUT],
 }
 
-impl<'a, const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
+impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
     pub fn new(weights: Arc<[[i16; OUTPUT]; INPUT]>, bias: [i16; OUTPUT]) -> Self {
         Self { weights, out: bias }
     }
