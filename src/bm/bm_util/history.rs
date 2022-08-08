@@ -1,14 +1,9 @@
+use cozy_chess::{Color, Move, Piece, Square};
+
 use super::position::Position;
-use cozy_chess::{Move, Piece, Square};
+use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
 pub const MAX_HIST: i16 = 512;
-
-const SIDE_TO_MOVE: usize = 2;
-const SQUARE: usize = 64;
-const PIECE: usize = 6;
-
-type Butterfly<T> = [[T; SQUARE]; SQUARE];
-type PieceTo<T> = [[T; SQUARE]; PIECE];
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * amt).min(MAX_HIST)
@@ -46,17 +41,17 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
-    quiet: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
-    capture: Box<[Butterfly<i16>; SIDE_TO_MOVE]>,
-    counter_move: Box<[PieceTo<PieceTo<i16>>; SIDE_TO_MOVE]>,
+    quiet: Box<[Butterfly<i16>; Color::NUM]>,
+    capture: Box<[Butterfly<i16>; Color::NUM]>,
+    counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
-            capture: Box::new([[[0; SQUARE]; SQUARE]; SIDE_TO_MOVE]),
-            counter_move: Box::new([[[[[0; SQUARE]; PIECE]; SQUARE]; PIECE]; SIDE_TO_MOVE]),
+            quiet: Box::new([new_butterfly_table(0); Color::NUM]),
+            capture: Box::new([new_butterfly_table(0); Color::NUM]),
+            counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
 
