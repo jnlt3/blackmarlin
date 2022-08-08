@@ -212,7 +212,9 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+        if do_rev_fp(depth)
+            && eval - rev_fp(depth, improving && (nstm_threat | promo_threat).is_empty()) >= beta
+        {
             return eval;
         }
 
@@ -229,7 +231,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !(nstm_threat | promo_threat).is_empty(),
+            !nstm_threat.is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
