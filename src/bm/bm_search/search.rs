@@ -51,7 +51,7 @@ const FP_DEPTH: u32 = 5;
 const SEE_FP: i16 = 81;
 const SEE_FP_DEPTH: u32 = 7;
 const D_EXT: i16 = 19;
-const HP: i32 = 71;
+const HP: i32 = 2272;
 const HP_DEPTH: u32 = 7;
 
 #[inline]
@@ -112,7 +112,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 92
+    history / 2944
 }
 
 pub fn search<Search: SearchType>(

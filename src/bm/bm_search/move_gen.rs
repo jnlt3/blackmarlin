@@ -8,7 +8,7 @@ use super::move_entry::MoveEntryIterator;
 use super::see::calculate_see;
 
 const MAX_MOVES: usize = 218;
-const THRESHOLD: i16 = -(2_i16.pow(10));
+const THRESHOLD: i32 = -(2_i32.pow(10));
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum GenType {
@@ -31,8 +31,8 @@ pub struct OrderedMoveGen<const K: usize> {
     counter_move: Option<Move>,
     gen_type: GenType,
 
-    captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
-    quiets: ArrayVec<(Move, i16), MAX_MOVES>,
+    captures: ArrayVec<(Move, i32, LazySee), MAX_MOVES>,
+    quiets: ArrayVec<(Move, i32), MAX_MOVES>,
     skip_quiets: bool,
 }
 
@@ -112,8 +112,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
 
-                    let expected_gain = hist.get_capture(pos, make_move)
-                        + calculate_see::<1>(board, make_move) * 32;
+                    let expected_gain = hist.get_capture(pos, make_move) as i32
+                        + calculate_see::<1>(board, make_move) as i32 * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -155,10 +155,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                     if let Some(piece) = make_move.promotion {
                         match piece {
                             cozy_chess::Piece::Queen => {
-                                self.quiets.push((make_move, i16::MAX));
+                                self.quiets.push((make_move, i32::MAX));
                             }
                             _ => {
-                                self.quiets.push((make_move, i16::MIN));
+                                self.quiets.push((make_move, i32::MIN));
                             }
                         };
                         continue;
@@ -166,7 +166,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let counter_move_hist = hist
                         .get_counter_move(pos, hist_indices, make_move)
                         .unwrap_or_default();
-                    let score = hist.get_quiet(pos, make_move) + counter_move_hist;
+                    let score = hist.get_quiet(pos, make_move) as i32 + counter_move_hist as i32;
 
                     self.quiets.push((make_move, score));
                 }
