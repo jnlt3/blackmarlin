@@ -94,7 +94,7 @@ impl Nnue {
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
-            bias: Arc::new(incremental_bias),
+            bias: Arc::new(incremental_bias.0),
             out_layer,
             head: 0,
         }
