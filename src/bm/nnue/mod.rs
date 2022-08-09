@@ -79,7 +79,7 @@ impl Nnue {
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID_0>(bytes);
         bytes = &bytes[MID_0 * 2..];
 
-        let hidden = Arc::new(*include::dense_from_bytes_i8::<i16, { MID_0 * 2 }, MID_1>(
+        let hidden = Arc::new(*include::dense_from_bytes_i8::<i8, { MID_0 * 2 }, MID_1>(
             bytes,
         ));
         bytes = &bytes[MID_0 * MID_1 * 2..];
@@ -104,7 +104,7 @@ impl Nnue {
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
-            bias: Arc::new(incremental_bias),
+            bias: Arc::new(incremental_bias.0),
             hidden_layer,
             out_layer,
             head: 0,
