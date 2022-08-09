@@ -63,7 +63,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
         out
     }
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512")))]
     unsafe fn sum_i16(x: std::arch::x86_64::__m256i) -> i32 {
         use std::arch::x86_64::_mm256_store_si256;
         const CHUNKS: usize = 256 / 16;
@@ -72,7 +72,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
         vector.into_iter().map(|x| x as i32).sum()
     }
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512")))]
     pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
         use std::arch::x86_64::{_mm256_load_si256, _mm256_maddubs_epi16};
         const CHUNKS: usize = 256 / 8;
