@@ -53,11 +53,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 
     #[cfg(not(target_feature = "avx2"))]
-    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i16; OUTPUT] {
+    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias.0;
         for (out, weights) in out.iter_mut().zip(&self.weights.0) {
             for (&input, &weight) in inputs.iter().zip(weights.iter()) {
-                *out += (weight as i16 * input as i16) >> INTERMEDIATE_SHIFT;
+                *out += weight as i32 * input as i32;
             }
         }
         out
