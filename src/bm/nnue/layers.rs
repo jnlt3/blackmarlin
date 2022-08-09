@@ -7,6 +7,9 @@ const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
 const SHIFT: i16 = 8;
 
+const INTERMEDIATE_DIV: i16 = 16;
+const INTERMEDIATE_SHIFT: i16 = 4;
+
 #[derive(Debug, Clone)]
 pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
     weights: Arc<[[i16; OUTPUT]; INPUT]>,
@@ -36,16 +39,45 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
 
 #[derive(Debug, Clone)]
 pub struct Dense<const INPUT: usize, const OUTPUT: usize> {
-    weights: Arc<[[i8; INPUT]; OUTPUT]>,
-    bias: [i32; OUTPUT],
+    weights: Arc<[[i16; INPUT]; OUTPUT]>,
+    bias: [i16; OUTPUT],
 }
 
 impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
-    pub fn new(weights: Arc<[[i8; INPUT]; OUTPUT]>, bias: [i32; OUTPUT]) -> Self {
+    pub fn new(weights: Arc<[[i16; INPUT]; OUTPUT]>, bias: [i16; OUTPUT]) -> Self {
+        let mut scaled_bias = [0; OUTPUT];
+        scaled_bias
+            .iter_mut()
+            .zip(bias)
+            .for_each(|(scaled, value)| *scaled = value >> INTERMEDIATE_SHIFT);
+        Self {
+            weights,
+            bias: scaled_bias,
+        }
+    }
+
+    pub fn ff(&self, inputs: &[u8; INPUT]) -> [i16; OUTPUT] {
+        let mut out = self.bias;
+        for (out, weights) in out.iter_mut().zip(&*self.weights) {
+            for (&input, &weight) in inputs.iter().zip(weights.iter()) {
+                *out += (weight * input as i16) >> INTERMEDIATE_SHIFT;
+            }
+        }
+        out
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Out<const INPUT: usize, const OUTPUT: usize> {
+    weights: Arc<[[i16; INPUT]; OUTPUT]>,
+    bias: [i32; OUTPUT],
+}
+
+impl<const INPUT: usize, const OUTPUT: usize> Out<INPUT, OUTPUT> {
+    pub fn new(weights: Arc<[[i16; INPUT]; OUTPUT]>, bias: [i32; OUTPUT]) -> Self {
         Self { weights, bias }
     }
 
-    #[inline]
     pub fn ff(&self, inputs: &[u8; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
         for (out, weights) in out.iter_mut().zip(&*self.weights) {
@@ -67,5 +99,12 @@ pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
         let tmp = x.max(MIN).min(MAX) as u16;
         *clipped = ((tmp * tmp) >> SHIFT) as u8;
+    }
+}
+
+#[inline]
+pub fn scaled_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
+    for (&x, clipped) in array.iter().zip(out.iter_mut()) {
+        *clipped = (x / (SCALE / INTERMEDIATE_DIV)).max(MIN).min(MAX) as u8;
     }
 }
