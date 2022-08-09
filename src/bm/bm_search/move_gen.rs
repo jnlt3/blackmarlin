@@ -113,7 +113,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     }
 
                     let expected_gain = hist.get_capture(pos, make_move) as i32
-                        + calculate_see::<1>(board, make_move) as i32 * 32;
+                        + calculate_see::<1>(board, make_move) as i32 * 1024;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -257,7 +257,7 @@ impl QuiescenceSearchMoveGen {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     let expected_gain = hist.get_capture(pos, make_move)
-                        + calculate_see::<1>(board, make_move) * 32;
+                        + calculate_see::<1>(board, make_move) * 1024;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
