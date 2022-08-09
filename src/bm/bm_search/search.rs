@@ -308,6 +308,8 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(pos, prev_move);
+
+    let mut singular = false;
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -364,6 +366,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
+                    singular = true;
                     if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
                         extension += 1;
                     }
@@ -552,7 +555,8 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
-                        let amt = depth + extension + (eval <= alpha) as u32 + (h_score < 0) as u32;
+                        let amt =
+                            depth + singular as u32 + (eval <= alpha) as u32 + (h_score < 0) as u32;
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
