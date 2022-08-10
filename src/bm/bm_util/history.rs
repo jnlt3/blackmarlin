@@ -1,7 +1,10 @@
 use cozy_chess::{Color, Move, Piece, Square};
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{
+    new_butterfly_table, new_double_piece_table, new_piece_to_table, Butterfly, DoublePiece,
+    PieceTo,
+};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -43,6 +46,7 @@ impl HistoryIndices {
 pub struct History {
     quiet: Box<[Butterfly<i16>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
+    piece: Box<[DoublePiece<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
@@ -51,6 +55,7 @@ impl History {
         Self {
             quiet: Box::new([new_butterfly_table(0); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
+            piece: Box::new([new_double_piece_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
@@ -73,6 +78,20 @@ impl History {
     fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         &mut self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    pub fn get_piece(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        let capturing = pos.board().piece_on(make_move.from).unwrap();
+        let captured = pos.board().piece_on(make_move.to).unwrap();
+        self.piece[stm as usize][capturing as usize][captured as usize]
+    }
+
+    pub fn get_piece_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        let capturing = pos.board().piece_on(make_move.from).unwrap();
+        let captured = pos.board().piece_on(make_move.to).unwrap();
+        &mut self.piece[stm as usize][capturing as usize][captured as usize]
     }
 
     pub fn get_counter_move(
@@ -125,6 +144,7 @@ impl History {
         }
         for &failed_move in captures {
             malus(self.get_capture_mut(pos, failed_move), amt);
+            malus(self.get_piece_mut(pos, failed_move), amt);
         }
     }
 
