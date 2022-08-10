@@ -556,14 +556,6 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
-
-                            local_context.get_hist_mut().update_quiet(
-                                pos,
-                                &hist_indices,
-                                make_move,
-                                &quiets,
-                                amt as i16,
-                            );
                             if let Some(prev_move) = prev_move {
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
@@ -572,11 +564,15 @@ pub fn search<Search: SearchType>(
                                     amt,
                                 );
                             }
-                        } else {
-                            local_context
-                                .get_hist_mut()
-                                .update_captures(pos, make_move, &captures, amt as i16);
                         }
+                        local_context.get_hist_mut().update_history(
+                            pos,
+                            &hist_indices,
+                            make_move,
+                            &quiets,
+                            &captures,
+                            amt as i16,
+                        );
                     }
                     break;
                 }

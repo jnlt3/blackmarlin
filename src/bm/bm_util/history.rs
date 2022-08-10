@@ -105,7 +105,30 @@ impl History {
         )
     }
 
-    pub fn update_quiet(
+    pub fn update_history(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+        quiets: &[Move],
+        captures: &[Move],
+        amt: i16,
+    ) {
+        let is_capture = pos
+            .board()
+            .colors(!pos.board().side_to_move())
+            .has(make_move.to);
+        if !is_capture {
+            self.update_quiet(pos, indices, make_move, quiets, amt);
+        } else {
+            bonus(self.get_capture_mut(pos, make_move), amt);
+        }
+        for &failed_move in captures {
+            malus(self.get_capture_mut(pos, failed_move), amt);
+        }
+    }
+
+    fn update_quiet(
         &mut self,
         pos: &Position,
         indices: &HistoryIndices,
@@ -125,13 +148,6 @@ impl History {
                     .unwrap();
                 malus(failed_hist, amt);
             }
-        }
-    }
-
-    pub fn update_captures(&mut self, pos: &Position, make_move: Move, fails: &[Move], amt: i16) {
-        bonus(self.get_capture_mut(pos, make_move), amt);
-        for &failed_move in fails {
-            malus(self.get_capture_mut(pos, failed_move), amt);
         }
     }
 }
