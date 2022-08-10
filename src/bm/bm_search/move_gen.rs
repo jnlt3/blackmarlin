@@ -112,9 +112,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
 
-                    let expected_gain = hist.get_capture(pos, make_move)
-                        + hist.get_captured(pos, make_move)
-                        + calculate_see::<1>(board, make_move) * 32;
+                    let expected_gain =
+                        hist.get_capture(pos, make_move) + hist.get_captured(pos, make_move);
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
