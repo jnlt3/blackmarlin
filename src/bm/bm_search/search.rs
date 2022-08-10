@@ -421,7 +421,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && is_capture
-            && depth <= 4
+            && depth <= 6
             && eval <= alpha;
         if do_cp && local_context.get_hist().get_captured(pos, make_move) < 0 {
             continue;
