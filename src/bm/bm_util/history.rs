@@ -43,6 +43,7 @@ impl HistoryIndices {
 pub struct History {
     quiet: Box<[Butterfly<i16>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
+    captured: Box<[PieceTo<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
@@ -51,6 +52,7 @@ impl History {
         Self {
             quiet: Box::new([new_butterfly_table(0); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
+            captured: Box::new([new_piece_to_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
@@ -73,6 +75,18 @@ impl History {
     fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         &mut self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    pub fn get_captured(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        let captured = pos.board().piece_on(make_move.to).unwrap();
+        self.captured[stm as usize][captured as usize][make_move.to as usize]
+    }
+
+    fn get_captured_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        let captured = pos.board().piece_on(make_move.to).unwrap();
+        &mut self.captured[stm as usize][captured as usize][make_move.to as usize]
     }
 
     pub fn get_counter_move(
@@ -122,9 +136,11 @@ impl History {
             self.update_quiet(pos, indices, make_move, quiets, amt);
         } else {
             bonus(self.get_capture_mut(pos, make_move), amt);
+            bonus(self.get_captured_mut(pos, make_move), amt);
         }
         for &failed_move in captures {
             malus(self.get_capture_mut(pos, failed_move), amt);
+            malus(self.get_captured_mut(pos, failed_move), amt);
         }
     }
 
