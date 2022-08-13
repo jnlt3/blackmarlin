@@ -185,6 +185,13 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
+        if !Search::PV
+            && entry.depth() >= depth - 1
+            && entry.score() + 128 <= alpha
+            && matches!(entry.entry_type(), EntryType::UpperBound)
+        {
+            return alpha;
+        }
     } else {
         *local_context.tt_misses() += 1;
     }
