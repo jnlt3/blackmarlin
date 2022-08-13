@@ -376,7 +376,12 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
-            if !Search::PV && moves_seen == 0 && entry.table_move() == make_move && h_score > 384 {
+            if !Search::PV
+                && moves_seen == 0
+                && entry.table_move() == make_move
+                && depth >= 5
+                && h_score > 384
+            {
                 extension = extension.max(1);
             }
         }
