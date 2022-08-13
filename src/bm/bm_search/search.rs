@@ -376,6 +376,9 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+            if !Search::PV && moves_seen == 0 && entry.table_move() == make_move && h_score > 384 {
+                extension = extension.max(1);
+            }
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
