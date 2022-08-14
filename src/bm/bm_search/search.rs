@@ -565,14 +565,16 @@ pub fn search<Search: SearchType>(
                                 );
                             }
                         }
-                        local_context.get_hist_mut().update_history(
-                            pos,
-                            &hist_indices,
-                            make_move,
-                            &quiets,
-                            &captures,
-                            amt as i16,
-                        );
+                        if depth > 2 {
+                            local_context.get_hist_mut().update_history(
+                                pos,
+                                &hist_indices,
+                                make_move,
+                                &quiets,
+                                &captures,
+                                amt as i16,
+                            );
+                        }
                     }
                     break;
                 }
