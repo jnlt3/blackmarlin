@@ -225,7 +225,7 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
-        if do_razor(depth) && eval + razor(depth) <= alpha {
+        if do_razor(depth) && eval + razor(depth) <= alpha && !nstm_threat.is_empty() {
             let q_score = q_search(pos, local_context, shared_context, ply, alpha, beta);
             if q_score <= alpha {
                 return q_score;
