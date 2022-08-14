@@ -88,7 +88,7 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 
 #[inline]
 const fn do_razor(depth: u32) -> bool {
-    depth <= 3
+    depth <= 4
 }
 
 #[inline]
