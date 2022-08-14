@@ -471,6 +471,9 @@ pub fn search<Search: SearchType>(
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
             }
+            if reduction > depth as i16 + 3 {
+                extension = extension.max(1);
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
