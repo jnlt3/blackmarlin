@@ -60,8 +60,8 @@ const fn do_rev_fp(depth: u32) -> bool {
 }
 
 #[inline]
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * RFP - improving as i16 * RFP_IMPR
+const fn rev_fp(depth: u32, improving: bool, nstm_threat: bool) -> i16 {
+    depth as i16 * RFP - improving as i16 * RFP_IMPR + nstm_threat as i16 * RFP_IMPR
 }
 
 #[inline]
@@ -211,7 +211,7 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving, nstm_threat.is_empty()) >= beta {
             return eval;
         }
 
