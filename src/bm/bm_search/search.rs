@@ -93,7 +93,7 @@ const fn do_razor(depth: u32) -> bool {
 
 #[inline]
 const fn razor(depth: u32) -> i16 {
-    depth as i16 * 200
+    depth as i16 * 400
 }
 
 #[inline]
