@@ -474,6 +474,12 @@ pub fn search<Search: SearchType>(
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
+        let interest =
+            (!nstm_threat.is_empty()) as i16 + Search::PV as i16 + improving as i16 + h_score / 92;
+        if interest > 6 {
+            extension += 1;
+        }
+
         let lmr_depth = (depth as i16 - reduction) as u32;
 
         if moves_seen == 0 {
