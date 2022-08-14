@@ -87,6 +87,16 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 #[inline]
+const fn do_razor(depth: u32) -> bool {
+    depth <= 3
+}
+
+#[inline]
+const fn razor(depth: u32) -> i16 {
+    depth as i16 * 200
+}
+
+#[inline]
 const fn iir(depth: u32) -> u32 {
     if depth >= 4 {
         1
@@ -213,6 +223,13 @@ pub fn search<Search: SearchType>(
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
             return eval;
+        }
+
+        if do_razor(depth) && eval + razor(depth) <= alpha {
+            let q_score = q_search(pos, local_context, shared_context, ply, alpha, beta);
+            if q_score <= alpha {
+                return q_score;
+            }
         }
 
         /*
