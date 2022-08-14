@@ -464,7 +464,7 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             if gives_check {
-                reduction -= 1;
+                reduction -= 2;
             }
             if Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
