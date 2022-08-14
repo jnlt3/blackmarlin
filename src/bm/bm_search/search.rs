@@ -366,6 +366,9 @@ pub fn search<Search: SearchType>(
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
                         extension += 1;
+                        if h_score > 448 {
+                            extension += 1;
+                        }
                     }
                 } else if multi_cut && s_beta >= beta {
                     /*
