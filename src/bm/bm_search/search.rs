@@ -417,12 +417,8 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_tp = !Search::PV
-            && non_mate_line
-            && moves_seen > 0
-            && depth <= 3
-            && !nstm_threat.is_empty()
-            && eval <= alpha;
+        let do_tp =
+            !Search::PV && non_mate_line && moves_seen > 0 && depth <= 3 && !nstm_threat.is_empty();
         if do_tp && !nstm_threat.has(make_move.from) {
             continue;
         }
