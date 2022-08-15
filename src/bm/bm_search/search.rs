@@ -422,8 +422,7 @@ pub fn search<Search: SearchType>(
             && moves_seen > 0
             && !is_capture
             && depth <= 3
-            && !nstm_threat.is_empty()
-            && eval <= alpha;
+            && !nstm_threat.is_empty();
         if do_tp && !nstm_threat.has(make_move.from) {
             continue;
         }
