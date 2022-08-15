@@ -115,6 +115,15 @@ const fn history_lmr(history: i16) -> i16 {
     history / 92
 }
 
+const fn tp_depth(piece: Piece) -> u32 {
+    match piece {
+        Piece::Pawn | Piece::King => 0,
+        Piece::Knight | Piece::Bishop => 2,
+        Piece::Rook => 3,
+        Piece::Queen => 4,
+    }
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -417,11 +426,12 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let tp_depth = tp_depth(pos.board().piece_on(make_move.from).unwrap());
         let do_tp = !Search::PV
             && non_mate_line
             && moves_seen > 0
             && !is_capture
-            && depth <= 3
+            && depth <= tp_depth
             && !nstm_threat.is_empty()
             && eval <= alpha;
         if do_tp && !nstm_threat.has(make_move.from) {
