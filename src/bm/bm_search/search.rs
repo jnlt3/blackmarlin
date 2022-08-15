@@ -423,7 +423,8 @@ pub fn search<Search: SearchType>(
             && !is_capture
             && depth <= 3
             && !nstm_threat.is_empty()
-            && !in_check;
+            && !in_check
+            && eval <= alpha;
         if do_tp && !nstm_threat.has(make_move.from) {
             continue;
         }
