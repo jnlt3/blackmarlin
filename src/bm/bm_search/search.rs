@@ -661,12 +661,14 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = pos.board().checkers() != BitBoard::EMPTY;
 
+    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
+
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check && stand_pat > alpha {
+    if !in_check && nstm_threat.is_empty() && stand_pat > alpha {
         alpha = stand_pat;
         highest_score = Some(stand_pat);
         if stand_pat >= beta {
