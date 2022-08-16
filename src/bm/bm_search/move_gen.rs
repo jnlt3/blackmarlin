@@ -6,6 +6,7 @@ use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
 use super::see::calculate_see;
+use super::threats::LazyThreatPos;
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
@@ -30,6 +31,7 @@ pub struct OrderedMoveGen<const K: usize> {
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
     gen_type: GenType,
+    threat_pos: LazyThreatPos,
 
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
     quiets: ArrayVec<(Move, i16), MAX_MOVES>,
@@ -54,6 +56,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             counter_move,
             pv_move,
             killer_entry,
+            threat_pos: LazyThreatPos::new(board.side_to_move()),
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -163,10 +166,14 @@ impl<const K: usize> OrderedMoveGen<K> {
                         };
                         continue;
                     }
+                    let piece = board.piece_on(make_move.from).unwrap();
                     let counter_move_hist = hist
                         .get_counter_move(pos, hist_indices, make_move)
                         .unwrap_or_default();
-                    let score = hist.get_quiet(pos, make_move) + counter_move_hist;
+                    let mut score = hist.get_quiet(pos, make_move) + counter_move_hist;
+                    if self.threat_pos.get(board, piece).has(make_move.to) {
+                        score += 128;
+                    }
 
                     self.quiets.push((make_move, score));
                 }
