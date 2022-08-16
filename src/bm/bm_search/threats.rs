@@ -40,13 +40,34 @@ pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
 pub struct LazyThreatPos {
     threat_pos: [Option<BitBoard>; 6],
     threat_of: Color,
+    protected: BitBoard,
 }
 
 impl LazyThreatPos {
-    pub fn new(threat_of: Color) -> Self {
+    pub fn new(board: &Board, threat_of: Color) -> Self {
+        let occupied = board.occupied();
+        let opp = board.colors(!threat_of);
+        let mut protected = BitBoard::EMPTY;
+        for pawn in board.pieces(Piece::Pawn) & opp {
+            protected |= cozy_chess::get_pawn_attacks(pawn, !threat_of);
+        }
+        for knight in board.pieces(Piece::Knight) & opp {
+            protected |= cozy_chess::get_knight_moves(knight);
+        }
+        for bishop in board.pieces(Piece::Bishop) & opp {
+            protected |= cozy_chess::get_bishop_moves(bishop, occupied);
+        }
+        for rook in board.pieces(Piece::Rook) & opp {
+            protected |= cozy_chess::get_rook_moves(rook, occupied);
+        }
+        for queen in board.pieces(Piece::Queen) & opp {
+            protected |= cozy_chess::get_bishop_moves(queen, occupied);
+            protected |= cozy_chess::get_rook_moves(queen, occupied);
+        }
         Self {
             threat_pos: [None; 6],
             threat_of,
+            protected,
         }
     }
 
@@ -54,7 +75,7 @@ impl LazyThreatPos {
         if self.threat_pos[piece as usize].is_none() {
             self.threat_pos[piece as usize] = Some(self.get_threat_pos(board, piece));
         }
-        self.threat_pos[piece as usize].unwrap()
+        self.threat_pos[piece as usize].unwrap() & !self.protected
     }
 
     fn get_threat_pos(&self, board: &Board, piece: Piece) -> BitBoard {
@@ -87,6 +108,7 @@ fn pawn_threat_pos(board: &Board, threat_of: Color) -> BitBoard {
     }
     level_1
 }
+
 pub fn knight_threat_pos(board: &Board, threat_of: Color) -> BitBoard {
     let nthreat_of = board.colors(!threat_of);
 
