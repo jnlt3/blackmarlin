@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, PieceMoves};
+use cozy_chess::{BitBoard, Board, Move, PieceMoves};
 
 use crate::bm::bm_util::history::{History, HistoryIndices};
 use crate::bm::bm_util::position::Position;
@@ -30,6 +30,8 @@ pub struct OrderedMoveGen<const K: usize> {
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
     gen_type: GenType,
+    nstm_threat: BitBoard,
+    depth: u32,
 
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
     quiets: ArrayVec<(Move, i16), MAX_MOVES>,
@@ -42,6 +44,8 @@ impl<const K: usize> OrderedMoveGen<K> {
         pv_move: Option<Move>,
         counter_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
+        nstm_threat: BitBoard,
+        depth: u32,
     ) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
@@ -54,6 +58,8 @@ impl<const K: usize> OrderedMoveGen<K> {
             counter_move,
             pv_move,
             killer_entry,
+            nstm_threat,
+            depth,
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -146,6 +152,12 @@ impl<const K: usize> OrderedMoveGen<K> {
         }
         if self.gen_type == GenType::GenQuiet {
             for &piece_moves in &self.move_list {
+                if self.depth <= 3
+                    && !self.nstm_threat.is_empty()
+                    && !self.nstm_threat.has(piece_moves.from)
+                {
+                    continue;
+                }
                 let mut piece_moves = piece_moves;
                 piece_moves.to &= !board.colors(!board.side_to_move());
                 for make_move in piece_moves {
