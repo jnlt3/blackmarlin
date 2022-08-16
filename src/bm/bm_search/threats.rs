@@ -64,6 +64,7 @@ impl LazyThreatPos {
             protected |= cozy_chess::get_bishop_moves(queen, occupied);
             protected |= cozy_chess::get_rook_moves(queen, occupied);
         }
+        protected |= cozy_chess::get_king_moves(board.king(!threat_of));
         Self {
             threat_pos: [None; 6],
             threat_of,
