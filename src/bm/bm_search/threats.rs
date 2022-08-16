@@ -37,18 +37,39 @@ pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
     ((pawn_attacks & pieces) | (minor_attacks & majors) | (rook_attacks & queens)) & n_color
 }
 
-pub fn get_threat_positions(board: &Board, stm: Color, piece: Piece) -> BitBoard {
-    match piece {
-        Piece::Pawn => pawn_threat_pos(board, stm),
-        Piece::Knight => knight_threat_pos(board, stm),
-        Piece::Bishop => bishop_threat_pos(board, stm),
-        Piece::Rook => rook_threat_pos(board, stm),
-        Piece::Queen | Piece::King => BitBoard::EMPTY,
+pub struct LazyThreatPos {
+    threat_pos: [Option<BitBoard>; 6],
+    threat_of: Color,
+}
+
+impl LazyThreatPos {
+    pub fn new(threat_of: Color) -> Self {
+        Self {
+            threat_pos: [None; 6],
+            threat_of,
+        }
+    }
+
+    pub fn get(&mut self, board: &Board, piece: Piece) -> BitBoard {
+        if self.threat_pos[piece as usize].is_none() {
+            self.threat_pos[piece as usize] = Some(self.get_threat_pos(board, piece));
+        }
+        self.threat_pos[piece as usize].unwrap()
+    }
+
+    fn get_threat_pos(&self, board: &Board, piece: Piece) -> BitBoard {
+        match piece {
+            Piece::Pawn => pawn_threat_pos(board, self.threat_of),
+            Piece::Knight => knight_threat_pos(board, self.threat_of),
+            Piece::Bishop => bishop_threat_pos(board, self.threat_of),
+            Piece::Rook => rook_threat_pos(board, self.threat_of),
+            Piece::Queen | Piece::King => BitBoard::EMPTY,
+        }
     }
 }
 
-fn pawn_threat_pos(board: &Board, stm: Color) -> BitBoard {
-    let nstm = board.colors(!stm);
+fn pawn_threat_pos(board: &Board, threat_of: Color) -> BitBoard {
+    let nthreat_of = board.colors(!threat_of);
 
     let pieces = board.pieces(Piece::Knight)
         | board.pieces(Piece::Bishop)
@@ -59,15 +80,15 @@ fn pawn_threat_pos(board: &Board, stm: Color) -> BitBoard {
     let mut level_0 = BitBoard::EMPTY;
     let mut level_1 = BitBoard::EMPTY;
 
-    for piece in pieces & nstm {
-        let moves = cozy_chess::get_pawn_attacks(piece, !stm);
+    for piece in pieces & nthreat_of {
+        let moves = cozy_chess::get_pawn_attacks(piece, !threat_of);
         level_1 |= moves & level_0;
         level_0 |= moves;
     }
     level_1
 }
-pub fn knight_threat_pos(board: &Board, stm: Color) -> BitBoard {
-    let nstm = board.colors(!stm);
+pub fn knight_threat_pos(board: &Board, threat_of: Color) -> BitBoard {
+    let nthreat_of = board.colors(!threat_of);
 
     let rooks = board.pieces(Piece::Rook);
     let queens = board.pieces(Piece::Queen);
@@ -78,7 +99,7 @@ pub fn knight_threat_pos(board: &Board, stm: Color) -> BitBoard {
     let mut level_0 = BitBoard::EMPTY;
     let mut level_1 = BitBoard::EMPTY;
 
-    for major in majors & nstm {
+    for major in majors & nthreat_of {
         let moves = cozy_chess::get_knight_moves(major);
         level_1 |= moves & level_0;
         level_0 |= moves;
@@ -86,8 +107,8 @@ pub fn knight_threat_pos(board: &Board, stm: Color) -> BitBoard {
     level_1
 }
 
-fn bishop_threat_pos(board: &Board, stm: Color) -> BitBoard {
-    let nstm = board.colors(!stm);
+fn bishop_threat_pos(board: &Board, threat_of: Color) -> BitBoard {
+    let nthreat_of = board.colors(!threat_of);
 
     let rooks = board.pieces(Piece::Rook);
     let queens = board.pieces(Piece::Queen);
@@ -98,12 +119,12 @@ fn bishop_threat_pos(board: &Board, stm: Color) -> BitBoard {
     let mut level_0 = BitBoard::EMPTY;
     let mut level_1 = BitBoard::EMPTY;
 
-    let bishop_blockers = board.colors(stm)
+    let bishop_blockers = board.colors(threat_of)
         | board.pieces(Piece::Pawn)
         | board.pieces(Piece::Knight)
         | board.pieces(Piece::Bishop);
 
-    for major in majors & nstm {
+    for major in majors & nthreat_of {
         let moves = cozy_chess::get_bishop_moves(major, bishop_blockers);
         level_1 |= moves & level_0;
         level_0 |= moves;
@@ -111,8 +132,8 @@ fn bishop_threat_pos(board: &Board, stm: Color) -> BitBoard {
     level_1
 }
 
-fn rook_threat_pos(board: &Board, stm: Color) -> BitBoard {
-    let nstm = board.colors(!stm);
+fn rook_threat_pos(board: &Board, threat_of: Color) -> BitBoard {
+    let nthreat_of = board.colors(!threat_of);
 
     let queens = board.pieces(Piece::Queen);
     let king = board.pieces(Piece::King);
@@ -122,13 +143,13 @@ fn rook_threat_pos(board: &Board, stm: Color) -> BitBoard {
     let mut level_0 = BitBoard::EMPTY;
     let mut level_1 = BitBoard::EMPTY;
 
-    let rook_blockers = board.colors(stm)
+    let rook_blockers = board.colors(threat_of)
         | board.pieces(Piece::Pawn)
         | board.pieces(Piece::Knight)
         | board.pieces(Piece::Bishop)
         | board.pieces(Piece::Rook);
 
-    for major in targets & nstm {
+    for major in targets & nthreat_of {
         let moves = cozy_chess::get_rook_moves(major, rook_blockers);
         level_1 |= moves & level_0;
         level_0 |= moves;
