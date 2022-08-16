@@ -56,7 +56,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             counter_move,
             pv_move,
             killer_entry,
-            threat_pos: LazyThreatPos::new(board.side_to_move()),
+            threat_pos: LazyThreatPos::new(board, board.side_to_move()),
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
