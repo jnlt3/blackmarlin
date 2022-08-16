@@ -421,7 +421,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && !is_capture
-            && depth <= 3
+            && depth <= 4
             && !nstm_threat.is_empty()
             && !in_check;
         if do_tp && !nstm_threat.has(make_move.from) {
