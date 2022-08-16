@@ -6,6 +6,7 @@ use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
 use super::see::calculate_see;
+use super::threats::LazyThreatPos;
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
@@ -18,6 +19,7 @@ enum GenType {
     GenQuiet,
     CounterMove,
     Killer,
+    Tactical,
     Quiet,
     BadCaptures,
 }
@@ -29,8 +31,8 @@ pub struct OrderedMoveGen<const K: usize> {
     pv_move: Option<Move>,
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
+    threat_pos: LazyThreatPos,
     gen_type: GenType,
-
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
     quiets: ArrayVec<(Move, i16), MAX_MOVES>,
     skip_quiets: bool,
@@ -54,6 +56,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             counter_move,
             pv_move,
             killer_entry,
+            threat_pos: LazyThreatPos::new(board.side_to_move()),
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -188,7 +191,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             self.gen_type = GenType::CounterMove;
         }
         if self.gen_type == GenType::CounterMove {
-            self.gen_type = GenType::Quiet;
+            self.gen_type = GenType::Tactical;
             if let Some(counter_move) = self.counter_move {
                 let position = self
                     .quiets
@@ -199,6 +202,24 @@ impl<const K: usize> OrderedMoveGen<K> {
                     return Some(counter_move);
                 }
             }
+        }
+        if self.gen_type == GenType::Tactical {
+            let mut max = 0;
+            let mut best_index = None;
+            for (index, &(quiet, score)) in self.quiets.iter().enumerate() {
+                let threat_pos = self
+                    .threat_pos
+                    .get(board, board.piece_on(quiet.from).unwrap());
+                if threat_pos.has(quiet.to) && (best_index.is_none() || score > max) {
+                    max = score;
+                    best_index = Some(index);
+                }
+            }
+            if let Some(index) = best_index {
+                return Some(self.quiets.swap_remove(index).0);
+            } else {
+                self.gen_type = GenType::Quiet;
+            };
         }
         if self.gen_type == GenType::Quiet {
             let mut max = 0;
