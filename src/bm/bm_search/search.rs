@@ -362,7 +362,7 @@ pub fn search<Search: SearchType>(
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
-                if multi_cut && depth <= 8 && s_score.max(s_beta) + 100 <= alpha {
+                if multi_cut && depth <= 8 && s_score.max(entry.score()) + 100 <= alpha {
                     return alpha;
                 }
                 if s_score < s_beta {
