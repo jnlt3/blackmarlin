@@ -398,9 +398,10 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && !is_capture
             && quiets.len()
-                >= shared_context
-                    .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                >= shared_context.get_lmp_lookup().get(
+                    depth as usize,
+                    (improving && !nstm_threat.is_empty()) as usize,
+                )
         {
             move_gen.set_skip_quiets(true);
             continue;
