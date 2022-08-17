@@ -308,6 +308,8 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(pos, prev_move);
+
+    let mut double_ext = false;
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -366,6 +368,7 @@ pub fn search<Search: SearchType>(
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
                         extension += 1;
+                        double_ext = true;
                     }
                 } else if multi_cut && s_beta >= beta {
                     /*
@@ -469,6 +472,9 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             if !nstm_threat.is_empty() && !nstm_threat.has(make_move.from) {
+                reduction += 1;
+            }
+            if double_ext {
                 reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
