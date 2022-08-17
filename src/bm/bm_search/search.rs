@@ -211,6 +211,11 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
+
+        if depth <= 2 && eval >= beta && nstm_threat.is_empty() {
+            return eval;
+        }
+        
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
             return eval;
         }
