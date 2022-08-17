@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, PieceMoves};
+use cozy_chess::{BitBoard, Board, Move, PieceMoves};
 
 use crate::bm::bm_util::history::{History, HistoryIndices};
 use crate::bm::bm_util::position::Position;
@@ -28,6 +28,7 @@ pub struct OrderedMoveGen<const K: usize> {
     move_list: ArrayVec<PieceMoves, 18>,
     pv_move: Option<Move>,
     killer_entry: MoveEntryIterator<K>,
+    nstm_threats: BitBoard,
     counter_move: Option<Move>,
     gen_type: GenType,
 
@@ -42,6 +43,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         pv_move: Option<Move>,
         counter_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
+        nstm_threats: BitBoard,
     ) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
@@ -54,6 +56,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             counter_move,
             pv_move,
             killer_entry,
+            nstm_threats,
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -166,7 +169,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let counter_move_hist = hist
                         .get_counter_move(pos, hist_indices, make_move)
                         .unwrap_or_default();
-                    let score = hist.get_quiet(pos, make_move) + counter_move_hist;
+                    let mut score = hist.get_quiet(pos, make_move) + counter_move_hist;
+                    if self.nstm_threats.has(make_move.from) {
+                        score += 32;
+                    }
 
                     self.quiets.push((make_move, score));
                 }
