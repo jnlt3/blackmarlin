@@ -6,7 +6,7 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 pub const MAX_HIST: i16 = 512;
 
 fn hist_stat(amt: i16) -> i16 {
-    (amt * amt).min(MAX_HIST)
+    (amt * amt / 2).min(MAX_HIST)
 }
 
 fn bonus(hist: &mut i16, amt: i16) {
