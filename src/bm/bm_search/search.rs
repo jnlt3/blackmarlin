@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece, Rank};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -113,6 +113,17 @@ const fn hp(depth: u32) -> i32 {
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
     history / 92
+}
+
+fn is_high_pawn_push(board: &Board, make_move: Move) -> bool {
+    if !matches!(board.piece_on(make_move.from).unwrap(), Piece::Pawn) {
+        return false;
+    }
+    let passer_rank = match board.side_to_move() {
+        Color::White => Rank::Sixth.bitboard() | Rank::Seventh.bitboard(),
+        Color::Black => Rank::Third.bitboard() | Rank::Fourth.bitboard(),
+    };
+    passer_rank.has(make_move.from)
 }
 
 pub fn search<Search: SearchType>(
@@ -428,6 +439,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let is_high_pawn_push = is_high_pawn_push(pos.board(), make_move);
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
@@ -471,6 +483,10 @@ pub fn search<Search: SearchType>(
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
             }
+            if is_high_pawn_push {
+                reduction -= 1;
+            }
+
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
