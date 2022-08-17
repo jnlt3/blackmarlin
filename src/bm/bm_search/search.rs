@@ -685,10 +685,10 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - 193 >= beta {
+            if stand_pat + see - 150 >= beta {
                 return beta;
             }
-            if stand_pat + see + 196 <= alpha {
+            if stand_pat + see + 150 <= alpha {
                 continue;
             }
             pos.make_move(make_move);
