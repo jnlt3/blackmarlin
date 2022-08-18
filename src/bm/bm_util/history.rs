@@ -63,7 +63,8 @@ impl History {
 
     pub fn get_quiet(&self, pos: &Position, indices: &HistoryIndices, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        let is_threatened = indices.nstm_threats.has(make_move.from) as usize;
+        let is_threatened = indices.nstm_threats.has(make_move.from) as usize
+            + (!indices.nstm_threats.is_empty()) as usize;
         self.quiet[stm as usize][is_threatened][make_move.from as usize][make_move.to as usize]
     }
 
@@ -74,7 +75,8 @@ impl History {
         make_move: Move,
     ) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        let is_threatened = indices.nstm_threats.has(make_move.from) as usize;
+        let is_threatened = indices.nstm_threats.has(make_move.from) as usize
+            + (!indices.nstm_threats.is_empty()) as usize;
         &mut self.quiet[stm as usize][is_threatened][make_move.from as usize][make_move.to as usize]
     }
 
