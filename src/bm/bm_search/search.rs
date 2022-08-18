@@ -383,8 +383,12 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp =
-            !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
+        let do_fp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && !nstm_threat.has(make_move.from)
+            && depth <= FP_DEPTH;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
