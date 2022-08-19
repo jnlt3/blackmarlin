@@ -143,7 +143,7 @@ impl History {
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+            &mut self.followup_move[stm as usize][prev_piece as usize][prev_to as usize]
                 [current_piece as usize][make_move.to as usize],
         )
     }
