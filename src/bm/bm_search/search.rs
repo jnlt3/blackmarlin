@@ -418,7 +418,7 @@ pub fn search<Search: SearchType>(
         }
 
         let do_ttp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4;
-        if do_ttp && tt_entry.is_some() {
+        if do_ttp && tt_entry.map_or(false, |entry| entry.depth() + 1 >= depth) {
             move_gen.set_skip_quiets(true);
         }
 
