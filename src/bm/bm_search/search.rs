@@ -417,6 +417,11 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let do_ttp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4;
+        if do_ttp && tt_entry.is_some() {
+            move_gen.set_skip_quiets(true);
+        }
+
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
