@@ -1,5 +1,7 @@
 use cozy_chess::{Color, Move, Piece, Square};
 
+use crate::bm::bm_runner::ab_runner::MoveData;
+
 use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
@@ -31,17 +33,10 @@ pub struct HistoryIndices {
 }
 
 impl HistoryIndices {
-    pub fn new(pos: &Position, prev_move: Option<Move>, prev_stm_move: Option<Move>) -> Self {
-        let counter_move = prev_move.map(|prev_move| {
-            let piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King);
-            (piece, prev_move.to)
-        });
-        let followup_move = prev_stm_move
-            .zip(pos.last(1))
-            .map(|(prev_stm_move, board)| {
-                let piece = board.piece_on(prev_stm_move.to).unwrap_or(Piece::King);
-                (piece, prev_stm_move.to)
-            });
+    pub fn new(prev_move: Option<MoveData>, prev_stm_move: Option<MoveData>) -> Self {
+        let counter_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
+        let followup_move =
+            prev_stm_move.map(|prev_stm_move| (prev_stm_move.piece, prev_stm_move.to));
         Self {
             counter_move,
             followup_move,

@@ -1,7 +1,7 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Move, Piece};
 
-use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
+use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
@@ -313,7 +313,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(pos, prev_move, prev_stm_move);
+    let hist_indices = HistoryIndices::new(prev_move, prev_stm_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -434,9 +434,10 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        local_context.search_stack_mut()[ply as usize].move_played =
+            Some(MoveData::from_move(pos.board(), make_move));
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
-        local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension = extension.max(1);
