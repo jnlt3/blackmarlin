@@ -383,8 +383,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp =
-            !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
+        let do_fp = non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -410,8 +409,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
+        let do_hp = non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -421,7 +419,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
+        let do_see_prune = non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
         if do_see_prune
             && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
         {
