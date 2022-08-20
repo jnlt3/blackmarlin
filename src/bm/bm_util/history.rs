@@ -36,13 +36,12 @@ impl HistoryIndices {
             let piece = pos.board().piece_on(prev_move.to).unwrap_or(Piece::King);
             (piece, prev_move.to)
         });
-        let followup_move = prev_stm_move.map(|prev_stm_move| {
-            let piece = pos
-                .last(1)
-                .piece_on(prev_stm_move.to)
-                .unwrap_or(Piece::King);
-            (piece, prev_stm_move.to)
-        });
+        let followup_move = prev_stm_move
+            .zip(pos.last(1))
+            .map(|(prev_stm_move, board)| {
+                let piece = board.piece_on(prev_stm_move.to).unwrap_or(Piece::King);
+                (piece, prev_stm_move.to)
+            });
         Self {
             counter_move,
             followup_move,

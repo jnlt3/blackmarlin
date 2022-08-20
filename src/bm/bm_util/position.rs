@@ -57,8 +57,8 @@ impl Position {
     }
 
     #[inline]
-    pub fn last(&self, index: usize) -> &Board {
-        &self.boards[self.boards.len() - index]
+    pub fn last(&self, index: usize) -> Option<&Board> {
+        self.boards.get(self.boards.len() - index)
     }
 
     #[inline]
