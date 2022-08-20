@@ -338,6 +338,7 @@ pub fn search<Search: SearchType>(
         if let Some(entry) = tt_entry {
             if moves_seen == 0
                 && entry.table_move() == make_move
+                && depth >= 5
                 && ply != 0
                 && !entry.score().is_mate()
                 && entry.depth() + 2 >= depth
@@ -346,28 +347,23 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 5;
-                let s_score = if multi_cut {
-                    search::<Search::Zw>(
-                        pos,
-                        local_context,
-                        shared_context,
-                        ply,
-                        depth / 2 - 1,
-                        s_beta - 1,
-                        s_beta,
-                    )
-                } else {
-                    eval
-                };
+                let s_score = search::<Search::Zw>(
+                    pos,
+                    local_context,
+                    shared_context,
+                    ply,
+                    depth / 2 - 1,
+                    s_beta - 1,
+                    s_beta,
+                );
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
+                    if !Search::PV && s_score + D_EXT < s_beta {
                         extension += 1;
                     }
-                } else if multi_cut && s_beta >= beta {
+                } else if s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
