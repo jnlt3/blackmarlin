@@ -12,7 +12,7 @@ pub enum UciCommand {
     Go(Vec<TimeManagementInfo>),
     SetOption(String, String),
     Move(Move),
-    Bench,
+    Bench(u32),
     Empty,
     Stop,
     Quit,
@@ -29,7 +29,7 @@ impl UciCommand {
         let mut split = input.split_ascii_whitespace();
         let token = match split.next() {
             Some(string) => string,
-            None => return UciCommand::Empty
+            None => return UciCommand::Empty,
         };
         match token {
             "uci" => UciCommand::Uci,
@@ -117,7 +117,7 @@ impl UciCommand {
             "quit" => UciCommand::Quit,
             "eval" => UciCommand::Eval,
             "isready" => UciCommand::IsReady,
-            "bench" => UciCommand::Bench,
+            "bench" => UciCommand::Bench(split.next().map_or(12, |depth| depth.parse().unwrap())),
             "static" => UciCommand::Static,
             "setoption" => {
                 split.next();

@@ -90,10 +90,7 @@ impl UciAdapter {
                 self.time_manager.abort_now();
                 match name.as_str() {
                     "Hash" => {
-                        self.bm_runner
-                            .lock()
-                            .unwrap()
-                            .hash(value.parse().unwrap());
+                        self.bm_runner.lock().unwrap().hash(value.parse().unwrap());
                     }
                     "Threads" => {
                         self.threads = value.parse().unwrap();
@@ -105,7 +102,7 @@ impl UciAdapter {
                     _ => {}
                 }
             }
-            UciCommand::Bench => {
+            UciCommand::Bench(depth) => {
                 self.exit();
 
                 let mut bench_data = vec![];
@@ -116,7 +113,7 @@ impl UciAdapter {
                 for board in bench::bench_positions() {
                     bm_runner.new_game();
                     bm_runner.set_board(board.clone());
-                    let options = [TimeManagementInfo::MaxDepth(12)];
+                    let options = [TimeManagementInfo::MaxDepth(depth)];
                     let start = Instant::now();
 
                     self.time_manager.initiate(&board, &options);
