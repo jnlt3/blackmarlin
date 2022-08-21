@@ -471,6 +471,9 @@ pub fn search<Search: SearchType>(
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
             }
+            if !captures.is_empty() && !is_capture {
+                reduction += 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
