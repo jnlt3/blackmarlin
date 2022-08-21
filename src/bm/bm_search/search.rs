@@ -334,12 +334,11 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            (local_context.get_hist().get_quiet(pos, make_move) * 2
+            (local_context.get_hist().get_quiet(pos, make_move)
                 + local_context
                     .get_hist()
                     .get_counter_move(pos, &hist_indices, make_move)
                     .unwrap_or_default()
-                    * 2
                 + local_context
                     .get_hist()
                     .get_old_counter_move(pos, &hist_indices, make_move)
@@ -347,9 +346,8 @@ pub fn search<Search: SearchType>(
                 + local_context
                     .get_hist()
                     .get_followup_move(pos, &hist_indices, make_move)
-                    .unwrap_or_default()
-                    * 2)
-                / 7
+                    .unwrap_or_default())
+                / 4
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
