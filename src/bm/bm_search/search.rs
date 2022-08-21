@@ -1,7 +1,7 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Move, Piece};
 
-use crate::bm::bm_runner::ab_runner::{LocalContext, SharedContext, MAX_PLY};
+use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
@@ -287,6 +287,12 @@ pub fn search<Search: SearchType>(
         None
     };
 
+    let prev_stm_move = if ply > 1 {
+        local_context.search_stack()[ply as usize - 2].move_played
+    } else {
+        None
+    };
+
     let counter_move = if let Some(prev_move) = prev_move {
         local_context.get_cm_table().get(
             pos.board().side_to_move(),
@@ -307,7 +313,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(pos, prev_move);
+    let hist_indices = HistoryIndices::new(prev_move, prev_stm_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -322,7 +328,16 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            local_context.get_hist().get_quiet(pos, make_move)
+            (local_context.get_hist().get_quiet(pos, make_move)
+                + local_context
+                    .get_hist()
+                    .get_counter_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default()
+                + local_context
+                    .get_hist()
+                    .get_followup_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default())
+                / 3
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
@@ -428,9 +443,10 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        local_context.search_stack_mut()[ply as usize].move_played =
+            Some(MoveData::from_move(pos.board(), make_move));
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
-        local_context.search_stack_mut()[ply as usize].move_played = Some(make_move);
         let gives_check = pos.board().checkers() != BitBoard::EMPTY;
         if gives_check {
             extension = extension.max(1);

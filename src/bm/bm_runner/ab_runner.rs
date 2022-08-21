@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
-use cozy_chess::{Board, Color, Move};
+use cozy_chess::{Board, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -68,11 +68,32 @@ pub struct SharedContext {
     lmp_lookup: Arc<LmpLookup>,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct MoveData {
+    pub from: Square,
+    pub to: Square,
+    pub promotion: Option<Piece>,
+    pub piece: Piece,
+    pub capture: bool,
+}
+
+impl MoveData {
+    pub fn from_move(board: &Board, make_move: Move) -> Self {
+        Self {
+            from: make_move.from,
+            to: make_move.to,
+            promotion: make_move.promotion,
+            piece: board.piece_on(make_move.from).unwrap(),
+            capture: board.colors(!board.side_to_move()).has(make_move.to),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SearchStack {
     pub eval: Evaluation,
     pub skip_move: Option<Move>,
-    pub move_played: Option<Move>,
+    pub move_played: Option<MoveData>,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
 }

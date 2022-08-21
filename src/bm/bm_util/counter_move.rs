@@ -1,5 +1,7 @@
 use cozy_chess::{Board, Color, Move, Piece, Square};
 
+use crate::bm::bm_runner::ab_runner::MoveData;
+
 use super::table_types::{new_piece_to_table, PieceTo};
 
 #[derive(Debug, Clone)]
@@ -18,13 +20,12 @@ impl CounterMoveTable {
         self.table[color as usize][piece as usize][to as usize]
     }
 
-    pub fn cutoff(&mut self, board: &Board, prev_move: Move, cutoff_move: Move, amt: u32) {
+    pub fn cutoff(&mut self, board: &Board, prev_move: MoveData, cutoff_move: Move, amt: u32) {
         if amt > 20 {
             return;
         }
         let color = board.side_to_move();
-        let piece = board.piece_on(prev_move.to).unwrap_or(Piece::King);
-        let to = prev_move.to;
-        self.table[color as usize][piece as usize][to as usize] = Some(cutoff_move);
+        self.table[color as usize][prev_move.piece as usize][prev_move.to as usize] =
+            Some(cutoff_move);
     }
 }
