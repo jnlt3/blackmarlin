@@ -164,10 +164,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let counter_move_hist = hist
-                        .get_counter_move(pos, hist_indices, make_move)
+                        .get_counter_move_0(pos, hist_indices, make_move)
                         .unwrap_or_default();
                     let followup_move_hist = hist
-                        .get_followup_move(pos, hist_indices, make_move)
+                        .get_counter_move_1(pos, hist_indices, make_move)
                         .unwrap_or_default();
                     let score =
                         hist.get_quiet(pos, make_move) + counter_move_hist + followup_move_hist;

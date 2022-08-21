@@ -287,8 +287,8 @@ pub fn search<Search: SearchType>(
         None
     };
 
-    let prev_stm_move = if ply > 1 {
-        local_context.search_stack()[ply as usize - 2].move_played
+    let prev_move_2 = if ply > 2 {
+        local_context.search_stack()[ply as usize - 3].move_played
     } else {
         None
     };
@@ -313,7 +313,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(prev_move, prev_stm_move);
+    let hist_indices = HistoryIndices::new(prev_move, prev_move_2);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
