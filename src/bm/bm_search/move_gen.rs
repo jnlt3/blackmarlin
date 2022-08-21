@@ -163,14 +163,14 @@ impl<const K: usize> OrderedMoveGen<K> {
                         };
                         continue;
                     }
-                    let counter_move_hist = hist
+                    let counter_move_0_hist = hist
                         .get_counter_move_0(pos, hist_indices, make_move)
                         .unwrap_or_default();
-                    let followup_move_hist = hist
+                    let counter_move_1_hist = hist
                         .get_counter_move_1(pos, hist_indices, make_move)
                         .unwrap_or_default();
                     let score =
-                        hist.get_quiet(pos, make_move) + counter_move_hist + followup_move_hist;
+                        hist.get_quiet(pos, make_move) + counter_move_0_hist + counter_move_1_hist;
 
                     self.quiets.push((make_move, score));
                 }
