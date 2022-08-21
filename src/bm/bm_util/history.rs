@@ -34,9 +34,14 @@ pub struct HistoryIndices {
 
 impl HistoryIndices {
     pub fn new(prev_move: Option<MoveData>, prev_stm_move: Option<MoveData>) -> Self {
-        let counter_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
-        let followup_move =
-            prev_stm_move.map(|prev_stm_move| (prev_stm_move.piece, prev_stm_move.to));
+        let counter_move = prev_move
+            .map(|prev_move| (prev_move.promotion.unwrap_or(prev_move.piece), prev_move.to));
+        let followup_move = prev_stm_move.map(|prev_stm_move| {
+            (
+                prev_stm_move.promotion.unwrap_or(prev_stm_move.piece),
+                prev_stm_move.to,
+            )
+        });
         Self {
             counter_move,
             followup_move,
