@@ -29,16 +29,23 @@ fn malus(hist: &mut i16, amt: i16) {
 #[derive(Copy, Clone)]
 pub struct HistoryIndices {
     counter_move: Option<(Piece, Square)>,
+    old_counter_move: Option<(Piece, Square)>,
     followup_move: Option<(Piece, Square)>,
 }
 
 impl HistoryIndices {
-    pub fn new(prev_move: Option<MoveData>, prev_stm_move: Option<MoveData>) -> Self {
+    pub fn new(
+        prev_move: Option<MoveData>,
+        prev_stm_move: Option<MoveData>,
+        old_prev_move: Option<MoveData>,
+    ) -> Self {
         let counter_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
+        let old_counter_move = old_prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
         let followup_move =
             prev_stm_move.map(|prev_stm_move| (prev_stm_move.piece, prev_stm_move.to));
         Self {
             counter_move,
+            old_counter_move,
             followup_move,
         }
     }
@@ -49,6 +56,7 @@ pub struct History {
     quiet: Box<[Butterfly<i16>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    old_counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
@@ -58,6 +66,7 @@ impl History {
             quiet: Box::new([new_butterfly_table(0); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            old_counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
@@ -108,6 +117,36 @@ impl History {
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
             &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    pub fn get_old_counter_move(
+        &self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<i16> {
+        let (prev_piece, prev_to) = indices.old_counter_move?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            self.old_counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    fn get_old_counter_move_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<&mut i16> {
+        let (prev_piece, prev_to) = indices.old_counter_move?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            &mut self.old_counter_move[stm as usize][prev_piece as usize][prev_to as usize]
                 [current_piece as usize][make_move.to as usize],
         )
     }
@@ -182,6 +221,16 @@ impl History {
             for &failed_move in fails {
                 let failed_hist = self
                     .get_counter_move_mut(pos, indices, failed_move)
+                    .unwrap();
+                malus(failed_hist, amt);
+            }
+        }
+        if let Some(old_counter_move_hist) = self.get_old_counter_move_mut(pos, indices, make_move)
+        {
+            bonus(old_counter_move_hist, amt);
+            for &failed_move in fails {
+                let failed_hist = self
+                    .get_old_counter_move_mut(pos, indices, failed_move)
                     .unwrap();
                 malus(failed_hist, amt);
             }

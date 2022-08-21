@@ -293,6 +293,12 @@ pub fn search<Search: SearchType>(
         None
     };
 
+    let old_prev_move = if ply > 2 {
+        local_context.search_stack()[ply as usize - 3].move_played
+    } else {
+        None
+    };
+
     let counter_move = if let Some(prev_move) = prev_move {
         local_context.get_cm_table().get(
             pos.board().side_to_move(),
@@ -313,7 +319,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(prev_move, prev_stm_move);
+    let hist_indices = HistoryIndices::new(prev_move, prev_stm_move, old_prev_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -328,16 +334,22 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            (local_context.get_hist().get_quiet(pos, make_move)
+            (local_context.get_hist().get_quiet(pos, make_move) * 2
                 + local_context
                     .get_hist()
                     .get_counter_move(pos, &hist_indices, make_move)
                     .unwrap_or_default()
+                    * 2
+                + local_context
+                    .get_hist()
+                    .get_old_counter_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default()
                 + local_context
                     .get_hist()
                     .get_followup_move(pos, &hist_indices, make_move)
-                    .unwrap_or_default())
-                / 3
+                    .unwrap_or_default()
+                    * 2)
+                / 7
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
