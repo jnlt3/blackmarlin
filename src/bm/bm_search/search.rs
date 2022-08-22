@@ -393,6 +393,15 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        if !Search::PV
+            && is_capture
+            && prev_move.map_or(false, |prev_move| {
+                prev_move.capture && prev_move.to == make_move.to
+            })
+        {
+            extension = extension.max(1);
+        }
+
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
