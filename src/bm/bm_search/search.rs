@@ -383,7 +383,7 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        if !Search::PV
+        if Search::PV
             && is_capture
             && prev_move.map_or(false, |prev_move| {
                 prev_move.capture && prev_move.to == make_move.to
