@@ -281,21 +281,24 @@ pub fn search<Search: SearchType>(
 
     let mut highest_score = None;
 
-    let prev_move = if ply != 0 {
+    let opp_move = if ply != 0 {
         local_context.search_stack()[ply as usize - 1].move_played
     } else {
         None
     };
 
-    let counter_move = if let Some(prev_move) = prev_move {
-        local_context.get_cm_table().get(
-            pos.board().side_to_move(),
-            pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
-            prev_move.to,
-        )
+    let prev_move = if ply > 1 {
+        local_context.search_stack()[ply as usize - 2].move_played
     } else {
         None
     };
+
+    let counter_move = local_context
+        .get_cm_table()
+        .get_counter_move(pos.board().side_to_move(), opp_move);
+    let followup_move = local_context
+        .get_cm_table()
+        .get_followup_move(pos.board().side_to_move(), opp_move);
 
     let killers = local_context.get_k_table()[ply as usize];
     let mut move_gen =
@@ -307,7 +310,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(prev_move);
+    let hist_indices = HistoryIndices::new(opp_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -470,6 +473,7 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             if Some(make_move) == counter_move
+                || Some(make_move) == followup_move
                 || killers.into_iter().any(|killer| killer == make_move)
             {
                 reduction -= 1;
@@ -562,14 +566,13 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
-                            if let Some(prev_move) = prev_move {
-                                local_context.get_cm_table_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                    amt,
-                                );
-                            }
+                            local_context.get_cm_table_mut().cutoff(
+                                pos.board(),
+                                opp_move,
+                                prev_move,
+                                make_move,
+                                amt,
+                            );
                         }
                         local_context.get_hist_mut().update_history(
                             pos,
