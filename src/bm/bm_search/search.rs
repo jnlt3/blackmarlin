@@ -384,6 +384,7 @@ pub fn search<Search: SearchType>(
         }
 
         if Search::PV
+            && depth >= 7
             && is_capture
             && prev_move.map_or(false, |prev_move| {
                 prev_move.capture && prev_move.to == make_move.to
