@@ -400,7 +400,7 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
-        if Search::PV && !nstm_threat.is_empty() && nstm_threat.has(make_move.from) {
+        if !Search::PV && !nstm_threat.is_empty() && nstm_threat.has(make_move.from) {
             extension = extension.max(1);
         }
 
