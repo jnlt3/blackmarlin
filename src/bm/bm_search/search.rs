@@ -281,13 +281,19 @@ pub fn search<Search: SearchType>(
 
     let mut highest_score = None;
 
-    let prev_move = if ply != 0 {
+    let opp_move = if ply != 0 {
         local_context.search_stack()[ply as usize - 1].move_played
     } else {
         None
     };
 
-    let counter_move = if let Some(prev_move) = prev_move {
+    let prev_opp_move = if ply > 2 {
+        local_context.search_stack()[ply as usize - 3].move_played
+    } else {
+        None
+    };
+
+    let counter_move = if let Some(prev_move) = opp_move {
         local_context.get_cm_table().get(
             pos.board().side_to_move(),
             pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
@@ -307,7 +313,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(prev_move);
+    let hist_indices = HistoryIndices::new(opp_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -381,6 +387,17 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+        }
+
+        if Search::PV
+            && is_capture
+            && (opp_move.map_or(false, |opp_move| {
+                opp_move.capture && opp_move.to == make_move.to
+            }) || prev_opp_move.map_or(false, |opp_move| {
+                opp_move.capture && opp_move.to == make_move.to
+            }))
+        {
+            extension = extension.max(1);
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
@@ -562,7 +579,7 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
-                            if let Some(prev_move) = prev_move {
+                            if let Some(prev_move) = opp_move {
                                 local_context.get_cm_table_mut().cutoff(
                                     pos.board(),
                                     prev_move,
