@@ -482,6 +482,9 @@ pub fn search<Search: SearchType>(
             }
             if Search::PV {
                 reduction -= 1;
+                if moves_seen < 3 {
+                    reduction -= 1;
+                }
             };
             if improving {
                 reduction -= 1;
