@@ -1,11 +1,11 @@
 use cozy_chess::{Board, Piece};
 
-const BASE: i16 = 100;
-const PAWNS: i16 = 0;
-const KNIGHTS: i16 = 0;
-const BISHOPS: i16 = 0;
-const ROOKS: i16 = 0;
-const QUEENS: i16 = 0;
+const BASE: i16 = 103;
+const PAWNS: i16 = 1;
+const KNIGHTS: i16 = 2;
+const BISHOPS: i16 = 1;
+const ROOKS: i16 = 6;
+const QUEENS: i16 = 5;
 
 pub fn scaling(board: &Board) -> i16 {
     let mut scaling = BASE;
