@@ -96,8 +96,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: i16) -> i16 {
-    depth * FP
+const fn fp(depth: u32) -> i16 {
+    depth as i16 * FP
 }
 
 #[inline]
@@ -414,7 +414,7 @@ pub fn search<Search: SearchType>(
         let do_fp =
             !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
 
-        if do_fp && eval + fp(lmr_depth) <= alpha {
+        if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
@@ -438,8 +438,11 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
+        let do_hp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && lmr_depth <= HP_DEPTH as i16
+            && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
