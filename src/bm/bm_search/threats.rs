@@ -1,5 +1,10 @@
 use cozy_chess::{BitBoard, Board, Color, Piece};
 
+pub struct Threats {
+    pub all: BitBoard,
+    pub strong: BitBoard,
+}
+
 pub fn defended(board: &Board, side: Color) -> BitBoard {
     let mut defended = BitBoard::EMPTY;
 
@@ -23,10 +28,10 @@ pub fn defended(board: &Board, side: Color) -> BitBoard {
     for rook in (rooks | queens) & color {
         defended |= cozy_chess::get_rook_moves(rook, occupied);
     }
-    defended
+    defended & board.colors(!side)
 }
 
-pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
+pub fn threats(board: &Board, threats_of: Color, defended: BitBoard) -> Threats {
     let occupied = board.occupied();
     let color = board.colors(threats_of);
     let n_color = board.colors(!threats_of);
@@ -60,5 +65,11 @@ pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
         rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
     }
 
-    ((pawn_attacks & pieces) | (minor_attacks & majors) | (rook_attacks & queens)) & n_color
+    let strong_threats =
+        ((pawn_attacks & pieces) | (minor_attacks & majors) | (rook_attacks & queens)) & n_color;
+    let weak_threats = (pawn_attacks | minor_attacks | rook_attacks) & n_color & !defended;
+    Threats {
+        all: weak_threats | strong_threats,
+        strong: strong_threats,
+    }
 }

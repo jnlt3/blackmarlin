@@ -204,9 +204,8 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
-
     let stm_defended = defended(pos.board(), pos.board().side_to_move());
+    let nstm_threat = threats(pos.board(), !pos.board().side_to_move(), stm_defended);
 
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -214,7 +213,9 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+        if do_rev_fp(depth)
+            && eval - rev_fp(depth, improving && nstm_threat.strong.is_empty()) >= beta
+        {
             return eval;
         }
 
@@ -231,7 +232,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threat.is_empty(),
+            !nstm_threat.strong.is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
@@ -503,11 +504,8 @@ pub fn search<Search: SearchType>(
             {
                 reduction -= 1;
             }
-            if nstm_threat.has(make_move.from) {
+            if nstm_threat.all.has(make_move.from) {
                 reduction -= 2;
-            }
-            if !stm_defended.has(make_move.from) && stm_defended.has(make_move.to) {
-                reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
