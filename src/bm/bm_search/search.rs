@@ -444,7 +444,7 @@ pub fn search<Search: SearchType>(
             && moves_seen > 0
             && !is_capture
             && h_score < 0
-            && depth <= 4;
+            && depth <= 6;
         if do_atp && !nstm_threat.is_empty() && !nstm_threat.has(make_move.from) {
             continue;
         }
