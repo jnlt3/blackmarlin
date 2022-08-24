@@ -17,7 +17,7 @@ pub fn defended(board: &Board, side: Color) -> BitBoard {
     let queens = board.pieces(Piece::Queen);
 
     for pawn in pawns & color {
-        defended |= cozy_chess::get_pawn_attacks(pawn, !side);
+        defended |= cozy_chess::get_pawn_attacks(pawn, side);
     }
     for knight in knights & color {
         defended |= cozy_chess::get_knight_moves(knight);
@@ -28,7 +28,7 @@ pub fn defended(board: &Board, side: Color) -> BitBoard {
     for rook in (rooks | queens) & color {
         defended |= cozy_chess::get_rook_moves(rook, occupied);
     }
-    defended & board.colors(!side)
+    defended
 }
 
 pub fn threats(board: &Board, threats_of: Color, defended: BitBoard) -> Threats {
