@@ -101,8 +101,12 @@ const fn fp(depth: u32) -> i16 {
 }
 
 #[inline]
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * SEE_FP
+const fn see_fp(depth: u32, is_capture: bool) -> i16 {
+    let factor = match is_capture {
+        true => depth * depth,
+        false => depth,
+    } as i16;
+    factor * SEE_FP
 }
 
 #[inline]
@@ -445,7 +449,8 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
         if do_see_prune
-            && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
+            && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth, is_capture)
+                <= alpha
         {
             continue;
         }
