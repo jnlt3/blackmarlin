@@ -1,5 +1,31 @@
 use cozy_chess::{BitBoard, Board, Color, Piece};
 
+pub fn defended(board: &Board, side: Color) -> BitBoard {
+    let mut defended = BitBoard::EMPTY;
+
+    let occupied = board.occupied();
+    let color = board.colors(side);
+    let pawns = board.pieces(Piece::Pawn);
+    let knights = board.pieces(Piece::Knight);
+    let bishops = board.pieces(Piece::Bishop);
+    let rooks = board.pieces(Piece::Rook);
+    let queens = board.pieces(Piece::Queen);
+
+    for pawn in pawns & color {
+        defended |= cozy_chess::get_pawn_attacks(pawn, !side);
+    }
+    for knight in knights & color {
+        defended |= cozy_chess::get_knight_moves(knight);
+    }
+    for bishop in (bishops | queens) & color {
+        defended |= cozy_chess::get_bishop_moves(bishop, occupied);
+    }
+    for rook in (rooks | queens) & color {
+        defended |= cozy_chess::get_rook_moves(rook, occupied);
+    }
+    defended
+}
+
 pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
     let occupied = board.occupied();
     let color = board.colors(threats_of);
