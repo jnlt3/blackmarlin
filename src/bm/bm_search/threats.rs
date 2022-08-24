@@ -23,7 +23,7 @@ pub fn defended(board: &Board, side: Color) -> BitBoard {
     for rook in (rooks | queens) & color {
         defended |= cozy_chess::get_rook_moves(rook, occupied);
     }
-    defended
+    defended & board.colors(!side)
 }
 
 pub fn threats(board: &Board, threats_of: Color) -> BitBoard {

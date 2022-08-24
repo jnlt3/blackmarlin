@@ -204,9 +204,9 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
-
-    let stm_defended = defended(pos.board(), pos.board().side_to_move());
+    let stm = pos.board().side_to_move();
+    let nstm_threat = threats(pos.board(), !stm);
+    let stm_defended = defended(pos.board(), stm);
 
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -497,7 +497,7 @@ pub fn search<Search: SearchType>(
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
             }
-            if !stm_defended.has(make_move.from) && stm_defended.has(make_move.to) {
+            if stm_defended.has(make_move.to) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
