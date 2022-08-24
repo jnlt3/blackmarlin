@@ -489,11 +489,11 @@ pub fn search<Search: SearchType>(
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
-            if Search::PV {
-                reduction -= 1;
+            if !Search::PV {
+                reduction += 1;
             };
-            if improving {
-                reduction -= 1;
+            if !improving {
+                reduction += 1;
             }
             if Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
