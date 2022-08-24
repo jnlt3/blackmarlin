@@ -96,8 +96,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * FP
+const fn fp(depth: i16) -> i16 {
+    depth * FP
 }
 
 #[inline]
@@ -400,6 +400,12 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
+        let mut reduction = shared_context
+            .get_lmr_lookup()
+            .get(depth as usize, moves_seen) as i16;
+
+        let lmr_depth = (depth as i16 - reduction).clamp(1, depth as i16);
+
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
@@ -408,7 +414,7 @@ pub fn search<Search: SearchType>(
         let do_fp =
             !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(lmr_depth) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
@@ -465,10 +471,6 @@ pub fn search<Search: SearchType>(
         If the move proves to be worse than alpha, we don't have to do a
         full depth search
         */
-        let mut reduction = shared_context
-            .get_lmr_lookup()
-            .get(depth as usize, moves_seen) as i16;
-
         if moves_seen > 0 {
             /*
             If a move is quiet, we already have information on this move
