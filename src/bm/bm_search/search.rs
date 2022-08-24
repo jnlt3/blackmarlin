@@ -439,12 +439,13 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_atp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 4;
-        if do_atp
-            && tt_entry.map_or(false, |entry| nstm_threat.has(entry.table_move().from))
-            && !nstm_threat.is_empty()
-            && !nstm_threat.has(make_move.from)
-        {
+        let do_atp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && h_score < 0
+            && depth <= 4;
+        if do_atp && !nstm_threat.is_empty() && !nstm_threat.has(make_move.from) {
             continue;
         }
 
