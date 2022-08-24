@@ -36,14 +36,9 @@ pub enum TimeManagementInfo {
 #[derive(Debug)]
 pub struct TimeManager {
     expected_moves: AtomicU32,
-    last_eval: AtomicI16,
     max_duration: AtomicU32,
     normal_duration: AtomicU32,
     target_duration: AtomicU32,
-
-    same_move_depth: AtomicU32,
-    prev_move: Mutex<Option<Move>>,
-    board: Mutex<Board>,
 
     infinite: AtomicBool,
     abort_now: AtomicBool,
@@ -57,13 +52,9 @@ impl TimeManager {
     pub fn new() -> Self {
         Self {
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
-            last_eval: AtomicI16::new(0),
             max_duration: AtomicU32::new(0),
             normal_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
-            same_move_depth: AtomicU32::new(0),
-            prev_move: Mutex::new(None),
-            board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
             infinite: AtomicBool::new(true),
             no_manage: AtomicBool::new(true),
@@ -88,50 +79,17 @@ impl TimeManager {
         }
 
         let current_eval = eval.raw();
-        let last_eval = self.last_eval.load(Ordering::SeqCst);
         let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
-
-        let mut move_changed = false;
-        let prev_move = &mut *self.prev_move.lock().unwrap();
-        if let Some(prev_move) = prev_move {
-            if *prev_move != current_move {
-                move_changed = true;
-            }
-        }
-        *prev_move = Some(current_move);
-
-        let move_change_depth = if move_changed {
-            self.same_move_depth.store(0, Ordering::SeqCst);
-            0
-        } else {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
-        };
-
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
-
-        time *= 1.05_f32.powf(eval_diff.min(1.0));
-
-        let move_change_factor = 1.05_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .max(0.4);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
             .store((time * 0.001) as u32, Ordering::SeqCst);
         self.target_duration
-            .store((time * 0.001 * move_change_factor) as u32, Ordering::SeqCst);
-        self.last_eval.store(current_eval, Ordering::SeqCst);
+            .store((time * 0.001) as u32, Ordering::SeqCst);
     }
 
     pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
         self.abort_now.store(false, Ordering::SeqCst);
-        *self.board.lock().unwrap() = board.clone();
-
-        let mut move_cnt = 0;
-        board.generate_moves(|piece_moves| {
-            move_cnt += piece_moves.into_iter().count();
-            false
-        });
 
         let mut infinite = true;
 
@@ -188,18 +146,13 @@ impl TimeManager {
         let no_manage = infinite || move_time.is_some();
         self.no_manage.store(no_manage, Ordering::SeqCst);
 
-        if move_cnt == 0 {
-            self.target_duration.store(0, Ordering::SeqCst);
-        } else if let Some(move_time) = move_time {
+        if let Some(move_time) = move_time {
             self.target_duration
                 .store(move_time.as_millis() as u32, Ordering::SeqCst);
         } else {
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
-            let default = if move_cnt > 1 {
-                inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves
-            } else {
-                0
-            };
+            let default = 
+                inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves;
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration
@@ -234,8 +187,6 @@ impl TimeManager {
     }
 
     pub fn clear(&self) {
-        *self.prev_move.lock().unwrap() = None;
-        self.same_move_depth.store(0, Ordering::SeqCst);
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
