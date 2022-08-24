@@ -13,7 +13,7 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 use super::see::calculate_see;
-use super::threats::threats;
+use super::threats::{defended, threats};
 
 pub trait SearchType {
     const NM: bool;
@@ -205,6 +205,9 @@ pub fn search<Search: SearchType>(
     };
 
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
+
+    let stm_defended = defended(pos.board(), pos.board().side_to_move());
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -502,6 +505,9 @@ pub fn search<Search: SearchType>(
             }
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
+            }
+            if !stm_defended.has(make_move.from) && stm_defended.has(make_move.to) {
+                reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
