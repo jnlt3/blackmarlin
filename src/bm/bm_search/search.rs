@@ -493,6 +493,8 @@ pub fn search<Search: SearchType>(
             }
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
+            } else if !nstm_threat.is_empty() {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
