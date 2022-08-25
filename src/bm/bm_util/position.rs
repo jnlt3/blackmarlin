@@ -92,6 +92,12 @@ impl Position {
         self.board().hash()
     }
 
+    fn phase(&self) -> u32 {
+        (self.current.pieces(Piece::Knight) | self.current.pieces(Piece::Bishop)).popcnt()
+            + self.current.pieces(Piece::Rook).popcnt() * 2
+            + self.current.pieces(Piece::Queen).popcnt() * 4
+    }
+
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
         let piece_cnt = self.board().occupied().popcnt() as i16;
 
@@ -104,9 +110,9 @@ impl Position {
 
         let frc_score = frc::frc_corner_bishop(self.board());
 
-        Evaluation::new(
-            self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus,
-        )
+        let raw_eval = self.evaluator.feed_forward(self.board().side_to_move());
+        let scaled_eval = raw_eval as i32 * (76 + self.phase() as i32) / 100;
+        Evaluation::new(scaled_eval as i16 + frc_score + eval_bonus)
     }
 
     pub fn insufficient_material(&self) -> bool {
