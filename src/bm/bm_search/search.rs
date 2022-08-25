@@ -325,15 +325,15 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
+        let cm_history = local_context
+            .get_hist()
+            .get_counter_move(pos, &hist_indices, make_move)
+            .unwrap_or_default();
+
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            (local_context.get_hist().get_quiet(pos, make_move)
-                + local_context
-                    .get_hist()
-                    .get_counter_move(pos, &hist_indices, make_move)
-                    .unwrap_or_default())
-                / 2
+            (local_context.get_hist().get_quiet(pos, make_move) + cm_history) / 2
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
@@ -436,6 +436,11 @@ pub fn search<Search: SearchType>(
             !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
+
+        let do_chp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 2;
+        if do_chp && cm_history < 0 {
             continue;
         }
 
