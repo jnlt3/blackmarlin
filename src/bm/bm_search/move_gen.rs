@@ -167,7 +167,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     let threat_bonus = match self.nstm_threat.has(make_move.from) {
-                        true => 128,
+                        true => 1024,
                         false => 0,
                     };
                     let counter_move_hist = hist
