@@ -215,6 +215,15 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
+        if depth <= 2
+            && eval >= beta
+            && tt_entry.map_or(false, |entry| {
+                local_context.get_hist().get_quiet(pos, entry.table_move()) > 0
+            })
+        {
+            return eval;
+        }
+
         /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
