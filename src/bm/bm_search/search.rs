@@ -137,6 +137,10 @@ pub fn search<Search: SearchType>(
         return Evaluation::new(0);
     }
 
+    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
+    if depth == 0 && !nstm_threat.is_empty() {
+        depth += 1;
+    }
     /*
     At depth 0, we run Quiescence Search
     */
@@ -204,7 +208,6 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
