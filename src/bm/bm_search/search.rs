@@ -389,6 +389,14 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        if !Search::PV
+            && depth >= 8
+            && tt_entry.map_or(false, |entry| make_move == entry.table_move())
+            && h_score > 384
+        {
+            extension = extension.max(1);
+        }
+
         if Search::PV
             && is_capture
             && (opp_move.map_or(false, |opp_move| {
