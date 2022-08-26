@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Dense, Incremental, Align};
+use self::layers::{Align, Dense, Incremental};
 
 use super::bm_runner::ab_runner;
 
@@ -15,8 +15,8 @@ const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
 
 #[derive(Debug, Clone)]
 pub struct Accumulator {
-    w_input_layer: Incremental<INPUT, MID>,
-    b_input_layer: Incremental<INPUT, MID>,
+    w_input_layer: Incremental<INPUT, MID_0>,
+    b_input_layer: Incremental<INPUT, MID_0>,
 }
 
 fn halfka_feature(
@@ -63,27 +63,35 @@ impl Accumulator {
 #[derive(Debug, Clone)]
 pub struct Nnue {
     accumulator: Vec<Accumulator>,
-    bias: Arc<[i16; MID]>,
+    bias: Arc<[i16; MID_0]>,
     head: usize,
-    out_layer: Dense<{ MID * 2 }, OUTPUT>,
+    hidden_layer: Dense<{ MID_0 * 2 }, MID_1>,
+    out_layer: Dense<MID_1, OUTPUT>,
 }
 
 impl Nnue {
     pub fn new() -> Self {
-        let mut bytes = &NN_BYTES[12..];
-        let incremental = Arc::from(include::sparse_from_bytes_i16::<i16, INPUT, MID>(bytes));
-        bytes = &bytes[INPUT * MID * 2..];
-        let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
-        bytes = &bytes[MID * 2..];
-        let out = Arc::from(include::dense_from_bytes_i8::<i16, { MID * 2 }, OUTPUT>(
+        let mut bytes = &NN_BYTES[16..];
+        let incremental = Arc::from(include::sparse_from_bytes_i16::<i16, INPUT, MID_0>(bytes));
+        bytes = &bytes[INPUT * MID_0 * 2..];
+        let incremental_bias = include::bias_from_bytes_i16::<i16, MID_0>(bytes);
+        bytes = &bytes[MID_0 * 2..];
+
+        let hidden = Arc::from(include::dense_from_bytes_i8::<i16, { MID_0 * 2 }, MID_1>(
             bytes,
         ));
-        bytes = &bytes[MID * OUTPUT * 2..];
+        bytes = &bytes[MID_0 * MID_1 * 2..];
+        let hidden_bias = include::bias_from_bytes_i16::<i32, MID_1>(bytes);
+        bytes = &bytes[MID_1 * 2..];
+
+        let out = Arc::from(include::dense_from_bytes_i8::<i16, MID_1, OUTPUT>(bytes));
+        bytes = &bytes[MID_1 * OUTPUT..];
         let out_bias = include::bias_from_bytes_i16::<i32, OUTPUT>(bytes);
         bytes = &bytes[OUTPUT * 2..];
         assert!(bytes.is_empty(), "{}", bytes.len());
 
         let input_layer = Incremental::new(incremental, incremental_bias);
+        let hidden_layer = Dense::new(hidden, hidden_bias);
         let out_layer = Dense::new(out, out_bias);
 
         Self {
@@ -95,6 +103,7 @@ impl Nnue {
                 ab_runner::MAX_PLY as usize + 1
             ],
             bias: Arc::new(incremental_bias.0),
+            hidden_layer,
             out_layer,
             head: 0,
         }
@@ -223,14 +232,18 @@ impl Nnue {
     #[inline]
     pub fn feed_forward(&mut self, stm: Color) -> i16 {
         let acc = &mut self.accumulator[self.head];
-        let mut incr = Align([0; MID * 2]);
+        let mut incr = Align([0; MID_0 * 2]);
         let (stm, nstm) = match stm {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
         layers::sq_clipped_relu(*stm.get(), &mut incr.0);
-        layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
+        layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID_0..]);
 
-        layers::out(self.out_layer.ff(&incr.0)[0])
+        let mut sq_c_relu = Align([0; MID_1]);
+        let hidden_out = self.hidden_layer.ff(&incr.0);
+        layers::scaled_sq_clipped_relu(hidden_out, &mut sq_c_relu.0);
+
+        layers::out(self.out_layer.ff(&sq_c_relu.0)[0])
     }
 }

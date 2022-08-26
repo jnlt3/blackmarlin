@@ -51,7 +51,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
         Self { weights, bias }
     }
 
-    #[inline]
+    #[inline(never)]
     pub fn ff(&self, inputs: &[i16; INPUT]) -> [i32; OUTPUT] {
         let mut out = self.bias;
         cfg_if! {
@@ -94,6 +94,14 @@ pub fn out(x: i32) -> i16 {
 pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [i16]) {
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
         let tmp = x.max(MIN).min(MAX) as u16;
+        *clipped = ((tmp * tmp) >> SHIFT) as i16;
+    }
+}
+
+#[inline]
+pub fn scaled_sq_clipped_relu<const N: usize>(array: [i32; N], out: &mut [i16]) {
+    for (&x, clipped) in array.iter().zip(out.iter_mut()) {
+        let tmp = ((x / SCALE as i32) as i16).max(MIN).min(MAX) as u16;
         *clipped = ((tmp * tmp) >> SHIFT) as i16;
     }
 }
