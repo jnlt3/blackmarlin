@@ -107,7 +107,7 @@ impl Position {
         let mut score =
             self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus;
         if is_ocb(self.board()) {
-            score /= 2;
+            score /= (4 - pawn_imbalance(self.board()) as i16).max(1);
         }
         Evaluation::new(score)
     }
@@ -122,6 +122,12 @@ impl Position {
             _ => false,
         }
     }
+}
+
+fn pawn_imbalance(board: &Board) -> u32 {
+    let w_pawns = board.pieces(Piece::Pawn) & board.colors(Color::White);
+    let b_pawns = board.pieces(Piece::Pawn) & board.colors(Color::Black);
+    w_pawns.popcnt().abs_diff(b_pawns.popcnt())
 }
 
 fn is_ocb(board: &Board) -> bool {
