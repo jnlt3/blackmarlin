@@ -111,7 +111,7 @@ impl Position {
         let frc_score = frc::frc_corner_bishop(self.board());
 
         let raw_eval = self.evaluator.feed_forward(self.board().side_to_move());
-        let scaled_eval = raw_eval as i32 * (76 + self.phase() as i32) / 100;
+        let scaled_eval = raw_eval as i32 * (124 - self.phase() as i32) / 100;
         Evaluation::new(scaled_eval as i16 + frc_score + eval_bonus)
     }
 
