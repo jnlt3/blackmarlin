@@ -28,6 +28,7 @@ name = "blackmarlin"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "cfg-if",
  "cozy-chess",
  "rand",
  "rand_distr",

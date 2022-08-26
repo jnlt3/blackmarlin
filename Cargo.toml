@@ -13,6 +13,7 @@ codegen-units = 1
 cozy-chess = "0.2.1"
 text_io = "0.1.8"
 arrayvec = "0.7.1"
+cfg-if = "1.0.0"
 regex = { version = "1.5.5", optional = true }
 rand = { version = "0.8.4", optional = true }
 rand_distr = { version = "0.4.2", optional = true }
