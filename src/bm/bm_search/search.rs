@@ -43,16 +43,16 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const RFP: i16 = 54;
-const RFP_IMPR: i16 = 49;
-const RFP_DEPTH: u32 = 8;
-const FP: i16 = 62;
-const FP_DEPTH: u32 = 5;
-const SEE_FP: i16 = 81;
+const RFP: i16 = 56;
+const RFP_IMPR: i16 = 45;
+const RFP_DEPTH: u32 = 7;
+const FP: i16 = 58;
+const FP_DEPTH: u32 = 6;
+const SEE_FP: i16 = 91;
 const SEE_FP_DEPTH: u32 = 7;
 const D_EXT: i16 = 19;
-const HP: i32 = 71;
-const HP_DEPTH: u32 = 7;
+const HP: i32 = 80;
+const HP_DEPTH: u32 = 6;
 
 #[inline]
 const fn do_rev_fp(depth: u32) -> bool {
@@ -82,13 +82,13 @@ fn do_nmp<Search: SearchType>(
 #[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
+    let r = 3 + depth / 2 + ((eval - beta) / 181) as u32;
     depth.saturating_sub(r).max(1)
 }
 
 #[inline]
 const fn iir(depth: u32) -> u32 {
-    if depth >= 4 {
+    if depth >= 3 {
         1
     } else {
         0
@@ -112,7 +112,7 @@ const fn hp(depth: u32) -> i32 {
 
 #[inline]
 const fn history_lmr(history: i16) -> i16 {
-    history / 92
+    history / 102
 }
 
 pub fn search<Search: SearchType>(
@@ -357,7 +357,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 5;
+                let multi_cut = depth >= 6;
                 let s_score = if multi_cut {
                     search::<Search::Zw>(
                         pos,
@@ -708,10 +708,10 @@ pub fn q_search(
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
             */
-            if stand_pat + see - 193 >= beta {
+            if stand_pat + see - 197 >= beta {
                 return beta;
             }
-            if stand_pat + see + 196 <= alpha {
+            if stand_pat + see + 192 <= alpha {
                 continue;
             }
             pos.make_move(make_move);
