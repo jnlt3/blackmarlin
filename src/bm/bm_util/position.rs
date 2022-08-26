@@ -107,7 +107,7 @@ impl Position {
         let mut score =
             self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus;
         if is_ocb(self.board()) {
-            score /= 4;
+            score /= 2;
         }
         Evaluation::new(score)
     }
