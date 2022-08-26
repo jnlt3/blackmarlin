@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Color, GameStatus, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
@@ -104,9 +104,12 @@ impl Position {
 
         let frc_score = frc::frc_corner_bishop(self.board());
 
-        Evaluation::new(
-            self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus,
-        )
+        let mut score =
+            self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus;
+        if is_ocb(self.board()) {
+            score /= 4;
+        }
+        Evaluation::new(score)
     }
 
     pub fn insufficient_material(&self) -> bool {
@@ -119,4 +122,20 @@ impl Position {
             _ => false,
         }
     }
+}
+
+fn is_ocb(board: &Board) -> bool {
+    const WHITE: BitBoard = BitBoard(0xAA55AA55AA55AA55);
+    let kings = board.pieces(Piece::King);
+    let pawns = board.pieces(Piece::Pawn);
+    let bishops = board.pieces(Piece::Bishop);
+    if board.occupied() == (kings | pawns | bishops) {
+        let w_bishops = board.colors(Color::White) & bishops;
+        let b_bishops = board.colors(Color::Black) & bishops;
+        if !(w_bishops.is_empty() || b_bishops.is_empty()) {
+            return ((w_bishops & WHITE).is_empty() && (b_bishops & !WHITE).is_empty())
+                || ((w_bishops & !WHITE).is_empty() && (b_bishops & WHITE).is_empty());
+        }
+    }
+    false
 }
