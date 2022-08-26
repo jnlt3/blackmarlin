@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Dense, Incremental};
+use self::layers::{Dense, Incremental, Align};
 
 use super::bm_runner::ab_runner;
 
@@ -71,11 +71,11 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let mut bytes = &NN_BYTES[12..];
-        let incremental = Arc::new(*include::sparse_from_bytes_i16::<i16, INPUT, MID>(bytes));
+        let incremental = Arc::from(include::sparse_from_bytes_i16::<i16, INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
         bytes = &bytes[MID * 2..];
-        let out = Arc::new(*include::dense_from_bytes_i8::<i16, { MID * 2 }, OUTPUT>(
+        let out = Arc::from(include::dense_from_bytes_i8::<i16, { MID * 2 }, OUTPUT>(
             bytes,
         ));
         bytes = &bytes[MID * OUTPUT * 2..];
@@ -223,14 +223,14 @@ impl Nnue {
     #[inline]
     pub fn feed_forward(&mut self, stm: Color) -> i16 {
         let acc = &mut self.accumulator[self.head];
-        let mut incr = [0; MID * 2];
+        let mut incr = Align([0; MID * 2]);
         let (stm, nstm) = match stm {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
-        layers::sq_clipped_relu(*stm.get(), &mut incr);
-        layers::sq_clipped_relu(*nstm.get(), &mut incr[MID..]);
+        layers::sq_clipped_relu(*stm.get(), &mut incr.0);
+        layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
 
-        layers::out(self.out_layer.ff(&incr)[0])
+        layers::out(self.out_layer.ff(&incr.0)[0])
     }
 }
