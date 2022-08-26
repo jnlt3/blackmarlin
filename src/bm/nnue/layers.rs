@@ -61,15 +61,17 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                 const CHUNKS_32: usize = 256 / 32;
                 let mut store = [0; CHUNKS_32];
                 for (out, weights) in out.0.iter_mut().zip(&self.weights.0) {
+                    let mut accumulate = unsafe { x86_64::_mm256_load_si256(Align([0; CHUNKS_32]).0.as_ptr() as *const _) };
                     for (inputs, weights) in inputs.chunks(CHUNKS_16).zip(weights.chunks(CHUNKS_16)) {
                         unsafe {
                             let inputs = x86_64::_mm256_load_si256(inputs.as_ptr() as *const _);
                             let weights = x86_64::_mm256_load_si256(weights.as_ptr() as *const _);
                             let result = x86_64::_mm256_madd_epi16(inputs, weights);
-                            x86_64::_mm256_store_si256(store.as_mut_ptr() as *mut _, result);
+                            accumulate = x86_64::_mm256_add_epi32(accumulate, result);
                         }
-                        *out += store.iter().sum::<i32>();
                     }
+                    unsafe { x86_64::_mm256_store_si256(store.as_mut_ptr() as *mut _, accumulate) };
+                    *out += store.iter().sum::<i32>();
                 }
             } else {
                 for (out, weights) in out.0.iter_mut().zip(&self.weights.0) {
