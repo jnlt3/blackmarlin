@@ -579,7 +579,10 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
-                        let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
+                        let mut amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
+                        if is_capture {
+                            amt /= 2;
+                        }
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
