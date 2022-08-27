@@ -504,11 +504,14 @@ pub fn search<Search: SearchType>(
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
             }
-            if prev_move.map_or(false, |prev_move| {
-                prev_move.promotion.is_none()
-                    && prev_move.from == make_move.to
-                    && prev_move.to == make_move.from
-            }) {
+            if !is_capture
+                && prev_move.map_or(false, |prev_move| {
+                    prev_move.promotion.is_none()
+                        && !prev_move.capture
+                        && prev_move.from == make_move.to
+                        && prev_move.to == make_move.from
+                })
+            {
                 reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
