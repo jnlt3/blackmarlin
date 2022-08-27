@@ -12,7 +12,7 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
-use super::see::calculate_see;
+use super::see::{calculate_see, piece_pts};
 use super::threats::threats;
 
 pub trait SearchType {
@@ -448,8 +448,19 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
+
+        let threat_see = match nstm_threat.has(make_move.from) || is_capture {
+            true => 0,
+            false => nstm_threat
+                .into_iter()
+                .map(|sq| piece_pts(pos.board().piece_on(sq).unwrap()))
+                .max()
+                .unwrap_or(0),
+        };
+
         if do_see_prune
-            && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
+            && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) - threat_see
+                <= alpha
         {
             continue;
         }
