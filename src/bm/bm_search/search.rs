@@ -287,6 +287,12 @@ pub fn search<Search: SearchType>(
         None
     };
 
+    let prev_move = if ply > 1 {
+        local_context.search_stack()[ply as usize - 2].move_played
+    } else {
+        None
+    };
+
     let prev_opp_move = if ply > 2 {
         local_context.search_stack()[ply as usize - 3].move_played
     } else {
@@ -497,6 +503,13 @@ pub fn search<Search: SearchType>(
             }
             if nstm_threat.has(make_move.from) {
                 reduction -= 2;
+            }
+            if prev_move.map_or(false, |prev_move| {
+                prev_move.promotion.is_none()
+                    && prev_move.from == make_move.to
+                    && prev_move.to == make_move.from
+            }) {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
