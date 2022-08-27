@@ -435,7 +435,7 @@ pub fn search<Search: SearchType>(
         let do_hp =
             !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
         let atp_bonus = match nstm_threat.has(make_move.from) {
-            true => 128,
+            true => 256,
             false => 0,
         };
 
