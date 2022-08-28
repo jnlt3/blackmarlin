@@ -179,6 +179,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                             .threat_pos
                             .get(board, piece_moves.piece)
                             .has(make_move.to)
+                        && calculate_see::<16>(board, make_move) >= 0
                     {
                         score += 128;
                     }
