@@ -313,7 +313,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(opp_move);
+    let hist_indices = HistoryIndices::new(opp_move, nstm_threat);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -328,7 +328,9 @@ pub fn search<Search: SearchType>(
         let h_score = if is_capture {
             local_context.get_hist().get_capture(pos, make_move)
         } else {
-            (local_context.get_hist().get_quiet(pos, make_move)
+            (local_context
+                .get_hist()
+                .get_quiet(pos, &hist_indices, make_move)
                 + local_context
                     .get_hist()
                     .get_counter_move(pos, &hist_indices, make_move)
