@@ -180,7 +180,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                             .get(board, piece_moves.piece)
                             .has(make_move.to)
                     {
-                        score += 128;
+                        score += 512;
                     }
 
                     self.quiets.push((make_move, score));
