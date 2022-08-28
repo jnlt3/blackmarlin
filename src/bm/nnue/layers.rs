@@ -4,7 +4,7 @@ use cfg_if::cfg_if;
 
 const UNITS: i16 = 400_i16;
 const FT_SCALE: i16 = 255;
-const SCALE: i16 = 64;
+const SCALE: i16 = 32;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
 const SHIFT: i16 = 8;
