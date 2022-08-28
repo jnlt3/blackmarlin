@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Dense, Incremental, Align};
+use self::layers::{Align, Dense, Incremental};
 
 use super::bm_runner::ab_runner;
 
@@ -221,7 +221,7 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn feed_forward(&mut self, stm: Color) -> i16 {
+    pub fn feed_forward(&mut self, stm: Color, piece_cnt: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
         let mut incr = Align([0; MID * 2]);
         let (stm, nstm) = match stm {
@@ -231,6 +231,7 @@ impl Nnue {
         layers::sq_clipped_relu(*stm.get(), &mut incr.0);
         layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
 
-        layers::out(self.out_layer.ff(&incr.0)[0])
+        let bucket = (piece_cnt / 4).min(7);
+        layers::out(self.out_layer.ff(&incr.0, bucket))
     }
 }

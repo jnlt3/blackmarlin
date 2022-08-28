@@ -105,7 +105,7 @@ impl Position {
         let frc_score = frc::frc_corner_bishop(self.board());
 
         Evaluation::new(
-            self.evaluator.feed_forward(self.board().side_to_move()) + frc_score + eval_bonus,
+            self.evaluator.feed_forward(self.board().side_to_move(), piece_cnt as usize) + frc_score + eval_bonus,
         )
     }
 
