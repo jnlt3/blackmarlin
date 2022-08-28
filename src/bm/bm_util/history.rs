@@ -31,15 +31,19 @@ fn malus(hist: &mut i16, amt: i16) {
 #[derive(Copy, Clone)]
 pub struct HistoryIndices {
     counter_move: Option<(Piece, Square)>,
-    nstm_threat: BitBoard,
+    nstm_threat_index: usize,
 }
 
 impl HistoryIndices {
     pub fn new(prev_move: Option<MoveData>, nstm_threat: BitBoard) -> Self {
         let counter_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
+        let nstm_threat_index = nstm_threat
+            .into_iter()
+            .next()
+            .map_or(Square::NUM, |sq| sq as usize);
         Self {
             counter_move,
-            nstm_threat,
+            nstm_threat_index,
         }
     }
 }
@@ -62,8 +66,7 @@ impl History {
 
     pub fn get_quiet(&self, pos: &Position, indices: &HistoryIndices, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        let threatened = indices.nstm_threat.has(make_move.from);
-        self.quiet[stm as usize][threatened as usize][make_move.from as usize]
+        self.quiet[stm as usize][indices.nstm_threat_index][make_move.from as usize]
             [make_move.to as usize]
     }
 
@@ -74,8 +77,7 @@ impl History {
         make_move: Move,
     ) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        let threatened = indices.nstm_threat.has(make_move.from);
-        &mut self.quiet[stm as usize][threatened as usize][make_move.from as usize]
+        &mut self.quiet[stm as usize][indices.nstm_threat_index][make_move.from as usize]
             [make_move.to as usize]
     }
 
