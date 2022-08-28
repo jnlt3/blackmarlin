@@ -181,7 +181,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                             .has(make_move.to)
                         && calculate_see::<16>(board, make_move) >= 0
                     {
-                        score += 128;
+                        score += 512;
                     }
 
                     self.quiets.push((make_move, score));
