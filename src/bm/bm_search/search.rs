@@ -310,6 +310,7 @@ pub fn search<Search: SearchType>(
         counter_move,
         killers.into_iter(),
         nstm_threat,
+        depth <= 6,
     );
 
     let mut moves_seen = 0;

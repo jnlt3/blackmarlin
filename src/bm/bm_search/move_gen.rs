@@ -30,6 +30,7 @@ pub struct OrderedMoveGen<const K: usize> {
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
     nstm_threat: BitBoard,
+    low_depth: bool,
     gen_type: GenType,
 
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
@@ -44,6 +45,7 @@ impl<const K: usize> OrderedMoveGen<K> {
         counter_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
         nstm_threat: BitBoard,
+        low_depth: bool,
     ) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
@@ -57,6 +59,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             pv_move,
             killer_entry,
             nstm_threat,
+            low_depth,
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
             skip_quiets: false,
@@ -169,7 +172,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let counter_move_hist = hist
                         .get_counter_move(pos, hist_indices, make_move)
                         .unwrap_or_default();
-                    let atp_bonus = match self.nstm_threat.has(make_move.from) {
+                    let atp_bonus = match self.low_depth && self.nstm_threat.has(make_move.from) {
                         true => 256,
                         false => 0,
                     };
