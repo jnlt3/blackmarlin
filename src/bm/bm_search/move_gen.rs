@@ -31,7 +31,6 @@ pub struct OrderedMoveGen<const K: usize> {
     killer_entry: MoveEntryIterator<K>,
     counter_move: Option<Move>,
     gen_type: GenType,
-    low_depth: bool,
     threat_pos: LazyThreatPos,
 
     captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
@@ -45,7 +44,6 @@ impl<const K: usize> OrderedMoveGen<K> {
         pv_move: Option<Move>,
         counter_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
-        low_depth: bool,
     ) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
@@ -58,7 +56,6 @@ impl<const K: usize> OrderedMoveGen<K> {
             counter_move,
             pv_move,
             killer_entry,
-            low_depth,
             threat_pos: LazyThreatPos::new(board.side_to_move()),
             captures: ArrayVec::new(),
             quiets: ArrayVec::new(),
@@ -174,11 +171,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                         .unwrap_or_default();
                     let mut score = hist.get_quiet(pos, make_move) + counter_move_hist;
 
-                    if self.low_depth
-                        && self
-                            .threat_pos
-                            .get(board, piece_moves.piece)
-                            .has(make_move.to)
+                    if self
+                        .threat_pos
+                        .get(board, piece_moves.piece)
+                        .has(make_move.to)
                         && calculate_see::<16>(board, make_move) >= 0
                     {
                         score += 512;

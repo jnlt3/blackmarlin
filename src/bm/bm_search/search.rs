@@ -304,13 +304,8 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(
-        pos.board(),
-        best_move,
-        counter_move,
-        killers.into_iter(),
-        depth <= 6,
-    );
+    let mut move_gen =
+        OrderedMoveGen::new(pos.board(), best_move, counter_move, killers.into_iter());
 
     let mut moves_seen = 0;
     let mut move_exists = false;
