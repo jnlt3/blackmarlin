@@ -369,7 +369,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    eval.max(alpha)
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
@@ -480,7 +480,7 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score);
+            reduction -= history_lmr(h_score + atp_bonus as i16);
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
