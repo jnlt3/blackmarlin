@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, PieceMoves};
+use cozy_chess::{Board, Move, Piece, PieceMoves};
 
 use crate::bm::bm_util::history::{History, HistoryIndices};
 use crate::bm::bm_util::position::Position;
@@ -153,14 +153,13 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
                     if let Some(piece) = make_move.promotion {
-                        match piece {
-                            cozy_chess::Piece::Queen => {
-                                self.quiets.push((make_move, i16::MAX));
-                            }
-                            _ => {
-                                self.quiets.push((make_move, i16::MIN));
-                            }
+                        let score = match piece {
+                            Piece::Queen => i16::MAX,
+                            Piece::Rook => i16::MAX - 1,
+                            Piece::Knight | Piece::Bishop => i16::MAX - 2,
+                            _ => unreachable!(),
                         };
+                        self.quiets.push((make_move, score));
                         continue;
                     }
                     let counter_move_hist = hist
