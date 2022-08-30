@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, File, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -313,6 +313,8 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let mut promo_failed = [false; File::NUM];
+
     let hist_indices = HistoryIndices::new(opp_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
@@ -495,6 +497,9 @@ pub fn search<Search: SearchType>(
             {
                 reduction -= 1;
             }
+            if promo_failed[make_move.to.file() as usize] && make_move.promotion.is_some() {
+                reduction += 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
@@ -525,6 +530,10 @@ pub fn search<Search: SearchType>(
                 zw,
             );
             score = lmr_score << Next;
+
+            if score <= alpha && make_move.promotion.is_some() {
+                promo_failed[make_move.to.file() as usize] = true;
+            }
 
             /*
             If no reductions occured in LMR we don't waste time re-searching
