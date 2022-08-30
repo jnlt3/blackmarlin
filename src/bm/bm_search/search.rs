@@ -401,6 +401,13 @@ pub fn search<Search: SearchType>(
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
+
+        let do_pp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4;
+
+        if do_pp && !matches!(make_move.promotion, None | Some(Piece::Queen)) {
+            continue;
+        }
+
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
