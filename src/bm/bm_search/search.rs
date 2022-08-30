@@ -89,7 +89,7 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 #[inline]
 fn iir(depth: u32, pv: bool) -> u32 {
     if depth >= 2 {
-        (1 + pv as u32).min(depth - 1)
+        (1 + (!pv) as u32).min(depth - 1)
     } else {
         0
     }
