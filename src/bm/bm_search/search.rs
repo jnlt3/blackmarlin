@@ -448,10 +448,14 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
-        if do_see_prune
-            && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
-        {
+        let see = calculate_see::<16>(pos.board(), make_move);
+        if do_see_prune && eval + see + see_fp(depth) <= alpha {
             continue;
+        }
+
+        let do_good_see_prune = !Search::PV && non_mate_line && depth <= 1;
+        if do_good_see_prune && eval + see - 200 > beta {
+            return beta;
         }
 
         local_context.search_stack_mut()[ply as usize].move_played =
