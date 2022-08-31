@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -13,7 +13,6 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
 use super::see::calculate_see;
-use super::threats::threats;
 
 pub trait SearchType {
     const NM: bool;
@@ -204,7 +203,11 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
+    let (w_threats, b_threats) = pos.threats();
+    let nstm_threat = match pos.board().side_to_move() {
+        Color::White => b_threats,
+        Color::Black => w_threats,
+    };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
