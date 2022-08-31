@@ -444,7 +444,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        if do_chp && cmh as i32 + atp_bonus < 0 {
+        if do_chp && cmh as i32 + atp_bonus < -256 {
             continue;
         }
 
