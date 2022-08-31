@@ -1,22 +1,30 @@
-use cozy_chess::{Board, Color, GameStatus, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc};
+use super::{eval::Evaluation, frc, threats::threats};
 
 #[derive(Debug, Clone)]
 pub struct Position {
     current: Board,
+    w_threats: BitBoard,
+    b_threats: BitBoard,
     boards: Vec<Board>,
+    threats: Vec<(BitBoard, BitBoard)>,
     evaluator: Nnue,
 }
 
 impl Position {
     pub fn new(board: Board) -> Self {
         let mut evaluator = Nnue::new();
-        evaluator.full_reset(&board);
+        let w_threats = threats(&board, Color::White);
+        let b_threats = threats(&board, Color::Black);
+        evaluator.full_reset(&board, w_threats, b_threats);
         Self {
             current: board,
+            w_threats,
+            b_threats,
+            threats: vec![],
             boards: vec![],
             evaluator,
         }
@@ -29,7 +37,8 @@ impl Position {
     }
 
     pub fn reset(&mut self) {
-        self.evaluator.full_reset(&self.current);
+        self.evaluator
+            .full_reset(&self.current, self.w_threats, self.b_threats);
     }
 
     #[inline]
@@ -72,6 +81,7 @@ impl Position {
         if let Some(new_board) = self.board().null_move() {
             self.evaluator.null_move();
             self.boards.push(self.current.clone());
+            self.threats.push((self.w_threats, self.b_threats));
             self.current = new_board;
             true
         } else {
@@ -81,21 +91,42 @@ impl Position {
 
     #[inline]
     pub fn make_move(&mut self, make_move: Move) {
-        self.evaluator.make_move(&self.current, make_move);
-        self.boards.push(self.current.clone());
+        let old_board = self.current.clone();
+        let old_w_threats = self.w_threats;
+        let old_b_threats = self.b_threats;
+
         self.current.play_unchecked(make_move);
+        self.w_threats = threats(&self.current, Color::White);
+        self.b_threats = threats(&self.current, Color::Black);
+
+        self.evaluator.make_move(
+            &old_board,
+            make_move,
+            self.w_threats,
+            self.b_threats,
+            old_w_threats,
+            old_b_threats,
+        );
+
+        self.boards.push(old_board);
+        self.threats.push((old_w_threats, old_b_threats));
     }
 
     #[inline]
     pub fn unmake_move(&mut self) {
         self.evaluator.unmake_move();
         let current = self.boards.pop().unwrap();
+        (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
     }
 
     #[inline]
     pub fn hash(&self) -> u64 {
         self.board().hash()
+    }
+
+    pub fn threats(&self) -> (BitBoard, BitBoard) {
+        (self.w_threats, self.b_threats)
     }
 
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
@@ -111,7 +142,10 @@ impl Position {
         let frc_score = frc::frc_corner_bishop(self.board());
 
         Evaluation::new(
-            self.evaluator.feed_forward(self.board().side_to_move(), piece_cnt as usize) + frc_score + eval_bonus,
+            self.evaluator
+                .feed_forward(self.board().side_to_move(), piece_cnt as usize)
+                + frc_score
+                + eval_bonus,
         )
     }
 
