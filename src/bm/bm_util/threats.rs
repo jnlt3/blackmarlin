@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, Piece};
+use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
 pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
     let occupied = board.occupied();
@@ -15,10 +15,17 @@ pub fn threats(board: &Board, threats_of: Color) -> BitBoard {
     let majors = rooks | queens;
     let pieces = minors | majors;
 
-    let mut pawn_attacks = BitBoard::EMPTY;
-    for pawn in pawns & color {
-        pawn_attacks |= cozy_chess::get_pawn_attacks(pawn, threats_of);
-    }
+    let threat_pawns = pawns & color;
+    let pawn_attacks = match threats_of {
+        Color::White => {
+            ((threat_pawns & !File::A.bitboard()) << 7)
+                | ((threat_pawns & !File::H.bitboard()) << 9)
+        }
+        Color::Black => {
+            ((threat_pawns & !File::A.bitboard()) >> 9)
+                | ((threat_pawns & !File::H.bitboard()) >> 7)
+        }
+    };
 
     let mut minor_attacks = BitBoard::EMPTY;
     for knight in knights & color {
