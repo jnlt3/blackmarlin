@@ -17,8 +17,7 @@ pub struct Position {
 impl Position {
     pub fn new(board: Board) -> Self {
         let mut evaluator = Nnue::new();
-        let w_threats = threats(&board, Color::White);
-        let b_threats = threats(&board, Color::Black);
+        let (w_threats, b_threats) = threats(&board);
         evaluator.full_reset(&board, w_threats, b_threats);
         Self {
             current: board,
@@ -96,8 +95,7 @@ impl Position {
         let old_b_threats = self.b_threats;
 
         self.current.play_unchecked(make_move);
-        self.w_threats = threats(&self.current, Color::White);
-        self.b_threats = threats(&self.current, Color::Black);
+        (self.w_threats, self.b_threats) = threats(&self.current);
 
         self.evaluator.make_move(
             &old_board,
