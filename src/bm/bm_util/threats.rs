@@ -21,12 +21,21 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     let mut w_minor_attacks = BitBoard::EMPTY;
     let mut b_minor_attacks = BitBoard::EMPTY;
 
+    let mut w_rook_attacks = BitBoard::EMPTY;
+    let mut b_rook_attacks = BitBoard::EMPTY;
+
     if !(majors & black).is_empty() {
         for knight in knights & white {
             w_minor_attacks |= cozy_chess::get_knight_moves(knight);
         }
         for bishop in bishops & white {
             w_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
+        }
+
+        if !(queens & black).is_empty() {
+            for rook in rooks & white {
+                w_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
+            }
         }
     }
     if !(majors & white).is_empty() {
@@ -36,18 +45,10 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
         for bishop in bishops & black {
             b_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
         }
-    }
-
-    let mut w_rook_attacks = BitBoard::EMPTY;
-    let mut b_rook_attacks = BitBoard::EMPTY;
-    if !(queens & black).is_empty() {
-        for rook in rooks & white {
-            w_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
-        }
-    }
-    if !(queens & white).is_empty() {
-        for rook in rooks & black {
-            b_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
+        if !(queens & white).is_empty() {
+            for rook in rooks & black {
+                b_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
+            }
         }
     }
 
