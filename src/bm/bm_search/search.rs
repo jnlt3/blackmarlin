@@ -204,7 +204,6 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
-    let stm_threat = threats(pos.board(), pos.board().side_to_move());
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -269,7 +268,6 @@ pub fn search<Search: SearchType>(
 
         let prob_beta = beta + 400;
         if depth > 4
-            && !stm_threat.is_empty()
             && !tt_entry.map_or(false, |entry| {
                 entry.depth() >= depth - 3 && entry.score() < prob_beta
             })
