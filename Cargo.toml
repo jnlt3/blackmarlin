@@ -10,7 +10,7 @@ lto = "fat"
 codegen-units = 1
 
 [dependencies]
-cozy-chess = "0.2.1"
+cozy-chess = "0.3.0"
 text_io = "0.1.8"
 arrayvec = "0.7.1"
 cfg-if = "1.0.0"

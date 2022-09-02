@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{Board, Move, Piece};
 
 pub fn calculate_see<const N: usize>(board: &Board, make_move: Move) -> i16 {
     let mut index = 0;
@@ -33,8 +33,8 @@ pub fn calculate_see<const N: usize>(board: &Board, make_move: Move) -> i16 {
                 Piece::King => cozy_chess::get_king_moves(target_square),
             } & board.pieces(piece)
                 & defenders;
-            if potential != BitBoard::EMPTY {
-                let attacker = potential.next().unwrap();
+            if let Some(attacker) = potential.next_square() {
+                potential ^= attacker.bitboard();
                 blockers &= !attacker.bitboard();
                 color = !color;
                 continue 'outer;
