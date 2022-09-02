@@ -15,49 +15,37 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     let majors = rooks | queens;
     let pieces = minors | majors;
 
-    let w_pawn_attacks = pawn_threats(pawns & white, Color::White);
-    let b_pawn_attacks = pawn_threats(pawns & black, Color::Black);
+    let mut w_threats = pawn_threats(pawns & white, Color::White) & pieces & black;
+    let mut b_threats = pawn_threats(pawns & black, Color::Black) & pieces & white;
 
-    let mut w_minor_attacks = BitBoard::EMPTY;
-    let mut b_minor_attacks = BitBoard::EMPTY;
-
-    let mut w_rook_attacks = BitBoard::EMPTY;
-    let mut b_rook_attacks = BitBoard::EMPTY;
-
-    if !(majors & black).is_empty() {
-        for knight in knights & white {
-            w_minor_attacks |= cozy_chess::get_knight_moves(knight);
-        }
-        for bishop in bishops & white {
-            w_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
-        }
-
-        if !(queens & black).is_empty() {
-            for rook in rooks & white {
-                w_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
-            }
-        }
-    }
-    if !(majors & white).is_empty() {
-        for knight in knights & black {
-            b_minor_attacks |= cozy_chess::get_knight_moves(knight);
-        }
-        for bishop in bishops & black {
-            b_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
-        }
-        if !(queens & white).is_empty() {
-            for rook in rooks & black {
-                b_rook_attacks |= cozy_chess::get_rook_moves(rook, occupied);
-            }
+    for major in majors & black & !w_threats {
+        if !(cozy_chess::get_knight_moves(major) & knights & white).is_empty() {
+            w_threats |= major.bitboard();
+        } else if !(cozy_chess::get_bishop_moves(major, occupied) & bishops & white).is_empty() {
+            w_threats |= major.bitboard();
         }
     }
 
-    (
-        ((w_pawn_attacks & pieces) | (w_minor_attacks & majors) | (w_rook_attacks & queens))
-            & black,
-        ((b_pawn_attacks & pieces) | (b_minor_attacks & majors) | (b_rook_attacks & queens))
-            & white,
-    )
+    for queen in queens & black & !w_threats {
+        if !(cozy_chess::get_rook_moves(queen, occupied) & rooks & white).is_empty() {
+            w_threats |= queen.bitboard();
+        }
+    }
+
+    for major in majors & white & !b_threats {
+        if !(cozy_chess::get_knight_moves(major) & knights & black).is_empty() {
+            b_threats |= major.bitboard();
+        } else if !(cozy_chess::get_bishop_moves(major, occupied) & bishops & black).is_empty() {
+            b_threats |= major.bitboard();
+        }
+    }
+
+    for queen in queens & white & !b_threats {
+        if !(cozy_chess::get_rook_moves(queen, occupied) & rooks & black).is_empty() {
+            b_threats |= queen.bitboard();
+        }
+    }
+    (w_threats, b_threats)
 }
 
 fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {
