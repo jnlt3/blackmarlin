@@ -294,6 +294,7 @@ pub fn search<Search: SearchType>(
                 }
                 pos.unmake_move();
                 if score >= prob_beta {
+                    shared_context.get_t_table().set(pos.board(), depth, EntryType::LowerBound, score, make_move);
                     return score;
                 }
             }
