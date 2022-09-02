@@ -2,7 +2,11 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{
+    eval::Evaluation,
+    frc,
+    threats::{recalculate_threats, threats},
+};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -89,7 +93,9 @@ impl Position {
         let old_b_threats = self.b_threats;
 
         self.current.play_unchecked(make_move);
-        (self.w_threats, self.b_threats) = threats(&self.current);
+        if recalculate_threats(&old_board, make_move, old_w_threats, old_b_threats) {
+            (self.w_threats, self.b_threats) = threats(&self.current);
+        }
 
         self.evaluator.make_move(
             &old_board,
