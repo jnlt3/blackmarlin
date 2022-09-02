@@ -267,7 +267,7 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        let prob_beta = beta + 150;
+        let prob_beta = beta + 200;
         if depth > 4
             && !stm_threat.is_empty()
             && !tt_entry.map_or(false, |entry| {
