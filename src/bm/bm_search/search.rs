@@ -204,6 +204,7 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let stm_threat = threats(pos.board(), pos.board().side_to_move());
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -420,9 +421,10 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && !is_capture
             && quiets.len()
-                >= shared_context
-                    .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                >= shared_context.get_lmp_lookup().get(
+                    depth as usize,
+                    (improving || !stm_threat.is_empty()) as usize,
+                )
         {
             move_gen.set_skip_quiets(true);
             continue;
