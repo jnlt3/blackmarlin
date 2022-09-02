@@ -93,7 +93,7 @@ impl Position {
     }
 
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
-        let piece_cnt = self.board().occupied().popcnt() as i16;
+        let piece_cnt = self.board().occupied().len() as i16;
 
         let clamped_eval = root_eval.raw().clamp(-100, 100);
         let eval_bonus = if self.board().side_to_move() == stm {
@@ -113,7 +113,7 @@ impl Position {
         let rooks = self.current.pieces(Piece::Rook);
         let queens = self.current.pieces(Piece::Queen);
         let pawns = self.current.pieces(Piece::Pawn);
-        match self.current.occupied().popcnt() {
+        match self.current.occupied().len() {
             2 => true,
             3 => (rooks | queens | pawns).is_empty(),
             _ => false,
