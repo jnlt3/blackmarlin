@@ -204,6 +204,7 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let stm_threat = threats(pos.board(), pos.board().side_to_move());
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -261,6 +262,40 @@ pub fn search<Search: SearchType>(
                     verified = verification >= beta;
                 }
                 if verified {
+                    return score;
+                }
+            }
+        }
+
+        let prob_beta = beta + 100;
+        if depth > 4
+            && !stm_threat.is_empty()
+            && !tt_entry.map_or(false, |entry| {
+                entry.depth() >= depth - 3 && entry.score() < prob_beta
+            })
+        {
+            let mut move_gen = QuiescenceSearchMoveGen::new();
+            while let Some((make_move, _)) = move_gen.next(pos, local_context.get_hist()) {
+                local_context.search_stack_mut()[ply as usize].move_played =
+                    Some(MoveData::from_move(pos.board(), make_move));
+                pos.make_move(make_move);
+
+                let zw = prob_beta >> Next;
+                let mut score =
+                    q_search(pos, local_context, shared_context, ply + 1, zw, zw + 1) << Next;
+                if score >= prob_beta {
+                    score = search::<Search::Zw>(
+                        pos,
+                        local_context,
+                        shared_context,
+                        ply + 1,
+                        depth - 4,
+                        zw,
+                        zw + 1,
+                    ) << Next;
+                }
+                pos.unmake_move();
+                if score >= prob_beta {
                     return score;
                 }
             }
