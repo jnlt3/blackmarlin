@@ -54,32 +54,8 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     #[inline]
     pub fn ff(&self, inputs: &[u8; INPUT], bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
-        cfg_if! {
-            if #[cfg(target_feature = "avx2")] {
-                use std::arch::x86_64;
-                const CHUNKS_8: usize = 256 / 8;
-                const CHUNKS_16: usize = 256 / 16;
-                const CHUNKS_32: usize = 256 / 32;
-
-                let ones = unsafe { x86_64::_mm256_load_si256([1_i16; CHUNKS_16].as_ptr() as *const _) };
-                let mut store = [0; CHUNKS_32];
-                let mut accumulate = unsafe { x86_64::_mm256_load_si256(Align([0; CHUNKS_32]).0.as_ptr() as *const _) };
-                for (inputs, weights) in inputs.chunks(CHUNKS_8).zip(self.weights.0[bucket].chunks(CHUNKS_8)) {
-                    unsafe {
-                        let inputs = x86_64::_mm256_load_si256(inputs.as_ptr() as *const _);
-                        let weights = x86_64::_mm256_load_si256(weights.as_ptr() as *const _);
-                        let result = x86_64::_mm256_maddubs_epi16(inputs, weights);
-                        let result = x86_64::_mm256_madd_epi16(result, ones);
-                        accumulate = x86_64::_mm256_add_epi32(accumulate, result);
-                    }
-                }
-                unsafe { x86_64::_mm256_store_si256(store.as_mut_ptr() as *mut _, accumulate) };
-                out += store.iter().sum::<i32>();
-            } else {
-                for (&input, &weight) in inputs.iter().zip(self.weights.0[bucket].iter()) {
-                    out += weight as i32 * input as i32;
-                }
-            }
+        for (&input, &weight) in inputs.iter().zip(self.weights.0[bucket].iter()) {
+            out += weight as i32 * input as i32;
         }
         out
     }
