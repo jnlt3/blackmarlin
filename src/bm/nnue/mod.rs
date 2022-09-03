@@ -140,14 +140,16 @@ impl Nnue {
         acc.w_input_layer.reset(*self.bias);
         acc.b_input_layer.reset(*self.bias);
 
-        let threats = w_threats | b_threats;
         for sq in board.occupied() {
             let piece = board.piece_on(sq).unwrap();
             let color = board.color_on(sq).unwrap();
-            if threats.has(sq) {
-                acc.threat::<true>(w_king, b_king, sq, color);
-            }
             acc.update::<true>(w_king, b_king, sq, piece, color);
+        }
+        for sq in w_threats {
+            acc.threat::<true>(w_king, b_king, sq, Color::Black);
+        }
+        for sq in b_threats {
+            acc.threat::<true>(w_king, b_king, sq, Color::White);
         }
     }
 
