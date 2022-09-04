@@ -133,7 +133,7 @@ pub trait GuiInfo {
         sel_depth: u32,
         depth: u32,
         eval: Evaluation,
-        wld: (i16, i16, i16),
+        wld: Option<(i16, i16, i16)>,
         elapsed: Duration,
         node_cnt: u64,
         pv: &[Move],
@@ -153,7 +153,7 @@ impl GuiInfo for NoInfo {
         _: u32,
         _: u32,
         _: Evaluation,
-        _: (i16, i16, i16),
+        _: Option<(i16, i16, i16)>,
         _: Duration,
         _: u64,
         _: &[Move],
@@ -174,7 +174,7 @@ impl GuiInfo for UciInfo {
         seldepth: u32,
         depth: u32,
         eval: Evaluation,
-        wld: (i16, i16, i16),
+        wld: Option<(i16, i16, i16)>,
         elapsed: Duration,
         node_cnt: u64,
         pv: &[Move],
@@ -185,14 +185,17 @@ impl GuiInfo for UciInfo {
             format!("cp {}", eval.raw())
         };
         let nps = (node_cnt as u128 * 1000) / elapsed.as_millis().max(1);
+
+        let wdl = match wld {
+            Some(wld) => format!("wdl {} {} {} ", wld.0, wld.2, wld.1),
+            None => "".to_string(),
+        };
         let mut output = format!(
-            "info depth {} seldepth {} score {} wdl {} {} {} time {} nodes {} nps {} pv",
+            "info depth {} seldepth {} score {} {}time {} nodes {} nps {} pv",
             depth,
             seldepth,
             eval_str,
-            wld.0,
-            wld.2,
-            wld.1,
+            wdl,
             elapsed.as_millis(),
             node_cnt,
             nps

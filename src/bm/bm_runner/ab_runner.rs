@@ -279,6 +279,7 @@ pub struct AbRunner {
     node_counter: NodeCounter,
     position: Position,
     chess960: bool,
+    show_wdl: bool,
 }
 
 impl AbRunner {
@@ -287,6 +288,7 @@ impl AbRunner {
         search_start: Instant,
         thread: u8,
         chess960: bool,
+        show_wdl: bool,
     ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) {
         let main_thread = thread == 0;
         let shared_context = self.shared_context.clone();
@@ -394,7 +396,10 @@ impl AbRunner {
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
                     let eval =
                         remove_aggression(eval.unwrap(), position.board().occupied().popcnt());
-                    let wld = to_wld(eval);
+                    let wld = match show_wdl {
+                        true => Some(to_wld(eval)),
+                        false => None,
+                    };
                     gui_info.print_info(
                         local_context.sel_depth,
                         depth,
@@ -470,6 +475,7 @@ impl AbRunner {
             },
             position,
             chess960: false,
+            show_wdl: false,
         }
     }
 
@@ -488,10 +494,11 @@ impl AbRunner {
                 search_start,
                 i,
                 self.chess960,
+                self.show_wdl,
             )));
         }
         let (final_move, final_eval, max_depth, mut node_count) =
-            self.launch_searcher::<SM, Info>(search_start, 0, self.chess960)();
+            self.launch_searcher::<SM, Info>(search_start, 0, self.chess960, self.show_wdl)();
         for join_handler in join_handlers {
             let (_, _, _, nodes) = join_handler.join().unwrap();
             node_count += nodes;
@@ -536,5 +543,9 @@ impl AbRunner {
 
     pub fn set_chess960(&mut self, chess960: bool) {
         self.chess960 = chess960;
+    }
+
+    pub fn set_uci_show_wdl(&mut self, show_wdl: bool) {
+        self.show_wdl = show_wdl;
     }
 }

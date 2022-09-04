@@ -23,6 +23,7 @@ pub struct UciAdapter {
     forced: bool,
     threads: u8,
     chess960: bool,
+    show_wdl: bool,
 }
 
 impl UciAdapter {
@@ -39,6 +40,7 @@ impl UciAdapter {
             analysis: None,
             time_manager,
             chess960: false,
+            show_wdl: false,
         }
     }
 
@@ -51,6 +53,7 @@ impl UciAdapter {
                 println!("id author Doruk S.");
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
+                println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
                 println!("uciok");
             }
@@ -98,6 +101,13 @@ impl UciAdapter {
                     "UCI_Chess960" => {
                         self.chess960 = value.to_lowercase().parse().unwrap();
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
+                    }
+                    "UCI_ShowWDL" => {
+                        self.show_wdl = value.to_lowercase().parse().unwrap();
+                        self.bm_runner
+                            .lock()
+                            .unwrap()
+                            .set_uci_show_wdl(self.show_wdl);
                     }
                     _ => {}
                 }
