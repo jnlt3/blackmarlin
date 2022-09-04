@@ -47,6 +47,7 @@ const RFP: i16 = 54;
 const RFP_IMPR: i16 = 49;
 const RFP_DEPTH: u32 = 8;
 const FP: i16 = 62;
+const FP_T: i16 = 31;
 const FP_DEPTH: u32 = 5;
 const SEE_FP: i16 = 81;
 const SEE_FP_DEPTH: u32 = 7;
@@ -96,8 +97,8 @@ const fn iir(depth: u32) -> u32 {
 }
 
 #[inline]
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * FP
+const fn fp(depth: u32, threats: bool) -> i16 {
+    depth as i16 * if threats { FP_T } else { FP }
 }
 
 #[inline]
@@ -204,6 +205,7 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let stm_threat = threats(pos.board(), pos.board().side_to_move());
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -408,7 +410,7 @@ pub fn search<Search: SearchType>(
         let do_fp =
             !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(depth, !stm_threat.is_empty()) <= alpha {
             move_gen.set_skip_quiets(true);
             continue;
         }
