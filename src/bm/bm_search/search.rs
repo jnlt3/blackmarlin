@@ -493,7 +493,7 @@ pub fn search<Search: SearchType>(
             if Some(make_move) == counter_move
                 || killers.into_iter().any(|killer| killer == make_move)
             {
-                reduction -= 1;
+                reduction -= 2;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
