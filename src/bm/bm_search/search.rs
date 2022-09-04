@@ -55,6 +55,15 @@ const HP: i32 = 71;
 const HP_DEPTH: u32 = 7;
 
 #[inline]
+const fn do_razor(depth: u32, no_threats: bool) -> bool {
+    depth <= 3 && no_threats
+}
+
+const fn razor(depth: u32) -> i16 {
+    200 * depth as i16
+}
+
+#[inline]
 const fn do_rev_fp(depth: u32) -> bool {
     depth <= RFP_DEPTH
 }
@@ -204,6 +213,7 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let stm_threat = threats(pos.board(), pos.board().side_to_move());
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -213,6 +223,13 @@ pub fn search<Search: SearchType>(
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
             return eval;
+        }
+
+        if do_razor(depth, stm_threat.is_empty()) && eval + razor(depth) <= alpha {
+            let q_score = q_search(pos, local_context, shared_context, ply, alpha, beta);
+            if q_score <= alpha {
+                return q_score;
+            }
         }
 
         /*
