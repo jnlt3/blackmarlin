@@ -252,6 +252,27 @@ fn remove_aggression(eval: Evaluation, piece_count: u32) -> Evaluation {
     }
 }
 
+fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
+    if let Some(mate_in) = eval.mate_in() {
+        return match mate_in {
+            _ if mate_in > 0 => (1000, 0, 0),
+            _ if mate_in < 0 => (0, 0, 1000),
+            _ => unreachable!(),
+        };
+    }
+    let raw = eval.raw() as f32 * 0.01;
+    let mut wdl = [raw * 1.42, raw * -1.42, 2.92];
+    wdl.iter_mut().for_each(|x| *x = x.exp());
+    let sum: f32 = wdl.iter().sum();
+    wdl.iter_mut().for_each(|x| *x *= 1000.0 / sum);
+
+    (
+        wdl[0] as i16,
+        wdl[1] as i16,
+        1000 - (wdl[0] as i16 + wdl[1] as i16),
+    )
+}
+
 pub struct AbRunner {
     shared_context: SharedContext,
     local_context: LocalContext,
@@ -373,10 +394,12 @@ impl AbRunner {
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
                     let eval =
                         remove_aggression(eval.unwrap(), position.board().occupied().popcnt());
+                    let wld = to_wld(eval);
                     gui_info.print_info(
                         local_context.sel_depth,
                         depth,
                         eval,
+                        wld,
                         start_time.elapsed(),
                         total_nodes,
                         &pv,
