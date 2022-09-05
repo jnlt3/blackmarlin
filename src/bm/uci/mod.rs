@@ -1,6 +1,5 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use cozy_chess::{Board, File, Move, Piece, Square};
@@ -43,7 +42,7 @@ impl UciAdapter {
         )));
 
         let (tx, rx): (Sender<ThreadReq>, Receiver<ThreadReq>) = mpsc::channel();
-        let analysis = std::thread::spawn(move || loop {
+        std::thread::spawn(move || loop {
             let req = rx.recv().unwrap();
 
             let mut bm_runner = req.bm_runner.lock().unwrap();
@@ -203,9 +202,7 @@ impl UciAdapter {
         self.sender.send(req).unwrap();
     }
 
-    fn exit(&mut self) {
-        
-    }
+    fn exit(&mut self) {}
 }
 
 pub fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
