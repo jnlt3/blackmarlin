@@ -1,22 +1,33 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
+pub fn pawn_threats(board: &Board) -> (BitBoard, BitBoard) {
+    let white = board.colors(Color::White);
+    let black = board.colors(Color::Black);
+
+    let pawns = board.pieces(Piece::Pawn);
+    let kings = board.pieces(Piece::King);
+
+    let pieces = board.occupied() & !pawns & !kings;
+
+    let w_pawn_attacks = pawn_attacks(pawns & white, Color::White);
+    let b_pawn_attacks = pawn_attacks(pawns & black, Color::Black);
+    (
+        w_pawn_attacks & pieces & black,
+        b_pawn_attacks & pieces & white,
+    )
+}
+
 pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     let occupied = board.occupied();
     let white = board.colors(Color::White);
     let black = board.colors(Color::Black);
 
-    let pawns = board.pieces(Piece::Pawn);
     let knights = board.pieces(Piece::Knight);
     let bishops = board.pieces(Piece::Bishop);
     let rooks = board.pieces(Piece::Rook);
     let queens = board.pieces(Piece::Queen);
 
-    let minors = knights | bishops;
     let majors = rooks | queens;
-    let pieces = minors | majors;
-
-    let w_pawn_attacks = pawn_threats(pawns & white, Color::White);
-    let b_pawn_attacks = pawn_threats(pawns & black, Color::Black);
 
     let mut w_minor_attacks = BitBoard::EMPTY;
     let mut b_minor_attacks = BitBoard::EMPTY;
@@ -52,14 +63,12 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     }
 
     (
-        ((w_pawn_attacks & pieces) | (w_minor_attacks & majors) | (w_rook_attacks & queens))
-            & black,
-        ((b_pawn_attacks & pieces) | (b_minor_attacks & majors) | (b_rook_attacks & queens))
-            & white,
+        ((w_minor_attacks & majors) | (w_rook_attacks & queens)) & black,
+        ((b_minor_attacks & majors) | (b_rook_attacks & queens)) & white,
     )
 }
 
-fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {
+fn pawn_attacks(pawns: BitBoard, color: Color) -> BitBoard {
     match color {
         Color::White => ((pawns & !File::A.bitboard()) << 7) | ((pawns & !File::H.bitboard()) << 9),
         Color::Black => ((pawns & !File::A.bitboard()) >> 9) | ((pawns & !File::H.bitboard()) >> 7),

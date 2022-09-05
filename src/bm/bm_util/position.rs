@@ -2,7 +2,11 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{
+    eval::Evaluation,
+    frc,
+    threats::{pawn_threats, threats},
+};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -118,7 +122,11 @@ impl Position {
     }
 
     pub fn threats(&self) -> (BitBoard, BitBoard) {
-        (self.w_threats, self.b_threats)
+        let (w_pawn_threats, b_pawn_threats) = pawn_threats(&self.current);
+        (
+            self.w_threats | w_pawn_threats,
+            self.b_threats | b_pawn_threats,
+        )
     }
 
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
