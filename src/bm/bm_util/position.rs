@@ -22,6 +22,12 @@ impl Position {
         }
     }
 
+    pub fn set_board(&mut self, board: Board) {
+        self.evaluator.full_reset(&board);
+        self.current = board;
+        self.boards.clear();
+    }
+
     pub fn reset(&mut self) {
         self.evaluator.full_reset(&self.current);
     }

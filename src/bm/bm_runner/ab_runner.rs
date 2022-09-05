@@ -127,7 +127,7 @@ pub struct LocalContext {
 impl SharedContext {
     #[inline]
     pub fn abort_search(&self, node_cnt: u64) -> bool {
-        if node_cnt % 1024 != 0 {
+        if node_cnt % 65536 != 0 {
             return false;
         }
         self.time_manager.abort_search(self.start)
@@ -524,7 +524,7 @@ impl AbRunner {
     }
 
     pub fn set_board(&mut self, board: Board) {
-        self.position = Position::new(board);
+        self.position.set_board(board);
     }
 
     pub fn make_move(&mut self, make_move: Move) {
