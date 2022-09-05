@@ -30,7 +30,8 @@ impl Position {
     }
 
     pub fn set_board(&mut self, board: Board) {
-        self.evaluator.full_reset(&board);
+        let (w_threats, b_threats) = threats(&board);
+        self.evaluator.full_reset(&board, w_threats, b_threats);
         self.current = board;
         self.boards.clear();
     }
