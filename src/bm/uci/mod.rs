@@ -1,3 +1,4 @@
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -16,10 +17,17 @@ use command::UciCommand;
 
 const VERSION: &str = "7.0";
 
+struct ThreadReq {
+    bm_runner: Arc<Mutex<AbRunner>>,
+    threads: u8,
+    chess960: bool,
+}
+
 pub struct UciAdapter {
     bm_runner: Arc<Mutex<AbRunner>>,
     time_manager: Arc<TimeManager>,
-    analysis: Option<JoinHandle<()>>,
+
+    sender: Sender<ThreadReq>,
     forced: bool,
     threads: u8,
     chess960: bool,
@@ -33,11 +41,21 @@ impl UciAdapter {
             Board::default(),
             time_manager.clone(),
         )));
+
+        let (tx, rx): (Sender<ThreadReq>, Receiver<ThreadReq>) = mpsc::channel();
+        let analysis = std::thread::spawn(move || loop {
+            let req = rx.recv().unwrap();
+
+            let mut bm_runner = req.bm_runner.lock().unwrap();
+            let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(req.threads);
+            convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
+            println!("bestmove {}", best_move);
+        });
         Self {
             bm_runner,
             threads: 1,
             forced: false,
-            analysis: None,
+            sender: tx,
             time_manager,
             chess960: false,
             show_wdl: false,
@@ -176,18 +194,17 @@ impl UciAdapter {
         let bm_runner = self.bm_runner.clone();
         let threads = self.threads;
         let chess960 = self.chess960;
-        self.analysis = Some(std::thread::spawn(move || {
-            let mut bm_runner = bm_runner.lock().unwrap();
-            let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(threads);
-            convert_move_to_uci(&mut best_move, bm_runner.get_board(), chess960);
-            println!("bestmove {}", best_move);
-        }));
+
+        let req = ThreadReq {
+            bm_runner,
+            threads,
+            chess960,
+        };
+        self.sender.send(req).unwrap();
     }
 
     fn exit(&mut self) {
-        if let Some(analysis) = self.analysis.take() {
-            analysis.join().unwrap();
-        }
+        
     }
 }
 
