@@ -16,7 +16,12 @@ use command::UciCommand;
 
 const VERSION: &str = "7.0";
 
-struct ThreadReq {
+enum ThreadReq {
+    Go(GoReq),
+    Quit,
+}
+
+struct GoReq {
     bm_runner: Arc<Mutex<AbRunner>>,
     threads: u8,
     chess960: bool,
@@ -45,10 +50,17 @@ impl UciAdapter {
         std::thread::spawn(move || loop {
             let req = rx.recv().unwrap();
 
-            let mut bm_runner = req.bm_runner.lock().unwrap();
-            let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(req.threads);
-            convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
-            println!("bestmove {}", best_move);
+            match req {
+                ThreadReq::Go(req) => {
+                    let mut bm_runner = req.bm_runner.lock().unwrap();
+                    let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(req.threads);
+                    convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
+                    println!("bestmove {}", best_move);
+                }
+                ThreadReq::Quit => {
+                    return;
+                }
+            }
         });
         Self {
             bm_runner,
@@ -82,9 +94,9 @@ impl UciAdapter {
             UciCommand::Empty => {}
             UciCommand::Stop => {
                 self.time_manager.abort_now();
-                self.exit();
             }
             UciCommand::Quit => {
+                self.exit();
                 return false;
             }
             UciCommand::Eval => {
@@ -130,8 +142,6 @@ impl UciAdapter {
                 }
             }
             UciCommand::Bench(depth) => {
-                self.exit();
-
                 let mut bench_data = vec![];
 
                 let bm_runner = &mut *self.bm_runner.lock().unwrap();
@@ -186,7 +196,6 @@ impl UciAdapter {
     }
 
     fn go(&mut self, commands: Vec<TimeManagementInfo>) {
-        self.exit();
         self.forced = false;
         self.time_manager
             .initiate(self.bm_runner.lock().unwrap().get_board(), &commands);
@@ -194,15 +203,18 @@ impl UciAdapter {
         let threads = self.threads;
         let chess960 = self.chess960;
 
-        let req = ThreadReq {
+        let req = GoReq {
             bm_runner,
             threads,
             chess960,
         };
-        self.sender.send(req).unwrap();
+        self.sender.send(ThreadReq::Go(req)).unwrap();
     }
 
-    fn exit(&mut self) {}
+    fn exit(&mut self) {
+        self.time_manager.abort_now();
+        self.sender.send(ThreadReq::Quit).unwrap();
+    }
 }
 
 pub fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
