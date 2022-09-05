@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 40;
+const EXPECTED_MOVES: u32 = 50;
 const MOVE_CHANGE_MARGIN: u32 = 9;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
@@ -225,7 +225,7 @@ impl TimeManager {
             true
         } else {
             let abort_std = self.target_duration.load(Ordering::SeqCst)
-                < (start.elapsed().as_millis() * 8 / 10) as u32
+                < (start.elapsed().as_millis() * 6 / 10) as u32
                 && !self.infinite.load(Ordering::SeqCst);
             abort_std
                 || self.max_depth.load(Ordering::SeqCst) < depth
