@@ -127,7 +127,7 @@ pub struct LocalContext {
 impl SharedContext {
     #[inline]
     pub fn abort_search(&self, node_cnt: u64) -> bool {
-        if node_cnt % 65536 != 0 {
+        if node_cnt % 1024 != 0 {
             return false;
         }
         self.time_manager.abort_search(self.start)
