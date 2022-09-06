@@ -20,10 +20,7 @@ impl CounterMoveTable {
         self.table[color as usize][piece as usize][to as usize]
     }
 
-    pub fn cutoff(&mut self, board: &Board, prev_move: MoveData, cutoff_move: Move, amt: u32) {
-        if amt > 20 {
-            return;
-        }
+    pub fn cutoff(&mut self, board: &Board, prev_move: MoveData, cutoff_move: Move) {
         let color = board.side_to_move();
         self.table[color as usize][prev_move.piece as usize][prev_move.to as usize] =
             Some(cutoff_move);
