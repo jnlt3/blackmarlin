@@ -585,7 +585,6 @@ pub fn search<Search: SearchType>(
                                     pos.board(),
                                     prev_move,
                                     make_move,
-                                    amt,
                                 );
                             }
                         }
