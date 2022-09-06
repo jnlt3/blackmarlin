@@ -107,7 +107,7 @@ impl TimeManager {
             self.same_move_depth.fetch_add(1, Ordering::SeqCst)
         };
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 50.0;
+        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 10.0;
 
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
