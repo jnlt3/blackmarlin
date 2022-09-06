@@ -118,7 +118,7 @@ impl TimeManager {
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .max(0.4);
+            .max(0.2);
 
         let move_cnt_factor = 1.05_f32.powf(move_change_cnt as f32);
 
