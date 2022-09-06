@@ -113,7 +113,7 @@ impl TimeManager {
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .clamp(0.4, 1.0);
+            .clamp(0.4, 1.2);
 
         let time = time.min(self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0);
         self.normal_duration
