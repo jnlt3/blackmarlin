@@ -46,7 +46,7 @@ impl SearchType for NoNm {
 const RFP: i16 = 54;
 const RFP_IMPR: i16 = 49;
 const RFP_DEPTH: u32 = 8;
-const FP: i16 = 62;
+const FP: i16 = 12;
 const FP_DEPTH: u32 = 5;
 const SEE_FP: i16 = 81;
 const SEE_FP_DEPTH: u32 = 7;
@@ -97,7 +97,7 @@ const fn iir(depth: u32) -> u32 {
 
 #[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * FP
+    (depth * depth) as i16 * FP
 }
 
 #[inline]
