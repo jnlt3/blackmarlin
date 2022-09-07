@@ -204,6 +204,7 @@ pub fn search<Search: SearchType>(
         eval > local_context.search_stack()[ply as usize - 2].eval
     };
 
+    let stm_threat = threats(pos.board(), pos.board().side_to_move());
     let nstm_threat = threats(pos.board(), !pos.board().side_to_move());
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -378,7 +379,7 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
                         extension += 1;
                     }
-                } else if multi_cut && s_beta >= beta {
+                } else if (multi_cut || !stm_threat.is_empty()) && s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
