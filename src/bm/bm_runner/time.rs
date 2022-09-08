@@ -209,6 +209,7 @@ impl TimeManager {
             } else {
                 0
             };
+            self.same_move_depth.store(0, Ordering::SeqCst);
             self.move_change_cnt.store(0, Ordering::SeqCst);
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
