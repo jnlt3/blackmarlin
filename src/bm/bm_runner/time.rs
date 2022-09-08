@@ -214,7 +214,7 @@ impl TimeManager {
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration
-                .store(time.as_millis() as u32 / 3, Ordering::SeqCst);
+                .store(time.as_millis() as u32 / 4, Ordering::SeqCst);
         };
     }
 
