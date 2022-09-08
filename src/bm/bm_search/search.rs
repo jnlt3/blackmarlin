@@ -72,11 +72,12 @@ fn do_nmp<Search: SearchType>(
     beta: i16,
     nstm_threat: bool,
 ) -> bool {
+    let stm = board.colors(board.side_to_move());
     Search::NM
         && depth > 4
         && !(nstm_threat && depth <= 8)
         && eval >= beta
-        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
+        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) & stm == stm
 }
 
 #[inline]
