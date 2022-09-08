@@ -102,12 +102,12 @@ impl TimeManager {
         }
         *prev_move = Some(current_move);
 
-        let move_change_depth = if move_changed {
+        let move_change_depth = if move_changed && depth >= 8 {
             self.move_change_cnt.fetch_add(1, Ordering::SeqCst);
             self.same_move_depth.store(0, Ordering::SeqCst);
             0
         } else {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
+            self.same_move_depth.fetch_add((depth >= 8) as u32, Ordering::SeqCst)
         };
 
         let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
