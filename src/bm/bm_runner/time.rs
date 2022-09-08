@@ -8,7 +8,6 @@ use std::time::{Duration, Instant};
 use super::ab_runner::MAX_PLY;
 
 const EXPECTED_MOVES: u32 = 50;
-const MOVE_CHANGE_MARGIN: u32 = 4;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -117,7 +116,7 @@ impl TimeManager {
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
         let move_change_factor = 1.05_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
+            .powf(-(move_change_depth as f32))
             .max(0.4);
 
         let move_cnt_factor = 1.05_f32.powf(move_change_cnt as f32);
