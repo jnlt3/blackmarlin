@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use super::ab_runner::MAX_PLY;
 
 const EXPECTED_MOVES: u32 = 50;
-const MOVE_CHANGE_MARGIN: u32 = 9;
+const MOVE_CHANGE_MARGIN: u32 = 4;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
