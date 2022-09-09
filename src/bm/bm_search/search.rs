@@ -80,9 +80,9 @@ fn do_nmp<Search: SearchType>(
 }
 
 #[inline]
-fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
+fn nmp_depth(depth: u32, eval: i16, beta: i16, nstm_threat: bool) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
+    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32 + nstm_threat as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -233,7 +233,7 @@ pub fn search<Search: SearchType>(
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
 
-            let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
+            let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw(), !nstm_threat.is_empty());
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
                 pos,
