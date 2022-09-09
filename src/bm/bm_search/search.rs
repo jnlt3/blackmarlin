@@ -443,6 +443,17 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let do_atp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && eval <= alpha;
+        if do_atp
+            && !is_capture
+            && tt_entry.map_or(false, |entry| {
+                nstm_threat.has(entry.table_move().from)
+                    && make_move.from != entry.table_move().from
+            })
+        {
+            continue;
+        }
+
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
