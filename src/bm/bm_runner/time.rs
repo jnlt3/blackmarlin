@@ -112,9 +112,10 @@ impl TimeManager {
 
         let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
-
-        time *= 1.05_f32.powf(eval_diff.min(1.0));
+        if depth >= 12 {
+            let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
+            time *= 1.05_f32.powf(eval_diff.min(1.0));
+        }
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
