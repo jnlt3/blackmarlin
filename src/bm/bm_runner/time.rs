@@ -43,6 +43,7 @@ pub struct TimeManager {
 
     same_move_depth: AtomicU32,
     move_change_cnt: AtomicU32,
+    last_depth: AtomicU32,
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
 
@@ -64,6 +65,7 @@ impl TimeManager {
             target_duration: AtomicU32::new(0),
             same_move_depth: AtomicU32::new(0),
             move_change_cnt: AtomicU32::new(0),
+            last_depth: AtomicU32::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -88,6 +90,8 @@ impl TimeManager {
         if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
             return;
         }
+        let last_depth = self.last_depth.load(Ordering::SeqCst);
+        self.last_depth.store(depth, Ordering::SeqCst);
 
         let current_eval = eval.raw();
         let last_eval = self.last_eval.load(Ordering::SeqCst);
@@ -102,7 +106,9 @@ impl TimeManager {
         }
         *prev_move = Some(current_move);
 
-        let move_change_depth = if move_changed {
+        let move_change_depth = if last_depth != depth {
+            self.same_move_depth.load(Ordering::SeqCst)
+        } else if move_changed {
             self.move_change_cnt.fetch_add(1, Ordering::SeqCst);
             self.same_move_depth.store(0, Ordering::SeqCst);
             0
