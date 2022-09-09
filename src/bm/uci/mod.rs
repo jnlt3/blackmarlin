@@ -48,17 +48,18 @@ impl UciAdapter {
 
         let (tx, rx): (Sender<ThreadReq>, Receiver<ThreadReq>) = mpsc::channel();
         std::thread::spawn(move || loop {
-            let req = rx.recv().unwrap();
-
-            match req {
-                ThreadReq::Go(req) => {
-                    let mut bm_runner = req.bm_runner.lock().unwrap();
-                    let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(req.threads);
-                    convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
-                    println!("bestmove {}", best_move);
-                }
-                ThreadReq::Quit => {
-                    return;
+            if let Ok(req) = rx.recv() {
+                match req {
+                    ThreadReq::Go(req) => {
+                        let mut bm_runner = req.bm_runner.lock().unwrap();
+                        let (mut best_move, _, _, _) =
+                            bm_runner.search::<Run, UciInfo>(req.threads);
+                        convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
+                        println!("bestmove {}", best_move);
+                    }
+                    ThreadReq::Quit => {
+                        return;
+                    }
                 }
             }
         });
