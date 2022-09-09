@@ -126,7 +126,7 @@ impl TimeManager {
         self.normal_duration
             .store((time.min(max_duration) * 0.001) as u32, Ordering::SeqCst);
         self.target_duration.store(
-            (time * 0.001 * move_change_factor * move_cnt_factor).min(max_duration) as u32,
+            (time * 0.001 * move_change_factor * move_cnt_factor).min(max_duration * 0.001) as u32,
             Ordering::SeqCst,
         );
         self.last_eval.store(current_eval, Ordering::SeqCst);
