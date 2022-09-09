@@ -203,9 +203,10 @@ impl TimeManager {
             self.target_duration
                 .store(move_time.as_millis() as u32, Ordering::SeqCst);
         } else {
+            let max_time = time.as_millis() as u32 / 3;
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
             let default = if move_cnt > 1 {
-                inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves
+                (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time)
             } else {
                 0
             };
@@ -214,7 +215,7 @@ impl TimeManager {
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration
-                .store(time.as_millis() as u32 / 3, Ordering::SeqCst);
+                .store(max_time, Ordering::SeqCst);
         };
     }
 
