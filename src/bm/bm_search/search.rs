@@ -711,6 +711,9 @@ pub fn q_search(
             if stand_pat + see - 193 >= beta {
                 return beta;
             }
+            if stand_pat + 200 <= alpha && see <= 0 {
+                continue;
+            }
             pos.make_move(make_move);
             let search_score = q_search(
                 pos,
