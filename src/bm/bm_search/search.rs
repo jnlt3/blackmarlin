@@ -443,7 +443,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_atp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && eval <= alpha;
+        let do_atp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 2 && eval <= alpha;
         if do_atp
             && !is_capture
             && tt_entry.map_or(false, |entry| {
