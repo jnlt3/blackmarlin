@@ -120,7 +120,7 @@ impl TimeManager {
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
             .max(0.4);
 
-        let move_cnt_factor = 1.05_f32.powf(move_change_cnt as f32);
+        let move_cnt_factor = 1.05_f32.powf(move_change_cnt as f32 - 2.0);
 
         let max_duration = self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0;
         self.normal_duration
