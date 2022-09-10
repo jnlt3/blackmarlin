@@ -215,6 +215,13 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
+        if depth <= 3 && eval - rev_fp(1, improving && nstm_threat.is_empty()) >= beta {
+            let q_score = q_search(pos, local_context, shared_context, ply, alpha, beta);
+            if q_score >= beta {
+                return q_score;
+            }
+        }
+
         /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
