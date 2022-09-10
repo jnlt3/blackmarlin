@@ -214,8 +214,7 @@ impl TimeManager {
             self.move_change_cnt.store(0, Ordering::SeqCst);
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
-            self.max_duration
-                .store(max_time, Ordering::SeqCst);
+            self.max_duration.store(max_time, Ordering::SeqCst);
         };
     }
 
@@ -223,12 +222,13 @@ impl TimeManager {
         self.abort_now.store(true, Ordering::SeqCst);
     }
 
-    pub fn abort_search(&self, start: Instant) -> bool {
+    pub fn abort_search(&self, start: Instant, nodes: u64) -> bool {
         if self.abort_now.load(Ordering::SeqCst) {
             true
         } else {
-            self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
-                && !self.infinite.load(Ordering::SeqCst)
+            (self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
+                && !self.infinite.load(Ordering::SeqCst))
+                || self.max_nodes.load(Ordering::SeqCst) <= nodes
         }
     }
 
