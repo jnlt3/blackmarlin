@@ -391,6 +391,7 @@ pub fn search<Search: SearchType>(
 
         if Search::PV
             && is_capture
+            && h_score > 0
             && (opp_move.map_or(false, |opp_move| {
                 opp_move.capture && opp_move.to == make_move.to
             }) || prev_opp_move.map_or(false, |opp_move| {
