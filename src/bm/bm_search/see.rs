@@ -49,7 +49,7 @@ pub fn calculate_see<const N: usize>(board: &Board, make_move: Move) -> i16 {
     gains[0]
 }
 
-fn piece_pts(piece: Piece) -> i16 {
+pub fn piece_pts(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 96,
         Piece::Knight => 323,

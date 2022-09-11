@@ -12,7 +12,7 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
-use super::see::calculate_see;
+use super::see::{self, calculate_see};
 use super::threats::threats;
 
 pub trait SearchType {
@@ -369,7 +369,10 @@ pub fn search<Search: SearchType>(
                         s_beta,
                     )
                 } else {
-                    eval
+                    eval + pos
+                        .board()
+                        .piece_on(make_move.to)
+                        .map_or(0, |piece| see::piece_pts(piece))
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
