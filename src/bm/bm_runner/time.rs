@@ -112,7 +112,7 @@ impl TimeManager {
 
         let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
+        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 75.0;
 
         time *= 1.05_f32.powf(eval_diff.min(1.0));
 
