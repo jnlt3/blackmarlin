@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
+use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
 
 use self::layers::{Align, Dense, Incremental};
 
@@ -33,7 +33,20 @@ fn halfka_feature(
     let mut index = 0;
     index = index * Square::NUM + king as usize;
     index = index * Color::NUM + color as usize;
-    index = index * Piece::NUM + piece as usize;
+    index = index * (Piece::NUM + 1) + piece as usize;
+    index = index * Square::NUM + square as usize;
+    index
+}
+
+fn threat_feature(perspective: Color, king: Square, color: Color, square: Square) -> usize {
+    let (king, square, color) = match perspective {
+        Color::White => (king, square, color),
+        Color::Black => (king.flip_rank(), square.flip_rank(), !color),
+    };
+    let mut index = 0;
+    index = index * Square::NUM + king as usize;
+    index = index * Color::NUM + color as usize;
+    index = index * (Piece::NUM + 1) + Piece::NUM;
     index = index * Square::NUM + square as usize;
     index
 }
@@ -49,6 +62,25 @@ impl Accumulator {
     ) {
         let w_index = halfka_feature(Color::White, w_king, color, piece, sq);
         let b_index = halfka_feature(Color::Black, b_king, color, piece, sq);
+
+        if INCR {
+            self.w_input_layer.incr_ff::<1>(w_index);
+            self.b_input_layer.incr_ff::<1>(b_index);
+        } else {
+            self.w_input_layer.incr_ff::<-1>(w_index);
+            self.b_input_layer.incr_ff::<-1>(b_index);
+        }
+    }
+
+    pub fn threat<const INCR: bool>(
+        &mut self,
+        w_king: Square,
+        b_king: Square,
+        sq: Square,
+        color: Color,
+    ) {
+        let w_index = threat_feature(Color::White, w_king, color, sq);
+        let b_index = threat_feature(Color::Black, b_king, color, sq);
 
         if INCR {
             self.w_input_layer.incr_ff::<1>(w_index);
@@ -100,7 +132,7 @@ impl Nnue {
         }
     }
 
-    pub fn reset(&mut self, board: &Board) {
+    pub fn reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
         let acc = &mut self.accumulator[self.head];
@@ -113,11 +145,17 @@ impl Nnue {
             let color = board.color_on(sq).unwrap();
             acc.update::<true>(w_king, b_king, sq, piece, color);
         }
+        for sq in w_threats {
+            acc.threat::<true>(w_king, b_king, sq, Color::Black);
+        }
+        for sq in b_threats {
+            acc.threat::<true>(w_king, b_king, sq, Color::White);
+        }
     }
 
-    pub fn full_reset(&mut self, board: &Board) {
+    pub fn full_reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
         self.head = 0;
-        self.reset(board);
+        self.reset(board, w_threats, b_threats);
     }
 
     fn push_accumulator(&mut self) {
@@ -132,7 +170,15 @@ impl Nnue {
         self.push_accumulator();
     }
 
-    pub fn make_move(&mut self, board: &Board, make_move: Move) {
+    pub fn make_move(
+        &mut self,
+        board: &Board,
+        make_move: Move,
+        w_threats: BitBoard,
+        b_threats: BitBoard,
+        old_w_threats: BitBoard,
+        old_b_threats: BitBoard,
+    ) {
         self.push_accumulator();
         let from_sq = make_move.from;
         let from_type = board.piece_on(from_sq).unwrap();
@@ -142,10 +188,23 @@ impl Nnue {
         if from_type == Piece::King {
             let mut board_clone = board.clone();
             board_clone.play_unchecked(make_move);
-            self.reset(&board_clone);
+            self.reset(&board_clone, w_threats, b_threats);
             return;
         }
         let acc = &mut self.accumulator[self.head];
+        for w_threat_sq in w_threats ^ old_w_threats {
+            match w_threats.has(w_threat_sq) {
+                true => acc.threat::<true>(w_king, b_king, w_threat_sq, Color::Black),
+                false => acc.threat::<false>(w_king, b_king, w_threat_sq, Color::Black),
+            }
+        }
+
+        for b_threat_sq in b_threats ^ old_b_threats {
+            match b_threats.has(b_threat_sq) {
+                true => acc.threat::<true>(w_king, b_king, b_threat_sq, Color::White),
+                false => acc.threat::<false>(w_king, b_king, b_threat_sq, Color::White),
+            }
+        }
 
         acc.update::<false>(w_king, b_king, from_sq, from_type, stm);
 
