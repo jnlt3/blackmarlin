@@ -312,6 +312,7 @@ pub fn search<Search: SearchType>(
 
     let mut moves_seen = 0;
     let mut move_exists = false;
+    let mut double_ext = false;
 
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
@@ -380,6 +381,7 @@ pub fn search<Search: SearchType>(
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
                         extension += 1;
+                        double_ext = true;
                     }
                 } else if multi_cut && s_beta >= beta {
                     /*
@@ -497,6 +499,9 @@ pub fn search<Search: SearchType>(
                 || killers.into_iter().any(|killer| killer == make_move)
             {
                 reduction -= 1;
+            }
+            if double_ext {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
