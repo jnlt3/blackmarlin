@@ -204,9 +204,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threat = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threat, nstm_threat) = match pos.board().side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -215,6 +215,10 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+            return eval;
+        }
+
+        if depth == 1 && eval >= beta && !stm_threat.is_empty() {
             return eval;
         }
 
