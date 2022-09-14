@@ -204,9 +204,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threat = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threat, nstm_threat) = match pos.board().side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -498,6 +498,10 @@ pub fn search<Search: SearchType>(
             {
                 reduction -= 1;
             }
+            if !stm_threat.is_empty() && !is_capture {
+                reduction += 1;
+            }
+
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
