@@ -59,8 +59,8 @@ const fn do_rev_fp(depth: u32) -> bool {
 }
 
 #[inline]
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * RFP - improving as i16 * RFP_IMPR
+const fn rev_fp(depth: u32, improving: bool, stm_threats: bool) -> i16 {
+    (depth as i16 * RFP - improving as i16 * RFP_IMPR) / (1 + stm_threats as i16)
 }
 
 #[inline]
@@ -204,9 +204,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threat = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threat, nstm_threat) = match pos.board().side_to_move() {
+        Color::White => (b_threats, w_threats),
+        Color::Black => (w_threats, b_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -214,7 +214,8 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+        let rev_fp_margin =  rev_fp(depth, improving && nstm_threat.is_empty(), !stm_threat.is_empty());
+        if do_rev_fp(depth) && eval - rev_fp_margin >= beta {
             return eval;
         }
 
@@ -579,7 +580,10 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
-                        let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
+                        let amt = depth
+                            + (eval <= alpha) as u32
+                            + (score - 50 > beta) as u32
+                            + (h_score < 0) as u32;
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
