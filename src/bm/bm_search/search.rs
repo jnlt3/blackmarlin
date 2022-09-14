@@ -341,8 +341,12 @@ pub fn search<Search: SearchType>(
                 + local_context
                     .get_hist()
                     .get_counter_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default()
+                + local_context
+                    .get_hist()
+                    .get_followup_move(pos, &hist_indices, make_move)
                     .unwrap_or_default())
-                / 2
+                / 3
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
