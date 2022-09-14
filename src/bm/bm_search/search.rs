@@ -218,7 +218,7 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
-        if depth <= 2 && eval >= beta && !stm_threat.is_empty() {
+        if depth <= 2 && eval >= beta + depth as i16 * 25 && !stm_threat.is_empty() {
             return eval;
         }
 
