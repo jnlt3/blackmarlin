@@ -42,8 +42,8 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const RFP: i16 = 54;
-const RFP_IMPR: i16 = 49;
+const RFP: i16 = 39;
+const RFP_IMPR: i16 = 34;
 const RFP_DEPTH: u32 = 8;
 const FP: i16 = 62;
 const FP_DEPTH: u32 = 5;
