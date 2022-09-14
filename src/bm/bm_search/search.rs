@@ -101,7 +101,7 @@ const fn fp(depth: u32) -> i16 {
 
 #[inline]
 const fn cap_fp(depth: u32) -> i16 {
-    depth as i16 * FP * 3
+    depth as i16 * FP * 2
 }
 
 
