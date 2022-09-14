@@ -100,6 +100,12 @@ const fn fp(depth: u32) -> i16 {
 }
 
 #[inline]
+const fn cap_fp(depth: u32) -> i16 {
+    depth as i16 * FP * 3
+}
+
+
+#[inline]
 const fn see_fp(depth: u32) -> i16 {
     depth as i16 * SEE_FP
 }
@@ -413,6 +419,11 @@ pub fn search<Search: SearchType>(
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
+            continue;
+        }
+
+        let do_cap_fp = !Search::PV && non_mate_line && moves_seen > 0 && is_capture && depth <= FP_DEPTH;
+        if do_cap_fp && eval + cap_fp(depth) <= alpha {
             continue;
         }
 
