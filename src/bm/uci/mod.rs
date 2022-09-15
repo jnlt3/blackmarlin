@@ -1,5 +1,5 @@
-use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use cozy_chess::{Board, File, Move, Piece, Square};
@@ -16,26 +16,16 @@ use command::UciCommand;
 
 const VERSION: &str = "7.0";
 
-enum ThreadReq {
-    Go(GoReq),
-    Quit,
-}
-
-struct GoReq {
-    bm_runner: Arc<Mutex<AbRunner>>,
-    threads: u8,
-    chess960: bool,
-}
-
 pub struct UciAdapter {
     bm_runner: Arc<Mutex<AbRunner>>,
     time_manager: Arc<TimeManager>,
-
-    sender: Sender<ThreadReq>,
+    analysis: Option<JoinHandle<()>>,
     forced: bool,
     threads: u8,
     chess960: bool,
-    show_wdl: bool,
+
+    params: Vec<Box<dyn Fn(&str, &str) -> ()>>,
+    print_uci: Vec<Box<dyn Fn() -> ()>>,
 }
 
 impl UciAdapter {
@@ -46,31 +36,45 @@ impl UciAdapter {
             time_manager.clone(),
         )));
 
-        let (tx, rx): (Sender<ThreadReq>, Receiver<ThreadReq>) = mpsc::channel();
-        std::thread::spawn(move || loop {
-            if let Ok(req) = rx.recv() {
-                match req {
-                    ThreadReq::Go(req) => {
-                        let mut bm_runner = req.bm_runner.lock().unwrap();
-                        let (mut best_move, _, _, _) =
-                            bm_runner.search::<Run, UciInfo>(req.threads);
-                        convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
-                        println!("bestmove {}", best_move);
-                    }
-                    ThreadReq::Quit => {
+        let mut params: Vec<Box<dyn Fn(&str, &str) -> ()>> = vec![];
+        let mut print_uci: Vec<Box<dyn Fn() -> ()>> = vec![];
+
+        macro_rules! add_param {
+            ($name: ident: $value_type: ty = range($min: expr, $max: expr)) => {
+                use crate::bm::bm_search::search::$name;
+                params.push(Box::new(|name: &str, value: &str| {
+                    if name != stringify!($name) {
                         return;
                     }
-                }
-            }
-        });
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    let value = value.parse::<$value_type>().unwrap();
+                    assert!(value >= min && value <= max);
+                    unsafe { $name = value };
+                }));
+                print_uci.push(Box::new(|| {
+                    let value = unsafe { $name };
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    println!(
+                        "option name {} type spin default {} min {} max {}",
+                        stringify!($name),
+                        value,
+                        min,
+                        max,
+                    )
+                }))
+            };
+        }
         Self {
             bm_runner,
             threads: 1,
             forced: false,
-            sender: tx,
+            analysis: None,
             time_manager,
             chess960: false,
-            show_wdl: false,
+            params,
+            print_uci,
         }
     }
 
@@ -83,8 +87,10 @@ impl UciAdapter {
                 println!("id author Doruk S.");
                 println!("option name Hash type spin default 16 min 1 max 65536");
                 println!("option name Threads type spin default 1 min 1 max 255");
-                println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
+                for print_param in &self.print_uci {
+                    print_param();
+                }
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -95,9 +101,9 @@ impl UciAdapter {
             UciCommand::Empty => {}
             UciCommand::Stop => {
                 self.time_manager.abort_now();
+                self.exit();
             }
             UciCommand::Quit => {
-                self.exit();
                 return false;
             }
             UciCommand::Eval => {
@@ -132,17 +138,15 @@ impl UciAdapter {
                         self.chess960 = value.to_lowercase().parse().unwrap();
                         self.bm_runner.lock().unwrap().set_chess960(self.chess960);
                     }
-                    "UCI_ShowWDL" => {
-                        self.show_wdl = value.to_lowercase().parse().unwrap();
-                        self.bm_runner
-                            .lock()
-                            .unwrap()
-                            .set_uci_show_wdl(self.show_wdl);
-                    }
                     _ => {}
+                }
+                for params in self.params.iter() {
+                    params(&name, &value);
                 }
             }
             UciCommand::Bench(depth) => {
+                self.exit();
+
                 let mut bench_data = vec![];
 
                 let bm_runner = &mut *self.bm_runner.lock().unwrap();
@@ -197,24 +201,25 @@ impl UciAdapter {
     }
 
     fn go(&mut self, commands: Vec<TimeManagementInfo>) {
+        self.exit();
         self.forced = false;
         self.time_manager
             .initiate(self.bm_runner.lock().unwrap().get_board(), &commands);
         let bm_runner = self.bm_runner.clone();
         let threads = self.threads;
         let chess960 = self.chess960;
-
-        let req = GoReq {
-            bm_runner,
-            threads,
-            chess960,
-        };
-        self.sender.send(ThreadReq::Go(req)).unwrap();
+        self.analysis = Some(std::thread::spawn(move || {
+            let mut bm_runner = bm_runner.lock().unwrap();
+            let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>(threads);
+            convert_move_to_uci(&mut best_move, bm_runner.get_board(), chess960);
+            println!("bestmove {}", best_move);
+        }));
     }
 
     fn exit(&mut self) {
-        self.time_manager.abort_now();
-        self.sender.send(ThreadReq::Quit).unwrap();
+        if let Some(analysis) = self.analysis.take() {
+            analysis.join().unwrap();
+        }
     }
 }
 
