@@ -236,7 +236,7 @@ impl TranspositionTable {
             matches!(a.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
         let b_extra_depth =
             matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
-        ((a.depth + a_extra_depth).saturating_add(current_age.wrapping_sub(b.age) / 2)) + 3
+        ((a.depth + a_extra_depth).saturating_add(current_age.wrapping_sub(b.age) / 2)) + 5
             >= (b.depth + b_extra_depth)
     }
 
