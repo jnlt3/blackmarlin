@@ -6,9 +6,10 @@ use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
 pub const MAX_HIST: i16 = 512;
+pub const MAX_BONUS: i16 = 128;
 
 fn hist_stat(amt: i16) -> i16 {
-    (amt * 16).min(MAX_HIST)
+    (amt * 16).min(MAX_BONUS)
 }
 
 fn bonus(hist: &mut i16, amt: i16) {
