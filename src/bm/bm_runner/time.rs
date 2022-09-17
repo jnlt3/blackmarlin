@@ -43,6 +43,7 @@ pub struct TimeManager {
 
     same_move_depth: AtomicU32,
     move_change_cnt: AtomicU32,
+    eval_diff_sum: AtomicU32,
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
 
@@ -64,6 +65,7 @@ impl TimeManager {
             target_duration: AtomicU32::new(0),
             same_move_depth: AtomicU32::new(0),
             move_change_cnt: AtomicU32::new(0),
+            eval_diff_sum: AtomicU32::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -112,9 +114,10 @@ impl TimeManager {
 
         let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
 
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
+        let eval_diff = (current_eval as i32 - last_eval as i32).abs().min(25) as u32;
+        let eval_diff_sum = self.eval_diff_sum.fetch_add(eval_diff, Ordering::SeqCst);
 
-        time *= 1.05_f32.powf(eval_diff.min(1.0));
+        time *= 1.05_f32.powf((eval_diff_sum as f32 / 25.0).min(4.0));
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
