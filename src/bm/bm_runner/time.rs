@@ -117,7 +117,7 @@ impl TimeManager {
         let eval_diff = (current_eval as i32 - last_eval as i32).abs().min(25) as u32;
         let eval_diff_sum = self.eval_diff_sum.fetch_add(eval_diff, Ordering::SeqCst);
 
-        let eval_factor =  1.05_f32.powf((eval_diff_sum as f32 / 25.0).min(4.0));
+        let eval_factor = 1.05_f32.powf((eval_diff_sum as f32 / 25.0).min(4.0));
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
@@ -129,7 +129,8 @@ impl TimeManager {
         self.normal_duration
             .store((time.min(max_duration) * 0.001) as u32, Ordering::SeqCst);
         self.target_duration.store(
-            (time * 0.001 * eval_factor * move_change_factor * move_cnt_factor).min(max_duration * 0.001) as u32,
+            (time * 0.001 * eval_factor * move_change_factor * move_cnt_factor)
+                .min(max_duration * 0.001) as u32,
             Ordering::SeqCst,
         );
         self.last_eval.store(current_eval, Ordering::SeqCst);
@@ -215,6 +216,7 @@ impl TimeManager {
             };
             self.same_move_depth.store(0, Ordering::SeqCst);
             self.move_change_cnt.store(0, Ordering::SeqCst);
+            self.eval_diff_sum.store(0, Ordering::SeqCst);
             self.normal_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration.store(max_time, Ordering::SeqCst);
@@ -252,6 +254,7 @@ impl TimeManager {
         *self.prev_move.lock().unwrap() = None;
         self.same_move_depth.store(0, Ordering::SeqCst);
         self.move_change_cnt.store(0, Ordering::SeqCst);
+        self.eval_diff_sum.store(0, Ordering::SeqCst);
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
