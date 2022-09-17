@@ -718,7 +718,7 @@ pub fn q_search(
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
             }
-            if count > 2 {
+            if count > 3 {
                 continue;
             }
             count += 1;
