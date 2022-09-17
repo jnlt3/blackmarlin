@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use cfg_if::cfg_if;
 
@@ -28,10 +28,29 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         self.out.0 = out;
     }
 
-    #[inline]
-    pub fn incr_ff<const CHANGE: i16>(&mut self, index: usize) {
-        for (out, &weight) in self.out.0.iter_mut().zip(&self.weights.0[index]) {
-            *out += weight * CHANGE;
+    pub fn incr_ff(&mut self, add: &[usize], rm: &[usize]) {
+        cfg_if! {
+            if #[cfg(target_feature = "avx2")] {
+                const CHUNKS: usize = 256;
+            } else {
+                const CHUNKS: usize = 128;
+            }
+        }
+        for start in 0..(OUTPUT + CHUNKS - 1) / CHUNKS {
+            let range = start * CHUNKS..(start * CHUNKS + CHUNKS).min(OUTPUT);
+            let mut out_reg = [0; CHUNKS];
+            out_reg[..range.len()].copy_from_slice(&self.out.0[range.clone()]);
+            self.incr::<1>(add, &mut out_reg, range.clone());
+            self.incr::<-1>(rm, &mut out_reg, range.clone());
+            self.out.0[range.clone()].copy_from_slice(&out_reg[..range.len()]);
+        }
+    }
+
+    fn incr<const CHANGE: i16>(&self, indices: &[usize], reg: &mut [i16], chunk: Range<usize>) {
+        for &index in indices {
+            for (out, &weight) in reg.iter_mut().zip(&self.weights.0[index][chunk.clone()]) {
+                *out += weight * CHANGE;
+            }
         }
     }
 

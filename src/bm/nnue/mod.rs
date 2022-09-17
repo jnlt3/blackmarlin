@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
 
 use self::layers::{Align, Dense, Incremental};
@@ -17,6 +18,10 @@ const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
 pub struct Accumulator {
     w_input_layer: Incremental<INPUT, MID>,
     b_input_layer: Incremental<INPUT, MID>,
+    w_add: ArrayVec<usize, 48>,
+    b_add: ArrayVec<usize, 48>,
+    w_rm: ArrayVec<usize, 48>,
+    b_rm: ArrayVec<usize, 48>,
 }
 
 fn halfka_feature(
@@ -64,11 +69,11 @@ impl Accumulator {
         let b_index = halfka_feature(Color::Black, b_king, color, piece, sq);
 
         if INCR {
-            self.w_input_layer.incr_ff::<1>(w_index);
-            self.b_input_layer.incr_ff::<1>(b_index);
+            self.w_add.push(w_index);
+            self.b_add.push(b_index);
         } else {
-            self.w_input_layer.incr_ff::<-1>(w_index);
-            self.b_input_layer.incr_ff::<-1>(b_index);
+            self.w_rm.push(w_index);
+            self.b_rm.push(b_index);
         }
     }
 
@@ -83,12 +88,21 @@ impl Accumulator {
         let b_index = threat_feature(Color::Black, b_king, color, sq);
 
         if INCR {
-            self.w_input_layer.incr_ff::<1>(w_index);
-            self.b_input_layer.incr_ff::<1>(b_index);
+            self.w_add.push(w_index);
+            self.b_add.push(b_index);
         } else {
-            self.w_input_layer.incr_ff::<-1>(w_index);
-            self.b_input_layer.incr_ff::<-1>(b_index);
+            self.w_rm.push(w_index);
+            self.b_rm.push(b_index);
         }
+    }
+
+    pub fn perform_update(&mut self) {
+        self.w_input_layer.incr_ff(&self.w_add, &self.w_rm);
+        self.b_input_layer.incr_ff(&self.b_add, &self.b_rm);
+        self.w_add.clear();
+        self.w_rm.clear();
+        self.b_add.clear();
+        self.b_rm.clear();
     }
 }
 
@@ -123,6 +137,10 @@ impl Nnue {
                 Accumulator {
                     w_input_layer: input_layer.clone(),
                     b_input_layer: input_layer,
+                    w_add: ArrayVec::new(),
+                    w_rm: ArrayVec::new(),
+                    b_add: ArrayVec::new(),
+                    b_rm: ArrayVec::new(),
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
@@ -151,6 +169,7 @@ impl Nnue {
         for sq in b_threats {
             acc.threat::<true>(w_king, b_king, sq, Color::White);
         }
+        acc.perform_update();
     }
 
     pub fn full_reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
@@ -273,6 +292,7 @@ impl Nnue {
                 stm,
             );
         }
+        acc.perform_update();
     }
 
     pub fn unmake_move(&mut self) {
