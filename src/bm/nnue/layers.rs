@@ -28,10 +28,23 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         self.out.0 = out;
     }
 
-    #[inline]
-    pub fn incr_ff<const CHANGE: i16>(&mut self, index: usize) {
-        for (out, &weight) in self.out.0.iter_mut().zip(&self.weights.0[index]) {
-            *out += weight * CHANGE;
+    pub fn incr_ff(&mut self, add: &[usize], rm: &[usize]) {
+        for start in 0..(OUTPUT + 255) / 256 {
+            let start = start * 256;
+            let end = (start + 256).min(OUTPUT);
+            let mut out_reg = [0; 256];
+            out_reg[..end - start].copy_from_slice(&self.out.0[start..end]);
+            for &index in add {
+                for (out, &weight) in out_reg.iter_mut().zip(&self.weights.0[index][start..end]) {
+                    *out += weight;
+                }
+            }
+            for &index in rm {
+                for (out, &weight) in out_reg.iter_mut().zip(&self.weights.0[index][start..end]) {
+                    *out -= weight;
+                }
+            }
+            self.out.0[start..end].copy_from_slice(&out_reg[..end - start]);
         }
     }
 
