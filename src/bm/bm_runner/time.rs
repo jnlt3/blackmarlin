@@ -117,7 +117,7 @@ impl TimeManager {
         let eval_diff = (current_eval as i32 - last_eval as i32).abs().min(25) as u32;
         let eval_diff_sum = self.eval_diff_sum.fetch_add(eval_diff, Ordering::SeqCst);
 
-        let eval_factor = 1.05_f32.powf((eval_diff_sum as f32 / 25.0).min(48.0));
+        let eval_factor = 1.05_f32.powf((eval_diff_sum as f32 / 25.0).min(64.0));
 
         let move_change_factor = 1.05_f32
             .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
