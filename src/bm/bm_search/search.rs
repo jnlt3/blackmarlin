@@ -638,6 +638,9 @@ pub fn search<Search: SearchType>(
                 depth,
                 entry_type,
                 highest_score,
+                pos.board()
+                    .colors(pos.board().side_to_move())
+                    .has(final_move.to),
                 *final_move,
             );
         }
@@ -752,9 +755,16 @@ pub fn q_search(
             UpperBound
         };
 
-        shared_context
-            .get_t_table()
-            .set(pos.board(), 0, entry_type, highest_score, best_move);
+        shared_context.get_t_table().set(
+            pos.board(),
+            0,
+            entry_type,
+            highest_score,
+            pos.board()
+                .colors(pos.board().side_to_move())
+                .has(best_move.to),
+            best_move,
+        );
     }
     highest_score.unwrap_or(alpha)
 }

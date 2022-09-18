@@ -70,11 +70,12 @@ impl Analysis {
         entry_type: EntryType,
         score: Evaluation,
         table_move: Move,
+        capture: bool,
         age: u8,
     ) -> Self {
         Self {
             exists: true,
-            depth: depth as u8,
+            depth: depth as u8 + (!capture) as u8,
             entry_type,
             score,
             table_move: TTMove::new(table_move),
@@ -210,6 +211,7 @@ impl TranspositionTable {
         depth: u32,
         entry_type: EntryType,
         score: Evaluation,
+        capture: bool,
         table_move: Move,
     ) {
         let entry = Analysis::new(
@@ -217,6 +219,7 @@ impl TranspositionTable {
             entry_type,
             score,
             table_move,
+            capture,
             self.age.load(Ordering::Relaxed),
         );
         let hash = board.hash();
