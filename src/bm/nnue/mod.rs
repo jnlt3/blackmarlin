@@ -97,8 +97,8 @@ impl Accumulator {
     }
 
     pub fn perform_update(&mut self) {
-        self.w_input_layer.incr_ff(&self.w_add, &self.w_rm);
-        self.b_input_layer.incr_ff(&self.b_add, &self.b_rm);
+        self.w_input_layer.update_features(&self.w_add, &self.w_rm);
+        self.b_input_layer.update_features(&self.b_add, &self.b_rm);
         self.w_add.clear();
         self.w_rm.clear();
         self.b_add.clear();
@@ -311,6 +311,6 @@ impl Nnue {
         layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
 
         let bucket = (piece_cnt / 4).min(7);
-        layers::out(self.out_layer.ff(&incr.0, bucket))
+        layers::scale_network_output(self.out_layer.feed_forward(&incr.0, bucket))
     }
 }

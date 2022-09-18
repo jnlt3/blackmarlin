@@ -24,11 +24,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         Self { weights, out: bias }
     }
 
-    pub fn reset(&mut self, out: [i16; OUTPUT]) {
-        self.out.0 = out;
+    pub fn reset(&mut self, bias: [i16; OUTPUT]) {
+        self.out.0 = bias;
     }
 
-    pub fn incr_ff(&mut self, add: &[usize], rm: &[usize]) {
+    pub fn update_features(&mut self, added_features: &[usize], removed_features: &[usize]) {
         cfg_if! {
             if #[cfg(target_feature = "avx2")] {
                 const CHUNKS: usize = 256;
@@ -40,16 +40,16 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
             let range = start * CHUNKS..(start * CHUNKS + CHUNKS).min(OUTPUT);
             let mut out_reg = [0; CHUNKS];
             out_reg[..range.len()].copy_from_slice(&self.out.0[range.clone()]);
-            self.incr::<1>(add, &mut out_reg, range.clone());
-            self.incr::<-1>(rm, &mut out_reg, range.clone());
+            self.update_chunk::<1>(added_features, &mut out_reg, range.clone());
+            self.update_chunk::<-1>(removed_features, &mut out_reg, range.clone());
             self.out.0[range.clone()].copy_from_slice(&out_reg[..range.len()]);
         }
     }
 
-    fn incr<const CHANGE: i16>(&self, indices: &[usize], reg: &mut [i16], chunk: Range<usize>) {
-        for &index in indices {
+    fn update_chunk<const SIGN: i16>(&self, feature_indices: &[usize], reg: &mut [i16], chunk: Range<usize>) {
+        for &index in feature_indices {
             for (out, &weight) in reg.iter_mut().zip(&self.weights.0[index][chunk.clone()]) {
-                *out += weight * CHANGE;
+                *out += weight * SIGN;
             }
         }
     }
@@ -71,7 +71,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 
     #[inline]
-    pub fn ff(&self, inputs: &[u8; INPUT], bucket: usize) -> i32 {
+    pub fn feed_forward(&self, inputs: &[u8; INPUT], bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
         cfg_if! {
             if #[cfg(target_feature = "avx2")] {
@@ -105,7 +105,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
 }
 
 #[inline]
-pub fn out(x: i32) -> i16 {
+pub fn scale_network_output(x: i32) -> i16 {
     (x as f32 * UNITS as f32 / (FT_SCALE as f32 * SCALE as f32)) as i16
 }
 
