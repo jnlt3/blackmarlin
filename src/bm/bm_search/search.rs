@@ -462,7 +462,7 @@ pub fn search<Search: SearchType>(
             if !Search::PV {
                 reduction += 1;
             };
-            if !improving {
+            if !(improving && nstm_threats.is_empty()) {
                 reduction += 1;
             }
             if Some(make_move) == counter_move
