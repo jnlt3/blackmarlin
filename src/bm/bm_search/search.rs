@@ -1,8 +1,7 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Color, Move, Piece};
+use cozy_chess::{Board, Color, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
-use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
@@ -42,28 +41,14 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const RFP: i16 = 54;
-const RFP_IMPR: i16 = 49;
-const RFP_DEPTH: u32 = 8;
-const FP: i16 = 62;
-const FP_DEPTH: u32 = 5;
-const SEE_FP: i16 = 81;
-const SEE_FP_DEPTH: u32 = 7;
-const D_EXT: i16 = 19;
-const HP: i32 = 71;
-const HP_DEPTH: u32 = 7;
-
-#[inline]
 const fn do_rev_fp(depth: u32) -> bool {
-    depth <= RFP_DEPTH
+    depth <= 8
 }
 
-#[inline]
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * RFP - improving as i16 * RFP_IMPR
+    depth as i16 * 54 - improving as i16 * 49
 }
 
-#[inline]
 fn do_nmp<Search: SearchType>(
     board: &Board,
     depth: u32,
@@ -78,14 +63,12 @@ fn do_nmp<Search: SearchType>(
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
-#[inline]
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
     let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
     depth.saturating_sub(r).max(1)
 }
 
-#[inline]
 const fn iir(depth: u32) -> u32 {
     if depth >= 2 {
         1
@@ -94,22 +77,18 @@ const fn iir(depth: u32) -> u32 {
     }
 }
 
-#[inline]
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * FP
+    depth as i16 * 62
 }
 
-#[inline]
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * SEE_FP
+    depth as i16 * 81
 }
 
-#[inline]
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * HP / 10
+    -((depth * depth) as i32) * 71 / 10
 }
 
-#[inline]
 const fn history_lmr(history: i16) -> i16 {
     history / 92
 }
@@ -144,10 +123,9 @@ pub fn search<Search: SearchType>(
     }
 
     let skip_move = local_context.search_stack()[ply as usize].skip_move;
-    let tt_entry = if skip_move.is_some() {
-        None
-    } else {
-        shared_context.get_t_table().get(pos.board())
+    let tt_entry = match skip_move {
+        Some(_) => None,
+        None => shared_context.get_t_table().get(pos.board()),
     };
 
     local_context.increment_nodes();
@@ -188,23 +166,26 @@ pub fn search<Search: SearchType>(
         *local_context.tt_misses() += 1;
     }
 
-    let in_check = pos.board().checkers() != BitBoard::EMPTY;
+    let in_check = !pos.board().checkers().is_empty();
 
-    let eval = if skip_move.is_none() {
-        pos.get_eval(local_context.stm(), local_context.eval())
-    } else {
-        local_context.search_stack()[ply as usize].eval
+    let eval = match skip_move {
+        Some(_) => local_context.search_stack()[ply as usize].eval,
+        None => pos.get_eval(local_context.stm(), local_context.eval()),
     };
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
-    let improving = if ply < 2 || in_check {
-        false
-    } else {
-        eval > local_context.search_stack()[ply as usize - 2].eval
+
+    let prev_move_eval = match ply {
+        2.. => Some(local_context.search_stack()[ply as usize - 2].eval),
+        _ => None,
+    };
+    let improving = match prev_move_eval {
+        Some(prev_move_eval) => !in_check && eval > prev_move_eval,
+        None => false,
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threat = match pos.board().side_to_move() {
+    let nstm_threats = match pos.board().side_to_move() {
         Color::White => b_threats,
         Color::Black => w_threats,
     };
@@ -214,7 +195,7 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threat.is_empty()) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
             return eval;
         }
 
@@ -231,7 +212,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threat.is_empty(),
+            !nstm_threats.is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
@@ -274,36 +255,29 @@ pub fn search<Search: SearchType>(
         depth -= iir(depth)
     }
 
-    while local_context.get_k_table().len() <= ply as usize {
-        local_context.get_k_table().push(MoveEntry::new());
-    }
-
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 1) {
         entry.clear();
     }
 
     let mut highest_score = None;
 
-    let opp_move = if ply != 0 {
-        local_context.search_stack()[ply as usize - 1].move_played
-    } else {
-        None
+    let opp_move = match ply != 0 {
+        true => local_context.search_stack()[ply as usize - 1].move_played,
+        false => None,
     };
 
-    let prev_opp_move = if ply > 2 {
-        local_context.search_stack()[ply as usize - 3].move_played
-    } else {
-        None
+    let prev_opp_move = match ply > 2 {
+        true => local_context.search_stack()[ply as usize - 3].move_played,
+        false => None,
     };
 
-    let counter_move = if let Some(prev_move) = opp_move {
-        local_context.get_cm_table().get(
+    let counter_move = match opp_move {
+        Some(prev_move) => local_context.get_cm_table().get(
             pos.board().side_to_move(),
             pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
             prev_move.to,
-        )
-    } else {
-        None
+        ),
+        _ => None,
     };
 
     let killers = local_context.get_k_table()[ply as usize];
@@ -328,15 +302,16 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
-        let h_score = if is_capture {
-            local_context.get_hist().get_capture(pos, make_move)
-        } else {
-            (local_context.get_hist().get_quiet(pos, make_move)
-                + local_context
-                    .get_hist()
-                    .get_counter_move(pos, &hist_indices, make_move)
-                    .unwrap_or_default())
-                / 2
+        let h_score = match is_capture {
+            true => local_context.get_hist().get_capture(pos, make_move),
+            false => {
+                (local_context.get_hist().get_quiet(pos, make_move)
+                    + local_context
+                        .get_hist()
+                        .get_counter_move(pos, &hist_indices, make_move)
+                        .unwrap_or_default())
+                    / 2
+            }
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
@@ -361,8 +336,8 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 5;
-                let s_score = if multi_cut {
-                    search::<Search::Zw>(
+                let s_score = match multi_cut {
+                    true => search::<Search::Zw>(
                         pos,
                         local_context,
                         shared_context,
@@ -370,15 +345,14 @@ pub fn search<Search: SearchType>(
                         depth / 2 - 1,
                         s_beta - 1,
                         s_beta,
-                    )
-                } else {
-                    eval
+                    ),
+                    false => eval,
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + D_EXT < s_beta {
+                    if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension += 1;
                     }
                 } else if multi_cut && s_beta >= beta {
@@ -408,8 +382,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp =
-            !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= FP_DEPTH;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.set_skip_quiets(true);
@@ -435,14 +408,13 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp =
-            !Search::PV && non_mate_line && moves_seen > 0 && depth <= HP_DEPTH && eval <= alpha;
-        let atp_bonus = match nstm_threat.has(make_move.from) {
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
+        let avoid_threat_bonus = match nstm_threats.has(make_move.from) {
             true => 128,
             false => 0,
         };
 
-        if do_hp && h_score as i32 + atp_bonus < hp(depth) {
+        if do_hp && h_score as i32 + avoid_threat_bonus < hp(depth) {
             continue;
         }
 
@@ -450,7 +422,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= SEE_FP_DEPTH;
+        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
         if do_see_prune
             && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
         {
@@ -461,7 +433,7 @@ pub fn search<Search: SearchType>(
             Some(MoveData::from_move(pos.board(), make_move));
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
-        let gives_check = pos.board().checkers() != BitBoard::EMPTY;
+        let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
             extension = extension.max(1);
         }
@@ -614,24 +586,19 @@ pub fn search<Search: SearchType>(
         }
     }
     if !move_exists {
-        return if pos.board().checkers() == BitBoard::EMPTY {
-            Evaluation::new(0)
-        } else {
-            Evaluation::new_checkmate(-1)
+        return match pos.board().checkers().is_empty() {
+            true => Evaluation::new(0),
+            false => Evaluation::new_checkmate(-1),
         };
     }
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !local_context.abort() {
         if let Some(final_move) = &best_move {
-            let entry_type = if highest_score > initial_alpha {
-                if highest_score >= beta {
-                    LowerBound
-                } else {
-                    Exact
-                }
-            } else {
-                UpperBound
+            let entry_type = match () {
+                _ if highest_score <= initial_alpha => UpperBound,
+                _ if highest_score >= beta => LowerBound,
+                _ => Exact,
             };
             shared_context.get_t_table().set(
                 pos.board(),
@@ -685,7 +652,7 @@ pub fn q_search(
 
     let mut highest_score = None;
     let mut best_move = None;
-    let in_check = pos.board().checkers() != BitBoard::EMPTY;
+    let in_check = !pos.board().checkers().is_empty();
 
     let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
     /*
@@ -741,15 +708,11 @@ pub fn q_search(
             pos.unmake_move();
         }
     }
-    if let (Some(best_move), Some(highest_score)) = (best_move, highest_score) {
-        let entry_type = if highest_score > initial_alpha {
-            if highest_score >= beta {
-                LowerBound
-            } else {
-                Exact
-            }
-        } else {
-            UpperBound
+    if let Some((best_move, highest_score)) = best_move.zip(highest_score) {
+        let entry_type = match () {
+            _ if highest_score <= initial_alpha => UpperBound,
+            _ if highest_score >= beta => LowerBound,
+            _ => Exact,
         };
 
         shared_context
