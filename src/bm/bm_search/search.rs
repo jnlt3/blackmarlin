@@ -287,6 +287,8 @@ pub fn search<Search: SearchType>(
     let mut moves_seen = 0;
     let mut move_exists = false;
 
+    let mut singular_move_exists = false;
+
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
@@ -351,6 +353,7 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
+                    singular_move_exists = true;
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension += 1;
@@ -367,6 +370,7 @@ pub fn search<Search: SearchType>(
         }
 
         if Search::PV
+            && !singular_move_exists
             && is_capture
             && (opp_move.map_or(false, |opp_move| {
                 opp_move.capture && opp_move.to == make_move.to
