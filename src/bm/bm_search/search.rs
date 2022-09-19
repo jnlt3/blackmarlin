@@ -392,7 +392,8 @@ pub fn search<Search: SearchType>(
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
-        if !move_gen.skip_quiets()
+        if !Search::PV
+            && !move_gen.skip_quiets()
             && non_mate_line
             && !is_capture
             && quiets.len()
