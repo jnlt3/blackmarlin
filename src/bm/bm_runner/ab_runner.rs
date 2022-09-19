@@ -468,7 +468,7 @@ impl AbRunner {
                 sel_depth: 0,
                 history: History::new(),
                 cm_table: CounterMoveTable::new(),
-                killer_moves: vec![],
+                killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
                 stm: Color::White,
