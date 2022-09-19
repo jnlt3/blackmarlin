@@ -392,13 +392,14 @@ pub fn search<Search: SearchType>(
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
+        let lmp_depth = depth * 20 / (ply + depth); 
         if !move_gen.skip_quiets()
             && non_mate_line
             && !is_capture
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                    .get(lmp_depth as usize, improving as usize)
         {
             move_gen.set_skip_quiets(true);
             continue;
