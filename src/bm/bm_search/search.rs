@@ -175,9 +175,13 @@ pub fn search<Search: SearchType>(
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
 
-    let improving = match ply < 2 || in_check {
-        true => false,
-        false => eval > local_context.search_stack()[ply as usize - 2].eval,
+    let prev_move_eval = match ply {
+        2.. => Some(local_context.search_stack()[ply as usize - 2].eval),
+        _ => None,
+    };
+    let improving = match prev_move_eval {
+        Some(prev_move_eval) => !in_check && eval > prev_move_eval,
+        None => false,
     };
 
     let (w_threats, b_threats) = pos.threats();
