@@ -377,7 +377,7 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
-        if Search::PV && nstm_threats.has(make_move.from) && depth <= 9 {
+        if Search::PV && nstm_threats.has(make_move.from) && depth <= 9 && is_capture {
             extension = extension.max(1);
         }
 
