@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, PieceMoves};
+use cozy_chess::{BitBoard, Board, Move, PieceMoves};
 
 use crate::bm::bm_util::history::{History, HistoryIndices};
 use crate::bm::bm_util::position::Position;
@@ -240,13 +240,15 @@ pub enum QSearchGenType {
 pub struct QuiescenceSearchMoveGen {
     gen_type: QSearchGenType,
     queue: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
+    nstm_threats: BitBoard,
 }
 
 impl QuiescenceSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(nstm_threats: BitBoard) -> Self {
         Self {
             gen_type: QSearchGenType::CalcCaptures,
             queue: ArrayVec::new(),
+            nstm_threats,
         }
     }
 
@@ -255,8 +257,14 @@ impl QuiescenceSearchMoveGen {
         if self.gen_type == QSearchGenType::CalcCaptures {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
+
+                let base = match self.nstm_threats.has(piece_moves.from) {
+                    true => 128,
+                    false => 0,
+                };
                 for make_move in piece_moves {
-                    let expected_gain = hist.get_capture(pos, make_move)
+                    let expected_gain = base
+                        + hist.get_capture(pos, make_move)
                         + calculate_see::<1>(board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }

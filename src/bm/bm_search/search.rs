@@ -659,6 +659,12 @@ pub fn q_search(
     let in_check = !pos.board().checkers().is_empty();
 
     let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
+
+    let (w_threats, b_threats) = pos.threats();
+    let nstm_threats = match pos.board().side_to_move() {
+        Color::White => b_threats,
+        Color::Black => w_threats,
+    };
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
@@ -671,7 +677,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QuiescenceSearchMoveGen::new();
+    let mut move_gen = QuiescenceSearchMoveGen::new(nstm_threats);
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()
