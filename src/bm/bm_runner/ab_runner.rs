@@ -451,7 +451,7 @@ impl AbRunner {
                 start: Instant::now(),
             },
             local_context: LocalContext {
-                window: Window::new(12, 1, 4, 5),
+                window: Window::new(16, 1, 4, 5),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(Color::White, Evaluation::new(0)),
