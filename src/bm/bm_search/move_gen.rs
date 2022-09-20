@@ -259,7 +259,7 @@ impl QuiescenceSearchMoveGen {
                 piece_moves.to &= board.colors(!board.side_to_move());
 
                 let base = match self.nstm_threats.has(piece_moves.from) {
-                    true => 128,
+                    true => 256,
                     false => 0,
                 };
                 for make_move in piece_moves {
