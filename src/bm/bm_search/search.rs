@@ -447,7 +447,7 @@ pub fn search<Search: SearchType>(
             Color::White => new_b_threats,
             Color::Black => new_w_threats,
         };
-        if (new_stm_threats & !stm_threats).popcnt() > 1 {
+        if is_capture && (new_stm_threats & !stm_threats).popcnt() > 1 {
             extension = extension.max(1);
         }
 
