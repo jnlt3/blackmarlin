@@ -692,7 +692,7 @@ pub fn q_search(
                 true => 100,
                 false => 0,
             };
-            if stand_pat + see - 193 - threat_bonus >= beta {
+            if stand_pat + see - 93 - threat_bonus >= beta {
                 return beta;
             }
             if stand_pat + 200 <= alpha && see <= 0 {
