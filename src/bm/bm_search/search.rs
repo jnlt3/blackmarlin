@@ -659,6 +659,12 @@ pub fn q_search(
     let in_check = !pos.board().checkers().is_empty();
 
     let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
+
+    let (w_threats, b_threats) = pos.threats();
+    let nstm_threats = match pos.board().side_to_move() {
+        Color::White => b_threats,
+        Color::Black => w_threats,
+    };
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
@@ -686,6 +692,9 @@ pub fn q_search(
                 return beta;
             }
             if stand_pat + 200 <= alpha && see <= 0 {
+                continue;
+            }
+            if !nstm_threats.is_empty() && !nstm_threats.has(make_move.from) {
                 continue;
             }
             pos.make_move(make_move);
