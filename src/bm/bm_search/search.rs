@@ -54,7 +54,7 @@ const fn do_razor(depth: u32) -> bool {
 }
 
 const fn razor(depth: u32) -> i16 {
-    depth as i16 * 200
+    depth as i16 * 100
 }
 
 fn do_nmp<Search: SearchType>(
