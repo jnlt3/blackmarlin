@@ -377,10 +377,10 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
-        if Search::PV
-            && nstm_threats.has(make_move.from)
-            && (is_capture || tt_entry.map_or(false, |entry| make_move == entry.table_move()))
-        {
+        let strong_tt_move = tt_entry.map_or(false, |entry| {
+            make_move == entry.table_move() && entry.depth() + 2 >= depth
+        });
+        if Search::PV && nstm_threats.has(make_move.from) && (is_capture || strong_tt_move) {
             extension = extension.max(1);
         }
 
