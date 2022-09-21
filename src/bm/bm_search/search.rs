@@ -185,9 +185,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threats, nstm_threats) = match pos.board().side_to_move() {
+        Color::White => (b_threats, w_threats),
+        Color::Black => (w_threats, b_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -439,6 +439,15 @@ pub fn search<Search: SearchType>(
         shared_context.get_t_table().prefetch(pos.board());
         let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
+            extension = extension.max(1);
+        }
+
+        let (new_w_threats, new_b_threats) = pos.threats();
+        let new_stm_threats = match pos.board().side_to_move() {
+            Color::White => new_b_threats,
+            Color::Black => new_w_threats,
+        };
+        if Search::PV && (new_stm_threats & !stm_threats).popcnt() > 1 {
             extension = extension.max(1);
         }
 
