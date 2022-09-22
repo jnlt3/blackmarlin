@@ -472,7 +472,7 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score + avoid_threat_bonus as i16 / 2);
+            reduction -= history_lmr(h_score);
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
