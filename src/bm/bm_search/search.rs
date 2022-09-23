@@ -393,6 +393,10 @@ pub fn search<Search: SearchType>(
         {
             extension = extension.max(1);
         }
+
+        if is_capture && nstm_threats.has(make_move.from) {
+            extension = extension.max(1);
+        }
         
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
