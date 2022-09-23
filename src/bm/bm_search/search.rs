@@ -426,12 +426,8 @@ pub fn search<Search: SearchType>(
         if it has very low history
         */
         let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
-        let avoid_threat_bonus = match nstm_threats.has(make_move.from) {
-            true => 128,
-            false => 0,
-        };
 
-        if do_hp && h_score as i32 + avoid_threat_bonus < hp(depth) {
+        if do_hp && (h_score as i32) < hp(depth) {
             continue;
         }
 
