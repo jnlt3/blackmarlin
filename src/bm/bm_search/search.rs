@@ -394,10 +394,10 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
-        if is_capture && nstm_threats.has(make_move.from) {
+        if is_capture && nstm_threats.has(make_move.from) && depth <= 7 {
             extension = extension.max(1);
         }
-        
+
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
