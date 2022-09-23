@@ -49,8 +49,8 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
     depth as i16 * 54 - improving as i16 * 49
 }
 
-const fn do_razor(depth: u32) -> bool {
-    depth <= 3
+const fn do_razor(depth: u32, improving: bool) -> bool {
+    depth + improving as u32 <= 3
 }
 
 const fn razor(depth: u32) -> i16 {
@@ -208,7 +208,7 @@ pub fn search<Search: SearchType>(
         }
 
         let razor_margin = razor(depth);
-        if do_razor(depth) && eval + razor_margin <= alpha {
+        if do_razor(depth, improving) && eval + razor_margin <= alpha {
             let zw = alpha - razor_margin;
             let q_search = q_search(pos, local_context, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
