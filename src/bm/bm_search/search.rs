@@ -406,6 +406,11 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let do_capture_fp = !Search::PV && non_mate_line && moves_seen > 0  && depth <= 5;
+        if do_capture_fp && eval + fp(depth) + calculate_see::<16>(pos.board(), make_move) <= alpha {
+            continue;
+        }
+
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
