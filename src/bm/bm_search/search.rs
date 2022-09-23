@@ -469,9 +469,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
-                reduction -= 1;
-            }
+            reduction -= ply as i16 * 3 / (depth + ply) as i16;
             if !Search::PV {
                 reduction += 1;
             };
