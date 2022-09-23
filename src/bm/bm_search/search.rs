@@ -384,7 +384,6 @@ pub fn search<Search: SearchType>(
 
             if moves_seen == 0
                 && entry.table_move() == make_move
-                && entry.depth() + 2 >= depth
                 && nstm_threats.has(make_move.from)
             {
                 extension = extension.max(1);
