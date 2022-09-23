@@ -50,7 +50,7 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 const fn do_razor(depth: u32) -> bool {
-    depth <= 3
+    depth <= 5
 }
 
 const fn razor(depth: u32) -> i16 {
