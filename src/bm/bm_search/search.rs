@@ -332,7 +332,7 @@ pub fn search<Search: SearchType>(
         };
 
         let avoid_threat_bonus = match nstm_threats.has(make_move.from ){
-            true => 128,
+            true => 256,
             false => 0,
         };
 
