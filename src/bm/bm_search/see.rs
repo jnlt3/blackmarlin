@@ -28,10 +28,11 @@ pub fn compare_see(board: &Board, make_move: Move, target: i16) -> bool {
 
     'outer: for i in 1..16 {
         let stm = i % 2 == 0;
-        if stm && gain + piece_pts(move_piece) < target {
+
+        if (!stm && gain < target) || (stm && gain + piece_pts(move_piece) < target) {
             return false;
         }
-        if !stm && gain - piece_pts(move_piece) >= target {
+        if (stm && gain > target) || (!stm && gain - piece_pts(move_piece) >= target) {
             return true;
         }
         let defenders = board.colors(color) & blockers;
