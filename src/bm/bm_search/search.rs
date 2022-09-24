@@ -214,6 +214,9 @@ pub fn search<Search: SearchType>(
             if q_search <= zw {
                 return q_search;
             }
+            if q_search >= beta {
+                return q_search;
+            }
         }
 
         /*
