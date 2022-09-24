@@ -406,6 +406,10 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        if do_fp && !nstm_threats.is_empty() && !nstm_threats.has(make_move.from) {
+            continue;
+        }        
+
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
