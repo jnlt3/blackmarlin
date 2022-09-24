@@ -5,7 +5,7 @@ use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
-use super::see::calculate_see;
+use super::see::{calculate_see, move_value, compare_see};
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
@@ -23,6 +23,7 @@ enum GenType {
 }
 
 type LazySee = Option<i16>;
+type LazySeeCmp = Option<bool>;
 
 pub struct OrderedMoveGen<const K: usize> {
     move_list: ArrayVec<PieceMoves, 18>,
@@ -31,7 +32,7 @@ pub struct OrderedMoveGen<const K: usize> {
     counter_move: Option<Move>,
     gen_type: GenType,
 
-    captures: ArrayVec<(Move, i16, LazySee), MAX_MOVES>,
+    captures: ArrayVec<(Move, i16, LazySeeCmp), MAX_MOVES>,
     quiets: ArrayVec<(Move, i16), MAX_MOVES>,
     skip_quiets: bool,
 }
@@ -113,7 +114,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     }
 
                     let expected_gain = hist.get_capture(pos, make_move)
-                        + calculate_see::<1>(board, make_move) * 32;
+                        + move_value(board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -125,9 +126,9 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let see_score = see.unwrap_or_else(|| calculate_see::<16>(board, *make_move));
-                    *see = Some(see_score);
-                    if see_score < 0 {
+                    let non_negative_see = see.unwrap_or_else(|| compare_see(board, *make_move, 0));
+                    *see = Some(non_negative_see);
+                    if !non_negative_see {
                         continue;
                     }
                     max = *score;
@@ -257,7 +258,7 @@ impl QuiescenceSearchMoveGen {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
                     let expected_gain = hist.get_capture(pos, make_move)
-                        + calculate_see::<1>(board, make_move) * 32;
+                        + move_value(board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
@@ -268,7 +269,7 @@ impl QuiescenceSearchMoveGen {
         let mut best_index = None;
         for (index, (make_move, score, see)) in self.queue.iter_mut().enumerate() {
             if best_index.is_none() || *score > max {
-                let see_score = see.unwrap_or_else(|| calculate_see::<16>(board, *make_move));
+                let see_score = see.unwrap_or_else(|| calculate_see(board, *make_move));
                 *see = Some(see_score);
                 if see_score < 0 {
                     continue;
