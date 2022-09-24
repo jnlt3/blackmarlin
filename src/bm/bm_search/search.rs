@@ -319,7 +319,7 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
-        let h_score = match is_capture {
+        let mut h_score = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
             false => {
                 (local_context.get_hist().get_quiet(pos, make_move)
@@ -330,6 +330,13 @@ pub fn search<Search: SearchType>(
                     / 2
             }
         };
+
+        let avoid_threat_bonus = match nstm_threats.has(make_move.from) {
+            true => 512,
+            false => 0,
+        };
+
+        h_score += avoid_threat_bonus;
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
         let mut extension = 0;
