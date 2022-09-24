@@ -1,26 +1,36 @@
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{Board, Move, Piece};
 
 pub fn calculate_see<const N: usize>(board: &Board, make_move: Move) -> i16 {
     let mut index = 0;
     let mut gains = [0_i16; N];
     let target_square = make_move.to;
-    let move_piece = board.piece_on(make_move.from).unwrap();
-    gains[0] = if let Some(piece) = board.piece_on(target_square) {
-        piece_pts(piece)
-    } else {
-        if move_piece == Piece::King {
-            return 0;
-        }
-        0
+    let mut move_piece = board.piece_on(make_move.from).unwrap();
+    gains[0] = match board
+        .piece_on(target_square)
+        .zip(board.color_on(target_square))
+    {
+        Some((piece, color)) => match color == board.side_to_move() {
+            true => return 0,
+            false => piece_pts(piece),
+        },
+        None => match move_piece {
+            Piece::King => return 0,
+            _ => 0,
+        },
     };
     let mut color = !board.side_to_move();
     let mut blockers = board.occupied() & !make_move.from.bitboard();
-    let mut last_piece_pts = piece_pts(move_piece);
+
+    let mut king_capture = false;
+
     'outer: for i in 1..N {
-        gains[i] = last_piece_pts - gains[i - 1];
+        gains[i] = piece_pts(move_piece) - gains[i - 1];
+        if king_capture {
+            index = i;
+            break;
+        }
         let defenders = board.colors(color) & blockers;
         for &piece in &Piece::ALL {
-            last_piece_pts = piece_pts(piece);
             let mut potential = match piece {
                 Piece::Pawn => cozy_chess::get_pawn_attacks(target_square, !color),
                 Piece::Knight => cozy_chess::get_knight_moves(target_square),
@@ -33,10 +43,12 @@ pub fn calculate_see<const N: usize>(board: &Board, make_move: Move) -> i16 {
                 Piece::King => cozy_chess::get_king_moves(target_square),
             } & board.pieces(piece)
                 & defenders;
-            if potential != BitBoard::EMPTY {
+            if !potential.is_empty() {
+                king_capture = move_piece == Piece::King;
                 let attacker = potential.next().unwrap();
                 blockers &= !attacker.bitboard();
                 color = !color;
+                move_piece = piece;
                 continue 'outer;
             }
         }
