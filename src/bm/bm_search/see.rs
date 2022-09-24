@@ -5,7 +5,13 @@ pub fn calculate_see<const N: usize>(board: &Board, make_move: Move) -> i16 {
     let mut gains = [0_i16; N];
     let target_square = make_move.to;
     let move_piece = board.piece_on(make_move.from).unwrap();
-    gains[0] = if let Some(piece) = board.piece_on(target_square) {
+    gains[0] = if let Some((piece, color)) = board
+        .piece_on(target_square)
+        .zip(board.color_on(target_square))
+    {
+        if color == board.side_to_move() {
+            return 0;
+        }
         piece_pts(piece)
     } else {
         if move_piece == Piece::King {
