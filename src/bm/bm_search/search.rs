@@ -11,7 +11,7 @@ use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
-use super::see::calculate_see;
+use super::see::compare_see;
 
 pub trait SearchType {
     const NM: bool;
@@ -393,7 +393,7 @@ pub fn search<Search: SearchType>(
         {
             extension = extension.max(1);
         }
-        
+
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
@@ -436,8 +436,13 @@ pub fn search<Search: SearchType>(
         we assume it's safe to prune this move
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+
         if do_see_prune
-            && eval + calculate_see::<16>(pos.board(), make_move) + see_fp(depth) <= alpha
+            && !compare_see(
+                pos.board(),
+                make_move,
+                (alpha - eval - see_fp(depth) + 1).raw(),
+            )
         {
             continue;
         }
