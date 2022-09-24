@@ -85,8 +85,8 @@ const fn iir(depth: u32) -> u32 {
     }
 }
 
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 62
+const fn fp(depth: u32, moves_seen: usize) -> i16 {
+    depth as i16 * 62 - moves_seen as i16
 }
 
 const fn see_fp(depth: u32) -> i16 {
@@ -401,8 +401,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
 
-        if do_fp && eval + fp(depth) <= alpha {
-            move_gen.set_skip_quiets(true);
+        if do_fp && eval + fp(depth, moves_seen) <= alpha {
             continue;
         }
 
