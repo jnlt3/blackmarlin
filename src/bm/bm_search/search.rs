@@ -406,7 +406,9 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        if do_fp && !nstm_threats.is_empty() && !nstm_threats.has(make_move.from) {
+        let do_atp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 2;
+
+        if do_atp && !nstm_threats.is_empty() && !nstm_threats.has(make_move.from) {
             continue;
         }        
 
