@@ -331,8 +331,8 @@ pub fn search<Search: SearchType>(
             }
         };
 
-        let avoid_threat_bonus = match nstm_threats.has(make_move.from ){
-            true => 128,
+        let avoid_threat_bonus = match !nstm_threats.is_empty() && !nstm_threats.has(make_move.from ){
+            true => -128,
             false => 0,
         };
 
