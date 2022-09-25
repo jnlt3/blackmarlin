@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, File, Piece};
+use cozy_chess::{BitBoard, Board, Color, File, Piece, Rank};
 
 pub fn promo_threats(board: &Board, stm: bool) -> BitBoard {
     let color = match stm {
@@ -10,7 +10,7 @@ pub fn promo_threats(board: &Board, stm: bool) -> BitBoard {
 
     let quiet_promos = pawn_pushes(pawns, color) & !board.occupied();
     let noisy_promos = pawn_threats(pawns, color) & board.colors(!color);
-    quiet_promos | noisy_promos
+    (quiet_promos | noisy_promos) & (Rank::Eighth.bitboard() | Rank::First.bitboard())
 }
 
 pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
