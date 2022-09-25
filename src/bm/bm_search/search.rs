@@ -124,6 +124,13 @@ pub fn search<Search: SearchType>(
         return Evaluation::new(0);
     }
 
+
+
+    let stm_promos = promo_threats(pos.board(), true);
+    let nstm_promos = promo_threats(pos.board(), false);
+    if depth == 0 && !(stm_promos | nstm_promos).is_empty() {
+        depth += 1;
+    }
     /*
     At depth 0, we run Quiescence Search
     */
@@ -199,8 +206,6 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
 
-    let stm_promos = promo_threats(pos.board(), true);
-
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -208,10 +213,6 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
-            return eval;
-        }
-
-        if depth == 1 && eval >= beta && !stm_promos.is_empty() {
             return eval;
         }
 
