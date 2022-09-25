@@ -574,10 +574,11 @@ pub fn search<Search: SearchType>(
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
                             if let Some(prev_move) = opp_move {
-                                local_context.get_cm_table_mut().cutoff(
+                                local_context.get_cm_table_mut().set(
                                     pos.board(),
                                     prev_move,
                                     make_move,
+                                    depth,
                                 );
                             }
                         }
