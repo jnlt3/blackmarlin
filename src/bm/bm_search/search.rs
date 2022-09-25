@@ -199,7 +199,7 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
 
-    let nstm_promos = promo_threats(pos.board(), true);
+    let nstm_promos = promo_threats(pos.board(), false);
 
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
