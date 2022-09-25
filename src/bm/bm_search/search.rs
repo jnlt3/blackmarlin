@@ -288,18 +288,8 @@ pub fn search<Search: SearchType>(
         false => None,
     };
 
-    let counter_move = match opp_move {
-        Some(prev_move) => local_context.get_cm_table().get(
-            pos.board().side_to_move(),
-            pos.board().piece_on(prev_move.to).unwrap_or(Piece::King),
-            prev_move.to,
-        ),
-        _ => None,
-    };
-
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen =
-        OrderedMoveGen::new(pos.board(), best_move, counter_move, killers.into_iter());
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers.into_iter());
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -483,9 +473,7 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if Some(make_move) == counter_move
-                || killers.into_iter().any(|killer| killer == make_move)
-            {
+            if killers.into_iter().any(|killer| killer == make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
@@ -573,13 +561,6 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
-                            if let Some(prev_move) = opp_move {
-                                local_context.get_cm_table_mut().cutoff(
-                                    pos.board(),
-                                    prev_move,
-                                    make_move,
-                                );
-                            }
                         }
                         local_context.get_hist_mut().update_history(
                             pos,

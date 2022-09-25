@@ -8,7 +8,6 @@ use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
-use crate::bm::bm_util::counter_move::CounterMoveTable;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::lookup::LookUp2d;
@@ -118,7 +117,6 @@ pub struct LocalContext {
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     history: History,
-    cm_table: CounterMoveTable,
     killer_moves: Vec<MoveEntry<2>>,
     nodes: Nodes,
     abort: bool,
@@ -161,16 +159,6 @@ impl LocalContext {
 
     pub fn get_hist_mut(&mut self) -> &mut History {
         &mut self.history
-    }
-
-    #[inline]
-    pub fn get_cm_table(&self) -> &CounterMoveTable {
-        &self.cm_table
-    }
-
-    #[inline]
-    pub fn get_cm_table_mut(&mut self) -> &mut CounterMoveTable {
-        &mut self.cm_table
     }
 
     #[inline]
@@ -467,7 +455,6 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
-                cm_table: CounterMoveTable::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
