@@ -106,7 +106,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
 
 #[inline]
 pub fn scale_network_output(x: i32) -> i16 {
-    (x as f32 * UNITS as f32 / (FT_SCALE as f32 * SCALE as f32)) as i16
+    (x as i32 * UNITS as i32 / (FT_SCALE as i32 * SCALE as i32)) as i16
 }
 
 #[inline]
