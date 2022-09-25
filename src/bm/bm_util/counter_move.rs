@@ -35,7 +35,7 @@ impl CounterMoveTable {
         let old_entry =
             &mut self.table[color as usize][prev_move.piece as usize][prev_move.to as usize];
         if let Some(old_entry) = old_entry {
-            if entry.depth * 2 >= old_entry.depth {
+            if entry.depth * 4 >= old_entry.depth {
                 *old_entry = entry;
             }
             return;
