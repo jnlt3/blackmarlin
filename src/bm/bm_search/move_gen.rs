@@ -16,7 +16,6 @@ enum GenType {
     CalcCaptures,
     Captures,
     GenQuiet,
-    CounterMove,
     Killer,
     Quiet,
     BadCaptures,
@@ -69,7 +68,7 @@ impl<const K: usize> OrderedMoveGen<K> {
     fn set_phase(&mut self) {
         if self.skip_quiets {
             match self.gen_type {
-                GenType::GenQuiet | GenType::CounterMove | GenType::Killer | GenType::Quiet => {
+                GenType::GenQuiet | GenType::Killer | GenType::Quiet => {
                     self.gen_type = GenType::BadCaptures
                 }
                 _ => {}
