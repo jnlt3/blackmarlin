@@ -1,7 +1,6 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Color, Move, Piece};
 
-use crate::bm::bm_util::tactics::promo_threats;
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
@@ -9,6 +8,7 @@ use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
+use crate::bm::bm_util::tactics::promo_threats;
 
 use super::move_gen::OrderedMoveGen;
 use super::move_gen::QuiescenceSearchMoveGen;
@@ -199,7 +199,7 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
 
-    let nstm_promos = promo_threats(pos.board(), true);
+    let stm_promos = promo_threats(pos.board(), true);
 
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -208,6 +208,10 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+            return eval;
+        }
+
+        if depth == 1 && eval >= beta && !stm_promos.is_empty() {
             return eval;
         }
 
@@ -233,7 +237,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threats.is_empty() || !nstm_promos.is_empty(),
+            !nstm_threats.is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
