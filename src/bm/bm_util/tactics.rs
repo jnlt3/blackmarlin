@@ -1,5 +1,18 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
+pub fn promo_threats(board: &Board, stm: bool) -> BitBoard {
+    let color = match stm {
+        true => board.side_to_move(),
+        false => !board.side_to_move(),
+    };
+
+    let pawns = board.pieces(Piece::Pawn) & board.colors(color);
+
+    let quiet_promos = pawn_pushes(pawns, color) & !board.occupied();
+    let noisy_promos = pawn_threats(pawns, color) & board.colors(!color);
+    quiet_promos | noisy_promos
+}
+
 pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     let occupied = board.occupied();
     let white = board.colors(Color::White);
@@ -64,4 +77,12 @@ fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {
         Color::White => ((pawns & !File::A.bitboard()) << 7) | ((pawns & !File::H.bitboard()) << 9),
         Color::Black => ((pawns & !File::A.bitboard()) >> 9) | ((pawns & !File::H.bitboard()) >> 7),
     }
+}
+
+fn pawn_pushes(pawns: BitBoard, color: Color) -> BitBoard {
+    let pushes = match color {
+        Color::White => (pawns & !File::A.bitboard()).0 << 8,
+        Color::Black => (pawns & !File::A.bitboard()).0 >> 8,
+    };
+    BitBoard(pushes)
 }

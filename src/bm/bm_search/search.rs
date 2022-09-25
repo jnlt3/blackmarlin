@@ -1,6 +1,7 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Color, Move, Piece};
 
+use crate::bm::bm_util::tactics::promo_threats;
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
@@ -197,6 +198,9 @@ pub fn search<Search: SearchType>(
         Color::White => b_threats,
         Color::Black => w_threats,
     };
+
+    let nstm_promos = promo_threats(pos.board(), true);
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -229,7 +233,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threats.is_empty(),
+            !nstm_threats.is_empty() || !nstm_promos.is_empty(),
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;

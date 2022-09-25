@@ -2,7 +2,7 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{eval::Evaluation, frc, tactics::threats};
 
 #[derive(Debug, Clone)]
 pub struct Position {
