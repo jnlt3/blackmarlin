@@ -126,7 +126,7 @@ impl<const K: usize> OrderedMoveGen<K> {
             let mut best_index = None;
             for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
                 if *score > max {
-                    let non_negative_see = see.unwrap_or_else(|| compare_see(board, *make_move, 0));
+                    let non_negative_see = see.unwrap_or_else(|| compare_see(board, *make_move, -100));
                     *see = Some(non_negative_see);
                     if !non_negative_see {
                         continue;
