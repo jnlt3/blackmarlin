@@ -408,9 +408,9 @@ pub fn search<Search: SearchType>(
 
         let do_atp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 2;
 
-        if do_atp && !nstm_threats.is_empty() && !nstm_threats.has(make_move.from) {
+        if do_atp && !nstm_threats.is_empty() && !nstm_threats.has(make_move.from) && h_score < 0 {
             continue;
-        }        
+        }
 
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
