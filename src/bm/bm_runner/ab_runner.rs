@@ -119,7 +119,7 @@ pub struct LocalContext {
     sel_depth: u32,
     history: History,
     cm_table: CounterMoveTable,
-    killer_moves: Vec<MoveEntry<2>>,
+    killer_moves: Vec<MoveEntry<4>>,
     nodes: Nodes,
     abort: bool,
 }
@@ -174,7 +174,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<2>> {
+    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<4>> {
         &mut self.killer_moves
     }
 
