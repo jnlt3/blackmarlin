@@ -362,12 +362,14 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension += 1;
                     }
-                } else if (multi_cut || !Search::PV) && s_beta >= beta {
+                } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
+                    return s_beta;
+                } else if Search::PV && s_beta - 50 >= beta {
                     return s_beta;
                 }
             }
