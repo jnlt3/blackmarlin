@@ -369,7 +369,7 @@ pub fn search<Search: SearchType>(
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
-                } else if Search::PV && s_beta - 50 >= beta {
+                } else if Search::PV && s_beta - 20 >= beta {
                     return s_beta;
                 }
             }
