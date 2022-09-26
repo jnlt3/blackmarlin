@@ -10,7 +10,7 @@ const MAX: i16 = FT_SCALE;
 const SHIFT: i16 = 8;
 
 #[derive(Debug, Copy, Clone)]
-#[repr(align(64))]
+#[repr(C, align(64))]
 pub struct Align<T>(pub T);
 
 #[derive(Debug, Clone)]
@@ -71,34 +71,57 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     }
 
     #[inline]
-    pub fn feed_forward(&self, inputs: &[u8; INPUT], bucket: usize) -> i32 {
+    pub fn feed_forward(&self, inputs: &Align<[u8; INPUT]>, bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
-        cfg_if! {
-            if #[cfg(target_feature = "avx2")] {
-                use std::arch::x86_64;
-                const CHUNKS_8: usize = 256 / 8;
-                const CHUNKS_16: usize = 256 / 16;
-                const CHUNKS_32: usize = 256 / 32;
 
-                let ones = unsafe { x86_64::_mm256_load_si256([1_i16; CHUNKS_16].as_ptr() as *const _) };
-                let mut store = [0; CHUNKS_32];
-                let mut accumulate = unsafe { x86_64::_mm256_load_si256(Align([0; CHUNKS_32]).0.as_ptr() as *const _) };
-                for (inputs, weights) in inputs.chunks(CHUNKS_8).zip(self.weights.0[bucket].chunks(CHUNKS_8)) {
-                    unsafe {
-                        let inputs = x86_64::_mm256_load_si256(inputs.as_ptr() as *const _);
-                        let weights = x86_64::_mm256_load_si256(weights.as_ptr() as *const _);
-                        let result = x86_64::_mm256_maddubs_epi16(inputs, weights);
-                        let result = x86_64::_mm256_madd_epi16(result, ones);
-                        accumulate = x86_64::_mm256_add_epi32(accumulate, result);
+        #[cfg(target_feature = "avx2")] {
+            use std::arch::x86_64::*;
+            const VEC_SIZE: usize = std::mem::size_of::<__m256i>() / std::mem::size_of::<u8>();
+
+            // SAFETY: Only enabled on AVX2
+            if INPUT % VEC_SIZE == 0 {
+                unsafe {
+                    let weights = &self.weights.0[bucket];
+                    let ones = _mm256_set1_epi16(1);
+                    let mut sum = _mm256_setzero_si256();
+                    for (inputs, weights) in inputs.0.chunks_exact(VEC_SIZE).zip(weights.chunks_exact(VEC_SIZE)) {
+                        // SAFETY: input and weights are exactly 256 bits due to chunks_exact.
+                        // input and weights are from Align<T> types, which are guaranteed to be aligned.
+                        let inputs = _mm256_load_si256(inputs.as_ptr() as *const _);
+                        let weights = _mm256_load_si256(weights.as_ptr() as *const _);
+                        // u8x32 * i8x32 -> i16x32 horizontal add -> i16x16
+                        let partial = _mm256_maddubs_epi16(inputs, weights);
+                        // i16x16 * i16x16 -> i32x16 horizontal add -> i32x8
+                        // We only want the horizontal add, so we no-op multiply with a vector of all ones.
+                        let partial = _mm256_madd_epi16(partial, ones);
+                        // i32x8 + i32x8 -> i32x8
+                        sum = _mm256_add_epi32(sum, partial);
                     }
-                }
-                unsafe { x86_64::_mm256_store_si256(store.as_mut_ptr() as *mut _, accumulate) };
-                out += store.iter().sum::<i32>();
-            } else {
-                for (&input, &weight) in inputs.iter().zip(self.weights.0[bucket].iter()) {
-                    out += weight as i32 * input as i32;
+
+                    // Sum i32x8 to i32.
+                    // i32x8 lower half -> i32x4
+                    let lower = _mm256_castsi256_si128(sum);
+                    // i32x8 upper half -> i32x4
+                    let upper = _mm256_extracti128_si256::<1>(sum);
+                    // i32x4 + i32x4 -> i32x4
+                    let sum = _mm_add_epi32(lower, upper);
+                    // i32x4 reversed -> i32x4
+                    let reversed = _mm_shuffle_epi32(sum, 0b_00_01_10_11);
+                    // i32x4 + i32x4 reversed -> i32x2 + ...
+                    let sum = _mm_add_epi32(sum, reversed);
+                    // i32x2 + ... element 0 -> i32
+                    let lower = _mm_cvtsi128_si32(sum);
+                    // i32x2 + ... element 1 -> i32
+                    let upper = _mm_extract_epi32::<1>(sum);
+                    out += lower + upper;
+                    return out;
                 }
             }
+        }
+
+        let weights = &self.weights.0[bucket];
+        for (&input, &weight) in inputs.0.iter().zip(weights) {
+            out += weight as i32 * input as i32;
         }
         out
     }

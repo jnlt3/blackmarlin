@@ -311,6 +311,6 @@ impl Nnue {
         layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
 
         let bucket = (piece_cnt / 4).min(7);
-        layers::scale_network_output(self.out_layer.feed_forward(&incr.0, bucket))
+        layers::scale_network_output(self.out_layer.feed_forward(&incr, bucket))
     }
 }
