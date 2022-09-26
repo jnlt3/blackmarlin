@@ -5,7 +5,7 @@ use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
-use super::see::{calculate_see, move_value, compare_see};
+use super::see::{calculate_see, compare_see, move_value};
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
@@ -36,11 +36,7 @@ pub struct OrderedMoveGen<const K: usize> {
 }
 
 impl<const K: usize> OrderedMoveGen<K> {
-    pub fn new(
-        board: &Board,
-        pv_move: Option<Move>,
-        killer_entry: MoveEntryIterator<K>,
-    ) -> Self {
+    pub fn new(board: &Board, pv_move: Option<Move>, killer_entry: MoveEntryIterator<K>) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
             move_list.push(piece_moves);
@@ -109,8 +105,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
 
-                    let expected_gain = hist.get_capture(pos, make_move)
-                        + move_value(board, make_move) * 32;
+                    let expected_gain =
+                        hist.get_capture(pos, make_move) + move_value(board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -163,7 +159,10 @@ impl<const K: usize> OrderedMoveGen<K> {
                     let counter_move_hist = hist
                         .get_counter_move(pos, hist_indices, make_move)
                         .unwrap_or_default();
-                    let score = hist.get_quiet(pos, make_move) + counter_move_hist;
+                    let followup_move_hist = hist
+                        .get_followup_move(pos, hist_indices, make_move)
+                        .unwrap_or_default();
+                    let score = hist.get_quiet(pos, make_move) + counter_move_hist + followup_move_hist;
 
                     self.quiets.push((make_move, score));
                 }
@@ -240,8 +239,8 @@ impl QuiescenceSearchMoveGen {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain = hist.get_capture(pos, make_move)
-                        + move_value(board, make_move) * 32;
+                    let expected_gain =
+                        hist.get_capture(pos, make_move) + move_value(board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
