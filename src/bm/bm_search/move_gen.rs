@@ -5,7 +5,7 @@ use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 
 use super::move_entry::MoveEntryIterator;
-use super::see::{calculate_see, move_value, compare_see};
+use super::see::{calculate_see, compare_see, move_value};
 
 const MAX_MOVES: usize = 218;
 const THRESHOLD: i16 = -(2_i16.pow(10));
@@ -36,11 +36,7 @@ pub struct OrderedMoveGen<const K: usize> {
 }
 
 impl<const K: usize> OrderedMoveGen<K> {
-    pub fn new(
-        board: &Board,
-        pv_move: Option<Move>,
-        killer_entry: MoveEntryIterator<K>,
-    ) -> Self {
+    pub fn new(board: &Board, pv_move: Option<Move>, killer_entry: MoveEntryIterator<K>) -> Self {
         let mut move_list = ArrayVec::new();
         board.generate_moves(|piece_moves| {
             move_list.push(piece_moves);
@@ -109,8 +105,8 @@ impl<const K: usize> OrderedMoveGen<K> {
                         continue;
                     }
 
-                    let expected_gain = hist.get_capture(pos, make_move)
-                        + move_value(board, make_move) * 32;
+                    let expected_gain =
+                        hist.get_capture(pos, make_move) + move_value(board, make_move) * 32;
                     self.captures.push((make_move, expected_gain, None));
                 }
             }
@@ -132,7 +128,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                 }
             }
             if let Some(index) = best_index {
-                return Some(self.captures.swap_remove(index).0);
+                return self.captures.swap_pop(index).map(|capture| capture.0);
             } else {
                 self.gen_type = if self.skip_quiets {
                     GenType::BadCaptures
@@ -178,8 +174,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     .iter()
                     .position(|(cmp_move, _)| make_move == *cmp_move);
                 if let Some(position) = position {
-                    self.quiets.swap_remove(position);
-                    return Some(make_move);
+                    return self.quiets.swap_pop(position).map(|quiet| quiet.0);
                 }
             }
             self.gen_type = GenType::Quiet;
@@ -240,8 +235,8 @@ impl QuiescenceSearchMoveGen {
             board.generate_moves(|mut piece_moves| {
                 piece_moves.to &= board.colors(!board.side_to_move());
                 for make_move in piece_moves {
-                    let expected_gain = hist.get_capture(pos, make_move)
-                        + move_value(board, make_move) * 32;
+                    let expected_gain =
+                        hist.get_capture(pos, make_move) + move_value(board, make_move) * 32;
                     self.queue.push((make_move, expected_gain, None));
                 }
                 false
@@ -262,8 +257,9 @@ impl QuiescenceSearchMoveGen {
             }
         }
         if let Some(index) = best_index {
-            let out = self.queue.swap_remove(index);
-            Some((out.0, out.2.unwrap()))
+            self.queue
+                .swap_pop(index)
+                .map(|(make_move, _, see)| (make_move, see.unwrap()))
         } else {
             None
         }
