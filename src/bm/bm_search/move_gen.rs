@@ -16,7 +16,6 @@ enum GenType {
     CalcCaptures,
     Captures,
     GenQuiet,
-    CounterMove,
     Killer,
     Quiet,
     BadCaptures,
@@ -29,7 +28,6 @@ pub struct OrderedMoveGen<const K: usize> {
     move_list: ArrayVec<PieceMoves, 18>,
     pv_move: Option<Move>,
     killer_entry: MoveEntryIterator<K>,
-    counter_move: Option<Move>,
     gen_type: GenType,
 
     captures: ArrayVec<(Move, i16, LazySeeCmp), MAX_MOVES>,
@@ -41,7 +39,6 @@ impl<const K: usize> OrderedMoveGen<K> {
     pub fn new(
         board: &Board,
         pv_move: Option<Move>,
-        counter_move: Option<Move>,
         killer_entry: MoveEntryIterator<K>,
     ) -> Self {
         let mut move_list = ArrayVec::new();
@@ -52,7 +49,6 @@ impl<const K: usize> OrderedMoveGen<K> {
         Self {
             gen_type: GenType::PvMove,
             move_list,
-            counter_move,
             pv_move,
             killer_entry,
             captures: ArrayVec::new(),
@@ -72,7 +68,7 @@ impl<const K: usize> OrderedMoveGen<K> {
     fn set_phase(&mut self) {
         if self.skip_quiets {
             match self.gen_type {
-                GenType::GenQuiet | GenType::CounterMove | GenType::Killer | GenType::Quiet => {
+                GenType::GenQuiet | GenType::Killer | GenType::Quiet => {
                     self.gen_type = GenType::BadCaptures
                 }
                 _ => {}
@@ -186,20 +182,7 @@ impl<const K: usize> OrderedMoveGen<K> {
                     return Some(make_move);
                 }
             }
-            self.gen_type = GenType::CounterMove;
-        }
-        if self.gen_type == GenType::CounterMove {
             self.gen_type = GenType::Quiet;
-            if let Some(counter_move) = self.counter_move {
-                let position = self
-                    .quiets
-                    .iter()
-                    .position(|(cmp_move, _)| counter_move == *cmp_move);
-                if let Some(position) = position {
-                    self.quiets.swap_remove(position);
-                    return Some(counter_move);
-                }
-            }
         }
         if self.gen_type == GenType::Quiet {
             let mut max = 0;
