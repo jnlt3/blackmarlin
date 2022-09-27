@@ -10,7 +10,7 @@ use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
-use super::move_gen::QuiescenceSearchMoveGen;
+use super::q_move_gen::QSearchMoveGen;
 use super::see::compare_see;
 
 pub trait SearchType {
@@ -665,7 +665,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QuiescenceSearchMoveGen::new();
+    let mut move_gen = QSearchMoveGen::new();
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()
