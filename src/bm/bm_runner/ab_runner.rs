@@ -383,7 +383,7 @@ impl AbRunner {
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
                     let eval =
-                        remove_aggression(eval.unwrap(), position.board().occupied().popcnt());
+                        remove_aggression(eval.unwrap(), position.board().occupied().len());
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
                         false => None,

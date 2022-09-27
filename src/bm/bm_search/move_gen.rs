@@ -1,7 +1,7 @@
 use cozy_chess::Move;
 
 use super::move_entry::{MoveEntry, MoveEntryIterator};
-use super::see::{calculate_see, compare_see, move_value};
+use super::see::{compare_see, move_value};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
@@ -48,11 +48,11 @@ impl Capture {
         }
     }
 
-    fn is_good_capture<F: FnOnce(Move) -> bool>(&mut self, f: F) -> bool {
+    fn is_good_capture(&mut self, board: &Board) -> bool {
         match self.good_capture {
             Some(good_capture) => good_capture,
             None => {
-                let good_capture = f(self.mv);
+                let good_capture = compare_see(board, self.mv, 0);
                 self.good_capture = Some(good_capture);
                 good_capture
             }
@@ -135,7 +135,7 @@ impl OrderedMoveGen {
         if self.phase == Phase::GoodCaptures {
             let mut best_capture = None;
             for (index, capture) in self.captures.iter_mut().enumerate() {
-                if !capture.is_good_capture(|mv| compare_see(pos.board(), mv, 0)) {
+                if !capture.is_good_capture(pos.board()) {
                     continue;
                 }
                 if let Some((score, _)) = best_capture {
