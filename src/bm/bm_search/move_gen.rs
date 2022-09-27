@@ -1,74 +1,98 @@
-use cozy_chess::{Board, Move, PieceMoves};
+use cozy_chess::Move;
 
-use crate::bm::bm_util::history::{History, HistoryIndices};
+use super::move_entry::{MoveEntry, MoveEntryIterator};
+use super::see::{calculate_see, compare_see, move_value};
+use crate::bm::bm_util::history::History;
+use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-
-use super::move_entry::MoveEntryIterator;
-use super::see::{calculate_see, compare_see, move_value};
+use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
-const THRESHOLD: i16 = -(2_i16.pow(10));
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum GenType {
+#[derive(PartialEq, Eq)]
+enum Phase {
     PvMove,
-    CalcCaptures,
-    Captures,
-    GenQuiet,
-    Killer,
-    Quiet,
+    GenPieceMoves,
+    GenCaptures,
+    GoodCaptures,
+    Killers,
+    GenQuiets,
+    Quiets,
     BadCaptures,
 }
 
-type LazySee = Option<i16>;
-type LazySeeCmp = Option<bool>;
-
-pub struct OrderedMoveGen<const K: usize> {
-    move_list: ArrayVec<PieceMoves, 18>,
-    pv_move: Option<Move>,
-    killer_entry: MoveEntryIterator<K>,
-    gen_type: GenType,
-
-    captures: ArrayVec<(Move, i16, LazySeeCmp), MAX_MOVES>,
-    quiets: ArrayVec<(Move, i16), MAX_MOVES>,
-    skip_quiets: bool,
+struct Quiet {
+    mv: Move,
+    score: i16,
 }
 
-impl<const K: usize> OrderedMoveGen<K> {
-    pub fn new(board: &Board, pv_move: Option<Move>, killer_entry: MoveEntryIterator<K>) -> Self {
-        let mut move_list = ArrayVec::new();
-        board.generate_moves(|piece_moves| {
-            move_list.push(piece_moves);
-            false
-        });
+impl Quiet {
+    pub fn new(mv: Move, score: i16) -> Self {
+        Self { mv, score }
+    }
+}
+
+struct Capture {
+    mv: Move,
+    score: i16,
+    good_capture: Option<bool>,
+}
+
+impl Capture {
+    pub fn new(mv: Move, score: i16) -> Self {
         Self {
-            gen_type: GenType::PvMove,
-            move_list,
-            pv_move,
-            killer_entry,
-            captures: ArrayVec::new(),
-            quiets: ArrayVec::new(),
-            skip_quiets: false,
+            mv,
+            score,
+            good_capture: None,
         }
     }
 
-    pub fn set_skip_quiets(&mut self, value: bool) {
-        self.skip_quiets = value;
-    }
-
-    pub fn skip_quiets(&self) -> bool {
-        self.skip_quiets
-    }
-
-    fn set_phase(&mut self) {
-        if self.skip_quiets {
-            match self.gen_type {
-                GenType::GenQuiet | GenType::Killer | GenType::Quiet => {
-                    self.gen_type = GenType::BadCaptures
-                }
-                _ => {}
+    fn is_good_capture<F: FnOnce(Move) -> bool>(&mut self, f: F) -> bool {
+        match self.good_capture {
+            Some(good_capture) => good_capture,
+            None => {
+                let good_capture = f(self.mv);
+                self.good_capture = Some(good_capture);
+                good_capture
             }
+        }
+    }
+}
+
+pub struct OrderedMoveGen {
+    phase: Phase,
+
+    pv_move: Option<Move>,
+
+    killers: MoveEntry<2>,
+    killer_iter: MoveEntryIterator<2>,
+
+    piece_moves: ArrayVec<PieceMoves, 18>,
+
+    quiets: ArrayVec<Quiet, MAX_MOVES>,
+    captures: ArrayVec<Capture, MAX_MOVES>,
+}
+
+impl OrderedMoveGen {
+    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry<2>) -> Self {
+        Self {
+            phase: Phase::PvMove,
+            pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
+            killer_iter: killers.into_iter(),
+            killers,
+            piece_moves: ArrayVec::new(),
+            quiets: ArrayVec::new(),
+            captures: ArrayVec::new(),
+        }
+    }
+
+    pub fn skip_quiets(&mut self) {
+        self.phase = match self.phase {
+            Phase::GoodCaptures | Phase::Killers | Phase::GenQuiets | Phase::Quiets => {
+                Phase::BadCaptures
+            }
+            _ => return,
         }
     }
 
@@ -78,137 +102,125 @@ impl<const K: usize> OrderedMoveGen<K> {
         hist: &History,
         hist_indices: &HistoryIndices,
     ) -> Option<Move> {
-        let board = pos.board();
-        self.set_phase();
-        if self.gen_type == GenType::PvMove {
-            self.gen_type = GenType::CalcCaptures;
-            if let Some(pv_move) = self.pv_move {
-                for &piece_moves in &self.move_list {
-                    if piece_moves.from != pv_move.from {
+        if self.phase == Phase::PvMove {
+            self.phase = Phase::GenPieceMoves;
+            if self.pv_move.is_some() {
+                return self.pv_move;
+            }
+        }
+        if self.phase == Phase::GenPieceMoves {
+            self.phase = Phase::GenCaptures;
+            pos.board().generate_moves(|piece_moves| {
+                self.piece_moves.push(piece_moves);
+                false
+            });
+        }
+        if self.phase == Phase::GenCaptures {
+            self.phase = Phase::GoodCaptures;
+            let stm = pos.board().side_to_move();
+            for mut piece_moves in self.piece_moves.iter().copied() {
+                piece_moves.to &= pos.board().colors(!stm);
+                for mv in piece_moves {
+                    if Some(mv) == self.pv_move {
                         continue;
                     }
-                    for mv in piece_moves {
-                        if mv == pv_move {
-                            return Some(pv_move);
+                    if self.killers.into_iter().any(|killer| mv == killer) {
+                        continue;
+                    }
+                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    self.captures.push(Capture::new(mv, score));
+                }
+            }
+        }
+        if self.phase == Phase::GoodCaptures {
+            let mut best_capture = None;
+            for (index, capture) in self.captures.iter_mut().enumerate() {
+                if !capture.is_good_capture(|mv| compare_see(pos.board(), mv, 0)) {
+                    continue;
+                }
+                if let Some((score, _)) = best_capture {
+                    if capture.score <= score {
+                        continue;
+                    }
+                }
+                best_capture = Some((capture.score, index));
+            }
+            if let Some((_, index)) = best_capture {
+                return self.captures.swap_pop(index).map(|capture| capture.mv);
+            }
+            self.phase = Phase::Killers;
+        }
+        if self.phase == Phase::Killers {
+            while let Some(killer) = self.killer_iter.next() {
+                if !pos.board().is_legal(killer) {
+                    continue;
+                }
+                return Some(killer);
+            }
+            self.phase = Phase::GenQuiets;
+        }
+        if self.phase == Phase::GenQuiets {
+            self.phase = Phase::Quiets;
+            let stm = pos.board().side_to_move();
+            for mut piece_moves in self.piece_moves.iter().copied() {
+                piece_moves.to &= !pos.board().colors(!stm);
+                for mv in piece_moves {
+                    if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if self.killers.into_iter().any(|killer| mv == killer) {
+                        continue;
+                    }
+
+                    let score = match mv.promotion {
+                        Some(Piece::Queen) => i16::MAX,
+                        Some(_) => i16::MIN,
+                        _ => {
+                            let quiet_hist = hist.get_quiet(pos, mv);
+                            let counter_move_hist = hist
+                                .get_counter_move(pos, hist_indices, mv)
+                                .unwrap_or_default();
+                            quiet_hist + counter_move_hist
                         }
-                    }
+                    };
+                    self.quiets.push(Quiet::new(mv, score));
                 }
-                self.pv_move = None;
             }
         }
-        if self.gen_type == GenType::CalcCaptures {
-            for &piece_moves in &self.move_list {
-                let mut piece_moves = piece_moves;
-                piece_moves.to &= board.colors(!board.side_to_move());
-                for make_move in piece_moves {
-                    if Some(make_move) == self.pv_move {
+        if self.phase == Phase::Quiets {
+            let mut best_quiet = None;
+            for (index, quiet) in self.quiets.iter_mut().enumerate() {
+                if let Some((score, _)) = best_quiet {
+                    if quiet.score <= score {
                         continue;
                     }
-
-                    let expected_gain =
-                        hist.get_capture(pos, make_move) + move_value(board, make_move) * 32;
-                    self.captures.push((make_move, expected_gain, None));
                 }
+                best_quiet = Some((quiet.score, index));
             }
-
-            self.gen_type = GenType::Captures;
+            if let Some((_, index)) = best_quiet {
+                return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
+            }
+            self.phase = Phase::BadCaptures;
         }
-        if self.gen_type == GenType::Captures {
-            let mut max = THRESHOLD;
-            let mut best_index = None;
-            for (index, (make_move, score, see)) in self.captures.iter_mut().enumerate() {
-                if *score > max {
-                    let non_negative_see = see.unwrap_or_else(|| compare_see(board, *make_move, 0));
-                    *see = Some(non_negative_see);
-                    if !non_negative_see {
+        if self.phase == Phase::BadCaptures {
+            let mut best_capture = None;
+            for (index, capture) in self.captures.iter_mut().enumerate() {
+                if let Some((score, _)) = best_capture {
+                    if capture.score <= score {
                         continue;
                     }
-                    max = *score;
-                    best_index = Some(index);
                 }
+                best_capture = Some((capture.score, index));
             }
-            if let Some(index) = best_index {
-                return self.captures.swap_pop(index).map(|capture| capture.0);
-            } else {
-                self.gen_type = if self.skip_quiets {
-                    GenType::BadCaptures
-                } else {
-                    GenType::GenQuiet
-                }
+            if let Some((_, index)) = best_capture {
+                return self.captures.swap_pop(index).map(|capture| capture.mv);
             }
         }
-        if self.gen_type == GenType::GenQuiet {
-            for &piece_moves in &self.move_list {
-                let mut piece_moves = piece_moves;
-                piece_moves.to &= !board.colors(!board.side_to_move());
-                for make_move in piece_moves {
-                    if Some(make_move) == self.pv_move {
-                        continue;
-                    }
-                    if let Some(piece) = make_move.promotion {
-                        match piece {
-                            cozy_chess::Piece::Queen => {
-                                self.quiets.push((make_move, i16::MAX));
-                            }
-                            _ => {
-                                self.quiets.push((make_move, i16::MIN));
-                            }
-                        };
-                        continue;
-                    }
-                    let counter_move_hist = hist
-                        .get_counter_move(pos, hist_indices, make_move)
-                        .unwrap_or_default();
-                    let score = hist.get_quiet(pos, make_move) + counter_move_hist;
-
-                    self.quiets.push((make_move, score));
-                }
-            }
-            self.gen_type = GenType::Killer;
-        }
-        //Assumes Killer Moves won't repeat
-        if self.gen_type == GenType::Killer {
-            for make_move in self.killer_entry.clone() {
-                let position = self
-                    .quiets
-                    .iter()
-                    .position(|(cmp_move, _)| make_move == *cmp_move);
-                if let Some(position) = position {
-                    return self.quiets.swap_pop(position).map(|quiet| quiet.0);
-                }
-            }
-            self.gen_type = GenType::Quiet;
-        }
-        if self.gen_type == GenType::Quiet {
-            let mut max = 0;
-            let mut best_index = None;
-            for (index, &(_, score)) in self.quiets.iter().enumerate() {
-                if best_index.is_none() || score > max {
-                    max = score;
-                    best_index = Some(index);
-                }
-            }
-            if let Some(index) = best_index {
-                return Some(self.quiets.swap_remove(index).0);
-            } else {
-                self.gen_type = GenType::BadCaptures;
-            };
-        }
-        let mut max = 0;
-        let mut best_index = None;
-        for (index, &(_, score, _)) in self.captures.iter().enumerate() {
-            if best_index.is_none() || score > max {
-                max = score;
-                best_index = Some(index);
-            }
-        }
-        if let Some(index) = best_index {
-            Some(self.captures.swap_remove(index).0)
-        } else {
-            None
-        }
+        None
     }
 }
+
+type LazySee = Option<i16>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum QSearchGenType {
