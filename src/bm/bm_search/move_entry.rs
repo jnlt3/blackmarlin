@@ -1,52 +1,37 @@
-use std::array::IntoIter;
-use std::iter::{IntoIterator, Take};
-
-use cozy_chess::{Move, Square};
+use cozy_chess::Move;
 
 #[derive(Debug, Copy, Clone)]
-pub struct MoveEntry<const N: usize> {
-    moves: [Move; N],
-    index: usize,
-    size: usize,
+pub struct MoveEntry {
+    moves: [Option<Move>; 2],
 }
 
-impl<const N: usize> MoveEntry<N> {
+impl MoveEntry {
     pub fn new() -> Self {
-        Self {
-            moves: [Move {
-                from: Square::A1,
-                to: Square::A1,
-                promotion: None,
-            }; N],
-            index: 0,
-            size: 0,
-        }
+        Self { moves: [None; 2] }
     }
 
     pub fn clear(&mut self) {
-        self.index = 0;
-        self.size = 0;
+        *self = Self::new();
     }
 
-    pub fn push(&mut self, killer_move: Move) {
-        if N == 0 {
-            return;
-        }
-        if self.size == 0 || !self.moves.contains(&killer_move) {
-            self.moves[self.index] = killer_move;
-            self.size += 1;
-            self.index = (self.index + 1) % N;
-        }
+    pub fn index_of(&self, mv: Move) -> Option<usize> {
+        self.moves.iter().position(|&maybe_mv| maybe_mv == Some(mv))
     }
-}
 
-pub type MoveEntryIterator<const N: usize> = Take<IntoIter<Move, N>>;
+    pub fn get(&self, index: usize) -> Option<Move> {
+        self.moves[index]
+    }
 
-impl<const N: usize> IntoIterator for MoveEntry<N> {
-    type Item = Move;
-    type IntoIter = MoveEntryIterator<N>;
+    pub fn remove(&mut self, index: usize) -> Option<Move> {
+        self.moves[index].take()
+    }
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.moves.into_iter().take(self.size)
+    pub fn push(&mut self, mv: Move) {
+        self.moves[1] = self.moves[0];
+        self.moves[0] = Some(mv);
+    }
+
+    pub fn contains(&self, mv: Move) -> bool {
+        self.moves.iter().any(|&maybe_mv| Some(mv) == maybe_mv)
     }
 }

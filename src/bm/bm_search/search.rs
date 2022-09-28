@@ -472,7 +472,7 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if killers.into_iter().any(|killer| killer == make_move) {
+            if killers.contains(make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
