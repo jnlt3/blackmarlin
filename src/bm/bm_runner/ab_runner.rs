@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+use arrayvec::ArrayVec;
 use cozy_chess::{Board, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
@@ -118,6 +119,8 @@ pub struct LocalContext {
     sel_depth: u32,
     history: History,
     killer_moves: Vec<MoveEntry>,
+    tt_move_cache: ArrayVec<Move, 32>,
+    tt_move_cache_cycle: usize,
     nodes: Nodes,
     abort: bool,
 }
@@ -179,6 +182,20 @@ impl LocalContext {
     #[inline]
     pub fn search_stack(&self) -> &[SearchStack] {
         &self.search_stack
+    }
+
+    pub fn tt_move_cache(&self) -> &[Move] {
+        &self.tt_move_cache
+    }
+
+    pub fn push_tt_move(&mut self, mv: Move) {
+        if self.tt_move_cache.is_full() {
+            self.tt_move_cache[self.tt_move_cache_cycle] = mv;
+            self.tt_move_cache_cycle += 1;
+            self.tt_move_cache_cycle %= self.tt_move_cache.len();
+            return;
+        }
+        self.tt_move_cache.push(mv);
     }
 
     #[inline]
@@ -452,6 +469,8 @@ impl AbRunner {
                     };
                     MAX_PLY as usize + 1
                 ],
+                tt_move_cache: ArrayVec::new(),
+                tt_move_cache_cycle: 0,
                 sel_depth: 0,
                 history: History::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],

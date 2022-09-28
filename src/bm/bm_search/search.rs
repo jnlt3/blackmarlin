@@ -152,6 +152,7 @@ pub fn search<Search: SearchType>(
     if let Some(entry) = tt_entry {
         *local_context.tt_hits() += 1;
         best_move = Some(entry.table_move());
+        local_context.push_tt_move(entry.table_move());
         if !Search::PV && entry.depth() >= depth {
             let score = entry.score();
             match entry.entry_type() {
@@ -473,6 +474,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if local_context.tt_move_cache().contains(&make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
