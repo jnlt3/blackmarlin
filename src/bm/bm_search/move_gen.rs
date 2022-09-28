@@ -35,24 +35,30 @@ impl Quiet {
 
 struct Capture {
     mv: Move,
-    score: i16,
+    hist: i16,
+    bonus: i16,
     good_capture: Option<bool>,
 }
 
 impl Capture {
-    pub fn new(mv: Move, score: i16) -> Self {
+    pub fn new(mv: Move, hist: i16, bonus: i16) -> Self {
         Self {
             mv,
-            score,
+            hist,
+            bonus,
             good_capture: None,
         }
     }
 
-    fn is_good_capture(&mut self, board: &Board) -> bool {
+    fn score(&self) -> i16 {
+        self.hist + self.bonus
+    }
+
+    fn is_good_capture(&mut self, board: &Board, margin: i16) -> bool {
         match self.good_capture {
             Some(good_capture) => good_capture,
             None => {
-                let good_capture = compare_see(board, self.mv, 0);
+                let good_capture = compare_see(board, self.mv, margin);
                 self.good_capture = Some(good_capture);
                 good_capture
             }
@@ -127,23 +133,28 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score));
+                    let history = hist.get_capture(pos, mv);
+                    let bonus = move_value(pos.board(), mv) * 32;
+                    self.captures.push(Capture::new(mv, history, bonus));
                 }
             }
         }
         if self.phase == Phase::GoodCaptures {
             let mut best_capture = None;
             for (index, capture) in self.captures.iter_mut().enumerate() {
-                if !capture.is_good_capture(pos.board()) {
+                let good_cap_margin = match () {
+                    _ if capture.hist > 256 => -100,
+                    _ => 0,
+                };
+                if !capture.is_good_capture(pos.board(), good_cap_margin) {
                     continue;
                 }
                 if let Some((score, _)) = best_capture {
-                    if capture.score <= score {
+                    if capture.score() <= score {
                         continue;
                     }
                 }
-                best_capture = Some((capture.score, index));
+                best_capture = Some((capture.score(), index));
             }
             if let Some((_, index)) = best_capture {
                 return self.captures.swap_pop(index).map(|capture| capture.mv);
@@ -213,11 +224,11 @@ impl OrderedMoveGen {
             let mut best_capture = None;
             for (index, capture) in self.captures.iter_mut().enumerate() {
                 if let Some((score, _)) = best_capture {
-                    if capture.score <= score {
+                    if capture.hist <= score {
                         continue;
                     }
                 }
-                best_capture = Some((capture.score, index));
+                best_capture = Some((capture.hist, index));
             }
             if let Some((_, index)) = best_capture {
                 return self.captures.swap_pop(index).map(|capture| capture.mv);
