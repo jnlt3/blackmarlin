@@ -72,6 +72,8 @@ pub struct OrderedMoveGen {
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
+
+    avg_cap: i16,
 }
 
 impl OrderedMoveGen {
@@ -84,6 +86,7 @@ impl OrderedMoveGen {
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
+            avg_cap: 0,
         }
     }
 
@@ -117,6 +120,8 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::GenCaptures {
             self.phase = Phase::GoodCaptures;
+
+            let mut sum_capture_hist = 0;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= pos.board().colors(!stm);
@@ -128,13 +133,20 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    sum_capture_hist += score as i32;
                     self.captures.push(Capture::new(mv, score));
                 }
+            }
+            if let Some(avg_cap) = sum_capture_hist.checked_div(self.captures.len() as i32) {
+                self.avg_cap = avg_cap as i16;
             }
         }
         if self.phase == Phase::GoodCaptures {
             let mut best_capture = None;
             for (index, capture) in self.captures.iter_mut().enumerate() {
+                if capture.score < self.avg_cap {
+                    continue;
+                }
                 if !capture.is_good_capture(pos.board()) {
                     continue;
                 }
