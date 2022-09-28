@@ -210,18 +210,7 @@ impl OrderedMoveGen {
             self.phase = Phase::BadCaptures;
         }
         if self.phase == Phase::BadCaptures {
-            let mut best_capture = None;
-            for (index, capture) in self.captures.iter_mut().enumerate() {
-                if let Some((score, _)) = best_capture {
-                    if capture.score <= score {
-                        continue;
-                    }
-                }
-                best_capture = Some((capture.score, index));
-            }
-            if let Some((_, index)) = best_capture {
-                return self.captures.swap_pop(index).map(|capture| capture.mv);
-            }
+            return self.captures.pop().map(|capture| capture.mv);
         }
         None
     }
