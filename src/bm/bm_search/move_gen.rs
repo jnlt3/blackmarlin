@@ -20,6 +20,7 @@ enum Phase {
     GenQuiets,
     Quiets,
     BadCaptures,
+    UnderPromos,
 }
 
 struct Quiet {
@@ -197,6 +198,9 @@ impl OrderedMoveGen {
         if self.phase == Phase::Quiets {
             let mut best_quiet = None;
             for (index, quiet) in self.quiets.iter_mut().enumerate() {
+                if quiet.score == i16::MIN {
+                    continue;
+                }
                 if let Some((score, _)) = best_quiet {
                     if quiet.score <= score {
                         continue;
@@ -222,6 +226,10 @@ impl OrderedMoveGen {
             if let Some((_, index)) = best_capture {
                 return self.captures.swap_pop(index).map(|capture| capture.mv);
             }
+            self.phase = Phase::UnderPromos;
+        }
+        if self.phase == Phase::UnderPromos {
+            return self.quiets.pop().map(|quiet| quiet.mv);
         }
         None
     }
