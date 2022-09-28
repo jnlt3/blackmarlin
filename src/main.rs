@@ -1,5 +1,4 @@
 use crate::bm::bm_console::BmConsole;
-use text_io::read;
 
 mod bm;
 
@@ -14,5 +13,9 @@ fn main() {
         bm_console.input(args);
         return;
     }
-    while bm_console.input(read!("{}\n")) {}
+    loop {
+        let mut buffer = String::new();
+        std::io::stdin().read_line(&mut buffer).unwrap();
+        bm_console.input(buffer);
+    }
 }

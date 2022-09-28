@@ -10,7 +10,7 @@ use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::OrderedMoveGen;
-use super::move_gen::QuiescenceSearchMoveGen;
+use super::q_move_gen::QSearchMoveGen;
 use super::see::compare_see;
 
 pub trait SearchType {
@@ -289,7 +289,7 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers.into_iter());
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -392,22 +392,21 @@ pub fn search<Search: SearchType>(
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
 
         if do_fp && eval + fp(depth) <= alpha {
-            move_gen.set_skip_quiets(true);
+            move_gen.skip_quiets();
             continue;
         }
 
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
-        if !move_gen.skip_quiets()
-            && non_mate_line
+        if non_mate_line
             && !is_capture
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
                     .get(depth as usize, improving as usize)
         {
-            move_gen.set_skip_quiets(true);
+            move_gen.skip_quiets();
             continue;
         }
 
@@ -473,7 +472,7 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if killers.into_iter().any(|killer| killer == make_move) {
+            if killers.contains(make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
@@ -666,7 +665,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QuiescenceSearchMoveGen::new();
+    let mut move_gen = QSearchMoveGen::new();
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()

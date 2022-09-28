@@ -60,8 +60,9 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
 }
 
 fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {
-    match color {
-        Color::White => ((pawns & !File::A.bitboard()) << 7) | ((pawns & !File::H.bitboard()) << 9),
-        Color::Black => ((pawns & !File::A.bitboard()) >> 9) | ((pawns & !File::H.bitboard()) >> 7),
-    }
+    let threats = match color {
+        Color::White => ((pawns & !File::A.bitboard()).0 << 7) | ((pawns & !File::H.bitboard()).0 << 9),
+        Color::Black => ((pawns & !File::A.bitboard()).0 >> 9) | ((pawns & !File::H.bitboard()).0 >> 7),
+    };
+    BitBoard(threats)
 }
