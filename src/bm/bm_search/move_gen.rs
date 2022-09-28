@@ -152,6 +152,9 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::Killers {
             while let Some(killer) = self.killer_iter.next() {
+                if Some(killer) == self.pv_move {
+                    continue;
+                }
                 if !pos.board().is_legal(killer) {
                     continue;
                 }
@@ -175,7 +178,7 @@ impl OrderedMoveGen {
                     let score = match mv.promotion {
                         Some(Piece::Queen) => i16::MAX,
                         Some(_) => i16::MIN,
-                        _ => {
+                        None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
