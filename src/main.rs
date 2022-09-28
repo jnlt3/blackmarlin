@@ -13,9 +13,9 @@ fn main() {
         bm_console.input(args);
         return;
     }
-    let mut buffer = String::new();
     loop {
+        let mut buffer = String::new();
         std::io::stdin().read_line(&mut buffer).unwrap();
-        bm_console.input(buffer.clone()); 
+        bm_console.input(buffer);
     }
 }
