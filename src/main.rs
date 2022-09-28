@@ -16,6 +16,9 @@ fn main() {
     loop {
         let mut buffer = String::new();
         std::io::stdin().read_line(&mut buffer).unwrap();
+        if buffer.is_empty() {
+            return;
+        }
         let (command, _new_line) = buffer.split_at(buffer.len() - 1);
         if !bm_console.input(command) {
             return;
