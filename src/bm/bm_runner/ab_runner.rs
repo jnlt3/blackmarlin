@@ -117,7 +117,7 @@ pub struct LocalContext {
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     history: History,
-    killer_moves: Vec<MoveEntry<2>>,
+    killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     abort: bool,
 }
@@ -162,7 +162,7 @@ impl LocalContext {
     }
 
     #[inline]
-    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry<2>> {
+    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry> {
         &mut self.killer_moves
     }
 
@@ -382,8 +382,7 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let eval =
-                        remove_aggression(eval.unwrap(), position.board().occupied().popcnt());
+                    let eval = remove_aggression(eval.unwrap(), position.board().occupied().len());
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
                         false => None,

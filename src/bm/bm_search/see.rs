@@ -37,7 +37,7 @@ pub fn compare_see(board: &Board, make_move: Move, target: i16) -> bool {
         }
         let defenders = board.colors(color) & blockers;
         for &piece in &Piece::ALL {
-            let mut potential = match piece {
+            let potential = match piece {
                 Piece::Pawn => cozy_chess::get_pawn_attacks(target_square, !color),
                 Piece::Knight => cozy_chess::get_knight_moves(target_square),
                 Piece::Bishop => cozy_chess::get_bishop_moves(target_square, blockers),
@@ -58,7 +58,7 @@ pub fn compare_see(board: &Board, make_move: Move, target: i16) -> bool {
                 if move_piece == Piece::King {
                     break 'outer;
                 }
-                let attacker = potential.next().unwrap();
+                let attacker = potential.into_iter().next().unwrap();
                 blockers &= !attacker.bitboard();
                 color = !color;
                 move_piece = piece;
@@ -101,7 +101,7 @@ pub fn calculate_see(board: &Board, make_move: Move) -> i16 {
         }
         let defenders = board.colors(color) & blockers;
         for &piece in &Piece::ALL {
-            let mut potential = match piece {
+            let potential = match piece {
                 Piece::Pawn => cozy_chess::get_pawn_attacks(target_square, !color),
                 Piece::Knight => cozy_chess::get_knight_moves(target_square),
                 Piece::Bishop => cozy_chess::get_bishop_moves(target_square, blockers),
@@ -115,7 +115,7 @@ pub fn calculate_see(board: &Board, make_move: Move) -> i16 {
                 & defenders;
             if !potential.is_empty() {
                 king_capture = move_piece == Piece::King;
-                let attacker = potential.next().unwrap();
+                let attacker = potential.into_iter().next().unwrap();
                 blockers &= !attacker.bitboard();
                 color = !color;
                 move_piece = piece;
