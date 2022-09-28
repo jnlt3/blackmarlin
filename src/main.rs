@@ -10,12 +10,15 @@ fn main() {
         args.push_str(" ");
     }
     if !args.is_empty() {
-        bm_console.input(args);
+        bm_console.input(&args);
         return;
     }
     loop {
         let mut buffer = String::new();
         std::io::stdin().read_line(&mut buffer).unwrap();
-        bm_console.input(buffer);
+        let (command, _new_line) = buffer.split_at(buffer.len() - 1); 
+        if !bm_console.input(command) {
+            return;
+        }
     }
 }

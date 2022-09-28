@@ -74,7 +74,7 @@ impl UciAdapter {
         }
     }
 
-    pub fn input(&mut self, input: String) -> bool {
+    pub fn input(&mut self, input: &str) -> bool {
         let name = "Black Marlin".to_string();
         let command = UciCommand::parse(&input, self.chess960);
         match command {
