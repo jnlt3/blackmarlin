@@ -17,7 +17,7 @@ impl BmConsole {
         }
     }
 
-    pub fn input(&mut self, command: String) -> bool {
+    pub fn input(&mut self, command: &str) -> bool {
         if command.is_empty() {
             return false;
         }
