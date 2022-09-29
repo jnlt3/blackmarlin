@@ -197,6 +197,11 @@ pub fn search<Search: SearchType>(
         Color::White => b_threats,
         Color::Black => w_threats,
     };
+
+    if tt_entry.is_none() {
+        depth -= iir(depth)
+    }
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -266,10 +271,6 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
-    }
-
-    if tt_entry.is_none() {
-        depth -= iir(depth)
     }
 
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 1) {
