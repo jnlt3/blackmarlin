@@ -9,7 +9,7 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
-use super::move_gen::OrderedMoveGen;
+use super::move_gen::{OrderedMoveGen, Phase};
 use super::q_move_gen::QSearchMoveGen;
 use super::see::compare_see;
 
@@ -474,6 +474,9 @@ pub fn search<Search: SearchType>(
             }
             if killers.contains(make_move) {
                 reduction -= 1;
+            }
+            if move_gen.phase() == Phase::BadCaptures {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }

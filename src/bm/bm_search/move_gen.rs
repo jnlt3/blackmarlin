@@ -10,8 +10,8 @@ use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
-#[derive(PartialEq, Eq)]
-enum Phase {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Phase {
     PvMove,
     GenPieceMoves,
     GenCaptures,
@@ -94,6 +94,11 @@ impl OrderedMoveGen {
             }
             _ => return,
         }
+    }
+
+    /// Inaccurate if used for Phase::PvMove
+    pub fn phase(&self) -> Phase {
+        self.phase
     }
 
     pub fn next(
