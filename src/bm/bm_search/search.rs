@@ -49,6 +49,14 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
     depth as i16 * 54 - improving as i16 * 49
 }
 
+const fn do_alpha_prune(depth: u32) -> bool {
+    depth == 1
+}
+
+const fn alpha_prune() -> i16 {
+    1000
+}
+
 const fn do_razor(depth: u32) -> bool {
     depth <= 3
 }
@@ -204,6 +212,10 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+            return eval;
+        }
+
+        if do_alpha_prune(depth) && eval + alpha_prune() <= alpha {
             return eval;
         }
 
