@@ -143,7 +143,7 @@ impl OrderedMoveGen {
             let mut best_capture = None;
             for (index, capture) in self.captures.iter_mut().enumerate() {
                 let good_cap_margin = match () {
-                    _ if capture.hist > 256 => -100,
+                    _ if capture.hist > 256 => -50,
                     _ => 0,
                 };
                 if !capture.is_good_capture(pos.board(), good_cap_margin) {
