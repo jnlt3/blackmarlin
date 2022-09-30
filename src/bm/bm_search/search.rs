@@ -525,7 +525,7 @@ pub fn search<Search: SearchType>(
             /*
             If we don't get a fail low, this means the move has to be searched fully
             */
-            if Search::PV && score > alpha {
+            if Search::PV && score > alpha && score < beta {
                 let search_score = search::<Search>(
                     pos,
                     local_context,
