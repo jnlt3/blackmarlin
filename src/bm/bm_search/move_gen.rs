@@ -193,7 +193,7 @@ impl OrderedMoveGen {
                             let safe_piece = matches!(piece, Piece::Pawn | Piece::King);
                             let into_threat =
                                 match !safe_piece && into_pawn_threat(pos.board(), mv.to) {
-                                    true => -128,
+                                    true => -32,
                                     false => 0,
                                 };
                             quiet_hist + counter_move_hist + into_threat
