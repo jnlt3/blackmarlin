@@ -192,7 +192,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let eval = match tt_entry {
+    let eval = match tt_entry.filter(|entry| entry.depth() >= depth) {
         Some(entry) => match entry.entry_type() {
             LowerBound => eval.max(entry.score()),
             Exact => entry.score(),
