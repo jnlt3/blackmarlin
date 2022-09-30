@@ -248,7 +248,7 @@ fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
             _ => unreachable!(),
         };
     }
-    let raw = eval.raw() as f32 * 0.01;
+    let raw = eval.raw().clamp(-2000, 2000) as f32 * 0.01;
     let mut wdl = [raw * 1.42, raw * -1.42, 2.92];
     wdl.iter_mut().for_each(|x| *x = x.exp());
     let sum: f32 = wdl.iter().sum();
