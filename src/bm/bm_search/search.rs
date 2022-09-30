@@ -101,6 +101,20 @@ const fn history_lmr(history: i16) -> i16 {
     history / 92
 }
 
+fn lone_king(board: &Board, alpha: &mut Evaluation, beta: &mut Evaluation) {
+    const ZERO: Evaluation = Evaluation::new(0);
+    let stm = board.side_to_move();
+    let stm_pieces = board.colors(stm);
+    let nstm_pieces = board.colors(!stm);
+    let kingless = board.occupied() & !board.pieces(Piece::King);
+    if (stm_pieces & kingless).is_empty() {
+        *alpha = (*alpha).max(ZERO);
+    }
+    if (nstm_pieces & kingless).is_empty() {
+        *beta = (*beta).min(ZERO);
+    }
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     local_context: &mut LocalContext,
@@ -108,7 +122,7 @@ pub fn search<Search: SearchType>(
     ply: u32,
     mut depth: u32,
     mut alpha: Evaluation,
-    beta: Evaluation,
+    mut beta: Evaluation,
 ) -> Evaluation {
     local_context.search_stack_mut()[ply as usize].pv_len = 0;
 
@@ -122,6 +136,8 @@ pub fn search<Search: SearchType>(
         local_context.increment_nodes();
         return Evaluation::new(0);
     }
+
+    lone_king(pos.board(), &mut alpha, &mut beta);
 
     /*
     At depth 0, we run Quiescence Search
