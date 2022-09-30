@@ -86,6 +86,14 @@ impl MoveData {
             capture: board.colors(!board.side_to_move()).has(make_move.to),
         }
     }
+
+    pub fn to_move(self) -> Move {
+        Move {
+            from: self.from,
+            to: self.to,
+            promotion: self.promotion,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

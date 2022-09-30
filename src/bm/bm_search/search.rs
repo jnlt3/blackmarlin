@@ -123,6 +123,26 @@ pub fn search<Search: SearchType>(
         return Evaluation::new(0);
     }
 
+    for ss in local_context.search_stack()[..ply as usize].iter().rev() {
+        match ss.move_played.filter(|mv| !mv.capture) {
+            Some(mv) => {
+                if pos.board().is_legal(mv.to_move()) {
+                    pos.make_move(mv.to_move());
+                    if pos.forced_draw(ply + 1) {
+                        alpha = alpha.max(Evaluation::new(0));
+                        pos.unmake_move();
+                        if alpha >= beta {
+                            return alpha;
+                        }
+                        break;
+                    }
+                    pos.unmake_move();
+                }
+            }
+            _ => break,
+        }
+    }
+
     /*
     At depth 0, we run Quiescence Search
     */
