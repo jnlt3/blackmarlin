@@ -427,6 +427,7 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
 
         if do_see_prune
+            && h_score < 256
             && !compare_see(
                 pos.board(),
                 make_move,
