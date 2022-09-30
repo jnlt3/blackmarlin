@@ -510,7 +510,7 @@ pub fn search<Search: SearchType>(
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
-            if lmr_depth < depth && score > alpha && score < beta + 128 {
+            if lmr_depth < depth && score > alpha && score < beta + reduction * 128 {
                 let zw_score = search::<Search::Zw>(
                     pos,
                     local_context,
