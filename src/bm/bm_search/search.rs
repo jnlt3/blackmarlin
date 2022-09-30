@@ -13,6 +13,8 @@ use super::move_gen::OrderedMoveGen;
 use super::q_move_gen::QSearchMoveGen;
 use super::see::compare_see;
 
+const DRAW: Evaluation = Evaluation::new(0);
+
 pub trait SearchType {
     const NM: bool;
     const PV: bool;
@@ -123,23 +125,30 @@ pub fn search<Search: SearchType>(
         return Evaluation::new(0);
     }
 
-    for ss in local_context.search_stack()[..ply as usize].iter().rev() {
-        match ss.move_played.filter(|mv| !mv.capture) {
-            Some(mv) => {
-                if pos.board().is_legal(mv.to_move()) {
-                    pos.make_move(mv.to_move());
-                    if pos.forced_draw(ply + 1) {
-                        alpha = alpha.max(Evaluation::new(0));
-                        pos.unmake_move();
-                        if alpha >= beta {
-                            return alpha;
-                        }
-                        break;
+    if alpha <= DRAW || DRAW >= beta {
+        for (index, ss) in local_context.search_stack()[..ply as usize]
+            .iter()
+            .rev()
+            .enumerate()
+        {
+            match ss.move_played.filter(|mv| !mv.capture) {
+                Some(mv) => {
+                    if index % 2 == 0 || !pos.board().is_legal(mv.to_move()) {
+                        continue;
                     }
+                    pos.make_move(mv.to_move());
+                    let draw = pos.forced_draw(ply + 1);
                     pos.unmake_move();
+                    if !draw {
+                        continue;
+                    }
+                    alpha = alpha.max(Evaluation::new(0));
+                    if alpha >= beta {
+                        return alpha;
+                    }
                 }
+                _ => break,
             }
-            _ => break,
         }
     }
 
