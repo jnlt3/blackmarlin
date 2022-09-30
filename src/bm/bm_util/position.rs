@@ -55,14 +55,13 @@ impl Position {
         self.boards
             .iter()
             .rev()
-            .skip(1)
-            .take(ply as usize)
+            .take(ply as usize - 1)
             .any(|board| board.hash() == hash)
             || self
                 .boards
                 .iter()
                 .rev()
-                .skip(ply as usize + 1)
+                .skip(ply as usize - 1)
                 .filter(|board| board.hash() == hash)
                 .count()
                 >= 2
