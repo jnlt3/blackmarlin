@@ -187,9 +187,9 @@ pub fn search<Search: SearchType>(
         2.. => Some(local_context.search_stack()[ply as usize - 2].eval),
         _ => None,
     };
-    let improving = match prev_move_eval {
-        Some(prev_move_eval) => !in_check && eval > prev_move_eval,
-        None => false,
+    let (improving, delta_eval) = match prev_move_eval.filter(|_| !in_check) {
+        Some(prev_move_eval) => (eval > prev_move_eval, (eval - prev_move_eval).raw()),
+        None => (false, 0),
     };
 
     let (w_threats, b_threats) = pos.threats();
@@ -391,7 +391,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
 
-        if do_fp && eval + fp(depth) <= alpha {
+        if do_fp && eval + fp(depth) + delta_eval <= alpha {
             move_gen.skip_quiets();
             continue;
         }
