@@ -353,7 +353,7 @@ pub fn search<Search: SearchType>(
                         s_beta - 1,
                         s_beta,
                     ),
-                    false => eval,
+                    false => eval - 25,
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
