@@ -45,11 +45,12 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
+                    let cap_hist = hist.get_capture(pos, mv);
                     let see = calculate_see(pos.board(), mv);
-                    if see < 0 {
+                    if cap_hist < 384 && see < 0 {
                         continue;
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score = cap_hist + move_value(pos.board(), mv) * 32;
                     self.captures.push(Capture::new(mv, score, see));
                 }
                 false
