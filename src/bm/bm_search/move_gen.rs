@@ -190,7 +190,7 @@ impl OrderedMoveGen {
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
                             let into_threat = match into_threat(pos.board(), piece, mv.to) {
-                                true => -128,
+                                true => -256,
                                 false => 0,
                             };
                             quiet_hist + counter_move_hist + into_threat
