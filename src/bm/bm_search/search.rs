@@ -192,6 +192,15 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let eval = match tt_entry {
+        Some(entry) => match entry.entry_type() {
+            LowerBound => eval.max(entry.score()),
+            Exact => entry.score(),
+            UpperBound => eval.min(entry.score()),
+        },
+        None => eval,
+    };
+
     let (w_threats, b_threats) = pos.threats();
     let nstm_threats = match pos.board().side_to_move() {
         Color::White => b_threats,
