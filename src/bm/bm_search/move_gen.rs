@@ -5,7 +5,7 @@ use super::see::{compare_see, move_value};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::threats::into_threat;
+use crate::bm::bm_util::threats::into_pawn_threat;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Piece, PieceMoves};
 
@@ -189,10 +189,13 @@ impl OrderedMoveGen {
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            let into_threat = match into_threat(pos.board(), piece, mv.to) {
-                                true => -128,
-                                false => 0,
-                            };
+
+                            let safe_piece = matches!(piece, Piece::Pawn | Piece::King);
+                            let into_threat =
+                                match !safe_piece && into_pawn_threat(pos.board(), mv.to) {
+                                    true => -128,
+                                    false => 0,
+                                };
                             quiet_hist + counter_move_hist + into_threat
                         }
                     };
