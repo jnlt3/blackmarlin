@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Board, Color, File, Piece};
+use cozy_chess::{BitBoard, Board, Color, File, Piece, Square};
 
 pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     let occupied = board.occupied();
@@ -61,8 +61,49 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
 
 fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {
     let threats = match color {
-        Color::White => ((pawns & !File::A.bitboard()).0 << 7) | ((pawns & !File::H.bitboard()).0 << 9),
-        Color::Black => ((pawns & !File::A.bitboard()).0 >> 9) | ((pawns & !File::H.bitboard()).0 >> 7),
+        Color::White => {
+            ((pawns & !File::A.bitboard()).0 << 7) | ((pawns & !File::H.bitboard()).0 << 9)
+        }
+        Color::Black => {
+            ((pawns & !File::A.bitboard()).0 >> 9) | ((pawns & !File::H.bitboard()).0 >> 7)
+        }
     };
     BitBoard(threats)
+}
+
+fn into_pawn_threat(board: &Board, to: Square) -> bool {
+    let stm = board.side_to_move();
+    let potential_attackers = cozy_chess::get_pawn_attacks(to, stm);
+    let opponent_pawns = board.pieces(Piece::Pawn) & board.colors(stm);
+    !(potential_attackers & opponent_pawns).is_empty()
+}
+
+fn into_minor_threat(board: &Board, to: Square) -> bool {
+    let stm = board.side_to_move();
+    let potential_knight_attackers = cozy_chess::get_knight_moves(to);
+    let opponent_knights = board.pieces(Piece::Knight);
+    if !(potential_knight_attackers & opponent_knights).is_empty() {
+        return true;
+    }
+    let potential_bishop_attackers = cozy_chess::get_bishop_moves(to, board.occupied());
+    let opponent_bishops = board.pieces(Piece::Bishop) & board.colors(stm);
+    !(potential_bishop_attackers & opponent_bishops).is_empty()
+}
+
+fn into_rook_threat(board: &Board, to: Square) -> bool {
+    let stm = board.side_to_move();
+    let potential_rook_attackers = cozy_chess::get_rook_moves(to, board.occupied());
+    let opponent_rooks = board.pieces(Piece::Rook) & board.colors(stm);
+    !(potential_rook_attackers & opponent_rooks).is_empty()
+}
+
+pub fn into_threat(board: &Board, piece: Piece, to: Square) -> bool {
+    match piece {
+        Piece::Pawn | Piece::King => false,
+        Piece::Knight | Piece::Bishop => into_pawn_threat(board, to),
+        Piece::Rook => into_pawn_threat(board, to) | into_minor_threat(board, to),
+        Piece::Queen => {
+            into_pawn_threat(board, to) | into_minor_threat(board, to) | into_rook_threat(board, to)
+        }
+    }
 }

@@ -5,6 +5,7 @@ use super::see::{compare_see, move_value};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
+use crate::bm::bm_util::threats::into_threat;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Piece, PieceMoves};
 
@@ -170,6 +171,7 @@ impl OrderedMoveGen {
             self.phase = Phase::Quiets;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
+                let piece = piece_moves.piece;
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
@@ -187,7 +189,11 @@ impl OrderedMoveGen {
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist + counter_move_hist
+                            let into_threat = match into_threat(pos.board(), piece, mv.to) {
+                                true => -128,
+                                false => 0,
+                            };
+                            quiet_hist + counter_move_hist + into_threat
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
