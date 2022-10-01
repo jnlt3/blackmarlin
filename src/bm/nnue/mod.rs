@@ -117,7 +117,7 @@ pub struct Nnue {
 impl Nnue {
     pub fn new() -> Self {
         let mut bytes = &NN_BYTES[12..];
-        let incremental = Arc::from(include::sparse_from_bytes_i16::<i16, INPUT, MID>(bytes));
+        let incremental = Arc::from(include::sparse_from_bytes_i16::<INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
         bytes = &bytes[MID * 2..];
