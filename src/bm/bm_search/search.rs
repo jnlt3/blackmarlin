@@ -289,7 +289,7 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, nstm_threats);
 
     let mut moves_seen = 0;
     let mut move_exists = false;

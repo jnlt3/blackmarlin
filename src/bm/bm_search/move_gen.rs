@@ -7,7 +7,7 @@ use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::threats::into_threat;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -69,6 +69,8 @@ pub struct OrderedMoveGen {
     killers: MoveEntry,
     killer_index: usize,
 
+    nstm_threats: BitBoard,
+
     piece_moves: ArrayVec<PieceMoves, 18>,
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
@@ -76,12 +78,18 @@ pub struct OrderedMoveGen {
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        nstm_threats: BitBoard,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            nstm_threats,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -189,8 +197,11 @@ impl OrderedMoveGen {
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            let into_threat = match into_threat(pos.board(), piece, mv.to) {
-                                true => -128,
+
+                            let safe_move = self.nstm_threats.has(mv.from)
+                                && !into_threat(pos.board(), piece, mv.to);
+                            let into_threat = match safe_move {
+                                true => 128,
                                 false => 0,
                             };
                             quiet_hist + counter_move_hist + into_threat
