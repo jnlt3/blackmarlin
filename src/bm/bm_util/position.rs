@@ -129,6 +129,10 @@ impl Position {
         (self.w_threats, self.b_threats)
     }
 
+    pub fn prev_threats(&self, index: usize) -> Option<(BitBoard, BitBoard)> {
+        self.threats.get(self.threats.len() - index).copied()
+    }
+
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
         let piece_cnt = self.board().occupied().len() as i16;
 

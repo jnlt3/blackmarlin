@@ -192,11 +192,22 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let side_to_move = pos.board().side_to_move();
+
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
+
+    let prev_stm_threats = pos
+        .prev_threats(1)
+        .map(|(w_threats, b_threats)| match side_to_move {
+            Color::White => b_threats,
+            Color::Black => w_threats,
+        });
+
+    let nstm_threats = match side_to_move {
         Color::White => b_threats,
         Color::Black => w_threats,
     };
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -304,10 +315,7 @@ pub fn search<Search: SearchType>(
         }
 
         move_exists = true;
-        let is_capture = pos
-            .board()
-            .colors(!pos.board().side_to_move())
-            .has(make_move.to);
+        let is_capture = pos.board().colors(!side_to_move).has(make_move.to);
 
         let h_score = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
@@ -381,6 +389,12 @@ pub fn search<Search: SearchType>(
                 opp_move.capture && opp_move.to == make_move.to
             }))
         {
+            extension = extension.max(1);
+        }
+
+        if prev_stm_threats.map_or(false, |threats| {
+            (!threats & nstm_threats).has(make_move.from)
+        }) {
             extension = extension.max(1);
         }
 
@@ -665,12 +679,10 @@ pub fn q_search(
         }
     }
 
+    let side_to_move = pos.board().side_to_move();
     let mut move_gen = QSearchMoveGen::new();
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
-        let is_capture = pos
-            .board()
-            .colors(!pos.board().side_to_move())
-            .has(make_move.to);
+        let is_capture = pos.board().colors(!side_to_move).has(make_move.to);
         if in_check || is_capture {
             /*
             SEE beta cutoff: (Koivisto)
