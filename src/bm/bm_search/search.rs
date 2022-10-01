@@ -392,12 +392,6 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
-        if prev_stm_threats.map_or(false, |threats| {
-            (!threats & nstm_threats).has(make_move.from)
-        }) {
-            extension = extension.max(1);
-        }
-
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
@@ -470,6 +464,9 @@ pub fn search<Search: SearchType>(
             .get(depth as usize, moves_seen) as i16;
 
         if moves_seen > 0 {
+            let avoid_immediate = prev_stm_threats.map_or(false, |threats| {
+                (!threats & nstm_threats).has(make_move.from)
+            });
             /*
             If a move is quiet, we already have information on this move
             in the history table. If history score is high, we reduce
@@ -487,6 +484,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if avoid_immediate {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
