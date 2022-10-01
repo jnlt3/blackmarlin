@@ -268,14 +268,14 @@ pub fn search<Search: SearchType>(
         }
 
         if let Some(entry) = tt_entry {
-            let margin = beta + 200;
+            let margin = beta + 400;
             if depth >= 4
                 && entry.depth() + 2 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
                 && entry.score() >= margin
                 && pos.board().is_legal(entry.table_move())
             {
-                let zw = margin >> Next;
+                let zw = beta >> Next;
                 local_context.search_stack_mut()[ply as usize].move_played =
                     Some(MoveData::from_move(pos.board(), entry.table_move()));
                 pos.make_move(entry.table_move());
@@ -289,7 +289,7 @@ pub fn search<Search: SearchType>(
                     zw + 1,
                 ) << Next;
                 pos.unmake_move();
-                if score >= margin {
+                if score >= beta {
                     return score;
                 }
             }
