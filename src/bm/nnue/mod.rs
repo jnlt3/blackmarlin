@@ -18,10 +18,6 @@ const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
 pub struct Accumulator {
     w_input_layer: Incremental<INPUT, MID>,
     b_input_layer: Incremental<INPUT, MID>,
-    w_add: ArrayVec<usize, 48>,
-    b_add: ArrayVec<usize, 48>,
-    w_rm: ArrayVec<usize, 48>,
-    b_rm: ArrayVec<usize, 48>,
 }
 
 fn halfka_feature(
@@ -56,53 +52,40 @@ fn threat_feature(perspective: Color, king: Square, color: Color, square: Square
     index
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Update {
+    w_index: usize,
+    b_index: usize,
+}
+
+impl Update {
+    fn new(w_index: usize, b_index: usize) -> Self {
+        Self { w_index, b_index }
+    }
+}
+
+fn piece_indices(w_king: Square, b_king: Square, sq: Square, piece: Piece, color: Color) -> Update {
+    let w_index = halfka_feature(Color::White, w_king, color, piece, sq);
+    let b_index = halfka_feature(Color::Black, b_king, color, piece, sq);
+    Update::new(w_index, b_index)
+}
+
+fn threat_indices(w_king: Square, b_king: Square, sq: Square, color: Color) -> Update {
+    let w_index = threat_feature(Color::White, w_king, color, sq);
+    let b_index = threat_feature(Color::Black, b_king, color, sq);
+    Update::new(w_index, b_index)
+}
+
 impl Accumulator {
-    pub fn update<const INCR: bool>(
+    pub fn perform_update(
         &mut self,
-        w_king: Square,
-        b_king: Square,
-        sq: Square,
-        piece: Piece,
-        color: Color,
+        w_add: &mut [usize],
+        w_rm: &mut [usize],
+        b_add: &mut [usize],
+        b_rm: &mut [usize],
     ) {
-        let w_index = halfka_feature(Color::White, w_king, color, piece, sq);
-        let b_index = halfka_feature(Color::Black, b_king, color, piece, sq);
-
-        if INCR {
-            self.w_add.push(w_index);
-            self.b_add.push(b_index);
-        } else {
-            self.w_rm.push(w_index);
-            self.b_rm.push(b_index);
-        }
-    }
-
-    pub fn threat<const INCR: bool>(
-        &mut self,
-        w_king: Square,
-        b_king: Square,
-        sq: Square,
-        color: Color,
-    ) {
-        let w_index = threat_feature(Color::White, w_king, color, sq);
-        let b_index = threat_feature(Color::Black, b_king, color, sq);
-
-        if INCR {
-            self.w_add.push(w_index);
-            self.b_add.push(b_index);
-        } else {
-            self.w_rm.push(w_index);
-            self.b_rm.push(b_index);
-        }
-    }
-
-    pub fn perform_update(&mut self) {
-        self.w_input_layer.update_features(&self.w_add, &self.w_rm);
-        self.b_input_layer.update_features(&self.b_add, &self.b_rm);
-        self.w_add.clear();
-        self.w_rm.clear();
-        self.b_add.clear();
-        self.b_rm.clear();
+        self.w_input_layer.update_features(w_add, w_rm);
+        self.b_input_layer.update_features(b_add, b_rm);
     }
 }
 
@@ -112,6 +95,11 @@ pub struct Nnue {
     bias: Arc<[i16; MID]>,
     head: usize,
     out_layer: Dense<{ MID * 2 }, OUTPUT>,
+
+    w_add: ArrayVec<usize, 48>,
+    b_add: ArrayVec<usize, 48>,
+    w_rm: ArrayVec<usize, 48>,
+    b_rm: ArrayVec<usize, 48>,
 }
 
 impl Nnue {
@@ -137,39 +125,65 @@ impl Nnue {
                 Accumulator {
                     w_input_layer: input_layer.clone(),
                     b_input_layer: input_layer,
-                    w_add: ArrayVec::new(),
-                    w_rm: ArrayVec::new(),
-                    b_add: ArrayVec::new(),
-                    b_rm: ArrayVec::new(),
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
+            w_add: ArrayVec::new(),
+            w_rm: ArrayVec::new(),
+            b_add: ArrayVec::new(),
+            b_rm: ArrayVec::new(),
             bias: Arc::new(incremental_bias.0),
             out_layer,
             head: 0,
         }
     }
 
+    fn update<const INCR: bool>(&mut self, update: Update) {
+        match INCR {
+            true => {
+                self.w_add.push(update.w_index);
+                self.b_add.push(update.b_index);
+            }
+            false => {
+                self.w_rm.push(update.w_index);
+                self.b_rm.push(update.b_index);
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.w_add.clear();
+        self.w_rm.clear();
+        self.b_add.clear();
+        self.b_rm.clear();
+    }
+
     pub fn reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
-        let acc = &mut self.accumulator[self.head];
-
-        acc.w_input_layer.reset(*self.bias);
-        acc.b_input_layer.reset(*self.bias);
 
         for sq in board.occupied() {
             let piece = board.piece_on(sq).unwrap();
             let color = board.color_on(sq).unwrap();
-            acc.update::<true>(w_king, b_king, sq, piece, color);
+            self.update::<true>(piece_indices(w_king, b_king, sq, piece, color));
         }
         for sq in w_threats {
-            acc.threat::<true>(w_king, b_king, sq, Color::Black);
+            self.update::<true>(threat_indices(w_king, b_king, sq, Color::Black));
         }
         for sq in b_threats {
-            acc.threat::<true>(w_king, b_king, sq, Color::White);
+            self.update::<true>(threat_indices(w_king, b_king, sq, Color::White));
         }
-        acc.perform_update();
+        
+        let acc = &mut self.accumulator[self.head];
+        acc.w_input_layer.reset(*self.bias);
+        acc.b_input_layer.reset(*self.bias);
+        acc.perform_update(
+            &mut self.w_add,
+            &mut self.w_rm,
+            &mut self.b_add,
+            &mut self.b_rm,
+        );
+        self.clear();
     }
 
     pub fn full_reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
@@ -210,26 +224,33 @@ impl Nnue {
             self.reset(&board_clone, w_threats, b_threats);
             return;
         }
-        let acc = &mut self.accumulator[self.head];
         for w_threat_sq in w_threats ^ old_w_threats {
             match w_threats.has(w_threat_sq) {
-                true => acc.threat::<true>(w_king, b_king, w_threat_sq, Color::Black),
-                false => acc.threat::<false>(w_king, b_king, w_threat_sq, Color::Black),
-            }
+                true => {
+                    self.update::<true>(threat_indices(w_king, b_king, w_threat_sq, Color::Black))
+                }
+                false => {
+                    self.update::<false>(threat_indices(w_king, b_king, w_threat_sq, Color::Black))
+                }
+            };
         }
 
         for b_threat_sq in b_threats ^ old_b_threats {
             match b_threats.has(b_threat_sq) {
-                true => acc.threat::<true>(w_king, b_king, b_threat_sq, Color::White),
-                false => acc.threat::<false>(w_king, b_king, b_threat_sq, Color::White),
+                true => {
+                    self.update::<true>(threat_indices(w_king, b_king, b_threat_sq, Color::White))
+                }
+                false => {
+                    self.update::<false>(threat_indices(w_king, b_king, b_threat_sq, Color::White))
+                }
             }
         }
 
-        acc.update::<false>(w_king, b_king, from_sq, from_type, stm);
+        self.update::<false>(piece_indices(w_king, b_king, from_sq, from_type, stm));
 
         let to_sq = make_move.to;
         if let Some((captured, color)) = board.piece_on(to_sq).zip(board.color_on(to_sq)) {
-            acc.update::<false>(w_king, b_king, to_sq, captured, color);
+            self.update::<false>(piece_indices(w_king, b_king, to_sq, captured, color));
         }
 
         if let Some(ep) = board.en_passant() {
@@ -238,13 +259,13 @@ impl Nnue {
                 Color::Black => (Rank::Fourth, Rank::Third),
             };
             if from_type == Piece::Pawn && to_sq == Square::new(ep, stm_sixth) {
-                acc.update::<false>(
+                self.update::<false>(piece_indices(
                     w_king,
                     b_king,
                     Square::new(ep, stm_fifth),
                     Piece::Pawn,
                     !stm,
-                );
+                ));
             }
         }
         if Some(stm) == board.color_on(to_sq) {
@@ -253,46 +274,52 @@ impl Nnue {
                 Color::Black => Rank::Eighth,
             };
             if to_sq.file() > from_sq.file() {
-                acc.update::<true>(
+                self.update::<true>(piece_indices(
                     w_king,
                     b_king,
                     Square::new(File::G, stm_first),
                     Piece::King,
                     stm,
-                );
-                acc.update::<true>(
+                ));
+                self.update::<true>(piece_indices(
                     w_king,
                     b_king,
                     Square::new(File::F, stm_first),
                     Piece::Rook,
                     stm,
-                );
+                ));
             } else {
-                acc.update::<true>(
+                self.update::<true>(piece_indices(
                     w_king,
                     b_king,
                     Square::new(File::C, stm_first),
                     Piece::King,
                     stm,
-                );
-                acc.update::<true>(
+                ));
+                self.update::<true>(piece_indices(
                     w_king,
                     b_king,
                     Square::new(File::D, stm_first),
                     Piece::Rook,
                     stm,
-                );
+                ));
             }
         } else {
-            acc.update::<true>(
+            self.update::<true>(piece_indices(
                 w_king,
                 b_king,
                 to_sq,
                 make_move.promotion.unwrap_or(from_type),
                 stm,
-            );
+            ));
         }
-        acc.perform_update();
+        self.accumulator[self.head].perform_update(
+            &mut self.w_add,
+            &mut self.w_rm,
+            &mut self.b_add,
+            &mut self.b_rm,
+        );
+        self.clear();
     }
 
     pub fn unmake_move(&mut self) {
