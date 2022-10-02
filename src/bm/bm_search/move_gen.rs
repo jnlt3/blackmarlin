@@ -98,9 +98,11 @@ impl OrderedMoveGen {
 
     pub fn skip_quiets(&mut self) {
         self.phase = match self.phase {
-            Phase::GoodCaptures | Phase::Killers | Phase::GenQuiets | Phase::Quiets => {
-                Phase::BadCaptures
-            }
+            Phase::GoodCaptures
+            | Phase::Killers
+            | Phase::GenQuiets
+            | Phase::Quiets
+            | Phase::Refutation => Phase::BadCaptures,
             _ => return,
         }
     }
