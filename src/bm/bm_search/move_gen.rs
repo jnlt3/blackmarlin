@@ -17,7 +17,7 @@ enum Phase {
     GenCaptures,
     GoodCaptures,
     Killers,
-    Refutation,
+    Continuation,
     GenQuiets,
     Quiets,
     BadCaptures,
@@ -98,9 +98,11 @@ impl OrderedMoveGen {
 
     pub fn skip_quiets(&mut self) {
         self.phase = match self.phase {
-            Phase::GoodCaptures | Phase::Killers | Phase::GenQuiets | Phase::Quiets => {
-                Phase::BadCaptures
-            }
+            Phase::GoodCaptures
+            | Phase::Killers
+            | Phase::GenQuiets
+            | Phase::Quiets
+            | Phase::Continuation => Phase::BadCaptures,
             _ => return,
         }
     }
@@ -179,9 +181,9 @@ impl OrderedMoveGen {
                     return Some(killer);
                 }
             }
-            self.phase = Phase::Refutation;
+            self.phase = Phase::Continuation;
         }
-        if self.phase == Phase::Refutation {
+        if self.phase == Phase::Continuation {
             self.phase = Phase::GenQuiets;
             if self
                 .refutation
