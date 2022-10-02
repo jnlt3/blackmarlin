@@ -373,6 +373,15 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        if !Search::PV
+            && depth == 1
+            && improving
+            && eval >= beta
+            && compare_see(pos.board(), make_move, 0)
+        {
+            return beta;
+        }
+
         if Search::PV
             && is_capture
             && (opp_move.map_or(false, |opp_move| {
