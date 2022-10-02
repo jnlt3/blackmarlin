@@ -27,6 +27,9 @@ impl MoveEntry {
     }
 
     pub fn push(&mut self, mv: Move) {
+        if Some(mv) == self.moves[0] {
+            return;
+        }
         self.moves[1] = self.moves[0];
         self.moves[0] = Some(mv);
     }
