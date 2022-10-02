@@ -4,11 +4,11 @@ use super::table_types::{new_piece_to_table, PieceTo};
 use cozy_chess::Move;
 
 #[derive(Debug, Clone)]
-pub struct RefutationTable {
+pub struct MoveTable {
     table: PieceTo<Option<Move>>,
 }
 
-impl RefutationTable {
+impl MoveTable {
     pub fn new() -> Self {
         Self {
             table: new_piece_to_table(None),

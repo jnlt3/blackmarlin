@@ -12,7 +12,7 @@ use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::refutation::RefutationTable;
+use crate::bm::bm_util::move_table::MoveTable;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
 use crate::bm::uci;
@@ -118,7 +118,7 @@ pub struct LocalContext {
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     history: History,
-    refutation: RefutationTable,
+    refutation: MoveTable,
     killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     abort: bool,
@@ -163,11 +163,11 @@ impl LocalContext {
         &mut self.history
     }
 
-    pub fn get_refutation(&mut self) -> &RefutationTable {
+    pub fn get_refutation(&mut self) -> &MoveTable {
         &self.refutation
     }
 
-    pub fn get_refutation_mut(&mut self) -> &mut RefutationTable {
+    pub fn get_refutation_mut(&mut self) -> &mut MoveTable {
         &mut self.refutation
     }
 
@@ -464,7 +464,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
-                refutation: RefutationTable::new(),
+                refutation: MoveTable::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,

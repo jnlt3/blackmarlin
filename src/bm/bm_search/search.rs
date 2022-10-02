@@ -283,13 +283,18 @@ pub fn search<Search: SearchType>(
         false => None,
     };
 
+    let prev_move = match ply > 1 {
+        true => local_context.search_stack()[ply as usize - 2].move_played,
+        false => None,
+    };
+
     let prev_opp_move = match ply > 2 {
         true => local_context.search_stack()[ply as usize - 3].move_played,
         false => None,
     };
 
     let killers = local_context.get_k_table()[ply as usize];
-    let refutation = opp_move.and_then(|opp_move| local_context.get_refutation().get(opp_move));
+    let refutation = prev_move.and_then(|prev_move| local_context.get_refutation().get(prev_move));
 
     let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, refutation);
 
@@ -563,10 +568,10 @@ pub fn search<Search: SearchType>(
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
 
-                            if let Some(opp_move) = opp_move {
+                            if let Some(prev_move) = prev_move {
                                 local_context
                                     .get_refutation_mut()
-                                    .update(opp_move, make_move)
+                                    .update(prev_move, make_move)
                             }
                         }
                         local_context.get_hist_mut().update_history(
