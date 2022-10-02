@@ -17,6 +17,7 @@ enum Phase {
     GenCaptures,
     GoodCaptures,
     Killers,
+    Refutation,
     GenQuiets,
     Quiets,
     BadCaptures,
@@ -68,6 +69,8 @@ pub struct OrderedMoveGen {
     killers: MoveEntry,
     killer_index: usize,
 
+    refutation: Option<Move>,
+
     piece_moves: ArrayVec<PieceMoves, 18>,
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
@@ -75,12 +78,18 @@ pub struct OrderedMoveGen {
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        refutation: Option<Move>,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            refutation,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -124,6 +133,9 @@ impl OrderedMoveGen {
                     if Some(mv) == self.pv_move {
                         continue;
                     }
+                    if Some(mv) == self.refutation {
+                        self.refutation = None;
+                    }
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
@@ -158,13 +170,26 @@ impl OrderedMoveGen {
                     if Some(killer) == self.pv_move {
                         continue;
                     }
+                    if Some(killer) == self.refutation {
+                        self.refutation = None;
+                    }
                     if !pos.board().is_legal(killer) {
                         continue;
                     }
                     return Some(killer);
                 }
             }
+            self.phase = Phase::Refutation;
+        }
+        if self.phase == Phase::Refutation {
             self.phase = Phase::GenQuiets;
+            if self
+                .refutation
+                .filter(|&mv| pos.board().is_legal(mv))
+                .is_some()
+            {
+                return self.refutation;
+            }
         }
         if self.phase == Phase::GenQuiets {
             self.phase = Phase::Quiets;
@@ -173,6 +198,9 @@ impl OrderedMoveGen {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if Some(mv) == self.refutation {
                         continue;
                     }
                     if self.killers.contains(mv) {

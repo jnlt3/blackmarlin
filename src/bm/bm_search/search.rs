@@ -289,7 +289,9 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let refutation = opp_move.and_then(|opp_move| local_context.get_refutation().get(opp_move));
+
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, refutation);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -560,6 +562,12 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
+
+                            if let Some(opp_move) = opp_move {
+                                local_context
+                                    .get_refutation_mut()
+                                    .update(opp_move, make_move)
+                            }
                         }
                         local_context.get_hist_mut().update_history(
                             pos,
