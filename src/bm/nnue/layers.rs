@@ -46,7 +46,12 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         }
     }
 
-    fn update_chunk<const SIGN: i16>(&self, feature_indices: &[usize], reg: &mut [i16], chunk: Range<usize>) {
+    fn update_chunk<const SIGN: i16>(
+        &self,
+        feature_indices: &[usize],
+        reg: &mut [i16],
+        chunk: Range<usize>,
+    ) {
         for &index in feature_indices {
             for (out, &weight) in reg.iter_mut().zip(&self.weights.0[index][chunk.clone()]) {
                 *out += weight * SIGN;
@@ -74,7 +79,8 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     pub fn feed_forward(&self, inputs: &Align<[u8; INPUT]>, bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
 
-        #[cfg(target_feature = "avx2")] {
+        #[cfg(target_feature = "avx2")]
+        {
             use std::arch::x86_64::*;
             const VEC_SIZE: usize = std::mem::size_of::<__m256i>() / std::mem::size_of::<u8>();
 
@@ -84,7 +90,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                     let weights = &self.weights.0[bucket];
                     let ones = _mm256_set1_epi16(1);
                     let mut sum = _mm256_setzero_si256();
-                    for (inputs, weights) in inputs.0.chunks_exact(VEC_SIZE).zip(weights.chunks_exact(VEC_SIZE)) {
+                    for (inputs, weights) in inputs
+                        .0
+                        .chunks_exact(VEC_SIZE)
+                        .zip(weights.chunks_exact(VEC_SIZE))
+                    {
                         // SAFETY: input and weights are exactly 256 bits due to chunks_exact.
                         // input and weights are from Align<T> types, which are guaranteed to be aligned.
                         let inputs = _mm256_load_si256(inputs.as_ptr() as *const _);

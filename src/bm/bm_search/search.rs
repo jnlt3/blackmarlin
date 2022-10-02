@@ -474,7 +474,7 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if killers.contains(make_move) {
+            if Some(make_move) == refutation || killers.contains(make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
