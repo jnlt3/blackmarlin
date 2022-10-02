@@ -337,6 +337,7 @@ pub fn search<Search: SearchType>(
                 && ply != 0
                 && !entry.score().is_mate()
                 && entry.depth() + 2 >= depth
+                && depth >= (depth + ply) / 2
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
                 let s_beta = entry.score() - depth as i16 * 3;
