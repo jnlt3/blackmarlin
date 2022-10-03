@@ -298,6 +298,12 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
+
+    let mv_iir = match tt_entry {
+        Some(_) => 0,
+        None => iir(depth),
+    };
+
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -463,6 +469,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
+            reduction += mv_iir as i16;
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
@@ -481,10 +488,6 @@ pub fn search<Search: SearchType>(
         let lmr_depth = (depth as i16 - reduction) as u32;
 
         if moves_seen == 0 {
-            let mv_iir = match tt_entry {
-                Some(_) => 0,
-                None => iir(depth),
-            };
             let search_score = search::<Search>(
                 pos,
                 local_context,
