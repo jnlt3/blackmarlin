@@ -183,12 +183,25 @@ pub fn search<Search: SearchType>(
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
 
+    let opp_eval = match ply {
+        1.. => Some(local_context.search_stack()[ply as usize - 1].eval),
+        _ => None,
+    };
     let prev_move_eval = match ply {
         2.. => Some(local_context.search_stack()[ply as usize - 2].eval),
         _ => None,
     };
+    let prev_opp_eval = match ply {
+        3.. => Some(local_context.search_stack()[ply as usize - 3].eval),
+        _ => None,
+    };
+
     let improving = match prev_move_eval {
         Some(prev_move_eval) => !in_check && eval > prev_move_eval,
+        None => false,
+    };
+    let opp_improving = match opp_eval.zip(prev_opp_eval) {
+        Some((opp_eval, prev_opp_eval)) => opp_eval > prev_opp_eval,
         None => false,
     };
 
