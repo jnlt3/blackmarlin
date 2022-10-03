@@ -556,7 +556,12 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
-                        let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
+                        let mut amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
+                        if tt_entry.map_or(false, |entry| {
+                            matches!(entry.entry_type(), EntryType::UpperBound | EntryType::Exact)
+                        }) {
+                            amt += 1;
+                        }
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
