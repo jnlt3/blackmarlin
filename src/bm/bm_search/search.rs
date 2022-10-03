@@ -559,6 +559,7 @@ pub fn search<Search: SearchType>(
                         let mut amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if tt_entry.map_or(false, |entry| {
                             matches!(entry.entry_type(), EntryType::UpperBound | EntryType::Exact)
+                                && entry.depth() + 2 >= depth
                                 && entry.score() <= alpha
                         }) {
                             amt += 1;
