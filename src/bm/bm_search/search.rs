@@ -481,12 +481,16 @@ pub fn search<Search: SearchType>(
         let lmr_depth = (depth as i16 - reduction) as u32;
 
         if moves_seen == 0 {
+            let mv_iir = match tt_entry {
+                Some(_) => 0,
+                None => iir(depth),
+            };
             let search_score = search::<Search>(
                 pos,
                 local_context,
                 shared_context,
                 ply + 1,
-                depth - 1 + extension,
+                depth - (mv_iir + 1) + extension,
                 beta >> Next,
                 alpha >> Next,
             );
