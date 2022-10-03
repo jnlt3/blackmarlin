@@ -51,7 +51,7 @@ const fn rev_fp(depth: u32, improving: bool, opp_improving: bool) -> i16 {
         margin -= 49;
     }
     if opp_improving {
-        margin += 49;
+        margin += 25;
     }
     margin
 }
