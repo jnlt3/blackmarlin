@@ -353,7 +353,7 @@ pub fn search<Search: SearchType>(
                         s_beta - 1,
                         s_beta,
                     ),
-                    false => eval,
+                    false => q_search(pos, local_context, shared_context, ply, s_beta - 1, s_beta),
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
@@ -667,6 +667,9 @@ pub fn q_search(
 
     let mut move_gen = QSearchMoveGen::new();
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
+        if local_context.search_stack()[ply as usize].skip_move == Some(make_move) {
+            continue;
+        }
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())
