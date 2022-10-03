@@ -45,8 +45,15 @@ const fn do_rev_fp(depth: u32) -> bool {
     depth <= 8
 }
 
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 54 - improving as i16 * 49
+const fn rev_fp(depth: u32, improving: bool, opp_improving: bool) -> i16 {
+    let mut margin = depth as i16 * 54;
+    if improving {
+        margin -= 49;
+    }
+    if opp_improving {
+        margin += 49;
+    }
+    margin
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -216,7 +223,9 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        if do_rev_fp(depth)
+            && eval - rev_fp(depth, improving && nstm_threats.is_empty(), opp_improving) >= beta
+        {
             return eval;
         }
 
