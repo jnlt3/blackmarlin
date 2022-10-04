@@ -559,7 +559,7 @@ pub fn search<Search: SearchType>(
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
-                            killer_table[ply as usize].push(make_move);
+                            killer_table[ply as usize].push(make_move, (score - beta).raw());
                         }
                         local_context.get_hist_mut().update_history(
                             pos,
