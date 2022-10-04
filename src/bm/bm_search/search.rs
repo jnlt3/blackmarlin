@@ -213,6 +213,8 @@ pub fn search<Search: SearchType>(
             let q_search = q_search(pos, local_context, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
                 return q_search;
+            } else if q_search >= beta {
+                depth += 1;
             }
         }
 
