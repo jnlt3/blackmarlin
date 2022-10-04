@@ -357,26 +357,33 @@ pub fn search<Search: SearchType>(
                 };
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
-                if s_score < s_beta {
-                    extension = 1;
-                    if !Search::PV && multi_cut && s_score + 19 < s_beta {
-                        extension += 1;
-                    }
+                let mut update = |amt: i16| {
                     local_context.get_hist_mut().update_history(
                         pos,
                         &hist_indices,
                         make_move,
                         &[],
                         &[],
-                        depth as i16,
+                        amt,
                     );
-                } else if multi_cut && s_beta >= beta {
-                    /*
-                    Multi-cut:
-                    If a move isn't singular and the move that disproves the singularity
-                    our singular beta is above beta, we assume the move is good enough to beat beta
-                    */
-                    return s_beta;
+                };
+
+                if s_score < s_beta {
+                    extension = 1;
+                    if !Search::PV && multi_cut && s_score + 19 < s_beta {
+                        extension += 1;
+                    }
+                    update(depth as i16);
+                } else {
+                    update(-(depth as i16));
+                    if multi_cut && s_beta >= beta {
+                        /*
+                        Multi-cut:
+                        If a move isn't singular and the move that disproves the singularity
+                        our singular beta is above beta, we assume the move is good enough to beat beta
+                        */
+                        return s_beta;
+                    }
                 }
             }
         }

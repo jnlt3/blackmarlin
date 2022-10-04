@@ -8,21 +8,13 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 pub const MAX_HIST: i16 = 512;
 
 fn hist_stat(amt: i16) -> i16 {
-    (amt * 16).min(MAX_HIST)
+    (amt * 16).clamp(-MAX_HIST, MAX_HIST)
 }
 
-fn bonus(hist: &mut i16, amt: i16) {
+fn update(hist: &mut i16, amt: i16) {
     let change = hist_stat(amt);
-    let decay = (change as i32 * (*hist) as i32 / MAX_HIST as i32) as i16;
-    let increment = change - decay;
-    *hist += increment;
-}
-
-fn malus(hist: &mut i16, amt: i16) {
-    let change = hist_stat(amt);
-    let decay = (change as i32 * (*hist) as i32 / MAX_HIST as i32) as i16;
-    let decrement = change + decay;
-    *hist -= decrement;
+    let decay = (change.abs() as i32 * (*hist) as i32 / MAX_HIST as i32) as i16;
+    *hist += change - decay;
 }
 
 /// Contains information calculated to index the history tables
@@ -120,10 +112,10 @@ impl History {
         if !is_capture {
             self.update_quiet(pos, indices, make_move, quiets, amt);
         } else {
-            bonus(self.get_capture_mut(pos, make_move), amt);
+            update(self.get_capture_mut(pos, make_move), amt);
         }
         for &failed_move in captures {
-            malus(self.get_capture_mut(pos, failed_move), amt);
+            update(self.get_capture_mut(pos, failed_move), -amt);
         }
     }
 
@@ -135,17 +127,17 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
-        bonus(self.get_quiet_mut(pos, make_move), amt);
+        update(self.get_quiet_mut(pos, make_move), amt);
         for &failed_move in fails {
-            malus(self.get_quiet_mut(pos, failed_move), amt);
+            update(self.get_quiet_mut(pos, failed_move), -amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
-            bonus(counter_move_hist, amt);
+           update(counter_move_hist, amt);
             for &failed_move in fails {
                 let failed_hist = self
                     .get_counter_move_mut(pos, indices, failed_move)
                     .unwrap();
-                malus(failed_hist, amt);
+                update(failed_hist, -amt);
             }
         }
     }
