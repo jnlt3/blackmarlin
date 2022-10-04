@@ -370,6 +370,10 @@ pub fn search<Search: SearchType>(
                         &[],
                         depth as i16,
                     );
+                    if !is_capture {
+                        let killer_table = local_context.get_k_table();
+                        killer_table[ply as usize].push(make_move);
+                    }
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
