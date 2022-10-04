@@ -362,13 +362,15 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension += 1;
                     }
+
+                    let update = depth + (eval <= alpha) as u32 + (s_beta - 50 > beta) as u32;
                     local_context.get_hist_mut().update_history(
                         pos,
                         &hist_indices,
                         make_move,
                         &[],
                         &[],
-                        depth as i16,
+                        update as i16,
                     );
                 } else if multi_cut && s_beta >= beta {
                     /*
