@@ -334,8 +334,8 @@ impl Nnue {
             Color::White => (&acc.w_input_layer, &acc.b_input_layer),
             Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
         };
-        layers::sq_clipped_relu(*stm.get(), &mut incr.0);
-        layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
+        layers::sq_clipped_relu(stm.get(), &mut incr.0);
+        layers::sq_clipped_relu(nstm.get(), &mut incr.0[MID..]);
 
         let bucket = (piece_cnt / 4).min(7);
         layers::scale_network_output(self.out_layer.feed_forward(&incr, bucket))

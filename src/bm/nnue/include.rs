@@ -50,5 +50,22 @@ pub fn dense_from_bytes_i8<
             dense.0[i][j] = T::from(weight);
         }
     }
+    #[cfg(target_feature = "avx2")]
+    {
+        const VEC_SIZE: usize =
+            std::mem::size_of::<std::arch::x86_64::__m256i>() / std::mem::size_of::<u8>();
+        for weight_set in &mut dense.0 {
+            /*
+             * where each unit is 64 bit, we need to convert a, b, c, d to a, c, b, d for
+             * compatibility with avx2 optimized squared clipped relu
+             */
+            for chunk in weight_set.chunks_mut(VEC_SIZE) {
+                for i in VEC_SIZE / 4..VEC_SIZE / 2 {
+                    let j = i + VEC_SIZE / 4;
+                    (chunk[i], chunk[j]) = (chunk[j], chunk[i]);
+                }
+            }
+        }
+    }
     dense
 }

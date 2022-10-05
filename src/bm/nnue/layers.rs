@@ -7,7 +7,7 @@ const FT_SCALE: i16 = 255;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
-const SHIFT: i16 = 8;
+const SHIFT: i32 = 8;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, align(64))]
@@ -46,7 +46,12 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         }
     }
 
-    fn update_chunk<const SIGN: i16>(&self, feature_indices: &[usize], reg: &mut [i16], chunk: Range<usize>) {
+    fn update_chunk<const SIGN: i16>(
+        &self,
+        feature_indices: &[usize],
+        reg: &mut [i16],
+        chunk: Range<usize>,
+    ) {
         for &index in feature_indices {
             for (out, &weight) in reg.iter_mut().zip(&self.weights.0[index][chunk.clone()]) {
                 *out += weight * SIGN;
@@ -74,7 +79,8 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
     pub fn feed_forward(&self, inputs: &Align<[u8; INPUT]>, bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
 
-        #[cfg(target_feature = "avx2")] {
+        #[cfg(target_feature = "avx2")]
+        {
             use std::arch::x86_64::*;
             const VEC_SIZE: usize = std::mem::size_of::<__m256i>() / std::mem::size_of::<u8>();
 
@@ -84,7 +90,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                     let weights = &self.weights.0[bucket];
                     let ones = _mm256_set1_epi16(1);
                     let mut sum = _mm256_setzero_si256();
-                    for (inputs, weights) in inputs.0.chunks_exact(VEC_SIZE).zip(weights.chunks_exact(VEC_SIZE)) {
+                    for (inputs, weights) in inputs
+                        .0
+                        .chunks_exact(VEC_SIZE)
+                        .zip(weights.chunks_exact(VEC_SIZE))
+                    {
                         // SAFETY: input and weights are exactly 256 bits due to chunks_exact.
                         // input and weights are from Align<T> types, which are guaranteed to be aligned.
                         let inputs = _mm256_load_si256(inputs.as_ptr() as *const _);
@@ -133,7 +143,41 @@ pub fn scale_network_output(x: i32) -> i16 {
 }
 
 #[inline]
-pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
+pub fn sq_clipped_relu<const N: usize>(array: &[i16; N], out: &mut [u8]) {
+    #[cfg(target_feature = "avx2")]
+    {
+        use std::arch::x86_64::*;
+        const VEC_SIZE: usize = std::mem::size_of::<__m256i>() / std::mem::size_of::<i16>();
+        const CHUNK_SIZE: usize = VEC_SIZE * 2;
+        if N % CHUNK_SIZE == 0 {
+            unsafe {
+                let min = _mm256_setzero_si256();
+                let max = _mm256_load_si256(Align([MAX; VEC_SIZE]).0.as_ptr() as *const _);
+                let clamp_sq_shift = |mut reg: __m256i| -> __m256i {
+                    reg = _mm256_max_epi16(min, reg);
+                    reg = _mm256_min_epi16(max, reg);
+                    reg = _mm256_mullo_epi16(reg, reg);
+                    reg = _mm256_srli_epi16::<SHIFT>(reg);
+                    reg
+                };
+                for (inputs, outputs) in array.chunks(CHUNK_SIZE).zip(out.chunks_mut(CHUNK_SIZE)) {
+                    let reg_0 = _mm256_load_si256(inputs.as_ptr() as *const _);
+                    let reg_1 = _mm256_load_si256(inputs[VEC_SIZE..].as_ptr() as *const _);
+                    let reg_0 = clamp_sq_shift(reg_0);
+                    let reg_1 = clamp_sq_shift(reg_1);
+
+                    /*
+                     * The output of the below instruction is not concat(reg_0, reg_1) but rather
+                     * concat(reg_0[low], reg_1[low], reg_0[high], reg_1[high]) thus we have to
+                     * change the order we load the output weights in.
+                     */
+                    let out = _mm256_packus_epi16(reg_0, reg_1);
+                    _mm256_store_si256(outputs.as_mut_ptr() as *mut _, out);
+                }
+            }
+            return;
+        }
+    }
     for (&x, clipped) in array.iter().zip(out.iter_mut()) {
         let tmp = x.max(MIN).min(MAX) as u16;
         *clipped = ((tmp * tmp) >> SHIFT) as u8;
