@@ -48,9 +48,9 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([new_butterfly_table(-64); Color::NUM]),
-            capture: Box::new([new_butterfly_table(-64); Color::NUM]),
-            counter_move: Box::new([new_piece_to_table(new_piece_to_table(-64)); Color::NUM]),
+            quiet: Box::new([new_butterfly_table(64); Color::NUM]),
+            capture: Box::new([new_butterfly_table(64); Color::NUM]),
+            counter_move: Box::new([new_piece_to_table(new_piece_to_table(64)); Color::NUM]),
         }
     }
 
