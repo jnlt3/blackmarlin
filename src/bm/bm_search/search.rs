@@ -298,6 +298,9 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
+
+    let mut failed_lmr_cnt = 0;
+
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -529,6 +532,8 @@ pub fn search<Search: SearchType>(
                     zw,
                 );
                 score = zw_score << Next;
+            } else if lmr_depth < depth {
+                failed_lmr_cnt += 1;
             }
             /*
             If we don't get a fail low, this means the move has to be searched fully
@@ -564,7 +569,16 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
-                        let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
+                        let mut amt = depth as u32;
+                        if eval <= alpha {
+                            amt += 1;
+                        }
+                        if score - 50 > beta {
+                            amt += 1;
+                        }
+                        if failed_lmr_cnt >= moves_seen - 2 {
+                            amt += 1;
+                        }
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
