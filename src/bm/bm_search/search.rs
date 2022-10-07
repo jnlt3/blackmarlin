@@ -483,10 +483,10 @@ pub fn search<Search: SearchType>(
             if killers.contains(make_move) {
                 reduction -= 1;
             }
-            reduction = reduction.min(depth as i16 - 2).max(0);
+            reduction = reduction.min(depth as i16 + extension as i16 - 2).max(0);
         }
 
-        let lmr_depth = (depth as i16 - reduction) as u32;
+        let lmr_depth = (depth as i16 + extension as i16 - reduction) as u32;
 
         if moves_seen == 0 {
             let search_score = search::<Search>(
@@ -508,7 +508,7 @@ pub fn search<Search: SearchType>(
                 local_context,
                 shared_context,
                 ply + 1,
-                lmr_depth - 1 + extension,
+                lmr_depth - 1,
                 zw - 1,
                 zw,
             );
@@ -518,7 +518,7 @@ pub fn search<Search: SearchType>(
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
-            if lmr_depth < depth && score > alpha {
+            if lmr_depth < depth + extension && score > alpha {
                 let zw_score = search::<Search::Zw>(
                     pos,
                     local_context,
