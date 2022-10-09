@@ -301,6 +301,7 @@ pub fn search<Search: SearchType>(
         if Some(make_move) == skip_move {
             continue;
         }
+        let move_data = MoveData::from_move(pos.board(), make_move);
 
         move_exists = true;
         let is_capture = pos
@@ -427,6 +428,11 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let do_cache_p = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 5;
+        if do_cache_p && local_context.fail_cache().get(pos.board(), move_data) {
+            continue;
+        }
+
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -443,8 +449,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        local_context.search_stack_mut()[ply as usize].move_played =
-            Some(MoveData::from_move(pos.board(), make_move));
+        local_context.search_stack_mut()[ply as usize].move_played = Some(move_data);
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         let gives_check = !pos.board().checkers().is_empty();
@@ -512,6 +517,10 @@ pub fn search<Search: SearchType>(
                 zw,
             );
             score = lmr_score << Next;
+
+            if score < alpha {
+                local_context.fail_cache_mut().add(pos.board(), move_data);
+            }
 
             /*
             If no reductions occured in LMR we don't waste time re-searching
