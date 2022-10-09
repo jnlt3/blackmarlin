@@ -36,27 +36,11 @@ impl Quiet {
 struct Capture {
     mv: Move,
     score: i16,
-    good_capture: Option<bool>,
 }
 
 impl Capture {
     pub fn new(mv: Move, score: i16) -> Self {
-        Self {
-            mv,
-            score,
-            good_capture: None,
-        }
-    }
-
-    fn is_good_capture(&mut self, board: &Board) -> bool {
-        match self.good_capture {
-            Some(good_capture) => good_capture,
-            None => {
-                let good_capture = compare_see(board, self.mv, 0);
-                self.good_capture = Some(good_capture);
-                good_capture
-            }
-        }
+        Self { mv, score }
     }
 }
 
@@ -72,6 +56,24 @@ pub struct OrderedMoveGen {
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
+    bad_captures: ArrayVec<Capture, MAX_MOVES>,
+}
+
+fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
+    if array.is_empty() {
+        return None;
+    }
+    let mut best: Option<(U, usize)> = None;
+    for (index, mv) in array.iter().enumerate() {
+        let score = score(mv);
+        if let Some((best_score, _)) = &best {
+            if &score <= best_score {
+                continue;
+            }
+        }
+        best = Some((score, index));
+    }
+    best.map(|(_, index)| index)
 }
 
 impl OrderedMoveGen {
@@ -84,6 +86,7 @@ impl OrderedMoveGen {
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
+            bad_captures: ArrayVec::new(),
         }
     }
 
@@ -128,25 +131,18 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score));
+                    self.captures.push(Capture::new(mv, score))
                 }
             }
         }
         if self.phase == Phase::GoodCaptures {
-            let mut best_capture = None;
-            for (index, capture) in self.captures.iter_mut().enumerate() {
-                if !capture.is_good_capture(pos.board()) {
+            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
+                let capture = self.captures.swap_remove(index);
+                if !compare_see(pos.board(), capture.mv, 0) {
+                    self.bad_captures.push(capture);
                     continue;
                 }
-                if let Some((score, _)) = best_capture {
-                    if capture.score <= score {
-                        continue;
-                    }
-                }
-                best_capture = Some((capture.score, index));
-            }
-            if let Some((_, index)) = best_capture {
-                return self.captures.swap_pop(index).map(|capture| capture.mv);
+                return Some(capture.mv);
             }
             self.phase = Phase::Killers;
         }
@@ -195,32 +191,14 @@ impl OrderedMoveGen {
             }
         }
         if self.phase == Phase::Quiets {
-            let mut best_quiet = None;
-            for (index, quiet) in self.quiets.iter_mut().enumerate() {
-                if let Some((score, _)) = best_quiet {
-                    if quiet.score <= score {
-                        continue;
-                    }
-                }
-                best_quiet = Some((quiet.score, index));
-            }
-            if let Some((_, index)) = best_quiet {
+            if let Some(index) = select_highest(&self.quiets, |quiet| quiet.score) {
                 return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
             }
             self.phase = Phase::BadCaptures;
         }
         if self.phase == Phase::BadCaptures {
-            let mut best_capture = None;
-            for (index, capture) in self.captures.iter_mut().enumerate() {
-                if let Some((score, _)) = best_capture {
-                    if capture.score <= score {
-                        continue;
-                    }
-                }
-                best_capture = Some((capture.score, index));
-            }
-            if let Some((_, index)) = best_capture {
-                return self.captures.swap_pop(index).map(|capture| capture.mv);
+            if let Some(index) = select_highest(&self.bad_captures, |capture| capture.score) {
+                return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
             }
         }
         None
