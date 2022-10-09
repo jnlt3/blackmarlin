@@ -518,10 +518,6 @@ pub fn search<Search: SearchType>(
             );
             score = lmr_score << Next;
 
-            if score < alpha {
-                local_context.fail_cache_mut().add(pos.board(), move_data);
-            }
-
             /*
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
@@ -552,6 +548,10 @@ pub fn search<Search: SearchType>(
                     alpha >> Next,
                 );
                 score = search_score << Next;
+            }
+
+            if score < alpha {
+                local_context.fail_cache_mut().add(pos.board(), move_data);
             }
         }
 

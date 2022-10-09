@@ -37,11 +37,13 @@ impl FailCache {
 
     pub fn get(&self, board: &Board, mv: MoveData) -> bool {
         let index = (board.hash() as usize) >> 48;
-        self.cache[index] == Entry::from_move_data(mv)
+        let move_data = Entry::from_move_data(mv);
+        self.cache[index ^ (move_data.data as usize)] == move_data
     }
 
     pub fn add(&mut self, board: &Board, mv: MoveData) {
         let index = (board.hash() as usize) >> 48;
-        self.cache[index] = Entry::from_move_data(mv)
+        let move_data = Entry::from_move_data(mv);
+        self.cache[index ^ (move_data.data as usize)] = Entry::from_move_data(mv)
     }
 }
