@@ -24,18 +24,18 @@ impl Entry {
 }
 
 #[derive(Debug, Clone)]
-pub struct FailCache {
+pub struct MoveCache {
     cache: Box<[Entry; 65536]>,
 }
 
-impl FailCache {
+impl MoveCache {
     pub fn new() -> Self {
         Self {
             cache: Box::new([Entry::new_invalid(); 65536]),
         }
     }
 
-    pub fn get(&self, board: &Board, mv: MoveData) -> bool {
+    pub fn has(&self, board: &Board, mv: MoveData) -> bool {
         let index = (board.hash() as usize) >> 48;
         let move_data = Entry::from_move_data(mv);
         self.cache[index ^ (move_data.data as usize)] == move_data

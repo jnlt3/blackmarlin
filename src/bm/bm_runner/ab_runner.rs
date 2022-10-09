@@ -5,7 +5,7 @@ use std::time::Instant;
 use cozy_chess::{Board, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
-use crate::bm::bm_search::fail_cache::FailCache;
+use crate::bm::bm_search::move_cache::MoveCache;
 use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
@@ -119,7 +119,7 @@ pub struct LocalContext {
     sel_depth: u32,
     history: History,
     killer_moves: Vec<MoveEntry>,
-    fail_cache: FailCache,
+    move_cache: MoveCache,
     nodes: Nodes,
     abort: bool,
 }
@@ -178,12 +178,12 @@ impl LocalContext {
         &mut self.tt_misses
     }
 
-    pub fn fail_cache(&self) -> &FailCache {
-        &self.fail_cache
+    pub fn move_cache(&self) -> &MoveCache {
+        &self.move_cache
     }
 
-    pub fn fail_cache_mut(&mut self) -> &mut FailCache {
-        &mut self.fail_cache
+    pub fn move_cache_mut(&mut self) -> &mut MoveCache {
+        &mut self.move_cache
     }
 
     #[inline]
@@ -464,7 +464,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
-                fail_cache: FailCache::new(),
+                move_cache: MoveCache::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,

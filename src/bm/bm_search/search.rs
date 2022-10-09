@@ -76,6 +76,14 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     depth.saturating_sub(r).max(1)
 }
 
+const fn do_cache_prune(depth: u32) -> bool {
+    depth <= 3
+}
+
+const fn save_to_cache(depth: u32) -> bool {
+    depth >= 3
+}
+
 const fn iir(depth: u32) -> u32 {
     if depth >= 2 {
         1
@@ -428,11 +436,6 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_cache_p = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 5;
-        if do_cache_p && local_context.fail_cache().get(pos.board(), move_data) {
-            continue;
-        }
-
         /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -447,6 +450,11 @@ pub fn search<Search: SearchType>(
             )
         {
             continue;
+        }
+
+        let do_cache_p = !Search::PV && do_cache_prune(depth);
+        if do_cache_p && local_context.move_cache().has(pos.board(), move_data) {
+            return beta;
         }
 
         local_context.search_stack_mut()[ply as usize].move_played = Some(move_data);
@@ -549,10 +557,6 @@ pub fn search<Search: SearchType>(
                 );
                 score = search_score << Next;
             }
-
-            if score < alpha {
-                local_context.fail_cache_mut().add(pos.board(), move_data);
-            }
         }
 
         pos.unmake_move();
@@ -571,6 +575,9 @@ pub fn search<Search: SearchType>(
                         .update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
+                    if save_to_cache(depth) && score >= beta {
+                        local_context.move_cache_mut().add(pos.board(), move_data);
+                    }
                     if !local_context.abort() {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
