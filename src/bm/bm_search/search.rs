@@ -76,14 +76,6 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     depth.saturating_sub(r).max(1)
 }
 
-const fn do_cache_prune(depth: u32) -> bool {
-    depth <= 3
-}
-
-const fn save_to_cache(depth: u32) -> bool {
-    depth >= 3
-}
-
 const fn iir(depth: u32) -> u32 {
     if depth >= 2 {
         1
@@ -305,7 +297,12 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
-    while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
+    while let Some(make_move) = move_gen.next(
+        pos,
+        local_context.move_cache(),
+        local_context.get_hist(),
+        &hist_indices,
+    ) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -452,11 +449,6 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        let do_cache_p = !Search::PV && do_cache_prune(depth);
-        if do_cache_p && local_context.move_cache().has(pos.board(), move_data) {
-            return beta;
-        }
-
         local_context.search_stack_mut()[ply as usize].move_played = Some(move_data);
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
@@ -575,7 +567,7 @@ pub fn search<Search: SearchType>(
                         .update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
-                    if save_to_cache(depth) && score >= beta {
+                    if score >= beta {
                         local_context.move_cache_mut().add(pos.board(), move_data);
                     }
                     if !local_context.abort() {

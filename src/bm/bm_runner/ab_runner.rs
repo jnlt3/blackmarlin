@@ -155,7 +155,7 @@ impl SharedContext {
 }
 
 impl LocalContext {
-    pub fn get_hist(&mut self) -> &History {
+    pub fn get_hist(&self) -> &History {
         &self.history
     }
 
