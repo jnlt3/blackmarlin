@@ -9,8 +9,7 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
-use super::move_gen::OrderedMoveGen;
-use super::q_move_gen::QSearchMoveGen;
+use super::move_gen::{OrderedMoveGen, QSearchMoveGen};
 use super::see::compare_see;
 
 pub trait SearchType {
