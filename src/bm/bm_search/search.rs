@@ -141,6 +141,12 @@ pub fn search<Search: SearchType>(
 
     let initial_alpha = alpha;
 
+    let opp_move = match ply != 0 {
+        true => local_context.search_stack()[ply as usize - 1].move_played,
+        false => None,
+    };
+    let hist_indices = HistoryIndices::new(opp_move);
+
     /*
     Transposition Table
     If we get a TT hit and the search is deep enough,
@@ -153,20 +159,21 @@ pub fn search<Search: SearchType>(
         best_move = Some(entry.table_move());
         if !Search::PV && entry.depth() >= depth {
             let score = entry.score();
-            match entry.entry_type() {
-                Exact => {
-                    return score;
-                }
-                LowerBound => {
-                    if score >= beta {
-                        return score;
-                    }
-                }
-                UpperBound => {
-                    if score <= alpha {
-                        return score;
-                    }
-                }
+            let cutoff = match entry.entry_type() {
+                Exact => true,
+                LowerBound => score >= beta,
+                UpperBound => score <= alpha,
+            };
+            if cutoff && score >= beta {
+                local_context.get_hist_mut().update_history_single(
+                    pos,
+                    &hist_indices,
+                    entry.table_move(),
+                    depth as i16,
+                );
+            }
+            if cutoff {
+                return score;
             }
         }
     } else {
@@ -277,11 +284,6 @@ pub fn search<Search: SearchType>(
 
     let mut highest_score = None;
 
-    let opp_move = match ply != 0 {
-        true => local_context.search_stack()[ply as usize - 1].move_played,
-        false => None,
-    };
-
     let prev_opp_move = match ply > 2 {
         true => local_context.search_stack()[ply as usize - 3].move_played,
         false => None,
@@ -296,7 +298,6 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(opp_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -361,12 +362,10 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension += 1;
                     }
-                    local_context.get_hist_mut().update_history(
+                    local_context.get_hist_mut().update_history_single(
                         pos,
                         &hist_indices,
                         make_move,
-                        &[],
-                        &[],
                         depth as i16,
                     );
                 } else if multi_cut && s_beta >= beta {

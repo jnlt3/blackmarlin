@@ -104,6 +104,16 @@ impl History {
         )
     }
 
+    pub fn update_history_single(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+        amt: i16,
+    ) {
+        self.update_history(pos, indices, make_move, &[], &[], amt);
+    }
+
     pub fn update_history(
         &mut self,
         pos: &Position,
