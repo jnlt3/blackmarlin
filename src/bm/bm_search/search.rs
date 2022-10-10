@@ -297,12 +297,7 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
-    while let Some(make_move) = move_gen.next(
-        pos,
-        local_context.move_cache(),
-        local_context.get_hist(),
-        &hist_indices,
-    ) {
+    while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -329,6 +324,10 @@ pub fn search<Search: SearchType>(
 
         let mut extension = 0;
         let mut score;
+
+        if !Search::PV && local_context.move_cache().has(pos.board(), move_data) {
+            extension = extension.max(1);
+        }
 
         /*
         Singular Extensions:
@@ -363,9 +362,10 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    extension = 1;
+                    local_context.move_cache_mut().add(pos.board(), move_data);
+                    extension = extension.max(1);
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
-                        extension += 1;
+                        extension = extension.max(2);
                     }
                     local_context.get_hist_mut().update_history(
                         pos,
@@ -567,9 +567,6 @@ pub fn search<Search: SearchType>(
                         .update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
-                    if score >= beta {
-                        local_context.move_cache_mut().add(pos.board(), move_data);
-                    }
                     if !local_context.abort() {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
