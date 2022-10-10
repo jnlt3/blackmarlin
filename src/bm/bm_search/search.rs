@@ -567,12 +567,10 @@ pub fn search<Search: SearchType>(
                         .update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
-                    if score >= beta {
-                        local_context.move_cache_mut().add(pos.board(), move_data);
-                    }
                     if !local_context.abort() {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
+                            local_context.move_cache_mut().add(pos.board(), move_data);
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
                         }
