@@ -325,10 +325,6 @@ pub fn search<Search: SearchType>(
         let mut extension = 0;
         let mut score;
 
-        if !Search::PV && local_context.move_cache().has(pos.board(), move_data) {
-            extension = extension.max(1);
-        }
-
         /*
         Singular Extensions:
         If a move can't be beaten by any other move, we assume the move
@@ -362,7 +358,6 @@ pub fn search<Search: SearchType>(
 
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
-                    local_context.move_cache_mut().add(pos.board(), move_data);
                     extension = extension.max(1);
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension = extension.max(2);
@@ -384,6 +379,10 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
+        }
+
+        if local_context.move_cache().has(pos.board(), move_data) {
+            extension = extension.max(1);
         }
 
         if Search::PV
@@ -724,6 +723,12 @@ pub fn q_search(
             _ if highest_score >= beta => LowerBound,
             _ => Exact,
         };
+
+        if entry_type == EntryType::Exact {
+            local_context
+                .move_cache_mut()
+                .add(pos.board(), MoveData::from_move(pos.board(), best_move));
+        }
 
         shared_context
             .get_t_table()
