@@ -301,6 +301,7 @@ pub fn search<Search: SearchType>(
         if Some(make_move) == skip_move {
             continue;
         }
+        let move_data = MoveData::from_move(pos.board(), make_move);
 
         move_exists = true;
         let is_capture = pos
@@ -443,8 +444,7 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        local_context.search_stack_mut()[ply as usize].move_played =
-            Some(MoveData::from_move(pos.board(), make_move));
+        local_context.search_stack_mut()[ply as usize].move_played = Some(move_data);
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         let gives_check = !pos.board().checkers().is_empty();
@@ -480,6 +480,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if local_context.move_cache().has(pos.board(), move_data) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
@@ -554,6 +557,9 @@ pub fn search<Search: SearchType>(
             best_move = Some(make_move);
             if score > alpha {
                 if Search::PV || (ply == 0 && moves_seen == 1) {
+                    local_context
+                        .move_cache_mut()
+                        .insert(pos.board(), move_data);
                     let (child_pv, len) = {
                         let child = &local_context.search_stack()[ply as usize + 1];
                         (child.pv, child.pv_len)

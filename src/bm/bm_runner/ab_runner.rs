@@ -14,6 +14,7 @@ use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
+use crate::bm::bm_util::xor_set::XorSet;
 use crate::bm::uci;
 
 use super::time::TimeManager;
@@ -118,6 +119,7 @@ pub struct LocalContext {
     sel_depth: u32,
     history: History,
     killer_moves: Vec<MoveEntry>,
+    move_cache: XorSet,
     nodes: Nodes,
     abort: bool,
 }
@@ -159,6 +161,14 @@ impl LocalContext {
 
     pub fn get_hist_mut(&mut self) -> &mut History {
         &mut self.history
+    }
+
+    pub fn move_cache(&self) -> &XorSet {
+        &self.move_cache
+    }
+
+    pub fn move_cache_mut(&mut self) -> &mut XorSet {
+        &mut self.move_cache
     }
 
     #[inline]
@@ -454,6 +464,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
+                move_cache: XorSet::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
