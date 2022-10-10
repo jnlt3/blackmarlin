@@ -1,9 +1,7 @@
 use cozy_chess::Move;
 
-use super::move_cache::MoveCache;
 use super::move_entry::MoveEntry;
 use super::see::{calculate_see, compare_see, move_value};
-use crate::bm::bm_runner::ab_runner::MoveData;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
@@ -104,7 +102,6 @@ impl OrderedMoveGen {
     pub fn next(
         &mut self,
         pos: &Position,
-        mv_cache: &MoveCache,
         hist: &History,
         hist_indices: &HistoryIndices,
     ) -> Option<Move> {
@@ -186,12 +183,7 @@ impl OrderedMoveGen {
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            let move_data = MoveData::from_move(pos.board(), mv);
-                            let cache_score = match mv_cache.has(pos.board(), move_data) {
-                                true => 128,
-                                false => 0,
-                            };
-                            quiet_hist + counter_move_hist + cache_score
+                            quiet_hist + counter_move_hist
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));

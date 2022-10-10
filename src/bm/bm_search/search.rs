@@ -297,12 +297,7 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
-    while let Some(make_move) = move_gen.next(
-        pos,
-        local_context.move_cache(),
-        local_context.get_hist(),
-        &hist_indices,
-    ) {
+    while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -397,6 +392,7 @@ pub fn search<Search: SearchType>(
             extension = extension.max(1);
         }
 
+        let prev_fail_high = local_context.move_cache().has(pos.board(), move_data);
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
@@ -427,7 +423,12 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
+        let do_hp = !Search::PV
+            && non_mate_line
+            && !prev_fail_high
+            && moves_seen > 0
+            && depth <= 7
+            && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -437,7 +438,8 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune =
+            !Search::PV && !prev_fail_high && non_mate_line && moves_seen > 0 && depth <= 7;
 
         if do_see_prune
             && !compare_see(
@@ -568,9 +570,9 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !local_context.abort() {
+                        local_context.move_cache_mut().add(pos.board(), move_data);
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
-                            local_context.move_cache_mut().add(pos.board(), move_data);
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
                         }
