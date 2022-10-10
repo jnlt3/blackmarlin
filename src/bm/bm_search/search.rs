@@ -169,7 +169,7 @@ pub fn search<Search: SearchType>(
                     pos,
                     &hist_indices,
                     entry.table_move(),
-                    depth as i16,
+                    entry.depth() as i16,
                 );
             }
             if cutoff {
