@@ -517,7 +517,12 @@ pub fn search<Search: SearchType>(
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
-            if lmr_depth < depth && score > alpha {
+
+            let cancel_research = {
+                let tt_entry = shared_context.get_t_table().get(pos.board());
+                depth > 1 && tt_entry.is_none() && iir(depth) != 0 && lmr_depth == depth - 1
+            };
+            if lmr_depth < depth && score > alpha && !cancel_research {
                 let zw_score = search::<Search::Zw>(
                     pos,
                     local_context,
