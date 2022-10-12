@@ -89,7 +89,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn see_fp(depth: u32, quiet: bool) -> i16 {
-    depth as i16 * if quiet { 20 } else { 81 }
+    (depth as i16 - 1) * if quiet { 40 } else { 81 }
 }
 
 const fn hp(depth: u32) -> i32 {
