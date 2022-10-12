@@ -433,13 +433,7 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
 
-        if do_see_prune
-            && !compare_see(
-                pos.board(),
-                make_move,
-                (alpha - eval - see_fp(depth) + 1).raw(),
-            )
-        {
+        if do_see_prune && !compare_see(pos.board(), make_move, -see_fp(depth)) {
             continue;
         }
 
