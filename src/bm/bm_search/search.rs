@@ -482,7 +482,8 @@ pub fn search<Search: SearchType>(
             if killers.contains(make_move) {
                 reduction -= 1;
             }
-            reduction = reduction.min(depth as i16 - 2).max(0);
+            let limit = (depth as i16 - 2).min(depth as i16 / 2);
+            reduction = reduction.min(limit).max(0);
         }
 
         let lmr_depth = (depth as i16 - reduction) as u32;
