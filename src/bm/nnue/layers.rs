@@ -46,7 +46,12 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         }
     }
 
-    fn update_chunk<const SIGN: i16>(&self, feature_indices: &[usize], reg: &mut [i16], chunk: Range<usize>) {
+    fn update_chunk<const SIGN: i16>(
+        &self,
+        feature_indices: &[usize],
+        reg: &mut [i16],
+        chunk: Range<usize>,
+    ) {
         for &index in feature_indices {
             for (out, &weight) in reg.iter_mut().zip(&self.weights.0[index][chunk.clone()]) {
                 *out += weight * SIGN;
@@ -70,11 +75,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
         Self { weights, bias }
     }
 
-    #[inline]
     pub fn feed_forward(&self, inputs: &Align<[u8; INPUT]>, bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
 
-        #[cfg(target_feature = "avx2")] {
+        #[cfg(target_feature = "avx2")]
+        {
             use std::arch::x86_64::*;
             const VEC_SIZE: usize = std::mem::size_of::<__m256i>() / std::mem::size_of::<u8>();
 
@@ -84,7 +89,11 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                     let weights = &self.weights.0[bucket];
                     let ones = _mm256_set1_epi16(1);
                     let mut sum = _mm256_setzero_si256();
-                    for (inputs, weights) in inputs.0.chunks_exact(VEC_SIZE).zip(weights.chunks_exact(VEC_SIZE)) {
+                    for (inputs, weights) in inputs
+                        .0
+                        .chunks_exact(VEC_SIZE)
+                        .zip(weights.chunks_exact(VEC_SIZE))
+                    {
                         // SAFETY: input and weights are exactly 256 bits due to chunks_exact.
                         // input and weights are from Align<T> types, which are guaranteed to be aligned.
                         let inputs = _mm256_load_si256(inputs.as_ptr() as *const _);
@@ -118,6 +127,41 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                 }
             }
         }
+        #[cfg(target_feature = "neon")]
+        {
+            use std::arch::aarch64::*;
+            const VEC_SIZE: usize = std::mem::size_of::<int8x16_t>() / std::mem::size_of::<u8>();
+            // SAFETY: Only enabled on NEON
+            if INPUT % VEC_SIZE == 0 {
+                unsafe {
+                    let weights = &self.weights.0[bucket];
+                    let mut sum = vld1q_dup_s32(&0);
+                    for (inputs, weights) in inputs
+                        .0
+                        .chunks_exact(VEC_SIZE)
+                        .zip(weights.chunks_exact(VEC_SIZE))
+                    {
+                        let inputs = vld1q_u8(inputs.as_ptr());
+                        let weights = vld1q_s8(weights.as_ptr());
+
+                        let inputs_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(inputs)));
+                        let inputs_high = vreinterpretq_s16_u16(vmovl_high_u8(inputs));
+
+                        let weights_low = vmovl_s8(vget_low_s8(weights));
+                        let weights_high = vmovl_high_s8(weights);
+
+                        let low_mul = vmulq_s16(inputs_low, weights_low);
+                        let high_mul = vmulq_s16(inputs_high, weights_high);
+                        let mul_sum = vqaddq_s16(low_mul, high_mul);
+                        let low_sum = vmovl_s16(vget_low_s16(mul_sum));
+                        let high_sum = vmovl_high_s16(mul_sum);
+
+                        sum = vaddq_s32(sum, vaddq_s32(low_sum, high_sum));
+                    }
+                    return out + vaddlvq_s32(sum) as i32;
+                }
+            }
+        }
 
         let weights = &self.weights.0[bucket];
         for (&input, &weight) in inputs.0.iter().zip(weights) {
@@ -134,8 +178,20 @@ pub fn scale_network_output(x: i32) -> i16 {
 
 #[inline]
 pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
-    for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-        let tmp = x.max(MIN).min(MAX) as u16;
-        *clipped = ((tmp * tmp) >> SHIFT) as u8;
+    cfg_if! {
+        if #[cfg(target_feature = "neon")]
+        {
+            for (array, out) in array.chunks(256).zip(out.chunks_mut(256)) {
+                for (&x, clipped) in array.iter().zip(out.iter_mut()) {
+                    let tmp = x.max(MIN).min(MAX) as u16;
+                    *clipped = ((tmp * tmp) >> SHIFT) as u8;
+                }
+            }
+        } else {
+            for (&x, clipped) in array.iter().zip(out.iter_mut()) {
+                let tmp = x.max(MIN).min(MAX) as u16;
+                *clipped = ((tmp * tmp) >> SHIFT) as u8;
+            }
+        }
     }
 }
