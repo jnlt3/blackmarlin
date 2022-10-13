@@ -75,7 +75,6 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
         Self { weights, bias }
     }
 
-    #[inline]
     pub fn feed_forward(&self, inputs: &Align<[u8; INPUT]>, bucket: usize) -> i32 {
         let mut out = self.bias.0[bucket];
 
@@ -125,6 +124,41 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                     let upper = _mm_extract_epi32::<1>(sum);
                     out += lower + upper;
                     return out;
+                }
+            }
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            use std::arch::aarch64::*;
+            const VEC_SIZE: usize = std::mem::size_of::<int8x16_t>() / std::mem::size_of::<u8>();
+            // SAFETY: Only enabled on NEON
+            if INPUT % VEC_SIZE == 0 {
+                unsafe {
+                    let weights = &self.weights.0[bucket];
+                    let mut sum = vld1q_dup_s32(&0);
+                    for (inputs, weights) in inputs
+                        .0
+                        .chunks_exact(VEC_SIZE)
+                        .zip(weights.chunks_exact(VEC_SIZE))
+                    {
+                        let inputs = vld1q_u8(inputs.as_ptr());
+                        let weights = vld1q_s8(weights.as_ptr());
+
+                        let inputs_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(inputs)));
+                        let inputs_high = vreinterpretq_s16_u16(vmovl_high_u8(inputs));
+
+                        let weights_low = vmovl_s8(vget_low_s8(weights));
+                        let weights_high = vmovl_high_s8(weights);
+
+                        let low_mul = vmulq_s16(inputs_low, weights_low);
+                        let high_mul = vmulq_s16(inputs_high, weights_high);
+                        let mul_sum = vqaddq_s16(low_mul, high_mul);
+                        let low_sum = vmovl_s16(vget_low_s16(mul_sum));
+                        let high_sum = vmovl_high_s16(mul_sum);
+
+                        sum = vaddq_s32(sum, vaddq_s32(low_sum, high_sum));
+                    }
+                    return out + vaddlvq_s32(sum) as i32;
                 }
             }
         }
