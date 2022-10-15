@@ -308,17 +308,21 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
-        let h_score = match is_capture {
+        let history = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
-            false => {
-                (local_context.get_hist().get_quiet(pos, make_move)
-                    + local_context
-                        .get_hist()
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
-            }
+            false => local_context.get_hist().get_quiet(pos, make_move),
         };
+
+        let counter_move_history = local_context
+            .get_hist()
+            .get_counter_move(pos, &hist_indices, make_move)
+            .unwrap_or_default();
+
+        let h_score = match is_capture {
+            true => history,
+            false => (history + counter_move_history) / 2,
+        };
+
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
         let mut extension = 0;
@@ -480,6 +484,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if is_capture || counter_move_history > 384 {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
