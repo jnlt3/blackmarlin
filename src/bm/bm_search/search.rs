@@ -553,7 +553,7 @@ pub fn search<Search: SearchType>(
             highest_score = Some(score);
             best_move = Some(make_move);
             if score > alpha {
-                if Search::PV || (ply == 0 && moves_seen == 1) {
+                if (Search::PV || (ply == 0 && moves_seen == 1)) && !local_context.abort() {
                     let (child_pv, len) = {
                         let child = &local_context.search_stack()[ply as usize + 1];
                         (child.pv, child.pv_len)
