@@ -150,7 +150,10 @@ pub fn search<Search: SearchType>(
     */
     if let Some(entry) = tt_entry {
         *local_context.tt_hits() += 1;
-        best_move = (entry.depth() > 2).then_some(entry.table_move());
+        best_move = match entry.depth() {
+            3.. => Some(entry.table_move()),
+            _ => None,
+        };
         if !Search::PV && entry.depth() >= depth {
             let score = entry.score();
             match entry.entry_type() {
