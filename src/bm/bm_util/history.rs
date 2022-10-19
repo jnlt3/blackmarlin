@@ -11,6 +11,13 @@ fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
 }
 
+fn update(hist: &mut i16, amt: i16) {
+    match amt {
+        0.. => bonus(hist, amt),
+        _ => malus(hist, amt),
+    }
+}
+
 fn bonus(hist: &mut i16, amt: i16) {
     let change = hist_stat(amt);
     let decay = (change as i32 * (*hist) as i32 / MAX_HIST as i32) as i16;
@@ -43,6 +50,9 @@ pub struct History {
     quiet: Box<[Butterfly<i16>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+
+    quiet_score: i16,
+    counter_move_score: i16,
 }
 
 impl History {
@@ -51,6 +61,8 @@ impl History {
             quiet: Box::new([new_butterfly_table(0); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            quiet_score: 0,
+            counter_move_score: 0,
         }
     }
 
@@ -104,6 +116,22 @@ impl History {
         )
     }
 
+    pub fn get_weighted_quiet(
+        &self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> i16 {
+        let quiet = self.get_quiet(pos, make_move);
+        let counter_move = self
+            .get_counter_move(pos, indices, make_move)
+            .unwrap_or(quiet);
+
+        let weighted_sum = (quiet as i32) * (self.quiet_score + MAX_HIST) as i32
+            + (counter_move as i32) * (self.counter_move_score + MAX_HIST) as i32;
+        (weighted_sum / (MAX_HIST as i32 * 2)) as i16
+    }
+
     pub fn update_history(
         &mut self,
         pos: &Position,
@@ -135,17 +163,25 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
+        let quiet = self.get_quiet(pos, make_move);
+        update(&mut self.quiet_score, quiet);
         bonus(self.get_quiet_mut(pos, make_move), amt);
         for &failed_move in fails {
+            let quiet = self.get_quiet(pos, failed_move);
+            update(&mut self.quiet_score, -quiet);
             malus(self.get_quiet_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
+            let quiet = *counter_move_hist;
             bonus(counter_move_hist, amt);
+            update(&mut self.counter_move_score, quiet);
             for &failed_move in fails {
                 let failed_hist = self
                     .get_counter_move_mut(pos, indices, failed_move)
                     .unwrap();
+                let quiet = *failed_hist;
                 malus(failed_hist, amt);
+                update(&mut self.counter_move_score, -quiet);
             }
         }
     }
