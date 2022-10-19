@@ -14,7 +14,7 @@ fn hist_stat(amt: i16) -> i16 {
 fn update(hist: &mut i16, amt: i16) {
     match amt {
         0.. => bonus(hist, amt),
-        _ => malus(hist, amt),
+        _ => malus(hist, -amt),
     }
 }
 
@@ -127,9 +127,10 @@ impl History {
             .get_counter_move(pos, indices, make_move)
             .unwrap_or(quiet);
 
-        let weighted_sum = (quiet as i32) * (self.quiet_score + MAX_HIST) as i32
-            + (counter_move as i32) * (self.counter_move_score + MAX_HIST) as i32;
-        (weighted_sum / (MAX_HIST as i32 * 2)) as i16
+        let weighted_sum = (quiet as i32) * (self.quiet_score + MAX_HIST + 1) as i32
+            + (counter_move as i32) * (self.counter_move_score + MAX_HIST + 1) as i32;
+        let sum = self.quiet_score + self.counter_move_score;
+        (weighted_sum / (sum as i32 + MAX_HIST as i32 * 2 + 2)) as i16
     }
 
     pub fn update_history(
@@ -164,24 +165,24 @@ impl History {
         amt: i16,
     ) {
         let quiet = self.get_quiet(pos, make_move);
-        update(&mut self.quiet_score, quiet);
+        update(&mut self.quiet_score, quiet.signum());
         bonus(self.get_quiet_mut(pos, make_move), amt);
         for &failed_move in fails {
             let quiet = self.get_quiet(pos, failed_move);
-            update(&mut self.quiet_score, -quiet);
+            update(&mut self.quiet_score, -quiet.signum());
             malus(self.get_quiet_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             let quiet = *counter_move_hist;
             bonus(counter_move_hist, amt);
-            update(&mut self.counter_move_score, quiet);
+            update(&mut self.counter_move_score, quiet.signum());
             for &failed_move in fails {
                 let failed_hist = self
                     .get_counter_move_mut(pos, indices, failed_move)
                     .unwrap();
                 let quiet = *failed_hist;
                 malus(failed_hist, amt);
-                update(&mut self.counter_move_score, -quiet);
+                update(&mut self.counter_move_score, -quiet.signum());
             }
         }
     }
