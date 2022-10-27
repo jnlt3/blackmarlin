@@ -111,7 +111,7 @@ pub fn search<Search: SearchType>(
 ) -> Evaluation {
     local_context.search_stack_mut()[ply as usize].pv_len = 0;
 
-    if ply != 0 && shared_context.abort_search(local_context.nodes()) {
+    if ply != 0 && (local_context.abort() || shared_context.abort_search(local_context.nodes())) {
         local_context.trigger_abort();
         return Evaluation::min();
     }
@@ -630,6 +630,11 @@ pub fn q_search(
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
+    if local_context.abort() || shared_context.abort_search(local_context.nodes()) {
+        local_context.trigger_abort();
+        return Evaluation::min();
+    }
+
     local_context.increment_nodes();
 
     local_context.update_sel_depth(ply);
