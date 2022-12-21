@@ -9,6 +9,7 @@ use arrayvec::ArrayVec;
 use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
+const PIECE_VAL_WEIGHT: i16 = 1;
 
 #[derive(PartialEq, Eq)]
 enum Phase {
@@ -128,7 +129,8 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score =
+                        hist.get_capture(pos, mv) + move_value(pos.board(), mv) * PIECE_VAL_WEIGHT;
                     self.captures.push(Capture::new(mv, score))
                 }
             }
@@ -229,7 +231,8 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score =
+                        hist.get_capture(pos, mv) + move_value(pos.board(), mv) * PIECE_VAL_WEIGHT;
                     self.captures.push(Capture::new(mv, score));
                 }
                 false
