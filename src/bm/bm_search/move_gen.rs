@@ -9,7 +9,7 @@ use arrayvec::ArrayVec;
 use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
-const PIECE_VAL_WEIGHT: i16 = 1;
+const PIECE_VAL_WEIGHT: i16 = 2;
 
 #[derive(PartialEq, Eq)]
 enum Phase {
