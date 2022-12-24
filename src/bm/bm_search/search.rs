@@ -367,7 +367,7 @@ pub fn search<Search: SearchType>(
                         make_move,
                         &[],
                         &[],
-                        depth as i16,
+                        (depth + extension) as i16,
                     );
                 } else if multi_cut && s_beta >= beta {
                     /*
