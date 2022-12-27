@@ -382,7 +382,7 @@ pub fn search<Search: SearchType>(
                 && moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
-                && h_score >= history::MAX_HIST * 4 / 5
+                && h_score >= history::MAX_HIST * 15 / 16
             {
                 extension = extension.max(1);
             }
