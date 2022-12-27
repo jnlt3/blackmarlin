@@ -381,6 +381,7 @@ pub fn search<Search: SearchType>(
         }
 
         if Search::PV
+            && improving
             && is_capture
             && (opp_move.map_or(false, |opp_move| {
                 opp_move.capture && opp_move.to == make_move.to
