@@ -4,7 +4,7 @@ use cozy_chess::{Board, Color, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{self, HistoryIndices};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
@@ -377,6 +377,14 @@ pub fn search<Search: SearchType>(
                     */
                     return s_beta;
                 }
+            }
+            if !Search::PV
+                && moves_seen == 0
+                && entry.table_move() == make_move
+                && ply != 0
+                && h_score >= history::MAX_HIST * 4 / 5
+            {
+                extension = extension.max(1);
             }
         }
 
