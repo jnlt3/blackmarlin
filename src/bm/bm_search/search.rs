@@ -379,6 +379,7 @@ pub fn search<Search: SearchType>(
                 }
             }
             if !Search::PV
+                && depth >= 7
                 && moves_seen == 0
                 && entry.table_move() == make_move
                 && ply != 0
