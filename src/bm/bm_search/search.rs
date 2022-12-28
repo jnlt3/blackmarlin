@@ -4,7 +4,7 @@ use cozy_chess::{Board, Color, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{HistoryIndices, self};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
@@ -695,7 +695,7 @@ pub fn q_search(
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
             }
-            if stand_pat + 500 <= alpha && cap_hist < 0 {
+            if stand_pat + 500 <= alpha && cap_hist < -history::MAX_HIST / 2 {
                 continue;
             }
             pos.make_move(make_move);
