@@ -684,6 +684,7 @@ pub fn q_search(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
         if in_check || is_capture {
+            let cap_hist = local_context.get_hist().get_capture(pos, make_move);
             /*
             SEE beta cutoff: (Koivisto)
             If SEE considerably improves evaluation above beta, we can return beta early
@@ -691,7 +692,7 @@ pub fn q_search(
             if stand_pat + see - 193 >= beta {
                 return beta;
             }
-            if stand_pat + 200 <= alpha && see <= 0 {
+            if stand_pat + 200 <= alpha && (see <= 0 || cap_hist <= 0) {
                 continue;
             }
             pos.make_move(make_move);
