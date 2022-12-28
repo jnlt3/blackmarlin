@@ -691,7 +691,7 @@ pub fn q_search(
             if stand_pat + see - 193 >= beta {
                 return beta;
             }
-            if stand_pat + 200 <= alpha && see <= 0 {
+            if stand_pat + 200 + see / 10 <= alpha && see <= 0 {
                 continue;
             }
             pos.make_move(make_move);
