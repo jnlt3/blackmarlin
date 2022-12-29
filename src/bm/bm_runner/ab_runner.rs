@@ -325,6 +325,7 @@ impl AbRunner {
                         depth,
                         alpha,
                         beta,
+                        false,
                     );
                     nodes = local_context.nodes();
                     if depth > 1 && local_context.abort() {
