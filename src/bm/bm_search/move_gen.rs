@@ -2,6 +2,7 @@ use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
 use super::see::{calculate_see, compare_see, move_value};
+use crate::bm::bm_runner::ab_runner::MoveData;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
@@ -52,6 +53,8 @@ pub struct OrderedMoveGen {
     killers: MoveEntry,
     killer_index: usize,
 
+    opp_move: Option<MoveData>,
+
     piece_moves: ArrayVec<PieceMoves, 18>,
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
@@ -77,12 +80,13 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry, opp_move: Option<MoveData>) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            opp_move,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -128,7 +132,10 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    if self.opp_move.map_or(false, |opp_move| mv.to == opp_move.to) {
+                        score += 3200;
+                    }
                     self.captures.push(Capture::new(mv, score))
                 }
             }
