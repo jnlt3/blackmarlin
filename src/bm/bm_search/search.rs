@@ -437,7 +437,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && depth <= 7
-            && move_value < depth as i16 * 200;
+            && move_value < 500 + depth as i16 * 200;
 
         if do_see_prune
             && !compare_see(
