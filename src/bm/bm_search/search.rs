@@ -358,7 +358,7 @@ pub fn search<Search: SearchType>(
                 local_context.search_stack_mut()[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 19 < s_beta {
+                    if !Search::PV && multi_cut && s_score + 19 < s_beta && h_score > 0 {
                         extension += 1;
                     }
                     local_context.get_hist_mut().update_history(
