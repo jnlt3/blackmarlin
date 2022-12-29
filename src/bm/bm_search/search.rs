@@ -10,7 +10,7 @@ use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::{OrderedMoveGen, QSearchMoveGen};
-use super::see::compare_see;
+use super::see::{compare_see, move_value};
 
 pub trait SearchType {
     const NM: bool;
@@ -308,6 +308,8 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
+        let move_value = move_value(pos.board(), make_move);
+
         let h_score = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
             false => {
@@ -431,7 +433,11 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && depth <= 7
+            && move_value < depth as i16 * 200;
 
         if do_see_prune
             && !compare_see(
