@@ -134,7 +134,7 @@ impl OrderedMoveGen {
                     }
                     let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     if self.opp_move.map_or(false, |opp_move| mv.to == opp_move.to) {
-                        score += 3200;
+                        score += 128;
                     }
                     self.captures.push(Capture::new(mv, score))
                 }
