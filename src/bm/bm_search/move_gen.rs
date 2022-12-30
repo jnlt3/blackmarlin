@@ -80,7 +80,12 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry, opp_move: Option<MoveData>) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        opp_move: Option<MoveData>,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
@@ -133,7 +138,10 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    if self.opp_move.map_or(false, |opp_move| mv.to == opp_move.to) {
+                    if self
+                        .opp_move
+                        .map_or(false, |opp_move| opp_move.capture && mv.to == opp_move.to)
+                    {
                         score += 3200;
                     }
                     self.captures.push(Capture::new(mv, score))
