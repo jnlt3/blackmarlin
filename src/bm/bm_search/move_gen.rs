@@ -142,7 +142,7 @@ impl OrderedMoveGen {
                         .opp_move
                         .map_or(false, |opp_move| opp_move.capture && mv.to == opp_move.to)
                     {
-                        score += 3200;
+                        score += 128;
                     }
                     self.captures.push(Capture::new(mv, score))
                 }
