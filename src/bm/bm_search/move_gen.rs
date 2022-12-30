@@ -3,7 +3,7 @@ use cozy_chess::Move;
 use super::move_entry::MoveEntry;
 use super::see::{calculate_see, compare_see, move_value};
 use crate::bm::bm_runner::ab_runner::MoveData;
-use crate::bm::bm_util::history::History;
+use crate::bm::bm_util::history::{History, self};
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
@@ -134,7 +134,7 @@ impl OrderedMoveGen {
                     }
                     let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     if self.opp_move.map_or(false, |opp_move| mv.to == opp_move.to) {
-                        score += 128;
+                        score += history::MAX_HIST * 2;
                     }
                     self.captures.push(Capture::new(mv, score))
                 }
