@@ -677,7 +677,12 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QSearchMoveGen::new();
+    let opp_move = match ply != 0 {
+        true => local_context.search_stack()[ply as usize - 1].move_played,
+        false => None,
+    };
+
+    let mut move_gen = QSearchMoveGen::new(opp_move);
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()
@@ -694,6 +699,8 @@ pub fn q_search(
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
             }
+            local_context.search_stack_mut()[ply as usize].move_played =
+                Some(MoveData::from_move(pos.board(), make_move));
             pos.make_move(make_move);
             let search_score = q_search(
                 pos,

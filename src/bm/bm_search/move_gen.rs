@@ -2,6 +2,7 @@ use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
 use super::see::{calculate_see, compare_see, move_value};
+use crate::bm::bm_runner::ab_runner::MoveData;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
@@ -212,13 +213,16 @@ enum QPhase {
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<Capture, MAX_MOVES>,
+
+    opp_move: Option<MoveData>,
 }
 
 impl QSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(opp_move: Option<MoveData>) -> Self {
         Self {
             phase: QPhase::GenCaptures,
             captures: ArrayVec::new(),
+            opp_move,
         }
     }
 
@@ -229,7 +233,10 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    if self.opp_move.map_or(false, |opp_move| opp_move.to == mv.to) {
+                        score += 128;
+                    }
                     self.captures.push(Capture::new(mv, score));
                 }
                 false
