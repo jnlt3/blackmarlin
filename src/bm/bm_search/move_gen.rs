@@ -142,11 +142,12 @@ impl OrderedMoveGen {
                     }
                     let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
 
-                    let immediate_recapture =
-                        self.opp_move.map_or(false, |opp_move| mv.to == opp_move.to);
+                    let immediate_recapture = self
+                        .opp_move
+                        .map_or(false, |opp_move| opp_move.capture && mv.to == opp_move.to);
                     let late_recapture = self
                         .prev_opp_move
-                        .map_or(false, |opp_move| mv.to == opp_move.to);
+                        .map_or(false, |opp_move| opp_move.capture && mv.to == opp_move.to);
                     if immediate_recapture || late_recapture {
                         score += 128;
                     }
