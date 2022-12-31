@@ -479,7 +479,10 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if killers.contains(make_move) {
+            if killers.get(0) == Some(make_move) {
+                reduction -= 2;
+            }
+            if killers.get(1) == Some(make_move) {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
