@@ -380,14 +380,13 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        if Search::PV
-            && is_capture
+        let is_recapture = is_capture
             && (opp_move.map_or(false, |opp_move| {
                 opp_move.capture && opp_move.to == make_move.to
             }) || prev_opp_move.map_or(false, |opp_move| {
                 opp_move.capture && opp_move.to == make_move.to
-            }))
-        {
+            }));
+        if Search::PV && is_recapture {
             extension = extension.max(1);
         }
 
@@ -476,6 +475,9 @@ pub fn search<Search: SearchType>(
             if !Search::PV {
                 reduction += 1;
             };
+            if !Search::PV && is_recapture {
+                reduction -= 1;
+            }
             if !improving {
                 reduction += 1;
             }
