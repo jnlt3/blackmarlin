@@ -196,6 +196,7 @@ pub fn search<Search: SearchType>(
         Color::White => b_threats,
         Color::Black => w_threats,
     };
+    let mut razor_failed = false;
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -208,6 +209,7 @@ pub fn search<Search: SearchType>(
 
         let razor_margin = razor(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
+            razor_failed = true;
             let zw = alpha - razor_margin;
             let q_search = q_search(pos, local_context, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
@@ -480,6 +482,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if razor_failed {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
