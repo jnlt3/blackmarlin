@@ -128,7 +128,8 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    score += hist.get_quiet(pos, mv) / 16;
                     self.captures.push(Capture::new(mv, score))
                 }
             }
