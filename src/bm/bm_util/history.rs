@@ -85,25 +85,25 @@ impl History {
     pub fn get_quiet_pt(&self, pos: &Position, make_move: Move) -> i16 {
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         let stm = pos.board().side_to_move();
-        self.quiet[stm as usize][current_piece as usize][make_move.to as usize]
+        self.quiet_pt[stm as usize][current_piece as usize][make_move.to as usize]
     }
 
     fn get_quiet_pt_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         let stm = pos.board().side_to_move();
-        &mut self.quiet[stm as usize][current_piece as usize][make_move.to as usize]
+        &mut self.quiet_pt[stm as usize][current_piece as usize][make_move.to as usize]
     }
 
     pub fn get_capture_pt(&self, pos: &Position, make_move: Move) -> i16 {
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         let stm = pos.board().side_to_move();
-        self.capture[stm as usize][current_piece as usize][make_move.to as usize]
+        self.capture_pt[stm as usize][current_piece as usize][make_move.to as usize]
     }
 
     fn get_capture_pt_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         let stm = pos.board().side_to_move();
-        &mut self.capture[stm as usize][current_piece as usize][make_move.to as usize]
+        &mut self.capture_pt[stm as usize][current_piece as usize][make_move.to as usize]
     }
 
     pub fn get_counter_move(
