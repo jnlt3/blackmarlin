@@ -689,7 +689,7 @@ pub fn q_search(
             If SEE considerably improves evaluation above beta, we can return beta early
             */
             if stand_pat + see - 193 >= beta {
-                return beta;
+                return stand_pat + see;
             }
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
