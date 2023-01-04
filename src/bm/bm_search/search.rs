@@ -52,8 +52,8 @@ const fn do_razor(depth: u32) -> bool {
     depth <= 3
 }
 
-const fn razor(depth: u32) -> i16 {
-    depth as i16 * 200
+const fn razor(depth: u32, stm_threat: bool) -> i16 {
+    (depth as i16 + stm_threat as i16) * 200
 }
 
 fn do_nmp<Search: SearchType>(
@@ -192,9 +192,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threats, nstm_threats) = match pos.board().side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -206,7 +206,7 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
-        let razor_margin = razor(depth);
+        let razor_margin = razor(depth, !stm_threats.is_empty());
         if do_razor(depth) && eval + razor_margin <= alpha {
             let zw = alpha - razor_margin;
             let q_search = q_search(pos, local_context, shared_context, ply, zw, zw + 1);
