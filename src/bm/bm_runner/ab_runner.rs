@@ -118,6 +118,7 @@ pub struct LocalContext {
     sel_depth: u32,
     history: History,
     killer_moves: Vec<MoveEntry>,
+    play_weak: Option<Color>,
     nodes: Nodes,
     abort: bool,
 }
@@ -184,6 +185,18 @@ impl LocalContext {
     #[inline]
     pub fn search_stack_mut(&mut self) -> &mut [SearchStack] {
         &mut self.search_stack
+    }
+
+    pub fn is_weak_side(&self, color: Color) -> bool {
+        self.play_weak == Some(color)
+    }
+
+    pub fn set_weak_side(&mut self, color: Color) {
+        self.play_weak = Some(color);
+    }
+
+    pub fn reset_weak_side(&mut self) {
+        self.play_weak = None;
     }
 
     #[inline]
@@ -458,6 +471,7 @@ impl AbRunner {
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
                 stm: Color::White,
+                play_weak: None,
             },
             position,
             chess960: false,

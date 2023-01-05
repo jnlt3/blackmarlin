@@ -56,6 +56,14 @@ const fn razor(depth: u32) -> i16 {
     depth as i16 * 200
 }
 
+fn do_weak_prune(depth: u32, eval: i16, beta: i16) -> bool {
+    depth >= 8 && eval >= beta
+}
+
+fn weak_depth(depth: u32) -> u32 {
+    depth / 2
+}
+
 fn do_nmp<Search: SearchType>(
     board: &Board,
     depth: u32,
@@ -191,6 +199,8 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let weak = local_context.is_weak_side(pos.board().side_to_move());
+
     let (w_threats, b_threats) = pos.threats();
     let nstm_threats = match pos.board().side_to_move() {
         Color::White => b_threats,
@@ -263,6 +273,24 @@ pub fn search<Search: SearchType>(
                 if verified {
                     return score;
                 }
+            }
+        }
+
+        if !weak && do_weak_prune(depth, eval.raw(), beta.raw()) {
+            let zw = beta >> Next;
+            local_context.set_weak_side(pos.board().side_to_move());
+            let search_score = search::<NoNm>(
+                pos,
+                local_context,
+                shared_context,
+                ply + 1,
+                weak_depth(depth),
+                zw,
+                zw + 1,
+            );
+            local_context.reset_weak_side();
+            if search_score >= beta {
+                return search_score;
             }
         }
     }
@@ -406,12 +434,17 @@ pub fn search<Search: SearchType>(
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
+        let lmp_depth = match weak {
+            true => depth / 2,
+            false => depth,
+        } as usize;
+
         if non_mate_line
             && !is_capture
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                    .get(lmp_depth, improving as usize)
         {
             move_gen.skip_quiets();
             continue;
