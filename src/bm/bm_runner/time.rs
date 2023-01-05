@@ -122,7 +122,7 @@ impl TimeManager {
 
         let move_cnt_factor = 1.05_f32.powf(move_change_cnt as f32);
 
-        let winnability_factor = 1.0 + (200 - current_eval.abs()) as f32 / 1000.0;
+        let winnability_factor = 0.9 + (200 - current_eval.abs()).max(0) as f32 / 1000.0;
 
         let max_duration = self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0;
         self.normal_duration
