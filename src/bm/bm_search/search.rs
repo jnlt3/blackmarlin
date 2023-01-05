@@ -339,7 +339,7 @@ pub fn search<Search: SearchType>(
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
                 let margin = match is_capture {
-                    true => 2,
+                    true => 3,
                     false => 4,
                 };
                 let s_beta = entry.score() - margin * (depth as i16);
