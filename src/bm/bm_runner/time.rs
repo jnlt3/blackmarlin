@@ -136,12 +136,6 @@ impl TimeManager {
         self.abort_now.store(false, Ordering::SeqCst);
         *self.board.lock().unwrap() = board.clone();
 
-        let mut move_cnt = 0;
-        board.generate_moves(|piece_moves| {
-            move_cnt += piece_moves.into_iter().count();
-            false
-        });
-
         let mut infinite = true;
 
         let mut w_time = TIME_DEFAULT;
@@ -197,19 +191,14 @@ impl TimeManager {
         let no_manage = infinite || move_time.is_some();
         self.no_manage.store(no_manage, Ordering::SeqCst);
 
-        if move_cnt == 0 {
-            self.target_duration.store(0, Ordering::SeqCst);
-        } else if let Some(move_time) = move_time {
+        if let Some(move_time) = move_time {
             self.target_duration
                 .store(move_time.as_millis() as u32, Ordering::SeqCst);
         } else {
             let max_time = time.as_millis() as u32 * 4 / 5;
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
-            let default = if move_cnt > 1 {
-                (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time)
-            } else {
-                0
-            };
+            let default =
+                (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time);
             self.same_move_depth.store(0, Ordering::SeqCst);
             self.move_change_cnt.store(0, Ordering::SeqCst);
             self.normal_duration.store(default, Ordering::SeqCst);
