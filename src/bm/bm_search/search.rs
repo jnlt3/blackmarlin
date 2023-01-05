@@ -44,8 +44,8 @@ const fn do_rev_fp(depth: u32) -> bool {
     depth <= 8
 }
 
-const fn rev_fp(depth: u32, improving: bool, even: bool) -> i16 {
-    depth as i16 * 54 - improving as i16 * 49 + even as i16 * 49
+const fn rev_fp(depth: u32, improving: bool, root_diff: u16) -> i16 {
+    depth as i16 * 54 - improving as i16 * 49 + 49_u16.saturating_sub(root_diff) as i16
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -197,7 +197,16 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
 
-    let even = eval.raw().abs() < 200;
+    let w_eval = match pos.board().side_to_move() {
+        Color::White => eval,
+        Color::Black => -eval,
+    };
+    let w_root_eval = match local_context.stm() {
+        Color::White => local_context.eval(),
+        Color::Black => -local_context.eval(),
+    };
+    let diff = w_eval.raw().abs_diff(w_root_eval.raw());
+
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -205,7 +214,7 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth)
-            && eval - rev_fp(depth, improving && nstm_threats.is_empty(), even) >= beta
+            && eval - rev_fp(depth, improving && nstm_threats.is_empty(), diff) >= beta
         {
             return eval;
         }
