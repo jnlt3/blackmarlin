@@ -44,8 +44,8 @@ const fn do_rev_fp(depth: u32) -> bool {
     depth <= 8
 }
 
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 54 - improving as i16 * 49
+const fn rev_fp(depth: u32, improving: bool, last_move_hist: i16) -> i16 {
+    depth as i16 * 54 - improving as i16 * 49 + last_move_hist / 16
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -202,7 +202,12 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        let last_move_hist = local_context
+            .search_stack()
+            .get(ply as usize - 1)
+            .map_or(0, |ss| ss.move_hist);
+        let rev_fp_margin = rev_fp(depth, improving && nstm_threats.is_empty(), last_move_hist);
+        if do_rev_fp(depth) && eval - rev_fp_margin >= beta {
             return eval;
         }
 
@@ -232,6 +237,7 @@ pub fn search<Search: SearchType>(
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
+            local_context.search_stack_mut()[ply as usize].move_hist = 0;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
@@ -340,6 +346,7 @@ pub fn search<Search: SearchType>(
             {
                 let s_beta = entry.score() - depth as i16 * 3;
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
+                local_context.search_stack_mut()[ply as usize].move_hist = h_score;
 
                 let multi_cut = depth >= 5;
                 let s_score = match multi_cut {
@@ -445,6 +452,8 @@ pub fn search<Search: SearchType>(
 
         local_context.search_stack_mut()[ply as usize].move_played =
             Some(MoveData::from_move(pos.board(), make_move));
+        local_context.search_stack_mut()[ply as usize].move_hist = h_score;
+
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         let gives_check = !pos.board().checkers().is_empty();
