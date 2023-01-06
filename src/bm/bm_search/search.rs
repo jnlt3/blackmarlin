@@ -4,7 +4,7 @@ use cozy_chess::{Board, Color, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{self, HistoryIndices};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
@@ -297,6 +297,10 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
+
+    let mut old_best_hist = -history::MAX_HIST;
+    let mut best_hist = old_best_hist;
+
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -319,6 +323,12 @@ pub fn search<Search: SearchType>(
                     / 2
             }
         };
+
+        old_best_hist = best_hist;
+        if h_score > best_hist {
+            best_hist = h_score;
+        }
+
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
         let mut extension = 0;
@@ -480,6 +490,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if h_score >= old_best_hist {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
