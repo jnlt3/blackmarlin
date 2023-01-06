@@ -45,7 +45,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 }
 
 const fn rev_fp(depth: u32, improving: bool, last_move_hist: i16) -> i16 {
-    depth as i16 * 54 - improving as i16 * 49 + last_move_hist / 16
+    depth as i16 * 54 - improving as i16 * 49 + last_move_hist / 8
 }
 
 const fn do_razor(depth: u32) -> bool {
