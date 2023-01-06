@@ -297,7 +297,7 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move);
-    while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
+    while let Some(make_move) = move_gen.next(pos, local_context.get_hist(ply), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
         }
@@ -309,11 +309,11 @@ pub fn search<Search: SearchType>(
             .has(make_move.to);
 
         let h_score = match is_capture {
-            true => local_context.get_hist().get_capture(pos, make_move),
+            true => local_context.get_hist(ply).get_capture(pos, make_move),
             false => {
-                (local_context.get_hist().get_quiet(pos, make_move)
+                (local_context.get_hist(ply).get_quiet(pos, make_move)
                     + local_context
-                        .get_hist()
+                        .get_hist(ply)
                         .get_counter_move(pos, &hist_indices, make_move)
                         .unwrap_or_default())
                     / 2
@@ -361,7 +361,7 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + 19 < s_beta {
                         extension += 1;
                     }
-                    local_context.get_hist_mut().update_history(
+                    local_context.get_hist_mut(ply).update_history(
                         pos,
                         &hist_indices,
                         make_move,
@@ -568,7 +568,7 @@ pub fn search<Search: SearchType>(
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
                         }
-                        local_context.get_hist_mut().update_history(
+                        local_context.get_hist_mut(ply).update_history(
                             pos,
                             &hist_indices,
                             make_move,
@@ -678,7 +678,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QSearchMoveGen::new();
-    while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
+    while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist(ply)) {
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())

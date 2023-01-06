@@ -117,6 +117,7 @@ pub struct LocalContext {
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     history: History,
+    low_ply_history: History,
     killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     abort: bool,
@@ -153,12 +154,18 @@ impl SharedContext {
 }
 
 impl LocalContext {
-    pub fn get_hist(&mut self) -> &History {
-        &self.history
+    pub fn get_hist(&mut self, ply: u32) -> &History {
+        match ply {
+            0..=4 => &self.low_ply_history,
+            _ => &self.history,
+        }
     }
 
-    pub fn get_hist_mut(&mut self) -> &mut History {
-        &mut self.history
+    pub fn get_hist_mut(&mut self, ply: u32) -> &mut History {
+        match ply {
+            0..=4 => &mut self.low_ply_history,
+            _ => &mut self.history,
+        }
     }
 
     #[inline]
@@ -454,6 +461,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
+                low_ply_history: History::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
