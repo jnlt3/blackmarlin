@@ -207,7 +207,7 @@ pub fn search<Search: SearchType>(
             .get(ply as usize - 1)
             .map_or(0, |ss| ss.move_hist);
         let rev_fp_margin = rev_fp(depth, improving && nstm_threats.is_empty(), last_move_hist);
-        if do_rev_fp(depth) && eval - rev_fp_margin >= beta {
+        if eval >= beta && do_rev_fp(depth) && eval - rev_fp_margin >= beta {
             return eval;
         }
 
