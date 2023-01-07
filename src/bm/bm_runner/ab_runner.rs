@@ -156,14 +156,14 @@ impl SharedContext {
 impl LocalContext {
     pub fn get_hist(&mut self, ply: u32) -> &History {
         match ply {
-            0..=4 => &self.low_ply_history,
+            0..=8 => &self.low_ply_history,
             _ => &self.history,
         }
     }
 
     pub fn get_hist_mut(&mut self, ply: u32) -> &mut History {
         match ply {
-            0..=4 => &mut self.low_ply_history,
+            0..=8 => &mut self.low_ply_history,
             _ => &mut self.history,
         }
     }
