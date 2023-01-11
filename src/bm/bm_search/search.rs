@@ -126,7 +126,7 @@ pub fn search<Search: SearchType>(
     At depth 0, we run Quiescence Search
     */
     if depth == 0 || ply >= MAX_PLY {
-        return q_search(pos, local_context, shared_context, ply, alpha, beta);
+        return q_search(pos, local_context, shared_context, ply, 0, alpha, beta);
     }
 
     let skip_move = local_context.search_stack()[ply as usize].skip_move;
@@ -209,7 +209,7 @@ pub fn search<Search: SearchType>(
         let razor_margin = razor(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
             let zw = alpha - razor_margin;
-            let q_search = q_search(pos, local_context, shared_context, ply, zw, zw + 1);
+            let q_search = q_search(pos, local_context, shared_context, ply, 0, zw, zw + 1);
             if q_search <= zw {
                 return q_search;
             }
@@ -627,6 +627,7 @@ pub fn q_search(
     local_context: &mut LocalContext,
     shared_context: &SharedContext,
     ply: u32,
+    q_ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
@@ -691,7 +692,8 @@ pub fn q_search(
             if stand_pat + see - 193 >= beta {
                 return beta;
             }
-            if stand_pat + 200 <= alpha && see <= 0 {
+            let margin = (200 - q_ply as i16 * 20).max(100);
+            if stand_pat + margin <= alpha && see <= 0 {
                 continue;
             }
             pos.make_move(make_move);
@@ -700,6 +702,7 @@ pub fn q_search(
                 local_context,
                 shared_context,
                 ply + 1,
+                q_ply + 1,
                 beta >> Next,
                 alpha >> Next,
             );
