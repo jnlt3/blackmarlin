@@ -692,7 +692,7 @@ pub fn q_search(
             if stand_pat + see - 193 >= beta {
                 return beta;
             }
-            let margin = (200 - q_ply as i16 * 20).max(100);
+            let margin = (200 - q_ply as i16 * 50).max(100);
             if stand_pat + margin <= alpha && see <= 0 {
                 continue;
             }
