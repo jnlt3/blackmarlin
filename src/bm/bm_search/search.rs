@@ -643,6 +643,7 @@ pub fn q_search(
     }
 
     let initial_alpha = alpha;
+    let mut tt_move = None;
     let tt_entry = shared_context.get_t_table().get(pos.board());
     if let Some(entry) = tt_entry {
         match entry.entry_type() {
@@ -658,6 +659,7 @@ pub fn q_search(
                 }
             }
         }
+        tt_move = Some(entry.table_move());
     }
 
     let mut highest_score = None;
@@ -677,7 +679,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QSearchMoveGen::new();
+    let mut move_gen = QSearchMoveGen::new(tt_move);
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
             .board()
