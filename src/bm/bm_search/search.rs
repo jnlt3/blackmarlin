@@ -695,7 +695,7 @@ pub fn q_search(
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
             }
-            if history < hp(1) as i16 {
+            if stand_pat <= alpha && history < hp(1) as i16 {
                 continue;
             }
             pos.make_move(make_move);
