@@ -118,6 +118,7 @@ pub struct LocalContext {
     sel_depth: u32,
     history: History,
     killer_moves: Vec<MoveEntry>,
+    cap_killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     abort: bool,
 }
@@ -164,6 +165,11 @@ impl LocalContext {
     #[inline]
     pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry> {
         &mut self.killer_moves
+    }
+
+    #[inline]
+    pub fn get_cap_k_table(&mut self) -> &mut Vec<MoveEntry> {
+        &mut self.cap_killer_moves
     }
 
     #[inline]
@@ -455,6 +461,7 @@ impl AbRunner {
                 sel_depth: 0,
                 history: History::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
+                cap_killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
                 stm: Color::White,

@@ -13,6 +13,7 @@ const MAX_MOVES: usize = 218;
 #[derive(PartialEq, Eq)]
 enum Phase {
     PvMove,
+    CapKillers,
     GenPieceMoves,
     GenCaptures,
     GoodCaptures,
@@ -51,6 +52,8 @@ pub struct OrderedMoveGen {
 
     killers: MoveEntry,
     killer_index: usize,
+    cap_killers: MoveEntry,
+    cap_killer_index: usize,
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
@@ -77,12 +80,19 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        cap_killers: MoveEntry,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            cap_killers,
+            cap_killer_index: 0,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -109,6 +119,25 @@ impl OrderedMoveGen {
                 return self.pv_move;
             }
         }
+        if self.phase == Phase::CapKillers {
+            while self.cap_killer_index < 2 {
+                let cap_killer = self.cap_killers.get(self.killer_index);
+                self.cap_killer_index += 1;
+                if let Some(cap_killer) = cap_killer {
+                    if Some(cap_killer) == self.pv_move {
+                        continue;
+                    }
+                    if let Some(index) = self.killers.index_of(cap_killer) {
+                        self.killers.remove(index);
+                    }
+                    if !pos.board().is_legal(cap_killer) {
+                        continue;
+                    }
+                    return Some(cap_killer);
+                }
+            }
+            self.phase = Phase::GenQuiets;
+        }
         if self.phase == Phase::GenPieceMoves {
             self.phase = Phase::GenCaptures;
             pos.board().generate_moves(|piece_moves| {
@@ -123,6 +152,9 @@ impl OrderedMoveGen {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if self.killers.contains(mv) {
                         continue;
                     }
                     if let Some(index) = self.killers.index_of(mv) {
@@ -167,6 +199,9 @@ impl OrderedMoveGen {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if self.cap_killers.contains(mv) {
                         continue;
                     }
                     if self.killers.contains(mv) {

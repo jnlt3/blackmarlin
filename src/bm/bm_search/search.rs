@@ -274,6 +274,9 @@ pub fn search<Search: SearchType>(
     if let Some(entry) = local_context.get_k_table().get_mut(ply as usize + 1) {
         entry.clear();
     }
+    if let Some(entry) = local_context.get_cap_k_table().get_mut(ply as usize + 1) {
+        entry.clear();
+    }
 
     let mut highest_score = None;
 
@@ -288,7 +291,8 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let cap_killers = local_context.get_cap_k_table()[ply as usize];
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, cap_killers);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -564,10 +568,12 @@ pub fn search<Search: SearchType>(
                 if score >= beta {
                     if !local_context.abort() {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
-                        if !is_capture {
-                            let killer_table = local_context.get_k_table();
-                            killer_table[ply as usize].push(make_move);
-                        }
+
+                        let table = match is_capture {
+                            false => local_context.get_k_table(),
+                            true => local_context.get_cap_k_table(),
+                        };
+                        table[ply as usize].push(make_move);
                         local_context.get_hist_mut().update_history(
                             pos,
                             &hist_indices,
