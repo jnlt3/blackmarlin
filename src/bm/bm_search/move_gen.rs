@@ -2,8 +2,8 @@ use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
 use super::see::{calculate_see, compare_see, move_value};
-use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{self, History};
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Piece, PieceMoves};
@@ -136,7 +136,11 @@ impl OrderedMoveGen {
         if self.phase == Phase::GoodCaptures {
             while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
                 let capture = self.captures.swap_remove(index);
-                if !compare_see(pos.board(), capture.mv, 0) {
+                let threshold = match capture.score * 2 > history::MAX_HIST {
+                    true => -100,
+                    false => 0,
+                };
+                if !compare_see(pos.board(), capture.mv, threshold) {
                     self.bad_captures.push(capture);
                     continue;
                 }
