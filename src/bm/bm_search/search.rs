@@ -282,11 +282,6 @@ pub fn search<Search: SearchType>(
         false => None,
     };
 
-    let prev_opp_move = match ply > 2 {
-        true => local_context.search_stack()[ply as usize - 3].move_played,
-        false => None,
-    };
-
     let killers = local_context.get_k_table()[ply as usize];
     let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
 
@@ -378,17 +373,6 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 }
             }
-        }
-
-        if Search::PV
-            && is_capture
-            && (opp_move.map_or(false, |opp_move| {
-                opp_move.capture && opp_move.to == make_move.to
-            }) || prev_opp_move.map_or(false, |opp_move| {
-                opp_move.capture && opp_move.to == make_move.to
-            }))
-        {
-            extension = extension.max(1);
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
