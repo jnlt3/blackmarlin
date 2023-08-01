@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves, Rank};
 
 const MAX_MOVES: usize = 218;
 
@@ -22,23 +22,12 @@ enum Phase {
     BadCaptures,
 }
 
-struct Quiet {
+struct ScoredMove {
     mv: Move,
     score: i16,
 }
 
-impl Quiet {
-    pub fn new(mv: Move, score: i16) -> Self {
-        Self { mv, score }
-    }
-}
-
-struct Capture {
-    mv: Move,
-    score: i16,
-}
-
-impl Capture {
+impl ScoredMove {
     pub fn new(mv: Move, score: i16) -> Self {
         Self { mv, score }
     }
@@ -54,9 +43,9 @@ pub struct OrderedMoveGen {
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
-    quiets: ArrayVec<Quiet, MAX_MOVES>,
-    captures: ArrayVec<Capture, MAX_MOVES>,
-    bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    quiets: ArrayVec<ScoredMove, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -120,7 +109,11 @@ impl OrderedMoveGen {
             self.phase = Phase::GoodCaptures;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
-                piece_moves.to &= pos.board().colors(!stm);
+                let promo_mask = match piece_moves.piece {
+                    Piece::Pawn => Rank::First.bitboard() | Rank::Eighth.bitboard(),
+                    _ => BitBoard::EMPTY,
+                };
+                piece_moves.to &= pos.board().colors(!stm) | promo_mask;
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
                         continue;
@@ -129,7 +122,7 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score))
+                    self.captures.push(ScoredMove::new(mv, score))
                 }
             }
         }
@@ -169,22 +162,20 @@ impl OrderedMoveGen {
                     if Some(mv) == self.pv_move {
                         continue;
                     }
+                    if mv.promotion.is_some() {
+                        continue;
+                    }
                     if self.killers.contains(mv) {
                         continue;
                     }
 
-                    let score = match mv.promotion {
-                        Some(Piece::Queen) => i16::MAX,
-                        Some(_) => i16::MIN,
-                        None => {
-                            let quiet_hist = hist.get_quiet(pos, mv);
-                            let counter_move_hist = hist
-                                .get_counter_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            quiet_hist + counter_move_hist
-                        }
-                    };
-                    self.quiets.push(Quiet::new(mv, score));
+                    let quiet_hist = hist.get_quiet(pos, mv);
+                    let counter_move_hist = hist
+                        .get_counter_move(pos, hist_indices, mv)
+                        .unwrap_or_default();
+                    let score = quiet_hist + counter_move_hist;
+
+                    self.quiets.push(ScoredMove::new(mv, score));
                 }
             }
         }
@@ -211,7 +202,7 @@ enum QPhase {
 
 pub struct QSearchMoveGen {
     phase: QPhase,
-    captures: ArrayVec<Capture, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 impl QSearchMoveGen {
@@ -227,10 +218,14 @@ impl QSearchMoveGen {
             self.phase = QPhase::GoodCaptures;
             let stm = pos.board().side_to_move();
             pos.board().generate_moves(|mut piece_moves| {
-                piece_moves.to &= pos.board().colors(!stm);
+                let promo_mask = match piece_moves.piece {
+                    Piece::Pawn => Rank::First.bitboard() | Rank::Eighth.bitboard(),
+                    _ => BitBoard::EMPTY,
+                };
+                piece_moves.to &= pos.board().colors(!stm) | promo_mask;
                 for mv in piece_moves {
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score));
+                    self.captures.push(ScoredMove::new(mv, score));
                 }
                 false
             });
