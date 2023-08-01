@@ -192,9 +192,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let more_nstm_threats = match pos.board().side_to_move() {
+        Color::White => b_threats.len() > w_threats.len(),
+        Color::Black => w_threats.len() > b_threats.len(),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -202,7 +202,7 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving && !more_nstm_threats) >= beta {
             return eval;
         }
 
@@ -228,7 +228,7 @@ pub fn search<Search: SearchType>(
             depth,
             eval.raw(),
             beta.raw(),
-            !nstm_threats.is_empty(),
+            more_nstm_threats,
         ) && pos.null_move()
         {
             local_context.search_stack_mut()[ply as usize].move_played = None;
