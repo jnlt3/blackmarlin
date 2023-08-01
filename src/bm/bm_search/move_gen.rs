@@ -22,23 +22,12 @@ enum Phase {
     BadCaptures,
 }
 
-struct Quiet {
+struct ScoredMove {
     mv: Move,
     score: i16,
 }
 
-impl Quiet {
-    pub fn new(mv: Move, score: i16) -> Self {
-        Self { mv, score }
-    }
-}
-
-struct Capture {
-    mv: Move,
-    score: i16,
-}
-
-impl Capture {
+impl ScoredMove {
     pub fn new(mv: Move, score: i16) -> Self {
         Self { mv, score }
     }
@@ -54,9 +43,9 @@ pub struct OrderedMoveGen {
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
-    quiets: ArrayVec<Quiet, MAX_MOVES>,
-    captures: ArrayVec<Capture, MAX_MOVES>,
-    bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    quiets: ArrayVec<ScoredMove, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -129,7 +118,7 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score))
+                    self.captures.push(ScoredMove::new(mv, score))
                 }
             }
         }
@@ -184,7 +173,7 @@ impl OrderedMoveGen {
                             quiet_hist + counter_move_hist
                         }
                     };
-                    self.quiets.push(Quiet::new(mv, score));
+                    self.quiets.push(ScoredMove::new(mv, score));
                 }
             }
         }
@@ -207,18 +196,24 @@ impl OrderedMoveGen {
 enum QPhase {
     GenCaptures,
     GoodCaptures,
+    GenQuiets,
+    Quiets,
 }
 
 pub struct QSearchMoveGen {
     phase: QPhase,
-    captures: ArrayVec<Capture, MAX_MOVES>,
+    piece_moves: ArrayVec<PieceMoves, 18>,
+    moves: ArrayVec<ScoredMove, MAX_MOVES>,
+    in_check: bool,
 }
 
 impl QSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(in_check: bool) -> Self {
         Self {
             phase: QPhase::GenCaptures,
-            captures: ArrayVec::new(),
+            piece_moves: ArrayVec::new(),
+            moves: ArrayVec::new(),
+            in_check,
         }
     }
 
@@ -227,22 +222,47 @@ impl QSearchMoveGen {
             self.phase = QPhase::GoodCaptures;
             let stm = pos.board().side_to_move();
             pos.board().generate_moves(|mut piece_moves| {
+                self.piece_moves.push(piece_moves);
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score));
+                    self.moves.push(ScoredMove::new(mv, score));
                 }
                 false
             });
         }
         if self.phase == QPhase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
-                let capture = self.captures.swap_remove(index).mv;
+            while let Some(index) = select_highest(&self.moves, |capture| capture.score) {
+                let capture = self.moves.swap_remove(index).mv;
                 let see = calculate_see(pos.board(), capture);
                 if see < 0 {
                     continue;
                 }
                 return Some((capture, see));
+            }
+            self.phase = QPhase::GenQuiets;
+        }
+        if !self.in_check {
+            return None;
+        }
+        if self.phase == QPhase::GenQuiets {
+            self.moves.clear();
+            for &(mut piece_move) in &self.piece_moves {
+                piece_move.to &= !pos.board().occupied();
+                for mv in piece_move {
+                    let score = match mv.promotion {
+                        Some(Piece::Queen) => i16::MAX,
+                        Some(_) => i16::MIN,
+                        None => hist.get_quiet(pos, mv),
+                    };
+                    self.moves.push(ScoredMove::new(mv, score));
+                }
+            }
+            self.phase = QPhase::Quiets
+        }
+        if self.phase == QPhase::Quiets {
+            if let Some(index) = select_highest(&self.moves, |quiet| quiet.score) {
+                return self.moves.swap_pop(index).map(|quiet| (quiet.mv, 0));
             }
         }
         None
