@@ -333,10 +333,13 @@ pub fn search<Search: SearchType>(
                 && entry.depth() + 2 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
-                let s_beta = entry.score() - depth as i16 * 3;
+                let multi_cut = depth >= 5;
+                let s_beta = match multi_cut {
+                    true => entry.score() - depth as i16 * 3,
+                    false => entry.score(),
+                };
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 5;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
