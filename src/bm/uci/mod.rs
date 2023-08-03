@@ -23,7 +23,6 @@ enum ThreadReq {
 
 struct GoReq {
     bm_runner: Arc<Mutex<AbRunner>>,
-    threads: u8,
     chess960: bool,
 }
 
@@ -33,7 +32,6 @@ pub struct UciAdapter {
 
     sender: Sender<ThreadReq>,
     forced: bool,
-    threads: u8,
     chess960: bool,
     show_wdl: bool,
 }
@@ -52,8 +50,7 @@ impl UciAdapter {
                 match req {
                     ThreadReq::Go(req) => {
                         let mut bm_runner = req.bm_runner.lock().unwrap();
-                        let (mut best_move, _, _, _) =
-                            bm_runner.search::<Run, UciInfo>(req.threads);
+                        let (mut best_move, _, _, _) = bm_runner.search::<Run, UciInfo>();
                         convert_move_to_uci(&mut best_move, bm_runner.get_board(), req.chess960);
                         println!("bestmove {}", best_move);
                     }
@@ -65,7 +62,6 @@ impl UciAdapter {
         });
         Self {
             bm_runner,
-            threads: 1,
             forced: false,
             sender: tx,
             time_manager,
@@ -126,7 +122,10 @@ impl UciAdapter {
                         self.bm_runner.lock().unwrap().hash(value.parse().unwrap());
                     }
                     "Threads" => {
-                        self.threads = value.parse().unwrap();
+                        self.bm_runner
+                            .lock()
+                            .unwrap()
+                            .set_threads(value.parse().unwrap());
                     }
                     "UCI_Chess960" => {
                         self.chess960 = value.to_lowercase().parse().unwrap();
@@ -155,8 +154,7 @@ impl UciAdapter {
                     let start = Instant::now();
 
                     self.time_manager.initiate(&board, &options);
-                    let (make_move, eval, _, node_cnt) =
-                        bm_runner.search::<Run, NoInfo>(self.threads);
+                    let (make_move, eval, _, node_cnt) = bm_runner.search::<Run, NoInfo>();
                     self.time_manager.clear();
                     let elapsed = start.elapsed();
                     bench_data.push((
@@ -201,12 +199,10 @@ impl UciAdapter {
         self.time_manager
             .initiate(self.bm_runner.lock().unwrap().get_board(), &commands);
         let bm_runner = self.bm_runner.clone();
-        let threads = self.threads;
         let chess960 = self.chess960;
 
         let req = GoReq {
             bm_runner,
-            threads,
             chess960,
         };
         self.sender.send(ThreadReq::Go(req)).unwrap();
