@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use cozy_chess::{Board, Color, Move, Piece, Square};
@@ -263,26 +263,30 @@ fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
 
 pub struct AbRunner {
     shared_context: SharedContext,
-    local_context: LocalContext,
+    main_thread_context: Arc<Mutex<LocalContext>>,
     node_counter: NodeCounter,
     position: Position,
     chess960: bool,
     show_wdl: bool,
+    thread_contexts: Vec<Arc<Mutex<LocalContext>>>,
 }
 
 impl AbRunner {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
+        local_context: Arc<Mutex<LocalContext>>,
         search_start: Instant,
-        thread: u8,
+        thread: usize,
         chess960: bool,
         show_wdl: bool,
     ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) {
         let main_thread = thread == 0;
         let shared_context = self.shared_context.clone();
-        let mut local_context = self.local_context.clone();
-        self.node_counter
-            .add_node_counter(thread as usize, local_context.nodes.0.clone());
+
+        self.node_counter.add_node_counter(
+            thread as usize,
+            local_context.lock().unwrap().nodes.0.clone(),
+        );
         let node_counter = if main_thread {
             Some(self.node_counter.clone())
         } else {
@@ -292,6 +296,8 @@ impl AbRunner {
         let mut debugger = SM::new(self.position.board());
         let gui_info = Info::new();
         move || {
+            let mut local_context = local_context.lock().unwrap();
+
             let mut nodes = 0;
             local_context.reset_nodes();
             local_context.stm = position.board().side_to_move();
@@ -437,7 +443,7 @@ impl AbRunner {
                 })),
                 start: Instant::now(),
             },
-            local_context: LocalContext {
+            main_thread_context: Arc::new(Mutex::new(LocalContext {
                 window: Window::new(12, 1, 4, 5),
                 tt_hits: 0,
                 tt_misses: 0,
@@ -458,7 +464,8 @@ impl AbRunner {
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
                 stm: Color::White,
-            },
+            })),
+            thread_contexts: vec![],
             position,
             chess960: false,
             show_wdl: false,
@@ -467,24 +474,31 @@ impl AbRunner {
 
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
-        threads: u8,
     ) -> (Move, Evaluation, u32, u64) {
+        let thread_count = self.thread_contexts.len() as u8 + 1;
         let mut join_handlers = vec![];
         let search_start = Instant::now();
         self.shared_context.start = Instant::now();
-        self.node_counter.initialize_node_counters(threads as usize);
-        //TODO: Research the effects of different depths
+        self.node_counter
+            .initialize_node_counters(thread_count as usize);
         self.position.reset();
-        for i in 1..threads {
+        for (i, context) in self.thread_contexts.clone().iter().enumerate() {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
+                context.clone(),
                 search_start,
                 i,
                 self.chess960,
                 self.show_wdl,
             )));
         }
-        let (final_move, final_eval, max_depth, mut node_count) =
-            self.launch_searcher::<SM, Info>(search_start, 0, self.chess960, self.show_wdl)();
+
+        let (final_move, final_eval, max_depth, mut node_count) = self.launch_searcher::<SM, Info>(
+            self.main_thread_context.clone(),
+            search_start,
+            0,
+            self.chess960,
+            self.show_wdl,
+        )();
         for join_handler in join_handlers {
             let (_, _, _, nodes) = join_handler.join().unwrap();
             node_count += nodes;
@@ -499,6 +513,13 @@ impl AbRunner {
     pub fn hash(&mut self, hash_mb: usize) {
         let entry_count = hash_mb * 65536;
         self.shared_context.t_table = Arc::new(TranspositionTable::new(entry_count));
+    }
+
+    pub fn set_threads(&mut self, threads: u8) {
+        let local_context = self.main_thread_context.lock().unwrap().clone();
+        self.thread_contexts = (0..threads - 1)
+            .map(|_| Arc::new(Mutex::new(local_context.clone())))
+            .collect();
     }
 
     pub fn raw_eval(&mut self) -> Evaluation {

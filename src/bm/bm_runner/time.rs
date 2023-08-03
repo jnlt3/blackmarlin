@@ -78,7 +78,7 @@ impl TimeManager {
 impl TimeManager {
     pub fn deepen(
         &self,
-        thread: u8,
+        thread: usize,
         depth: u32,
         _: u64,
         eval: Evaluation,
