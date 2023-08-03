@@ -199,10 +199,6 @@ impl LocalContext {
         self.stm
     }
 
-    pub fn reset_nodes(&self) {
-        self.nodes.0.store(0, Ordering::Relaxed);
-    }
-
     pub fn increment_nodes(&self) {
         self.nodes.0.fetch_add(1, Ordering::Relaxed);
     }
@@ -217,6 +213,13 @@ impl LocalContext {
 
     pub fn abort(&self) -> bool {
         self.abort
+    }
+
+    pub fn reset(&mut self) {
+        self.abort = false;
+        self.window.reset();
+        self.sel_depth = 0;
+        self.nodes.0.store(0, Ordering::Relaxed);
     }
 }
 
@@ -299,7 +302,7 @@ impl AbRunner {
             let mut local_context = local_context.lock().unwrap();
 
             let mut nodes = 0;
-            local_context.reset_nodes();
+            local_context.reset();
             local_context.stm = position.board().side_to_move();
             let start_time = Instant::now();
             let mut best_move = None;
@@ -486,7 +489,7 @@ impl AbRunner {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
                 context.clone(),
                 search_start,
-                i,
+                i + 1,
                 self.chess960,
                 self.show_wdl,
             )));
