@@ -307,6 +307,10 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
+        let fuh_score = local_context
+            .get_hist()
+            .get_followup_move(pos, &hist_indices, make_move)
+            .unwrap_or_default();
         let h_score = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
             false => {
@@ -412,6 +416,21 @@ pub fn search<Search: SearchType>(
         let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
+
+        /*
+        In low depth, non-PV nodes, we assume it's safe to prune a move
+        if it has very low follow up history
+        */
+        let do_fuhp = !Search::PV
+            && non_mate_line
+            && !is_capture
+            && moves_seen > 0
+            && depth <= 4
+            && eval <= alpha;
+
+        if do_fuhp && (fuh_score as i32) < hp(depth) {
             continue;
         }
 
