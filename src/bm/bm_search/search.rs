@@ -295,7 +295,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(opp_move, prev_move);
+    let hist_indices = HistoryIndices::new(opp_move, prev_move, nstm_threats);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -310,12 +310,14 @@ pub fn search<Search: SearchType>(
         let h_score = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
             false => {
-                (local_context.get_hist().get_quiet(pos, make_move)
-                    + local_context
-                        .get_hist()
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
+                let quiet = local_context
+                    .get_hist()
+                    .get_quiet(pos, &hist_indices, make_move);
+                let counter_move = local_context
+                    .get_hist()
+                    .get_counter_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+                (quiet + counter_move) / 2
             }
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;

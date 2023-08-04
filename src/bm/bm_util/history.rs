@@ -1,9 +1,11 @@
-use cozy_chess::{Color, Move, Piece, Square};
+use cozy_chess::{BitBoard, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{
+    new_butterfly_table, new_piece_to_table, new_threat_table, Butterfly, PieceTo, Threat,
+};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -28,24 +30,30 @@ fn malus(hist: &mut i16, amt: i16) {
 /// Contains information calculated to index the history tables
 #[derive(Copy, Clone)]
 pub struct HistoryIndices {
+    threats: BitBoard,
     counter_move: Option<(Piece, Square)>,
     followup_move: Option<(Piece, Square)>,
 }
 
 impl HistoryIndices {
-    pub fn new(prev_opp_move: Option<MoveData>, prev_move: Option<MoveData>) -> Self {
+    pub fn new(
+        prev_opp_move: Option<MoveData>,
+        prev_move: Option<MoveData>,
+        threats: BitBoard,
+    ) -> Self {
         let counter_move = prev_opp_move.map(|prev_move| (prev_move.piece, prev_move.to));
         let followup_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
         Self {
             counter_move,
             followup_move,
+            threats: threats,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct History {
-    quiet: Box<[Butterfly<i16>; Color::NUM]>,
+    quiet: Box<[Threat<Butterfly<i16>>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -54,21 +62,28 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([new_butterfly_table(0); Color::NUM]),
+            quiet: Box::new([new_threat_table(new_butterfly_table(0)); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
 
-    pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
+    pub fn get_quiet(&self, pos: &Position, indices: &HistoryIndices, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
+        self.quiet[stm as usize][indices.threats.has(make_move.from) as usize]
+            [make_move.from as usize][make_move.to as usize]
     }
 
-    fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+    fn get_quiet_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        &mut self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
+        &mut self.quiet[stm as usize][indices.threats.has(make_move.from) as usize]
+            [make_move.from as usize][make_move.to as usize]
     }
 
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
@@ -172,9 +187,9 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
-        bonus(self.get_quiet_mut(pos, make_move), amt);
+        bonus(self.get_quiet_mut(pos, indices, make_move), amt);
         for &failed_move in fails {
-            malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(self.get_quiet_mut(pos, indices, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
