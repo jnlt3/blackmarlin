@@ -38,7 +38,7 @@ fn play_single(
             cozy_chess::GameStatus::Ongoing => {}
         }
         time_manager.initiate(engine.get_board(), time_management_info);
-        let (mut make_move, eval, _, _) = engine.search::<Run, NoInfo>(1);
+        let (mut make_move, eval, _, _) = engine.search::<Run, NoInfo>();
         time_manager.clear();
         let turn = match engine.get_board().side_to_move() {
             cozy_chess::Color::White => 1,
@@ -47,7 +47,7 @@ fn play_single(
 
         let board = engine.get_board().clone();
 
-        if ply > 8
+        if ply > 16
             && !board
                 .colors(!engine.get_board().side_to_move())
                 .has(make_move.to)
