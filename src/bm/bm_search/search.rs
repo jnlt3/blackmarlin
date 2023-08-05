@@ -49,7 +49,7 @@ const fn rev_fp(depth: u32, improving: bool) -> i16 {
 }
 
 const fn do_razor(depth: u32) -> bool {
-    depth <= 3
+    depth <= 5
 }
 
 const fn razor(depth: u32) -> i16 {
@@ -337,7 +337,10 @@ pub fn search<Search: SearchType>(
                 && entry.depth() + 2 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
-                let s_beta = entry.score() - depth as i16 * 3;
+                let s_beta = match depth {
+                    5.. => entry.score() - depth as i16 * 3,
+                    _ => entry.score(),
+                };
                 local_context.search_stack_mut()[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 5;
