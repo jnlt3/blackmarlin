@@ -177,7 +177,7 @@ pub fn search<Search: SearchType>(
 
     let eval = match skip_move {
         Some(_) => local_context.search_stack()[ply as usize].eval,
-        None => pos.get_eval(local_context.stm(), local_context.eval()),
+        None => pos.get_eval(),
     };
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
@@ -627,7 +627,7 @@ pub fn q_search(
 
     local_context.update_sel_depth(ply);
     if ply >= MAX_PLY {
-        return pos.get_eval(local_context.stm(), local_context.eval());
+        return pos.get_eval();
     }
 
     let initial_alpha = alpha;
@@ -652,7 +652,7 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
+    let stand_pat = pos.get_eval();
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
