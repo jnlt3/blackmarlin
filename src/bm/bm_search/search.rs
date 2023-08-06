@@ -394,7 +394,8 @@ pub fn search<Search: SearchType>(
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
-        if non_mate_line
+        if !Search::PV
+            && non_mate_line
             && !is_capture
             && quiets.len()
                 >= shared_context
