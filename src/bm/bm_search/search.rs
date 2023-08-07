@@ -167,6 +167,7 @@ pub fn search<Search: SearchType>(
                         return score;
                     }
                 }
+                EntryType::Inexistant => unreachable!(),
             }
         }
     } else {
@@ -175,10 +176,14 @@ pub fn search<Search: SearchType>(
 
     let in_check = !pos.board().checkers().is_empty();
 
-    let eval = match skip_move {
-        Some(_) => local_context.search_stack()[ply as usize].eval,
-        None => pos.get_eval(local_context.stm(), local_context.eval()),
+    let (base_eval, aggression) = match skip_move {
+        Some(_) => (local_context.search_stack()[ply as usize].eval, 0),
+        None => (
+            tt_entry.map_or_else(|| pos.get_eval(), |entry| entry.eval()),
+            pos.get_aggression(local_context.stm(), local_context.eval()),
+        ),
     };
+    let eval = base_eval + aggression;
 
     local_context.search_stack_mut()[ply as usize].eval = eval;
 
@@ -599,6 +604,7 @@ pub fn search<Search: SearchType>(
                 entry_type,
                 highest_score,
                 *final_move,
+                base_eval,
             );
         }
     }
@@ -627,7 +633,7 @@ pub fn q_search(
 
     local_context.update_sel_depth(ply);
     if ply >= MAX_PLY {
-        return pos.get_eval(local_context.stm(), local_context.eval());
+        return pos.get_eval() + pos.get_aggression(local_context.stm(), local_context.eval());
     }
 
     let initial_alpha = alpha;
@@ -645,6 +651,7 @@ pub fn q_search(
                     return entry.score();
                 }
             }
+            EntryType::Inexistant => unreachable!(),
         }
     }
 
@@ -652,7 +659,8 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
+    let base_eval = tt_entry.map_or_else(|| pos.get_eval(), |entry| entry.eval());
+    let stand_pat = base_eval + pos.get_aggression(local_context.stm(), local_context.eval());
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
@@ -713,9 +721,14 @@ pub fn q_search(
             _ => Exact,
         };
 
-        shared_context
-            .get_t_table()
-            .set(pos.board(), 0, entry_type, highest_score, best_move);
+        shared_context.get_t_table().set(
+            pos.board(),
+            0,
+            entry_type,
+            highest_score,
+            best_move,
+            base_eval,
+        );
     }
     highest_score.unwrap_or(alpha)
 }

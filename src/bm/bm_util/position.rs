@@ -129,7 +129,7 @@ impl Position {
         (self.w_threats, self.b_threats)
     }
 
-    pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
+    pub fn get_aggression(&mut self, stm: Color, root_eval: Evaluation) -> i16 {
         let piece_cnt = self.board().occupied().len() as i16;
 
         let clamped_eval = root_eval.raw().clamp(-100, 100);
@@ -138,14 +138,17 @@ impl Position {
         } else {
             -piece_cnt * clamped_eval / 50
         };
+        eval_bonus
+    }
 
+    pub fn get_eval(&mut self) -> Evaluation {
+        let piece_cnt = self.board().occupied().len() as i16;
         let frc_score = frc::frc_corner_bishop(self.board());
 
         Evaluation::new(
             self.evaluator
                 .feed_forward(self.board().side_to_move(), piece_cnt as usize)
-                + frc_score
-                + eval_bonus,
+                + frc_score,
         )
     }
 

@@ -5,6 +5,25 @@ use cozy_chess::{Board, Move, Piece, Square};
 use crate::bm::bm_util::eval::Evaluation;
 
 #[derive(Debug, Copy, Clone)]
+struct EntryAndAge(u8);
+
+impl EntryAndAge {
+    fn new(entry: EntryType, age: u8) -> Self {
+        let mut bits = entry as u8;
+        bits |= age << 2;
+        Self(bits)
+    }
+
+    fn age(self) -> u8 {
+        self.0 >> 6
+    }
+
+    fn entry_type(self) -> EntryType {
+        unsafe { std::mem::transmute(self.0 & 0b11) }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 struct TTMove(u16);
 
 impl TTMove {
@@ -49,6 +68,7 @@ fn compressed_moves() {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
+    Inexistant,
     LowerBound,
     Exact,
     UpperBound,
@@ -56,12 +76,11 @@ pub enum EntryType {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Analysis {
-    exists: bool,
     depth: u8,
-    entry_type: EntryType,
+    entry_and_age: EntryAndAge,
     score: Evaluation,
     table_move: TTMove,
-    age: u8,
+    eval: Evaluation,
 }
 
 impl Analysis {
@@ -71,29 +90,28 @@ impl Analysis {
         score: Evaluation,
         table_move: Move,
         age: u8,
+        eval: Evaluation,
     ) -> Self {
         Self {
-            exists: true,
             depth: depth as u8,
-            entry_type,
+            entry_and_age: EntryAndAge::new(entry_type, age),
             score,
             table_move: TTMove::new(table_move),
-            age,
+            eval,
         }
     }
 
     fn zero() -> Self {
         Self {
-            exists: false,
             depth: 0,
-            entry_type: EntryType::LowerBound,
+            entry_and_age: EntryAndAge::new(EntryType::Inexistant, 0),
             score: Evaluation::new(0),
             table_move: TTMove::new(Move {
                 from: Square::A1,
                 to: Square::A1,
                 promotion: None,
             }),
-            age: 0,
+            eval: Evaluation::new(0),
         }
     }
 
@@ -104,12 +122,17 @@ impl Analysis {
 
     #[inline]
     pub fn entry_type(&self) -> EntryType {
-        self.entry_type
+        self.entry_and_age.entry_type()
     }
 
     #[inline]
     pub fn score(&self) -> Evaluation {
         self.score
+    }
+
+    #[inline]
+    pub fn eval(&self) -> Evaluation {
+        self.eval
     }
 
     #[inline]
@@ -194,7 +217,7 @@ impl TranspositionTable {
         let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
             let analysis: Analysis = unsafe { std::mem::transmute(entry_u64) };
-            if analysis.exists {
+            if analysis.entry_and_age.entry_type() != EntryType::Inexistant {
                 Some(analysis)
             } else {
                 None
@@ -211,6 +234,7 @@ impl TranspositionTable {
         entry_type: EntryType,
         score: Evaluation,
         table_move: Move,
+        eval: Evaluation,
     ) {
         let entry = Analysis::new(
             depth,
@@ -218,13 +242,16 @@ impl TranspositionTable {
             score,
             table_move,
             self.age.load(Ordering::Relaxed),
+            eval,
         );
         let hash = board.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let analysis: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-        if !analysis.exists || self.do_replace(&entry, &analysis) {
+        if analysis.entry_and_age.entry_type() == EntryType::Inexistant
+            || self.do_replace(&entry, &analysis)
+        {
             let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
@@ -236,7 +263,8 @@ impl TranspositionTable {
             matches!(a.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
         let b_extra_depth =
             matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
-        ((a.depth + a_extra_depth).saturating_add(current_age.wrapping_sub(b.age) / 2))
+        ((a.depth + a_extra_depth)
+            .saturating_add(current_age.wrapping_sub(b.entry_and_age.age()) / 2))
             >= (b.depth + b_extra_depth) / 2
     }
 
@@ -246,6 +274,7 @@ impl TranspositionTable {
     }
 
     pub fn age(&self) {
-        self.age.fetch_add(1, Ordering::Relaxed);
+        let age = self.age.load(Ordering::SeqCst);
+        self.age.store((age + 1) % 64, Ordering::SeqCst);
     }
 }
