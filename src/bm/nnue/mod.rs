@@ -173,7 +173,7 @@ impl Nnue {
         for sq in b_threats {
             self.update::<true>(threat_indices(w_king, b_king, sq, Color::White));
         }
-        
+
         let acc = &mut self.accumulator[self.head];
         acc.w_input_layer.reset(*self.bias);
         acc.b_input_layer.reset(*self.bias);
