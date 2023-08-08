@@ -587,21 +587,24 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !local_context.abort() {
-        if let Some(final_move) = &best_move {
+        if let Some(mut final_move) = best_move {
             let entry_type = match () {
                 _ if highest_score <= initial_alpha => UpperBound,
                 _ if highest_score >= beta => LowerBound,
                 _ => Exact,
             };
+            if entry_type == EntryType::UpperBound {
+                final_move = tt_entry.map_or(final_move, |entry| entry.table_move());
+            }
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
                 entry_type,
                 highest_score,
-                *final_move,
+                final_move,
             );
         }
-    }
+    }   
     highest_score
 }
 
