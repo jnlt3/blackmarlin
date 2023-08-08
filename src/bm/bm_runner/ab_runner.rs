@@ -224,7 +224,7 @@ impl LocalContext {
 }
 
 fn remove_aggression(eval: Evaluation, piece_count: u32) -> Evaluation {
-    let piece_count = piece_count as i16;
+    let piece_count = piece_count as i16 * 2;
     match eval.is_mate() {
         true => eval,
         false => {
@@ -391,7 +391,11 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let eval = remove_aggression(eval.unwrap(), position.board().occupied().len());
+                    let eval = remove_aggression(
+                        eval.unwrap(),
+                        position.board().occupied().len()
+                            - position.board().pieces(Piece::Pawn).len(),
+                    );
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
                         false => None,
