@@ -197,6 +197,7 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
     if !Search::PV && !in_check && skip_move.is_none() {
+        let eval = eval - pos.get_aggression(local_context.stm(), local_context.eval());
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
@@ -627,7 +628,7 @@ pub fn q_search(
 
     local_context.update_sel_depth(ply);
     if ply >= MAX_PLY {
-        return pos.get_eval(local_context.stm(), local_context.eval());
+        return pos.get_eval(Color::White, Evaluation::new(0));
     }
 
     let initial_alpha = alpha;
@@ -652,7 +653,7 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval(local_context.stm(), local_context.eval());
+    let stand_pat = pos.get_eval(Color::White, Evaluation::new(0));
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
