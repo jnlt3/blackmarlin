@@ -286,8 +286,14 @@ pub fn search<Search: SearchType>(
         false => None,
     };
 
+    let hist_indices = HistoryIndices::new(opp_move, prev_move);
     let killers = local_context.get_k_table()[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(
+        pos.board(),
+        best_move,
+        killers,
+        local_context.get_counter_move().get(pos, &hist_indices),
+    );
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -295,7 +301,6 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(opp_move, prev_move);
     while let Some(make_move) = move_gen.next(pos, local_context.get_hist(), &hist_indices) {
         if Some(make_move) == skip_move {
             continue;
@@ -555,6 +560,11 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             let killer_table = local_context.get_k_table();
                             killer_table[ply as usize].push(make_move);
+                            local_context.get_counter_move_mut().cutoff(
+                                pos,
+                                &hist_indices,
+                                make_move,
+                            );
                         }
                         local_context.get_hist_mut().update_history(
                             pos,

@@ -9,7 +9,7 @@ use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::History;
+use crate::bm::bm_util::history::{CounterMoveTable, History};
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
@@ -117,6 +117,7 @@ pub struct LocalContext {
     search_stack: Vec<SearchStack>,
     sel_depth: u32,
     history: History,
+    counter_move: CounterMoveTable,
     killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     abort: bool,
@@ -153,12 +154,20 @@ impl SharedContext {
 }
 
 impl LocalContext {
-    pub fn get_hist(&mut self) -> &History {
+    pub fn get_hist(&self) -> &History {
         &self.history
     }
 
     pub fn get_hist_mut(&mut self) -> &mut History {
         &mut self.history
+    }
+
+    pub fn get_counter_move(&self) -> &CounterMoveTable {
+        &self.counter_move
+    }
+
+    pub fn get_counter_move_mut(&mut self) -> &mut CounterMoveTable {
+        &mut self.counter_move
     }
 
     #[inline]
@@ -463,6 +472,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
+                counter_move: CounterMoveTable::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,

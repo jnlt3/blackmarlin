@@ -17,6 +17,7 @@ enum Phase {
     GenCaptures,
     GoodCaptures,
     Killers,
+    CounterMove,
     GenQuiets,
     Quiets,
     BadCaptures,
@@ -52,6 +53,8 @@ pub struct OrderedMoveGen {
     killers: MoveEntry,
     killer_index: usize,
 
+    counter_move: Option<Move>,
+
     piece_moves: ArrayVec<PieceMoves, 18>,
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
@@ -77,12 +80,18 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        counter_move: Option<Move>,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            counter_move,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -128,6 +137,9 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
+                    if Some(mv) == self.counter_move {
+                        self.counter_move = None;
+                    }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(Capture::new(mv, score))
                 }
@@ -152,13 +164,24 @@ impl OrderedMoveGen {
                     if Some(killer) == self.pv_move {
                         continue;
                     }
+                    if Some(killer) == self.counter_move {
+                        self.counter_move = None;
+                    }
                     if !pos.board().is_legal(killer) {
                         continue;
                     }
                     return Some(killer);
                 }
             }
+            self.phase = Phase::CounterMove;
+        }
+        if self.phase == Phase::CounterMove {
             self.phase = Phase::GenQuiets;
+            if let Some(counter_move) = self.counter_move {
+                if pos.board().is_legal(counter_move) {
+                    return Some(counter_move);
+                }
+            }
         }
         if self.phase == Phase::GenQuiets {
             self.phase = Phase::Quiets;
@@ -170,6 +193,9 @@ impl OrderedMoveGen {
                         continue;
                     }
                     if self.killers.contains(mv) {
+                        continue;
+                    }
+                    if Some(mv) == self.counter_move {
                         continue;
                     }
 

@@ -196,3 +196,36 @@ impl History {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct CounterMoveTable {
+    table: Box<[PieceTo<Option<Move>>; Color::NUM]>,
+}
+
+impl CounterMoveTable {
+    pub fn new() -> Self {
+        Self {
+            table: Box::new([new_piece_to_table(None); Color::NUM]),
+        }
+    }
+
+    pub fn get(&self, pos: &Position, history_indices: &HistoryIndices) -> Option<Move> {
+        let (piece, to) = history_indices.counter_move?;
+        self.table[pos.board().side_to_move() as usize][piece as usize][to as usize]
+    }
+
+    fn get_mut(
+        &mut self,
+        pos: &Position,
+        history_indices: &HistoryIndices,
+    ) -> Option<&mut Option<Move>> {
+        let (piece, to) = history_indices.counter_move?;
+        Some(&mut self.table[pos.board().side_to_move() as usize][piece as usize][to as usize])
+    }
+
+    pub fn cutoff(&mut self, pos: &Position, indices: &HistoryIndices, make_move: Move) {
+        if let Some(mv) = self.get_mut(pos, indices) {
+            *mv = Some(make_move);
+        }
+    }
+}
