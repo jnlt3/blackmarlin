@@ -242,9 +242,6 @@ impl QSearchMoveGen {
             while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
                 let capture = self.captures.swap_remove(index).mv;
                 let see = calculate_see(pos.board(), capture);
-                if see < 0 {
-                    continue;
-                }
                 return Some((capture, see));
             }
         }
