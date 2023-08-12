@@ -25,11 +25,12 @@ fn malus(hist: &mut i16, amt: i16) {
     *hist -= decrement;
 }
 
+pub const FOLLOWUP_TABLE_CNT: usize = 2;
+
 /// Contains information calculated to index the history tables
 #[derive(Copy, Clone)]
 pub struct HistoryIndices {
-    counter_move: Option<(Piece, Square)>,
-    followup_move: Option<(Piece, Square)>,
+    piece_to: [Option<(Piece, Square)>; FOLLOWUP_TABLE_CNT],
 }
 
 impl HistoryIndices {
@@ -37,8 +38,7 @@ impl HistoryIndices {
         let counter_move = prev_opp_move.map(|prev_move| (prev_move.piece, prev_move.to));
         let followup_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
         Self {
-            counter_move,
-            followup_move,
+            piece_to: [counter_move, followup_move],
         }
     }
 }
@@ -47,8 +47,7 @@ impl HistoryIndices {
 pub struct History {
     quiet: Box<[Butterfly<i16>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
-    counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
-    followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    followup_move: Box<[[PieceTo<PieceTo<i16>>; FOLLOWUP_TABLE_CNT]; Color::NUM]>,
 }
 
 impl History {
@@ -56,8 +55,9 @@ impl History {
         Self {
             quiet: Box::new([new_butterfly_table(0); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
-            counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
-            followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            followup_move: Box::new(
+                [[new_piece_to_table(new_piece_to_table(0)); FOLLOWUP_TABLE_CNT]; Color::NUM],
+            ),
         }
     }
 
@@ -81,47 +81,18 @@ impl History {
         &mut self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
     }
 
-    pub fn get_counter_move(
-        &self,
-        pos: &Position,
-        indices: &HistoryIndices,
-        make_move: Move,
-    ) -> Option<i16> {
-        let (prev_piece, prev_to) = indices.counter_move?;
-        let stm = pos.board().side_to_move();
-        let current_piece = pos.board().piece_on(make_move.from).unwrap();
-        Some(
-            self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
-                [current_piece as usize][make_move.to as usize],
-        )
-    }
-
-    fn get_counter_move_mut(
-        &mut self,
-        pos: &Position,
-        indices: &HistoryIndices,
-        make_move: Move,
-    ) -> Option<&mut i16> {
-        let (prev_piece, prev_to) = indices.counter_move?;
-        let stm = pos.board().side_to_move();
-        let current_piece = pos.board().piece_on(make_move.from).unwrap();
-        Some(
-            &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
-                [current_piece as usize][make_move.to as usize],
-        )
-    }
-
     pub fn get_followup_move(
         &self,
         pos: &Position,
         indices: &HistoryIndices,
         make_move: Move,
+        index: usize,
     ) -> Option<i16> {
-        let (prev_piece, prev_to) = indices.followup_move?;
+        let (prev_piece, prev_to) = indices.piece_to[index]?;
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            self.followup_move[stm as usize][prev_piece as usize][prev_to as usize]
+            self.followup_move[stm as usize][index][prev_piece as usize][prev_to as usize]
                 [current_piece as usize][make_move.to as usize],
         )
     }
@@ -131,12 +102,13 @@ impl History {
         pos: &Position,
         indices: &HistoryIndices,
         make_move: Move,
+        index: usize,
     ) -> Option<&mut i16> {
-        let (prev_piece, prev_to) = indices.followup_move?;
+        let (prev_piece, prev_to) = indices.piece_to[index]?;
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            &mut self.followup_move[stm as usize][prev_piece as usize][prev_to as usize]
+            &mut self.followup_move[stm as usize][index][prev_piece as usize][prev_to as usize]
                 [current_piece as usize][make_move.to as usize],
         )
     }
@@ -176,22 +148,17 @@ impl History {
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
         }
-        if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
-            bonus(counter_move_hist, amt);
-            for &failed_move in fails {
-                let failed_hist = self
-                    .get_counter_move_mut(pos, indices, failed_move)
-                    .unwrap();
-                malus(failed_hist, amt);
-            }
-        }
-        if let Some(followup_move_hist) = self.get_followup_move_mut(pos, indices, make_move) {
-            bonus(followup_move_hist, amt);
-            for &failed_move in fails {
-                let failed_hist = self
-                    .get_followup_move_mut(pos, indices, failed_move)
-                    .unwrap();
-                malus(failed_hist, amt);
+        for index in 0..FOLLOWUP_TABLE_CNT {
+            if let Some(followup_move_hist) =
+                self.get_followup_move_mut(pos, indices, make_move, index)
+            {
+                bonus(followup_move_hist, amt);
+                for &failed_move in fails {
+                    let failed_hist = self
+                        .get_followup_move_mut(pos, indices, failed_move, index)
+                        .unwrap();
+                    malus(failed_hist, amt);
+                }
             }
         }
     }

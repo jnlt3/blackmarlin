@@ -183,10 +183,10 @@ impl OrderedMoveGen {
                         None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
                             let counter_move_hist = hist
-                                .get_counter_move(pos, hist_indices, mv)
+                                .get_followup_move(pos, hist_indices, mv, 0)
                                 .unwrap_or_default();
                             let followup_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv)
+                                .get_followup_move(pos, hist_indices, mv, 1)
                                 .unwrap_or_default();
                             quiet_hist + counter_move_hist + followup_move_hist
                         }

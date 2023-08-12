@@ -313,7 +313,7 @@ pub fn search<Search: SearchType>(
                 (local_context.get_hist().get_quiet(pos, make_move)
                     + local_context
                         .get_hist()
-                        .get_counter_move(pos, &hist_indices, make_move)
+                        .get_followup_move(pos, &hist_indices, make_move, 0)
                         .unwrap_or_default())
                     / 2
             }
