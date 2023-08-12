@@ -178,13 +178,18 @@ impl OrderedMoveGen {
                         Some(_) => i16::MIN,
                         None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
-                            let followup_hist: i16 = (0..history::FOLLOWUP_TABLE_CNT)
+                            let counter_move_hist = hist
+                                .get_followup_move(pos, hist_indices, mv, 0)
+                                .unwrap_or_default();
+                            let followup_move_hist: i16 = (1..history::FOLLOWUP_TABLE_CNT)
+                                .step_by(2)
                                 .map(|index| {
                                     hist.get_followup_move(pos, hist_indices, mv, index)
                                         .unwrap_or_default()
                                 })
                                 .sum();
-                            quiet_hist + followup_hist
+
+                            quiet_hist * 2 + counter_move_hist * 2 + followup_move_hist
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
@@ -242,7 +247,7 @@ impl QSearchMoveGen {
             while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
                 let capture = self.captures.swap_remove(index).mv;
                 let see = calculate_see(pos.board(), capture);
-                if see < 0 {
+                if see < 0 {    
                     continue;
                 }
                 return Some((capture, see));
