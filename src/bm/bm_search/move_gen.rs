@@ -2,8 +2,8 @@ use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
 use super::see::{calculate_see, compare_see, move_value};
-use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{self, History};
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Piece, PieceMoves};
@@ -182,13 +182,13 @@ impl OrderedMoveGen {
                         Some(_) => i16::MIN,
                         None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
-                            let counter_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv, 0)
-                                .unwrap_or_default();
-                            let followup_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv, 1)
-                                .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
+                            let followup_hist: i16 = (0..history::FOLLOWUP_TABLE_CNT)
+                                .map(|index| {
+                                    hist.get_followup_move(pos, hist_indices, mv, index)
+                                        .unwrap_or_default()
+                                })
+                                .sum();
+                            quiet_hist + followup_hist
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
