@@ -46,6 +46,7 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[Butterfly<i16>; Color::NUM]>,
+    quiet_pt: Box<[PieceTo<i16>; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -55,6 +56,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([new_butterfly_table(0); Color::NUM]),
+            quiet_pt: Box::new([new_piece_to_table(0); Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
@@ -69,6 +71,18 @@ impl History {
     fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         &mut self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    pub fn get_quiet_pt(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        self.quiet_pt[stm as usize][current_piece as usize][make_move.to as usize]
+    }
+
+    fn get_quiet_pt_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        &mut self.quiet_pt[stm as usize][current_piece as usize][make_move.to as usize]
     }
 
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
@@ -173,8 +187,10 @@ impl History {
         amt: i16,
     ) {
         bonus(self.get_quiet_mut(pos, make_move), amt);
+        bonus(self.get_quiet_pt_mut(pos, make_move), amt);
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(self.get_quiet_pt_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
