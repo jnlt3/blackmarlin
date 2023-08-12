@@ -3,7 +3,9 @@ use cozy_chess::{Color, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{
+    new_butterfly_table, new_piece_to_table, new_rank_to_table, Butterfly, PawnCompressed, PieceTo,
+};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -49,6 +51,8 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+
+    pawn: Box<[PawnCompressed<i16>; Color::NUM]>,
 }
 
 impl History {
@@ -58,6 +62,7 @@ impl History {
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            pawn: Box::new([new_rank_to_table(0); Color::NUM]),
         }
     }
 
@@ -69,6 +74,32 @@ impl History {
     fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         &mut self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
+    }
+
+    pub fn get_pawn(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        if pos.board().piece_on(make_move.from) != Some(Piece::Pawn) {
+            return 0;
+        }
+        let is_quiet = make_move.from.file() == make_move.to.file();
+        let capture_index = match is_quiet {
+            true => 0,
+            false => pos.board().piece_on(make_move.to).unwrap_or(Piece::Pawn) as usize + 1,
+        };
+        self.pawn[stm as usize][capture_index][make_move.from.rank() as usize]
+    }
+
+    fn get_pawn_mut(&mut self, pos: &Position, make_move: Move) -> Option<&mut i16> {
+        let stm = pos.board().side_to_move();
+        if pos.board().piece_on(make_move.from) != Some(Piece::Pawn) {
+            return None;
+        }
+        let is_quiet = make_move.from.file() == make_move.to.file();
+        let capture_index = match is_quiet {
+            true => 0,
+            false => pos.board().piece_on(make_move.to).unwrap_or(Piece::Pawn) as usize + 1,
+        };
+        Some(&mut self.pawn[stm as usize][capture_index][make_move.from.rank() as usize])
     }
 
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
@@ -159,8 +190,14 @@ impl History {
         } else {
             bonus(self.get_capture_mut(pos, make_move), amt);
         }
+        if let Some(pawn) = self.get_pawn_mut(pos, make_move) {
+            bonus(pawn, amt);
+        }
         for &failed_move in captures {
             malus(self.get_capture_mut(pos, failed_move), amt);
+            if let Some(pawn) = self.get_pawn_mut(pos, failed_move) {
+                malus(pawn, amt);
+            }
         }
     }
 
