@@ -1,6 +1,6 @@
 use cozy_chess::{Color, Move, Piece, Square};
 
-use crate::bm::bm_runner::ab_runner::MoveData;
+use crate::bm::bm_runner::ab_runner::SearchStack;
 
 use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
@@ -25,7 +25,7 @@ fn malus(hist: &mut i16, amt: i16) {
     *hist -= decrement;
 }
 
-pub const FOLLOWUP_TABLE_CNT: usize = 2;
+pub const FOLLOWUP_TABLE_CNT: usize = 4;
 
 /// Contains information calculated to index the history tables
 #[derive(Copy, Clone)]
@@ -34,12 +34,17 @@ pub struct HistoryIndices {
 }
 
 impl HistoryIndices {
-    pub fn new(prev_opp_move: Option<MoveData>, prev_move: Option<MoveData>) -> Self {
-        let counter_move = prev_opp_move.map(|prev_move| (prev_move.piece, prev_move.to));
-        let followup_move = prev_move.map(|prev_move| (prev_move.piece, prev_move.to));
-        Self {
-            piece_to: [counter_move, followup_move],
+    pub fn new(ss: &[SearchStack]) -> Self {
+        let mut piece_to = [None; FOLLOWUP_TABLE_CNT];
+        for index in 0..FOLLOWUP_TABLE_CNT {
+            if index >= ss.len() {
+                break;
+            }
+            piece_to[index] = ss[ss.len() - index - 1]
+                .move_played
+                .map(|mv| (mv.piece, mv.to));
         }
+        Self { piece_to }
     }
 }
 
