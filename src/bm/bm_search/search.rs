@@ -309,14 +309,7 @@ pub fn search<Search: SearchType>(
 
         let h_score = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
-            false => {
-                (local_context.get_hist().get_quiet(pos, make_move)
-                    + local_context
-                        .get_hist()
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
-            }
+            false => local_context.get_hist().get_quiet(pos, make_move),
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
