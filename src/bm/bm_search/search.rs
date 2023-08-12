@@ -683,7 +683,7 @@ pub fn q_search(
         if stand_pat + 200 <= alpha && see <= 0 {
             continue;
         }
-        if see + 400 < best_see {
+        if stand_pat + see <= alpha && see + 100 < best_see {
             continue;
         }
         pos.make_move(make_move);
