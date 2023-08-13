@@ -358,7 +358,7 @@ pub fn search<Search: SearchType>(
                 if s_score < s_beta {
                     extension = 1;
                     let d_ext_cnt = local_context.search_stack()[ply as usize - 1].d_ext_cnt;
-                    if !Search::PV && d_ext_cnt < 10 && multi_cut && s_score + 19 < s_beta {
+                    if !Search::PV && d_ext_cnt < 5 && multi_cut && s_score + 19 < s_beta {
                         local_context.search_stack_mut()[ply as usize].d_ext_cnt = d_ext_cnt + 1;
                         extension += 1;
                     }
