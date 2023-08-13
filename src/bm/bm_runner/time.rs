@@ -7,13 +7,21 @@ use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 50;
-const MOVE_CHANGE_MARGIN: u32 = 9;
-
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
 
-//We pretty much solve the position if we calculate this deep :D
+pub static mut EXPECTED_MOVES: u32 = 50;
+pub static mut MOVE_CHANGE_MARGIN: u32 = 9;
+pub static mut EVAL_DIV: u32 = 25;
+pub static mut EVAL_MIN: u32 = 100;
+
+pub static mut MOVE_CHANGE_MIN: u32 = 40;
+pub static mut MOVE_CHANGE_MAX: u32 = 200;
+
+pub static mut EVAL_BASE: u32 = 1050;
+pub static mut MOVE_CHANGE_BASE: u32 = 1050;
+pub static mut MOVE_CNT_BASE: u32 = 1050;
+
 const DEPTH_DEFAULT: u32 = MAX_PLY;
 
 const NODES_DEFAULT: u64 = u64::MAX;
@@ -57,7 +65,7 @@ pub struct TimeManager {
 impl TimeManager {
     pub fn new() -> Self {
         Self {
-            expected_moves: AtomicU32::new(EXPECTED_MOVES),
+            expected_moves: AtomicU32::new(unsafe { EXPECTED_MOVES }),
             last_eval: AtomicI16::new(0),
             max_duration: AtomicU32::new(0),
             normal_duration: AtomicU32::new(0),
@@ -85,51 +93,55 @@ impl TimeManager {
         current_move: Move,
         _: Duration,
     ) {
-        if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
-            return;
-        }
-
-        let current_eval = eval.raw();
-        let last_eval = self.last_eval.load(Ordering::SeqCst);
-        let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
-
-        let mut move_changed = false;
-        let prev_move = &mut *self.prev_move.lock().unwrap();
-        if let Some(prev_move) = prev_move {
-            if *prev_move != current_move {
-                move_changed = true;
+        unsafe {
+            if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
+                return;
             }
+
+            let current_eval = eval.raw();
+            let last_eval = self.last_eval.load(Ordering::SeqCst);
+            let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
+
+            let mut move_changed = false;
+            let prev_move = &mut *self.prev_move.lock().unwrap();
+            if let Some(prev_move) = prev_move {
+                if *prev_move != current_move {
+                    move_changed = true;
+                }
+            }
+            *prev_move = Some(current_move);
+
+            let move_change_depth = if move_changed {
+                self.move_change_cnt.fetch_add(1, Ordering::SeqCst);
+                self.same_move_depth.store(0, Ordering::SeqCst);
+                0
+            } else {
+                self.same_move_depth.fetch_add(1, Ordering::SeqCst)
+            };
+
+            let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
+
+            let eval_diff = (current_eval as f32 - last_eval as f32).abs() / (EVAL_DIV as f32);
+
+            time *= (EVAL_BASE as f32 / 1000.0).powf(eval_diff.min(EVAL_MIN as f32 / 100.0));
+
+            let move_change_factor = (MOVE_CHANGE_BASE as f32 / 1000.0)
+                .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
+                .max(MOVE_CHANGE_MIN as f32 / 100.0)
+                .min(MOVE_CHANGE_MAX as f32 / 100.0);
+
+            let move_cnt_factor = (MOVE_CNT_BASE as f32 / 1000.0).powf(move_change_cnt as f32);
+
+            let max_duration = self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0;
+            self.normal_duration
+                .store((time.min(max_duration) * 0.001) as u32, Ordering::SeqCst);
+            self.target_duration.store(
+                (time * 0.001 * move_change_factor * move_cnt_factor).min(max_duration * 0.001)
+                    as u32,
+                Ordering::SeqCst,
+            );
+            self.last_eval.store(current_eval, Ordering::SeqCst);
         }
-        *prev_move = Some(current_move);
-
-        let move_change_depth = if move_changed {
-            self.move_change_cnt.fetch_add(1, Ordering::SeqCst);
-            self.same_move_depth.store(0, Ordering::SeqCst);
-            0
-        } else {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
-        };
-
-        let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
-
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 25.0;
-
-        time *= 1.05_f32.powf(eval_diff.min(1.0));
-
-        let move_change_factor = 1.05_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .max(0.4);
-
-        let move_cnt_factor = 1.05_f32.powf(move_change_cnt as f32);
-
-        let max_duration = self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0;
-        self.normal_duration
-            .store((time.min(max_duration) * 0.001) as u32, Ordering::SeqCst);
-        self.target_duration.store(
-            (time * 0.001 * move_change_factor * move_cnt_factor).min(max_duration * 0.001) as u32,
-            Ordering::SeqCst,
-        );
-        self.last_eval.store(current_eval, Ordering::SeqCst);
     }
 
     pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
@@ -204,7 +216,7 @@ impl TimeManager {
                 .store(move_time.as_millis() as u32, Ordering::SeqCst);
         } else {
             let max_time = time.as_millis() as u32 * 4 / 5;
-            let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
+            let expected_moves = moves_to_go.unwrap_or(unsafe { EXPECTED_MOVES }) + 1;
             let default = if move_cnt > 1 {
                 (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time)
             } else {

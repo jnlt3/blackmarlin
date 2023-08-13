@@ -34,6 +34,9 @@ pub struct UciAdapter {
     forced: bool,
     chess960: bool,
     show_wdl: bool,
+
+    params: Vec<Box<dyn Fn(&str, &str) -> ()>>,
+    print_uci: Vec<Box<dyn Fn() -> ()>>,
 }
 
 impl UciAdapter {
@@ -43,6 +46,60 @@ impl UciAdapter {
             Board::default(),
             time_manager.clone(),
         )));
+
+        let mut params: Vec<Box<dyn Fn(&str, &str) -> ()>> = vec![];
+        let mut print_uci: Vec<Box<dyn Fn() -> ()>> = vec![];
+
+        macro_rules! add_param {
+            ($name: ident: $value_type: ty = range($min: expr, $max: expr)) => {
+                use crate::bm::bm_runner::time::$name;
+                params.push(Box::new(|name: &str, value: &str| {
+                    if name != stringify!($name) {
+                        return;
+                    }
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    let value = value.parse::<$value_type>().unwrap();
+                    assert!(value >= min && value <= max);
+                    unsafe { $name = value };
+                }));
+                print_uci.push(Box::new(|| {
+                    let value = unsafe { $name };
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    println!(
+                        "option name {} type spin default {} min {} max {}",
+                        stringify!($name),
+                        value,
+                        min,
+                        max,
+                    )
+                }))
+            };
+        }
+        /*
+        pub static mut EXPECTED_MOVES: u32 = 50;
+        pub static mut MOVE_CHANGE_MARGIN: u32 = 9;
+        pub static mut EVAL_DIV: u32 = 25;
+        pub static mut EVAL_MIN: u32 = 100;
+
+        pub static mut MOVE_CHANGE_MIN: u32 = 40;
+        pub static mut MOVE_CHANGE_MAX: u32 = 200;
+
+        pub static mut EVAL_BASE: u32 = 1050;
+        pub static mut MOVE_CHANGE_BASE: u32 = 1050;
+        pub static mut MOVE_CNT_BASE: u32 = 1050;
+                 */
+        add_param!(EXPECTED_MOVES: u32 = range(30, 100));
+        add_param!(MOVE_CHANGE_MARGIN: u32 = range(0, 20));
+        add_param!(EVAL_DIV: u32 = range(1, 200));
+        add_param!(EVAL_MIN: u32 = range(0, 500));
+        add_param!(MOVE_CHANGE_MIN: u32 = range(0, 500));
+        add_param!(MOVE_CHANGE_MAX: u32 = range(0, 500));
+
+        add_param!(EVAL_BASE: u32 = range(1000, 1200));
+        add_param!(MOVE_CHANGE_BASE: u32 = range(1000, 1200));
+        add_param!(MOVE_CNT_BASE: u32 = range(1000, 1200));
 
         let (tx, rx): (Sender<ThreadReq>, Receiver<ThreadReq>) = mpsc::channel();
         std::thread::spawn(move || loop {
@@ -67,6 +124,8 @@ impl UciAdapter {
             time_manager,
             chess960: false,
             show_wdl: false,
+            params,
+            print_uci,
         }
     }
 
@@ -81,6 +140,9 @@ impl UciAdapter {
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
+                for print_param in &self.print_uci {
+                    print_param();
+                }
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -139,6 +201,9 @@ impl UciAdapter {
                             .set_uci_show_wdl(self.show_wdl);
                     }
                     _ => {}
+                }
+                for params in self.params.iter() {
+                    params(&name, &value);
                 }
             }
             UciCommand::Bench(depth) => {
