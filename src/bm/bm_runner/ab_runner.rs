@@ -95,6 +95,7 @@ pub struct SearchStack {
     pub move_played: Option<MoveData>,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
+    pub d_ext_cnt: usize,
 }
 
 impl SearchStack {
@@ -458,6 +459,7 @@ impl AbRunner {
                         move_played: None,
                         pv: [None; MAX_PLY as usize + 1],
                         pv_len: 0,
+                        d_ext_cnt: 0,
                     };
                     MAX_PLY as usize + 1
                 ],
