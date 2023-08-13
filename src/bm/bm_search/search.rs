@@ -307,16 +307,19 @@ pub fn search<Search: SearchType>(
             .colors(!pos.board().side_to_move())
             .has(make_move.to);
 
-        let h_score = match is_capture {
+        let main_hist = match is_capture {
             true => local_context.get_hist().get_capture(pos, make_move),
-            false => {
-                (local_context.get_hist().get_quiet(pos, make_move)
-                    + local_context
-                        .get_hist()
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
-            }
+            false => local_context.get_hist().get_quiet(pos, make_move),
+        };
+        let counter_hist = (!is_capture).then_some(
+            local_context
+                .get_hist()
+                .get_counter_move(pos, &hist_indices, make_move)
+                .unwrap_or_default(),
+        );
+        let lmr_hist = match is_capture {
+            true => main_hist,
+            false => (main_hist + counter_hist.unwrap()) / 2,
         };
         local_context.search_stack_mut()[ply as usize + 1].pv_len = 0;
 
@@ -411,7 +414,7 @@ pub fn search<Search: SearchType>(
         */
         let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
 
-        if do_hp && (h_score as i32) < hp(depth) {
+        if do_hp && (main_hist as i32) < hp(depth) {
             continue;
         }
 
@@ -457,7 +460,7 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score);
+            reduction -= history_lmr(lmr_hist);
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
