@@ -184,7 +184,7 @@ impl OrderedMoveGen {
                             let followup_move_hist = hist
                                 .get_followup_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
+                            quiet_hist * 2 + counter_move_hist * 2 + followup_move_hist
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
