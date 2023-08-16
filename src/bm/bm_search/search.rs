@@ -10,7 +10,7 @@ use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
-use super::see::compare_see;
+use super::see::{self, compare_see};
 
 pub trait SearchType {
     const NM: bool;
@@ -425,13 +425,8 @@ pub fn search<Search: SearchType>(
             && depth <= 7
             && move_gen.phase() > Phase::GoodCaptures;
 
-        if do_see_prune
-            && !compare_see(
-                pos.board(),
-                make_move,
-                (alpha - eval - see_fp(depth) + 1).raw(),
-            )
-        {
+        let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
+        if do_see_prune && (see_margin > 0 || !compare_see(pos.board(), make_move, see_margin)) {
             continue;
         }
 
