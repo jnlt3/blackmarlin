@@ -88,6 +88,10 @@ const fn fp(depth: u32) -> i16 {
     depth as i16 * 62
 }
 
+const fn history_fp(depth: u32) -> i16 {
+    -((depth * depth) as i16) * 3
+}
+
 const fn see_fp(depth: u32) -> i16 {
     depth as i16 * 81
 }
@@ -386,8 +390,8 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
 
-        if do_fp && eval + fp(depth) <= alpha {
-            move_gen.skip_quiets();
+        if do_fp && eval + fp(depth) <= alpha && h_score < history_fp(depth) {
+            //move_gen.skip_quiets();
             continue;
         }
 
