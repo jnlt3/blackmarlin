@@ -9,7 +9,7 @@ use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
-use super::move_gen::{OrderedMoveGen, QSearchMoveGen};
+use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
 use super::see::compare_see;
 
 pub trait SearchType {
@@ -419,7 +419,11 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
+        let do_see_prune = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && depth <= 7
+            && move_gen.phase() > Phase::GoodCaptures;
 
         if do_see_prune
             && !compare_see(
