@@ -77,8 +77,8 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 const fn iir(depth: u32) -> u32 {
-    if depth >= 2 {
-        1
+    if depth > 2 {
+        2
     } else {
         0
     }
