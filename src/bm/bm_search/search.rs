@@ -89,7 +89,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn history_fp(depth: u32) -> i16 {
-    MAX_HIST - ((depth * depth) as i16) * 4
+    MAX_HIST - ((depth * depth) as i16) * 32
 }
 
 const fn see_fp(depth: u32) -> i16 {
