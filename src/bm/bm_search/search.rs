@@ -4,7 +4,7 @@ use cozy_chess::{Board, Color, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{HistoryIndices, MAX_HIST};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
@@ -89,7 +89,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn history_fp(depth: u32) -> i16 {
-    -((depth * depth) as i16) * 3
+    MAX_HIST - ((depth * depth) as i16) * 4
 }
 
 const fn see_fp(depth: u32) -> i16 {
@@ -384,16 +384,6 @@ pub fn search<Search: SearchType>(
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
-        /*
-        In non-PV nodes If a move isn't good enough to beat alpha - a static margin
-        we assume it's safe to prune this move
-        */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
-
-        if do_fp && eval + fp(depth) <= alpha && h_score < history_fp(depth) {
-            //move_gen.skip_quiets();
-            continue;
-        }
 
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
@@ -406,6 +396,16 @@ pub fn search<Search: SearchType>(
                     .get(depth as usize, improving as usize)
         {
             move_gen.skip_quiets();
+            continue;
+        }
+
+        /*
+        In non-PV nodes If a move isn't good enough to beat alpha - a static margin
+        we assume it's safe to prune this move
+        */
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
+
+        if do_fp && eval + fp(depth) <= alpha && h_score <= history_fp(depth) {
             continue;
         }
 
