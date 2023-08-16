@@ -4,7 +4,7 @@ use cozy_chess::{Board, Color, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{LocalContext, MoveData, SharedContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{HistoryIndices, MAX_HIST};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
@@ -89,7 +89,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn history_fp(depth: u32) -> i16 {
-    -((depth * depth) as i16) * 3
+    MAX_HIST - ((depth * depth) as i16) * 8
 }
 
 const fn see_fp(depth: u32) -> i16 {
