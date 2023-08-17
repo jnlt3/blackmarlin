@@ -110,7 +110,7 @@ impl TimeManager {
             self.same_move_depth.fetch_add(1, Ordering::SeqCst)
         };
 
-        let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
+        let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst).min(5);
 
         let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 22.0;
 
