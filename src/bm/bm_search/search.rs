@@ -89,7 +89,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 81
+    (depth as i16 - 1) * 81
 }
 
 const fn hp(depth: u32) -> i32 {
@@ -421,13 +421,7 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
 
-        if do_see_prune
-            && !compare_see(
-                pos.board(),
-                make_move,
-                (alpha - eval - see_fp(depth) + 1).raw(),
-            )
-        {
+        if do_see_prune && !compare_see(pos.board(), make_move, 1 - see_fp(depth)) {
             continue;
         }
 
