@@ -10,7 +10,7 @@ use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
-use super::see::{self, compare_see};
+use super::see::compare_see;
 
 pub trait SearchType {
     const NM: bool;
