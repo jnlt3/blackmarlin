@@ -664,6 +664,7 @@ pub fn q_search(
         }
     }
 
+    let mut move_cnt = 0;
     let mut move_gen = QSearchMoveGen::new();
     while let Some((make_move, see)) = move_gen.next(pos, local_context.get_hist()) {
         let is_capture = pos
@@ -681,6 +682,10 @@ pub fn q_search(
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
             }
+            if stand_pat + see + 80 <= alpha && move_cnt >= 3 {
+                continue;
+            }
+            move_cnt += 1;
             pos.make_move(make_move);
             let search_score = q_search(
                 pos,
