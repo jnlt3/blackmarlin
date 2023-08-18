@@ -682,7 +682,7 @@ pub fn q_search(
             if stand_pat + 200 <= alpha && see <= 0 {
                 continue;
             }
-            if stand_pat + see + 80 <= alpha && move_cnt >= 3 {
+            if stand_pat + see + 80 <= alpha && move_cnt != 0 {
                 continue;
             }
             move_cnt += 1;
