@@ -88,8 +88,8 @@ const fn fp(depth: u32) -> i16 {
     depth as i16 * 62
 }
 
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 81
+const fn see_fp(depth: u32, improving: bool) -> i16 {
+    (depth as i16 - improving as i16) * 81
 }
 
 const fn hp(depth: u32) -> i32 {
@@ -425,7 +425,7 @@ pub fn search<Search: SearchType>(
             && depth <= 7
             && move_gen.phase() > Phase::GoodCaptures;
 
-        let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
+        let see_margin = (alpha - eval - see_fp(depth, improving) + 1).raw();
         if do_see_prune && (see_margin > 0 || !compare_see(pos.board(), make_move, see_margin)) {
             continue;
         }
