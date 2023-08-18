@@ -25,7 +25,7 @@ fn malus(hist: &mut i16, amt: i16) {
     *hist -= decrement;
 }
 
-pub const FOLLOWUP_TABLE_CNT: usize = 4;
+pub const FOLLOWUP_TABLE_CNT: usize = 6;
 
 /// Contains information calculated to index the history tables
 #[derive(Copy, Clone)]

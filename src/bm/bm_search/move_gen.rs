@@ -182,13 +182,17 @@ impl OrderedMoveGen {
                         Some(_) => i16::MIN,
                         None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
-                            let followup_hist: i16 = (0..history::FOLLOWUP_TABLE_CNT)
+                            let counter_move_hist = hist
+                                .get_followup_move(pos, hist_indices, mv, 0)
+                                .unwrap_or_default();
+                            let followup_hist: i16 = (1..history::FOLLOWUP_TABLE_CNT)
+                                .step_by(2)
                                 .map(|index| {
                                     hist.get_followup_move(pos, hist_indices, mv, index)
                                         .unwrap_or_default()
                                 })
                                 .sum();
-                            quiet_hist + followup_hist
+                            quiet_hist * 3 + counter_move_hist * 3 + followup_hist
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
