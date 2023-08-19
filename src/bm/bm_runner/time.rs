@@ -85,7 +85,7 @@ impl TimeManager {
         current_move: Move,
         _: Duration,
     ) {
-        if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
+        if thread != 0 || depth <= 10 || self.no_manage.load(Ordering::SeqCst) {
             return;
         }
 
