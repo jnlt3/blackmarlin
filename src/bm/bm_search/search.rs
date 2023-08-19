@@ -435,7 +435,7 @@ pub fn search<Search: SearchType>(
         pos.make_move(make_move);
         shared_context.get_t_table().prefetch(pos.board());
         let gives_check = !pos.board().checkers().is_empty();
-        if gives_check {
+        if gives_check && (depth <= 7 || move_gen.phase() >= Phase::BadCaptures) {
             extension = extension.max(1);
         }
 
