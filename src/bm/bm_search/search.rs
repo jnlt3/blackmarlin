@@ -92,8 +92,8 @@ const fn see_fp(depth: u32) -> i16 {
     depth as i16 * 81
 }
 
-const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 71 / 10
+const fn hp(depth: u32) -> i16 {
+    -(((depth * depth) * 71 / 10) as i16)
 }
 
 const fn history_lmr(history: i16) -> i16 {
@@ -409,9 +409,14 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7;
 
-        if do_hp && (h_score as i32) < hp(depth) {
+        let hist_bonus = match eval <= alpha {
+            true => 0,
+            false => (eval - alpha).raw() / 8,
+        };
+
+        if do_hp && h_score + hist_bonus < hp(depth) {
             continue;
         }
 
