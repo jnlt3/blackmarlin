@@ -10,6 +10,8 @@ use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
+include!("policymap.txt");
+
 #[derive(PartialEq, Eq, Copy, Debug, Clone, PartialOrd, Ord)]
 pub enum Phase {
     PvMove,
@@ -188,7 +190,16 @@ impl OrderedMoveGen {
                             let followup_move_hist = hist
                                 .get_followup_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
+
+                            let policy_index = mv.from as usize * 64 * 6
+                                + mv.to as usize * 6
+                                + piece_moves.piece as usize;
+                            let phase = pos.phase();
+                            let policy_score = TABLE[policy_index][0] as u32 * phase
+                                + TABLE[policy_index][1] as u32 * (24 - phase);
+                            let policy_score = (policy_score / 24) as i16;
+
+                            quiet_hist + counter_move_hist + followup_move_hist + policy_score
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));

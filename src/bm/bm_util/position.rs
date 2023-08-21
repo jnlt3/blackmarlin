@@ -11,7 +11,16 @@ pub struct Position {
     b_threats: BitBoard,
     boards: Vec<Board>,
     threats: Vec<(BitBoard, BitBoard)>,
+    phase: u32,
     evaluator: Nnue,
+}
+
+fn phase(board: &Board) -> u32 {
+    (board.pieces(Piece::Knight).len()
+        + board.pieces(Piece::Bishop).len()
+        + board.pieces(Piece::Rook).len() * 2
+        + board.pieces(Piece::Queen).len() * 4)
+        .min(24)
 }
 
 impl Position {
@@ -20,6 +29,7 @@ impl Position {
         let (w_threats, b_threats) = threats(&board);
         evaluator.full_reset(&board, w_threats, b_threats);
         Self {
+            phase: phase(&board),
             current: board,
             w_threats,
             b_threats,
@@ -34,6 +44,7 @@ impl Position {
         self.evaluator.full_reset(&board, w_threats, b_threats);
         self.w_threats = w_threats;
         self.b_threats = b_threats;
+        self.phase = phase(&board);
         self.current = board;
         self.boards.clear();
     }
@@ -72,6 +83,10 @@ impl Position {
         &self.current
     }
 
+    pub fn phase(&self) -> u32 {
+        self.phase
+    }
+
     #[inline]
     pub fn half_ply(&self) -> u8 {
         self.current.halfmove_clock()
@@ -98,6 +113,7 @@ impl Position {
 
         self.current.play_unchecked(make_move);
         (self.w_threats, self.b_threats) = threats(&self.current);
+        self.phase = phase(&self.current);
 
         self.evaluator.make_move(
             &old_board,
@@ -118,6 +134,7 @@ impl Position {
         let current = self.boards.pop().unwrap();
         (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
+        self.phase = phase(&self.current);
     }
 
     #[inline]
