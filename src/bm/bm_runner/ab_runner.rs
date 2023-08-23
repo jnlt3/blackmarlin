@@ -93,6 +93,7 @@ pub struct SearchStack {
     pub eval: Evaluation,
     pub skip_move: Option<Move>,
     pub move_played: Option<MoveData>,
+    pub d_ext: u8,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
 }
@@ -110,6 +111,7 @@ impl SearchStack {
 #[derive(Debug, Clone)]
 pub struct ThreadContext {
     window: Window,
+    nodes: Nodes,
     pub tt_hits: u32,
     pub tt_misses: u32,
     pub eval: Evaluation,
@@ -118,7 +120,6 @@ pub struct ThreadContext {
     pub sel_depth: u32,
     pub history: History,
     pub killer_moves: Vec<MoveEntry>,
-    nodes: Nodes,
     pub abort: bool,
 }
 
@@ -409,6 +410,7 @@ impl AbRunner {
                         eval: Evaluation::new(0),
                         skip_move: None,
                         move_played: None,
+                        d_ext: 0,
                         pv: [None; MAX_PLY as usize + 1],
                         pv_len: 0,
                     };
