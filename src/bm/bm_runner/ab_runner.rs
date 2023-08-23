@@ -108,18 +108,18 @@ impl SearchStack {
 }
 
 #[derive(Debug, Clone)]
-pub struct LocalContext {
+pub struct ThreadContext {
     window: Window,
-    tt_hits: u32,
-    tt_misses: u32,
-    eval: Evaluation,
-    stm: Color,
-    search_stack: Vec<SearchStack>,
-    sel_depth: u32,
-    history: History,
-    killer_moves: Vec<MoveEntry>,
+    pub tt_hits: u32,
+    pub tt_misses: u32,
+    pub eval: Evaluation,
+    pub stm: Color,
+    pub ss: Vec<SearchStack>,
+    pub sel_depth: u32,
+    pub history: History,
+    pub killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
-    abort: bool,
+    pub abort: bool,
 }
 
 impl SharedContext {
@@ -152,55 +152,12 @@ impl SharedContext {
     }
 }
 
-impl LocalContext {
-    pub fn get_hist(&mut self) -> &History {
-        &self.history
-    }
-
-    pub fn get_hist_mut(&mut self) -> &mut History {
-        &mut self.history
-    }
-
-    #[inline]
-    pub fn get_k_table(&mut self) -> &mut Vec<MoveEntry> {
-        &mut self.killer_moves
-    }
-
-    #[inline]
-    pub fn tt_hits(&mut self) -> &mut u32 {
-        &mut self.tt_hits
-    }
-
-    #[inline]
-    pub fn tt_misses(&mut self) -> &mut u32 {
-        &mut self.tt_misses
-    }
-
-    #[inline]
-    pub fn search_stack(&self) -> &[SearchStack] {
-        &self.search_stack
-    }
-
-    #[inline]
-    pub fn search_stack_mut(&mut self) -> &mut [SearchStack] {
-        &mut self.search_stack
-    }
-
-    #[inline]
-    pub fn update_sel_depth(&mut self, ply: u32) {
-        self.sel_depth = self.sel_depth.max(ply);
-    }
-
-    pub fn eval(&self) -> Evaluation {
-        self.eval
-    }
-
-    pub fn stm(&self) -> Color {
-        self.stm
-    }
-
+impl ThreadContext {
     pub fn increment_nodes(&self) {
         self.nodes.0.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn update_sel_depth(&mut self, ply: u32) {
+        self.sel_depth = self.sel_depth.max(ply);
     }
 
     pub fn nodes(&self) -> u64 {
@@ -209,10 +166,6 @@ impl LocalContext {
 
     pub fn trigger_abort(&mut self) {
         self.abort = true;
-    }
-
-    pub fn abort(&self) -> bool {
-        self.abort
     }
 
     pub fn reset(&mut self) {
@@ -266,18 +219,18 @@ fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
 
 pub struct AbRunner {
     shared_context: SharedContext,
-    main_thread_context: Arc<Mutex<LocalContext>>,
+    main_thread_context: Arc<Mutex<ThreadContext>>,
     node_counter: NodeCounter,
     position: Position,
     chess960: bool,
     show_wdl: bool,
-    thread_contexts: Vec<Arc<Mutex<LocalContext>>>,
+    thread_contexts: Vec<Arc<Mutex<ThreadContext>>>,
 }
 
 impl AbRunner {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
-        local_context: Arc<Mutex<LocalContext>>,
+        local_context: Arc<Mutex<ThreadContext>>,
         search_start: Instant,
         thread: usize,
         chess960: bool,
@@ -336,7 +289,7 @@ impl AbRunner {
                         beta,
                     );
                     nodes = local_context.nodes();
-                    if depth > 1 && local_context.abort() {
+                    if depth > 1 && local_context.abort {
                         break 'outer;
                     }
                     local_context.window.set(score);
@@ -347,12 +300,12 @@ impl AbRunner {
                         depth,
                         nodes,
                         local_context.eval,
-                        local_context.search_stack[0].pv[0].unwrap(),
+                        local_context.ss[0].pv[0].unwrap(),
                         search_start.elapsed(),
                     );
                     abort = shared_context.abort_deepening(depth, nodes);
                     if (score > alpha && score < beta) || score.is_mate() {
-                        best_move = local_context.search_stack[0].pv[0];
+                        best_move = local_context.ss[0].pv[0];
                         eval = Some(score);
                         break;
                     } else {
@@ -373,7 +326,7 @@ impl AbRunner {
                     ));
 
                     let mut pv = vec![];
-                    let root_stack = &local_context.search_stack[0];
+                    let root_stack = &local_context.ss[0];
                     for make_move in &root_stack.pv[..root_stack.pv_len] {
                         if let Some(make_move) = *make_move {
                             let mut uci_move = make_move;
@@ -446,12 +399,12 @@ impl AbRunner {
                 })),
                 start: Instant::now(),
             },
-            main_thread_context: Arc::new(Mutex::new(LocalContext {
+            main_thread_context: Arc::new(Mutex::new(ThreadContext {
                 window: Window::new(12, 1, 4, 5),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(Color::White, Evaluation::new(0)),
-                search_stack: vec![
+                ss: vec![
                     SearchStack {
                         eval: Evaluation::new(0),
                         skip_move: None,
