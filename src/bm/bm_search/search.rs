@@ -355,7 +355,7 @@ pub fn search<Search: SearchType>(
                     extension = 1;
                     if !Search::PV
                         && multi_cut
-                        && thread.ss[ply as usize].d_ext < 5
+                        && thread.ss[ply as usize].d_ext < 10
                         && s_score + 19 < s_beta
                     {
                         thread.ss[ply as usize + 1].d_ext += 1;
