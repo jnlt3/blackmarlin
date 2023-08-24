@@ -400,7 +400,7 @@ impl AbRunner {
                 start: Instant::now(),
             },
             main_thread_context: Arc::new(Mutex::new(ThreadContext {
-                window: Window::new(12, 1, 4, 5),
+                window: Window::new(25, 1, 4, 5),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(Color::White, Evaluation::new(0)),
@@ -413,7 +413,7 @@ impl AbRunner {
                         pv_len: 0,
                     };
                     MAX_PLY as usize + 1
-                ],
+                ],  
                 sel_depth: 0,
                 history: History::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
