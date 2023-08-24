@@ -379,7 +379,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
 
-        if do_fp && eval + fp(depth, improving) <= alpha {
+        if do_fp && eval + fp(depth, improving && nstm_threats.is_empty()) <= alpha {
             move_gen.skip_quiets();
             continue;
         }
