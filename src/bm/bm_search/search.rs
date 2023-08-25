@@ -416,6 +416,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && depth <= 7
+            && eval <= alpha
             && move_gen.phase() > Phase::GoodCaptures;
 
         let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
