@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Color, Move, Piece, Rank};
+use cozy_chess::{Board, Move, Piece, Rank};
 
 #[test]
 fn test_see() {
