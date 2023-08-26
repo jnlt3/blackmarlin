@@ -21,9 +21,9 @@ impl Evaluation {
     pub fn new_checkmate(mate_in: i16) -> Self {
         Self {
             score: if mate_in < 0 {
-                -CHECKMATE_EVAL - mate_in - 1
+                -CHECKMATE_EVAL - mate_in + 1
             } else {
-                CHECKMATE_EVAL - mate_in + 1
+                CHECKMATE_EVAL - mate_in - 1
             },
         }
     }
@@ -90,7 +90,7 @@ impl std::ops::Shr<Depth> for Evaluation {
 
     fn shr(self, _: Depth) -> Self::Output {
         let sign = if self.is_mate() {
-            self.score.signum()
+            -self.score.signum()
         } else {
             0
         };
