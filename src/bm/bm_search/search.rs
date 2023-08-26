@@ -67,7 +67,8 @@ fn do_nmp<Search: SearchType>(
         && depth > 4
         && !(nstm_threat && depth <= 8)
         && eval >= beta
-        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
+        && (board.pieces(Piece::Pawn) | board.pieces(Piece::Knight) | board.pieces(Piece::King))
+            != board.occupied()
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
@@ -333,7 +334,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 5;
+                let multi_cut = depth >= 7;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
