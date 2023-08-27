@@ -98,6 +98,10 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
         }
 
         for &attacker in &Piece::ALL {
+            let pieces = board.colored_pieces(stm, attacker);
+            if pieces.is_empty() {
+                continue;
+            }
             let potential = match attacker {
                 Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
                 Piece::Knight => cozy_chess::get_knight_moves(target),
@@ -108,7 +112,7 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
                         | cozy_chess::get_bishop_moves(target, blockers)
                 }
                 Piece::King => cozy_chess::get_king_moves(target),
-            } & board.colored_pieces(stm, attacker)
+            } & pieces
                 & blockers;
 
             if let Some(sq) = potential.next_square() {
@@ -167,6 +171,10 @@ pub fn calculate_see(board: &Board, make_move: Move) -> i16 {
     let mut stm = !board.side_to_move();
     'outer: for i in 1..16 {
         for &attacker in &Piece::ALL {
+            let pieces = board.colored_pieces(stm, attacker);
+            if pieces.is_empty() {
+                continue;
+            }
             let potential = match attacker {
                 Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
                 Piece::Knight => cozy_chess::get_knight_moves(target),
@@ -177,7 +185,7 @@ pub fn calculate_see(board: &Board, make_move: Move) -> i16 {
                         | cozy_chess::get_bishop_moves(target, blockers)
                 }
                 Piece::King => cozy_chess::get_king_moves(target),
-            } & board.colored_pieces(stm, attacker)
+            } & pieces
                 & blockers;
 
             if let Some(sq) = potential.next_square() {
