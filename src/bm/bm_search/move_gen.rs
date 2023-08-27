@@ -6,15 +6,17 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves, Rank};
 
 const MAX_MOVES: usize = 218;
+
+const PROMO_MASK: BitBoard = BitBoard(Rank::First.bitboard().0 | Rank::Eighth.bitboard().0);
 
 #[derive(PartialEq, Eq, Copy, Debug, Clone, PartialOrd, Ord)]
 pub enum Phase {
     PvMove,
     GenPieceMoves,
-    GenCaptures,
+    GenNoisy,
     GoodCaptures,
     Killers,
     GenQuiets,
@@ -114,17 +116,22 @@ impl OrderedMoveGen {
             }
         }
         if self.phase == Phase::GenPieceMoves {
-            self.phase = Phase::GenCaptures;
+            self.phase = Phase::GenNoisy;
             pos.board().generate_moves(|piece_moves| {
                 self.piece_moves.push(piece_moves);
                 false
             });
         }
-        if self.phase == Phase::GenCaptures {
+        if self.phase == Phase::GenNoisy {
             self.phase = Phase::GoodCaptures;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
-                piece_moves.to &= pos.board().colors(!stm);
+                let mut mask = pos.board().colors(!stm);
+                match piece_moves.piece {
+                    Piece::Pawn => mask |= PROMO_MASK,
+                    _ => {}
+                }
+                piece_moves.to &= mask;
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
                         continue;
@@ -170,6 +177,9 @@ impl OrderedMoveGen {
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
+                    if mv.promotion.is_some() {
+                        continue;
+                    }
                     if Some(mv) == self.pv_move {
                         continue;
                     }
@@ -177,20 +187,15 @@ impl OrderedMoveGen {
                         continue;
                     }
 
-                    let score = match mv.promotion {
-                        Some(Piece::Queen) => i16::MAX,
-                        Some(_) => i16::MIN,
-                        None => {
-                            let quiet_hist = hist.get_quiet(pos, mv);
-                            let counter_move_hist = hist
-                                .get_counter_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            let followup_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
-                        }
-                    };
+                    let quiet_hist = hist.get_quiet(pos, mv);
+                    let counter_move_hist = hist
+                        .get_counter_move(pos, hist_indices, mv)
+                        .unwrap_or_default();
+                    let followup_move_hist = hist
+                        .get_followup_move(pos, hist_indices, mv)
+                        .unwrap_or_default();
+                    let score = quiet_hist + counter_move_hist + followup_move_hist;
+
                     self.quiets.push(Quiet::new(mv, score));
                 }
             }
