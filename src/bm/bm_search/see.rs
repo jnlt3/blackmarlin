@@ -7,6 +7,9 @@ pub fn move_value(board: &Board, make_move: Move) -> i16 {
 }
 
 pub fn compare_see(board: &Board, make_move: Move, target: i16) -> bool {
+    if make_move.promotion.is_some() {
+        return true;
+    }
     let target_square = make_move.to;
     let mut move_piece = board.piece_on(make_move.from).unwrap();
     let mut gain = match board
@@ -32,7 +35,7 @@ pub fn compare_see(board: &Board, make_move: Move, target: i16) -> bool {
         if (!stm && gain < target) || (stm && gain + piece_pts(move_piece) < target) {
             return false;
         }
-        if (stm && gain > target) || (!stm && gain - piece_pts(move_piece) >= target) {
+        if (stm && gain >= target) || (!stm && gain - piece_pts(move_piece) >= target) {
             return true;
         }
         let defenders = board.colors(color) & blockers;
