@@ -1,7 +1,7 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -39,6 +39,7 @@ pub struct TimeManager {
     target_duration: AtomicU32,
 
     move_stability: AtomicU32,
+    prev_eval: AtomicI16,
 
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
@@ -59,6 +60,7 @@ impl TimeManager {
             base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
             move_stability: AtomicU32::new(0),
+            prev_eval: AtomicI16::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -71,13 +73,26 @@ impl TimeManager {
 }
 
 impl TimeManager {
-    pub fn deepen(&self, thread: usize, depth: u32, _: u64, _: Evaluation, mv: Move, _: Duration) {
+    pub fn deepen(
+        &self,
+        thread: usize,
+        depth: u32,
+        _: u64,
+        eval: Evaluation,
+        mv: Move,
+        _: Duration,
+    ) {
+        let eval = eval.raw();
+        let prev_eval = self.prev_eval.load(Ordering::Relaxed);
+        self.prev_eval.store(eval, Ordering::Relaxed);
+
         if thread != 0 || depth <= 4 {
             return;
         }
         let prev_move = *self.prev_move.lock().unwrap();
 
         let mut move_stability = self.move_stability.load(Ordering::Relaxed);
+
         move_stability = match Some(mv) == prev_move {
             true => (move_stability + 1).min(10),
             false => 0,
@@ -85,14 +100,16 @@ impl TimeManager {
         self.move_stability.store(move_stability, Ordering::Relaxed);
 
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
+        let eval_stability_factor = (prev_eval - eval).clamp(10, 30) as f32 / 20.0;
+
         let base_duration = self.base_duration.load(Ordering::Relaxed);
-        let target_duration = base_duration as f32 * move_stability_factor;
+        let target_duration = base_duration as f32 * move_stability_factor * eval_stability_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }
 
     pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
-        self.abort_now.store(false, Ordering::SeqCst);
+        self.abort_now.store(false, Ordering::Relaxed);
         *self.board.lock().unwrap() = board.clone();
 
         let mut move_cnt = 0;
@@ -144,9 +161,9 @@ impl TimeManager {
                 _ => {}
             }
         }
-        self.infinite.store(infinite, Ordering::SeqCst);
-        self.max_depth.store(max_depth, Ordering::SeqCst);
-        self.max_nodes.store(max_nodes, Ordering::SeqCst);
+        self.infinite.store(infinite, Ordering::Relaxed);
+        self.max_depth.store(max_depth, Ordering::Relaxed);
+        self.max_nodes.store(max_nodes, Ordering::Relaxed);
 
         let (time, inc) = match board.side_to_move() {
             cozy_chess::Color::White => (w_time, w_inc),
@@ -154,13 +171,13 @@ impl TimeManager {
         };
 
         let no_manage = infinite || move_time.is_some();
-        self.no_manage.store(no_manage, Ordering::SeqCst);
+        self.no_manage.store(no_manage, Ordering::Relaxed);
 
         if let Some(move_time) = move_time {
             self.target_duration
-                .store(move_time.as_millis() as u32, Ordering::SeqCst);
+                .store(move_time.as_millis() as u32, Ordering::Relaxed);
         } else if move_cnt == 0 {
-            self.target_duration.store(0, Ordering::SeqCst);
+            self.target_duration.store(0, Ordering::Relaxed);
         } else {
             let max_time = time.as_millis() as u32 * 4 / 5;
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
@@ -169,45 +186,45 @@ impl TimeManager {
             } else {
                 0
             };
-            self.base_duration.store(default, Ordering::SeqCst);
-            self.target_duration.store(default, Ordering::SeqCst);
-            self.max_duration.store(max_time, Ordering::SeqCst);
+            self.base_duration.store(default, Ordering::Relaxed);
+            self.target_duration.store(default, Ordering::Relaxed);
+            self.max_duration.store(max_time, Ordering::Relaxed);
         };
     }
 
     pub fn abort_now(&self) {
-        self.abort_now.store(true, Ordering::SeqCst);
+        self.abort_now.store(true, Ordering::Relaxed);
     }
 
     pub fn abort_search(&self, start: Instant, nodes: u64) -> bool {
-        if self.abort_now.load(Ordering::SeqCst) {
+        if self.abort_now.load(Ordering::Relaxed) {
             true
         } else {
-            (self.max_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
-                && !self.infinite.load(Ordering::SeqCst))
-                || self.max_nodes.load(Ordering::SeqCst) <= nodes
+            (self.max_duration.load(Ordering::Relaxed) < start.elapsed().as_millis() as u32
+                && !self.infinite.load(Ordering::Relaxed))
+                || self.max_nodes.load(Ordering::Relaxed) <= nodes
         }
     }
 
     pub fn abort_deepening(&self, start: Instant, depth: u32, nodes: u64) -> bool {
-        if self.abort_now.load(Ordering::SeqCst) {
+        if self.abort_now.load(Ordering::Relaxed) {
             true
         } else {
-            let abort_std = self.target_duration.load(Ordering::SeqCst)
+            let abort_std = self.target_duration.load(Ordering::Relaxed)
                 < start.elapsed().as_millis() as u32
-                && !self.infinite.load(Ordering::SeqCst);
+                && !self.infinite.load(Ordering::Relaxed);
             abort_std
-                || self.max_depth.load(Ordering::SeqCst) < depth
-                || self.max_nodes.load(Ordering::SeqCst) <= nodes
+                || self.max_depth.load(Ordering::Relaxed) < depth
+                || self.max_nodes.load(Ordering::Relaxed) <= nodes
         }
     }
 
     pub fn clear(&self) {
         *self.prev_move.lock().unwrap() = None;
-        self.abort_now.store(false, Ordering::SeqCst);
-        self.no_manage.store(false, Ordering::SeqCst);
-        let expected_moves = self.expected_moves.load(Ordering::SeqCst);
+        self.abort_now.store(false, Ordering::Relaxed);
+        self.no_manage.store(false, Ordering::Relaxed);
+        let expected_moves = self.expected_moves.load(Ordering::Relaxed);
         self.expected_moves
-            .store(expected_moves.saturating_sub(1), Ordering::SeqCst);
+            .store(expected_moves.saturating_sub(1), Ordering::Relaxed);
     }
 }

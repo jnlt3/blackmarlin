@@ -295,15 +295,15 @@ impl AbRunner {
                     local_context.window.set(score);
                     local_context.eval = score;
 
-                    shared_context.time_manager.deepen(
-                        thread,
-                        depth,
-                        nodes,
-                        local_context.eval,
-                        local_context.ss[0].pv[0].unwrap(),
-                        search_start.elapsed(),
-                    );
                     if (score > alpha && score < beta) || score.is_mate() {
+                        shared_context.time_manager.deepen(
+                            thread,
+                            depth,
+                            nodes,
+                            local_context.eval,
+                            local_context.ss[0].pv[0].unwrap(),
+                            search_start.elapsed(),
+                        );
                         abort = shared_context.abort_deepening(depth, nodes);
                         best_move = local_context.ss[0].pv[0];
                         eval = Some(score);
