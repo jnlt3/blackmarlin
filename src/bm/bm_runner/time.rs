@@ -12,7 +12,6 @@ const EXPECTED_MOVES: u32 = 40;
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
 
-//We pretty much solve the position if we calculate this deep :D
 const DEPTH_DEFAULT: u32 = MAX_PLY;
 
 const NODES_DEFAULT: u64 = u64::MAX;
@@ -36,8 +35,10 @@ pub enum TimeManagementInfo {
 pub struct TimeManager {
     expected_moves: AtomicU32,
     max_duration: AtomicU32,
-    normal_duration: AtomicU32,
+    base_duration: AtomicU32,
     target_duration: AtomicU32,
+
+    move_stability: AtomicU32,
 
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
@@ -55,8 +56,9 @@ impl TimeManager {
         Self {
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
             max_duration: AtomicU32::new(0),
-            normal_duration: AtomicU32::new(0),
+            base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
+            move_stability: AtomicU32::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -69,7 +71,25 @@ impl TimeManager {
 }
 
 impl TimeManager {
-    pub fn deepen(&self, _: usize, _: u32, _: u64, _: Evaluation, _: Move, _: Duration) {}
+    pub fn deepen(&self, thread: usize, depth: u32, _: u64, _: Evaluation, mv: Move, _: Duration) {
+        if thread != 0 || depth <= 4 {
+            return;
+        }
+        let prev_move = *self.prev_move.lock().unwrap();
+
+        let mut move_stability = self.move_stability.load(Ordering::Relaxed);
+        move_stability = match Some(mv) == prev_move {
+            true => (move_stability + 1).min(10),
+            false => 0,
+        };
+        self.move_stability.store(move_stability, Ordering::Relaxed);
+
+        let move_stability_factor = (50 - move_stability) as f32 / 40.0;
+        let base_duration = self.base_duration.load(Ordering::Relaxed);
+        let target_duration = base_duration as f32 * move_stability_factor;
+        self.target_duration
+            .store(target_duration as u32, Ordering::Relaxed);
+    }
 
     pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
         self.abort_now.store(false, Ordering::SeqCst);
@@ -149,7 +169,7 @@ impl TimeManager {
             } else {
                 0
             };
-            self.normal_duration.store(default, Ordering::SeqCst);
+            self.base_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration.store(max_time, Ordering::SeqCst);
         };
