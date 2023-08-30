@@ -120,6 +120,7 @@ pub struct ThreadContext {
     pub killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     pub abort: bool,
+    pub root_nodes: [[u64; Square::NUM]; Square::NUM],
 }
 
 impl SharedContext {
@@ -172,6 +173,7 @@ impl ThreadContext {
         self.abort = false;
         self.window.reset();
         self.sel_depth = 0;
+        self.root_nodes = [[0; Square::NUM]; Square::NUM];
         self.nodes.0.store(0, Ordering::Relaxed);
     }
 }
@@ -231,7 +233,6 @@ impl AbRunner {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
         local_context: Arc<Mutex<ThreadContext>>,
-        search_start: Instant,
         thread: usize,
         chess960: bool,
         show_wdl: bool,
@@ -295,13 +296,14 @@ impl AbRunner {
                     local_context.window.set(score);
                     local_context.eval = score;
 
+                    let root_move = local_context.ss[0].pv[0].unwrap();
                     shared_context.time_manager.deepen(
                         thread,
                         depth,
+                        local_context.root_nodes[root_move.from as usize][root_move.to as usize],
                         nodes,
                         local_context.eval,
-                        local_context.ss[0].pv[0].unwrap(),
-                        search_start.elapsed(),
+                        root_move,
                     );
                     if (score > alpha && score < beta) || score.is_mate() {
                         abort = shared_context.abort_deepening(depth, nodes);
@@ -420,6 +422,7 @@ impl AbRunner {
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
                 stm: Color::White,
+                root_nodes: [[0; Square::NUM]; Square::NUM],
             })),
             thread_contexts: vec![],
             position,
@@ -433,7 +436,6 @@ impl AbRunner {
     ) -> (Move, Evaluation, u32, u64) {
         let thread_count = self.thread_contexts.len() as u8 + 1;
         let mut join_handlers = vec![];
-        let search_start = Instant::now();
         self.shared_context.start = Instant::now();
         self.node_counter
             .initialize_node_counters(thread_count as usize);
@@ -441,7 +443,6 @@ impl AbRunner {
         for (i, context) in self.thread_contexts.clone().iter().enumerate() {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
                 context.clone(),
-                search_start,
                 i + 1,
                 self.chess960,
                 self.show_wdl,
@@ -450,7 +451,6 @@ impl AbRunner {
 
         let (final_move, final_eval, max_depth, mut node_count) = self.launch_searcher::<SM, Info>(
             self.main_thread_context.clone(),
-            search_start,
             0,
             self.chess960,
             self.show_wdl,

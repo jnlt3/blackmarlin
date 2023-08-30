@@ -71,7 +71,15 @@ impl TimeManager {
 }
 
 impl TimeManager {
-    pub fn deepen(&self, thread: usize, depth: u32, _: u64, _: Evaluation, mv: Move, _: Duration) {
+    pub fn deepen(
+        &self,
+        thread: usize,
+        depth: u32,
+        move_nodes: u64,
+        nodes: u64,
+        _: Evaluation,
+        mv: Move,
+    ) {
         if thread != 0 || depth <= 4 {
             return;
         }
@@ -83,10 +91,10 @@ impl TimeManager {
             false => 0,
         };
         self.move_stability.store(move_stability, Ordering::Relaxed);
-
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
+        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
-        let target_duration = base_duration as f32 * move_stability_factor;
+        let target_duration = base_duration as f32 * move_stability_factor * node_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }
