@@ -1,7 +1,7 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -39,7 +39,8 @@ pub struct TimeManager {
     target_duration: AtomicU32,
 
     move_stability: AtomicU32,
-    prev_eval: AtomicI16,
+
+    prev_eval: Mutex<Vec<i16>>,
 
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
@@ -60,7 +61,7 @@ impl TimeManager {
             base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
             move_stability: AtomicU32::new(0),
-            prev_eval: AtomicI16::new(0),
+            prev_eval: Mutex::new(vec![]),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -83,8 +84,8 @@ impl TimeManager {
         _: Duration,
     ) {
         let eval = eval.raw();
-        let prev_eval = self.prev_eval.load(Ordering::Relaxed);
-        self.prev_eval.store(eval, Ordering::Relaxed);
+        let mut prev_eval = self.prev_eval.lock().unwrap();
+        prev_eval.push(eval);
 
         if thread != 0 || depth <= 4 {
             return;
@@ -100,7 +101,11 @@ impl TimeManager {
         self.move_stability.store(move_stability, Ordering::Relaxed);
 
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
-        let eval_stability_factor = (prev_eval - eval).clamp(20, 60) as f32 / 20.0;
+        let mut eval_stability_factor = 0;
+        for &prev_eval in prev_eval.iter().rev().skip(1).take(3) {
+            eval_stability_factor += (prev_eval - eval).clamp(20, 60);
+        }
+        let eval_stability_factor = eval_stability_factor as f32 / 90.0;
 
         let base_duration = self.base_duration.load(Ordering::Relaxed);
         let target_duration = base_duration as f32 * move_stability_factor * eval_stability_factor;
@@ -226,5 +231,6 @@ impl TimeManager {
         let expected_moves = self.expected_moves.load(Ordering::Relaxed);
         self.expected_moves
             .store(expected_moves.saturating_sub(1), Ordering::Relaxed);
+        self.prev_eval.lock().unwrap().clear();
     }
 }
