@@ -173,6 +173,7 @@ impl ThreadContext {
         self.abort = false;
         self.window.reset();
         self.sel_depth = 0;
+        self.root_nodes = [[0; Square::NUM]; Square::NUM];
         self.nodes.0.store(0, Ordering::Relaxed);
     }
 }
