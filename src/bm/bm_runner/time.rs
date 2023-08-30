@@ -77,7 +77,8 @@ impl TimeManager {
         depth: u32,
         move_nodes: u64,
         nodes: u64,
-        _: Evaluation,
+        eval: Evaluation,
+        previous_eval: Option<Evaluation>,
         mv: Move,
     ) {
         if thread != 0 || depth <= 4 {
@@ -93,8 +94,10 @@ impl TimeManager {
         self.move_stability.store(move_stability, Ordering::Relaxed);
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
         let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
+        let eval_factor = (previous_eval.unwrap_or(eval) - eval).raw().clamp(10, 30) as f32 / 20.0;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
-        let target_duration = base_duration as f32 * move_stability_factor * node_factor;
+        let target_duration =
+            base_duration as f32 * move_stability_factor * node_factor * eval_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }

@@ -266,6 +266,7 @@ impl AbRunner {
             'outer: loop {
                 let mut fail_cnt = 0;
                 local_context.window.reset();
+                let mut previous_score = None;
                 loop {
                     if abort {
                         break 'outer;
@@ -303,8 +304,10 @@ impl AbRunner {
                         local_context.root_nodes[root_move.from as usize][root_move.to as usize],
                         nodes,
                         local_context.eval,
+                        previous_score,
                         root_move,
                     );
+                    previous_score = Some(score);
                     if (score > alpha && score < beta) || score.is_mate() {
                         abort = shared_context.abort_deepening(depth, nodes);
                         best_move = local_context.ss[0].pv[0];
