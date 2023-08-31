@@ -293,7 +293,6 @@ impl AbRunner {
                         break 'outer;
                     }
                     local_context.window.set(score);
-                    local_context.eval = score;
 
                     shared_context.time_manager.deepen(
                         thread,
@@ -307,6 +306,7 @@ impl AbRunner {
                     if (score > alpha && score < beta) || score.is_mate() {
                         best_move = local_context.ss[0].pv[0];
                         eval = Some(score);
+                        local_context.eval = score;
                         break;
                     } else {
                         fail_cnt += 1;
