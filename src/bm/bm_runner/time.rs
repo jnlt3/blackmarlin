@@ -217,5 +217,6 @@ impl TimeManager {
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
         self.expected_moves
             .store(expected_moves.saturating_sub(1), Ordering::SeqCst);
+        self.move_stability.store(0, Ordering::Relaxed);
     }
 }
