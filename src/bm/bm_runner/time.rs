@@ -83,13 +83,14 @@ impl TimeManager {
         if thread != 0 || depth <= 4 {
             return;
         }
-        let prev_move = *self.prev_move.lock().unwrap();
+        let mut prev_move = self.prev_move.lock().unwrap();
 
         let mut move_stability = self.move_stability.load(Ordering::Relaxed);
-        move_stability = match Some(mv) == prev_move {
+        move_stability = match Some(mv) == *prev_move {
             true => (move_stability + 1).min(10),
             false => 0,
         };
+        *prev_move = Some(mv);
         self.move_stability.store(move_stability, Ordering::Relaxed);
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
         let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
