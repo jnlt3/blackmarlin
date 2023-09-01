@@ -1,7 +1,7 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -39,6 +39,7 @@ pub struct TimeManager {
     target_duration: AtomicU32,
 
     move_stability: AtomicU32,
+    prev_eval: AtomicI16,
 
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
@@ -59,6 +60,7 @@ impl TimeManager {
             base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
             move_stability: AtomicU32::new(0),
+            prev_eval: AtomicI16::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -77,9 +79,12 @@ impl TimeManager {
         depth: u32,
         move_nodes: u64,
         nodes: u64,
-        _: Evaluation,
+        eval: Evaluation,
         mv: Move,
     ) {
+        let eval = eval.raw();
+        let prev_eval = self.prev_eval.load(Ordering::Relaxed);
+        self.prev_eval.store(eval, Ordering::Relaxed);
         if thread != 0 || depth <= 4 {
             return;
         }
@@ -94,8 +99,10 @@ impl TimeManager {
         self.move_stability.store(move_stability, Ordering::Relaxed);
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
         let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
+        let eval_factor = (prev_eval - eval).clamp(20, 60) as f32 / 20.0;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
-        let target_duration = base_duration as f32 * move_stability_factor * node_factor;
+        let target_duration =
+            base_duration as f32 * move_stability_factor * node_factor * eval_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }
