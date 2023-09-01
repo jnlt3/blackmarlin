@@ -290,6 +290,7 @@ pub fn search<Search: SearchType>(
 
     let hist_indices = HistoryIndices::new(opp_move, prev_move);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
+        let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
             continue;
         }
@@ -527,6 +528,11 @@ pub fn search<Search: SearchType>(
 
         pos.unmake_move();
         moves_seen += 1;
+
+        if ply == 0 {
+            let searched_nodes = thread.nodes() - move_nodes;
+            thread.root_nodes[make_move.from as usize][make_move.to as usize] += searched_nodes;
+        }
 
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);

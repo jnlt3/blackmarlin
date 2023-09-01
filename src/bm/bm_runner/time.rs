@@ -7,13 +7,11 @@ use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 36;
-const MOVE_CHANGE_MARGIN: u32 = 8;
+const EXPECTED_MOVES: u32 = 40;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
 
-//We pretty much solve the position if we calculate this deep :D
 const DEPTH_DEFAULT: u32 = MAX_PLY;
 
 const NODES_DEFAULT: u64 = u64::MAX;
@@ -36,13 +34,13 @@ pub enum TimeManagementInfo {
 #[derive(Debug)]
 pub struct TimeManager {
     expected_moves: AtomicU32,
-    last_eval: AtomicI16,
     max_duration: AtomicU32,
-    normal_duration: AtomicU32,
+    base_duration: AtomicU32,
     target_duration: AtomicU32,
 
-    same_move_depth: AtomicU32,
-    move_change_cnt: AtomicU32,
+    move_stability: AtomicU32,
+    prev_eval: AtomicI16,
+
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
 
@@ -58,12 +56,11 @@ impl TimeManager {
     pub fn new() -> Self {
         Self {
             expected_moves: AtomicU32::new(EXPECTED_MOVES),
-            last_eval: AtomicI16::new(0),
             max_duration: AtomicU32::new(0),
-            normal_duration: AtomicU32::new(0),
+            base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
-            same_move_depth: AtomicU32::new(0),
-            move_change_cnt: AtomicU32::new(0),
+            move_stability: AtomicU32::new(0),
+            prev_eval: AtomicI16::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -80,56 +77,34 @@ impl TimeManager {
         &self,
         thread: usize,
         depth: u32,
-        _: u64,
+        move_nodes: u64,
+        nodes: u64,
         eval: Evaluation,
-        current_move: Move,
-        _: Duration,
+        mv: Move,
     ) {
-        if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::SeqCst) {
+        let eval = eval.raw();
+        let prev_eval = self.prev_eval.load(Ordering::Relaxed);
+        self.prev_eval.store(eval, Ordering::Relaxed);
+        if thread != 0 || depth <= 4 {
             return;
         }
+        let mut prev_move = self.prev_move.lock().unwrap();
 
-        let current_eval = eval.raw();
-        let last_eval = self.last_eval.load(Ordering::SeqCst);
-        let mut time = (self.normal_duration.load(Ordering::SeqCst) * 1000) as f32;
-
-        let mut move_changed = false;
-        let prev_move = &mut *self.prev_move.lock().unwrap();
-        if let Some(prev_move) = prev_move {
-            if *prev_move != current_move {
-                move_changed = true;
-            }
-        }
-        *prev_move = Some(current_move);
-
-        let move_change_depth = if move_changed {
-            self.move_change_cnt.fetch_add(1, Ordering::SeqCst);
-            self.same_move_depth.store(0, Ordering::SeqCst);
-            0
-        } else {
-            self.same_move_depth.fetch_add(1, Ordering::SeqCst)
+        let mut move_stability = self.move_stability.load(Ordering::Relaxed);
+        move_stability = match Some(mv) == *prev_move {
+            true => (move_stability + 1).min(10),
+            false => 0,
         };
-
-        let move_change_cnt = self.move_change_cnt.load(Ordering::SeqCst);
-
-        let eval_diff = (current_eval as f32 - last_eval as f32).abs() / 22.0;
-
-        time *= 1.04_f32.powf(eval_diff.min(0.65));
-
-        let move_change_factor = 1.05_f32
-            .powf(MOVE_CHANGE_MARGIN as f32 - move_change_depth as f32)
-            .max(0.41);
-
-        let move_cnt_factor = 1.07_f32.powf(move_change_cnt as f32);
-
-        let max_duration = self.max_duration.load(Ordering::SeqCst) as f32 * 1000.0;
-        self.normal_duration
-            .store((time.min(max_duration) * 0.001) as u32, Ordering::SeqCst);
-        self.target_duration.store(
-            (time * 0.001 * move_change_factor * move_cnt_factor).min(max_duration * 0.001) as u32,
-            Ordering::SeqCst,
-        );
-        self.last_eval.store(current_eval, Ordering::SeqCst);
+        *prev_move = Some(mv);
+        self.move_stability.store(move_stability, Ordering::Relaxed);
+        let move_stability_factor = (50 - move_stability) as f32 / 40.0;
+        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
+        let eval_factor = (prev_eval - eval).clamp(20, 60) as f32 / 20.0;
+        let base_duration = self.base_duration.load(Ordering::Relaxed);
+        let target_duration =
+            base_duration as f32 * move_stability_factor * node_factor * eval_factor;
+        self.target_duration
+            .store(target_duration as u32, Ordering::Relaxed);
     }
 
     pub fn initiate(&self, board: &Board, info: &[TimeManagementInfo]) {
@@ -197,11 +172,11 @@ impl TimeManager {
         let no_manage = infinite || move_time.is_some();
         self.no_manage.store(no_manage, Ordering::SeqCst);
 
-        if move_cnt == 0 {
-            self.target_duration.store(0, Ordering::SeqCst);
-        } else if let Some(move_time) = move_time {
+        if let Some(move_time) = move_time {
             self.target_duration
                 .store(move_time.as_millis() as u32, Ordering::SeqCst);
+        } else if move_cnt == 0 {
+            self.target_duration.store(0, Ordering::SeqCst);
         } else {
             let max_time = time.as_millis() as u32 * 4 / 5;
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
@@ -210,9 +185,7 @@ impl TimeManager {
             } else {
                 0
             };
-            self.same_move_depth.store(0, Ordering::SeqCst);
-            self.move_change_cnt.store(0, Ordering::SeqCst);
-            self.normal_duration.store(default, Ordering::SeqCst);
+            self.base_duration.store(default, Ordering::SeqCst);
             self.target_duration.store(default, Ordering::SeqCst);
             self.max_duration.store(max_time, Ordering::SeqCst);
         };
@@ -226,7 +199,7 @@ impl TimeManager {
         if self.abort_now.load(Ordering::SeqCst) {
             true
         } else {
-            (self.target_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
+            (self.max_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
                 && !self.infinite.load(Ordering::SeqCst))
                 || self.max_nodes.load(Ordering::SeqCst) <= nodes
         }
@@ -237,7 +210,7 @@ impl TimeManager {
             true
         } else {
             let abort_std = self.target_duration.load(Ordering::SeqCst)
-                < (start.elapsed().as_millis() * 10 / 8) as u32
+                < start.elapsed().as_millis() as u32
                 && !self.infinite.load(Ordering::SeqCst);
             abort_std
                 || self.max_depth.load(Ordering::SeqCst) < depth
@@ -247,12 +220,11 @@ impl TimeManager {
 
     pub fn clear(&self) {
         *self.prev_move.lock().unwrap() = None;
-        self.same_move_depth.store(0, Ordering::SeqCst);
-        self.move_change_cnt.store(0, Ordering::SeqCst);
         self.abort_now.store(false, Ordering::SeqCst);
         self.no_manage.store(false, Ordering::SeqCst);
         let expected_moves = self.expected_moves.load(Ordering::SeqCst);
         self.expected_moves
             .store(expected_moves.saturating_sub(1), Ordering::SeqCst);
+        self.move_stability.store(0, Ordering::Relaxed);
     }
 }
