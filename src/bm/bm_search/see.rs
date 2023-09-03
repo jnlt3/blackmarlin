@@ -1,124 +1,175 @@
 use cozy_chess::{Board, Move, Piece};
 
+#[test]
+fn test_see() {
+    use cozy_chess::Square;
+    let fens = &[
+        "8/4k3/8/3n4/8/8/3R4/3K4 w - - 0 1",
+        "8/4k3/1n6/3n4/8/8/3R4/3K4 w - - 0 1",
+        "8/3r4/3q4/3r4/8/3Q3K/3R4/7k w - - 0 1",
+        "8/8/b7/1q6/2b5/3Q3K/4B3/7k w - - 0 1",
+        "3r4/2P2n2/8/8/8/7K/8/7k w - - 0 1",
+        "3r4/2P5/8/8/8/7K/8/7k w - - 0 1",
+        "3R4/2P2n2/8/8/8/7K/8/7k b - - 0 1",
+    ];
+    let expected = &[
+        piece_pts(Piece::Knight),
+        piece_pts(Piece::Knight) - piece_pts(Piece::Rook),
+        0,
+        0,
+        piece_pts(Piece::Rook) - piece_pts(Piece::Pawn),
+        piece_pts(Piece::Rook) + piece_pts(Piece::Queen) - piece_pts(Piece::Pawn),
+        piece_pts(Piece::Rook) + piece_pts(Piece::Pawn)
+            - piece_pts(Piece::Knight)
+            - piece_pts(Piece::Queen),
+    ];
+    let mv_vert = Move {
+        from: Square::D2,
+        to: Square::D5,
+        promotion: None,
+    };
+    let mv_diag = Move {
+        from: Square::D3,
+        to: Square::C4,
+        promotion: None,
+    };
+    let cap_promo = Move {
+        from: Square::C7,
+        to: Square::D8,
+        promotion: Some(Piece::Queen),
+    };
+    let k_cap = Move {
+        from: Square::F7,
+        to: Square::D8,
+        promotion: None,
+    };
+    let moves = &[
+        mv_vert, mv_vert, mv_vert, mv_diag, cap_promo, cap_promo, k_cap,
+    ];
+
+    for ((&fen, &expected), &mv) in fens.iter().zip(expected).zip(moves) {
+        let board = Board::from_fen(fen, false).unwrap();
+        assert_eq!(calculate_see(&board, mv), expected, "fen: {}", fen);
+        assert!(compare_see(&board, mv, expected), "fen: {}", fen,);
+        assert!(!compare_see(&board, mv, expected + 1), "fen: {}", fen,);
+    }
+}
+
 pub fn move_value(board: &Board, make_move: Move) -> i16 {
     board
         .piece_on(make_move.to)
         .map_or(0, |piece| piece_pts(piece))
 }
 
-pub fn compare_see(board: &Board, make_move: Move, target: i16) -> bool {
-    let target_square = make_move.to;
-    let mut move_piece = board.piece_on(make_move.from).unwrap();
-    let mut gain = match board
-        .piece_on(target_square)
-        .zip(board.color_on(target_square))
-    {
-        Some((piece, color)) => match color == board.side_to_move() {
-            true => return 0 >= target,
-            false => piece_pts(piece),
-        },
-        None => match move_piece {
-            Piece::King => return 0 >= target,
-            _ => 0,
+pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
+    let target = make_move.to;
+    let mut piece = board.piece_on(make_move.from);
+
+    let is_quiet = board.color_on(make_move.to) != Some(!board.side_to_move());
+
+    let mut gain = match is_quiet {
+        true => 0,
+        false => match board.piece_on(target) {
+            Some(piece) => piece_pts(piece),
+            None => 0,
         },
     };
+    if piece == Some(Piece::King) {
+        return gain >= cmp;
+    }
 
-    let mut color = !board.side_to_move();
     let mut blockers = board.occupied() & !make_move.from.bitboard();
-
+    let mut stm = !board.side_to_move();
     'outer: for i in 1..16 {
-        let stm = i % 2 == 0;
+        let start_stm = i % 2 == 0;
 
-        if (!stm && gain < target) || (stm && gain + piece_pts(move_piece) < target) {
+        if !start_stm && gain < cmp {
             return false;
         }
-        if (stm && gain > target) || (!stm && gain - piece_pts(move_piece) >= target) {
+        if start_stm && gain >= cmp {
             return true;
         }
-        let defenders = board.colors(color) & blockers;
-        for &piece in &Piece::ALL {
-            let potential = match piece {
-                Piece::Pawn => cozy_chess::get_pawn_attacks(target_square, !color),
-                Piece::Knight => cozy_chess::get_knight_moves(target_square),
-                Piece::Bishop => cozy_chess::get_bishop_moves(target_square, blockers),
-                Piece::Rook => cozy_chess::get_rook_moves(target_square, blockers),
-                Piece::Queen => {
-                    cozy_chess::get_rook_moves(target_square, blockers)
-                        | cozy_chess::get_bishop_moves(target_square, blockers)
-                }
-                Piece::King => cozy_chess::get_king_moves(target_square),
-            } & board.pieces(piece)
-                & defenders;
 
-            if !potential.is_empty() {
-                match stm {
-                    true => gain += piece_pts(move_piece),
-                    false => gain -= piece_pts(move_piece),
+        for &attacker in &Piece::ALL {
+            let pieces = board.colored_pieces(stm, attacker);
+            if pieces.is_empty() {
+                continue;
+            }
+            let potential = match attacker {
+                Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
+                Piece::Knight => cozy_chess::get_knight_moves(target),
+                Piece::Bishop => cozy_chess::get_bishop_moves(target, blockers),
+                Piece::Rook => cozy_chess::get_rook_moves(target, blockers),
+                Piece::Queen => {
+                    cozy_chess::get_rook_moves(target, blockers)
+                        | cozy_chess::get_bishop_moves(target, blockers)
                 }
-                if move_piece == Piece::King {
-                    break 'outer;
+                Piece::King => cozy_chess::get_king_moves(target),
+            } & pieces
+                & blockers;
+
+            if let Some(sq) = potential.next_square() {
+                blockers &= !sq.bitboard();
+                let move_value = piece.map_or(0, piece_pts);
+                match start_stm {
+                    true => gain += move_value,
+                    false => gain -= move_value,
                 }
-                let attacker = potential.into_iter().next().unwrap();
-                blockers &= !attacker.bitboard();
-                color = !color;
-                move_piece = piece;
+                piece = Some(attacker);
+                stm = !stm;
                 continue 'outer;
             }
         }
         break;
     }
-    gain >= target
+    gain >= cmp
 }
 
 pub fn calculate_see(board: &Board, make_move: Move) -> i16 {
-    let mut index = 0;
     let mut gains = [0_i16; 16];
-    let target_square = make_move.to;
-    let mut move_piece = board.piece_on(make_move.from).unwrap();
-    gains[0] = match board
-        .piece_on(target_square)
-        .zip(board.color_on(target_square))
-    {
-        Some((piece, color)) => match color == board.side_to_move() {
-            true => return 0,
-            false => piece_pts(piece),
-        },
-        None => match move_piece {
-            Piece::King => return 0,
-            _ => 0,
+    let mut index = 0;
+    let target = make_move.to;
+    let mut piece = board.piece_on(make_move.from);
+
+    let is_quiet = board.color_on(make_move.to) != Some(!board.side_to_move());
+
+    let move_gain = match is_quiet {
+        true => 0,
+        false => match board.piece_on(target) {
+            Some(piece) => piece_pts(piece),
+            None => 0,
         },
     };
-    let mut color = !board.side_to_move();
+    if piece == Some(Piece::King) {
+        return move_gain;
+    }
+    gains[0] = move_gain;
     let mut blockers = board.occupied() & !make_move.from.bitboard();
-
-    let mut king_capture = false;
-
+    let mut stm = !board.side_to_move();
     'outer: for i in 1..16 {
-        gains[i] = piece_pts(move_piece) - gains[i - 1];
-        if king_capture {
-            index = i;
-            break;
-        }
-        let defenders = board.colors(color) & blockers;
-        for &piece in &Piece::ALL {
-            let potential = match piece {
-                Piece::Pawn => cozy_chess::get_pawn_attacks(target_square, !color),
-                Piece::Knight => cozy_chess::get_knight_moves(target_square),
-                Piece::Bishop => cozy_chess::get_bishop_moves(target_square, blockers),
-                Piece::Rook => cozy_chess::get_rook_moves(target_square, blockers),
+        for &attacker in &Piece::ALL {
+            let pieces = board.colored_pieces(stm, attacker);
+            if pieces.is_empty() {
+                continue;
+            }
+            let potential = match attacker {
+                Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
+                Piece::Knight => cozy_chess::get_knight_moves(target),
+                Piece::Bishop => cozy_chess::get_bishop_moves(target, blockers),
+                Piece::Rook => cozy_chess::get_rook_moves(target, blockers),
                 Piece::Queen => {
-                    cozy_chess::get_rook_moves(target_square, blockers)
-                        | cozy_chess::get_bishop_moves(target_square, blockers)
+                    cozy_chess::get_rook_moves(target, blockers)
+                        | cozy_chess::get_bishop_moves(target, blockers)
                 }
-                Piece::King => cozy_chess::get_king_moves(target_square),
-            } & board.pieces(piece)
-                & defenders;
-            if !potential.is_empty() {
-                king_capture = move_piece == Piece::King;
-                let attacker = potential.into_iter().next().unwrap();
-                blockers &= !attacker.bitboard();
-                color = !color;
-                move_piece = piece;
+                Piece::King => cozy_chess::get_king_moves(target),
+            } & pieces
+                & blockers;
+
+            if let Some(sq) = potential.next_square() {
+                blockers &= !sq.bitboard();
+                gains[i] = piece.map_or(0, piece_pts) - gains[i - 1];
+                piece = Some(attacker);
+                stm = !stm;
                 continue 'outer;
             }
         }
@@ -138,6 +189,6 @@ fn piece_pts(piece: Piece) -> i16 {
         Piece::Bishop => 323,
         Piece::Rook => 551,
         Piece::Queen => 864,
-        Piece::King => 20000,
+        Piece::King => i16::MAX / 2,
     }
 }
