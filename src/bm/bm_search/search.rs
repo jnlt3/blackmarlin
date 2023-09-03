@@ -661,45 +661,42 @@ pub fn q_search(
     }
 
     let mut move_gen = QSearchMoveGen::new();
-    while let Some((make_move, see)) = move_gen.next(pos, &local_context.history) {
-        let is_capture = pos
-            .board()
-            .colors(!pos.board().side_to_move())
-            .has(make_move.to);
-        if in_check || is_capture {
-            /*
-            SEE beta cutoff: (Koivisto)
-            If SEE considerably improves evaluation above beta, we can return beta early
-            */
-            if stand_pat + see - 193 >= beta {
-                return beta;
-            }
-            if stand_pat + 200 <= alpha && see <= 0 {
-                continue;
-            }
-            pos.make_move(make_move);
-            let search_score = q_search(
-                pos,
-                local_context,
-                shared_context,
-                ply + 1,
-                beta >> Next,
-                alpha >> Next,
-            );
-            let score = search_score << Next;
-            if highest_score.is_none() || score > highest_score.unwrap() {
-                highest_score = Some(score);
-                best_move = Some(make_move);
-            }
-            if score > alpha {
-                alpha = score;
-                if score >= beta {
-                    pos.unmake_move();
-                    break;
-                }
-            }
-            pos.unmake_move();
+    while let Some(make_move) = move_gen.next(pos, &local_context.history) {
+        /*
+        SEE beta cutoff: (Koivisto)
+        If SEE considerably improves evaluation above beta, we can return beta early
+        */
+        if !compare_see(pos.board(), make_move, 0) {
+            continue;
         }
+        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+            continue;
+        }
+        if compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw()) {
+            return beta;
+        }
+        pos.make_move(make_move);
+        let search_score = q_search(
+            pos,
+            local_context,
+            shared_context,
+            ply + 1,
+            beta >> Next,
+            alpha >> Next,
+        );
+        let score = search_score << Next;
+        if highest_score.is_none() || score > highest_score.unwrap() {
+            highest_score = Some(score);
+            best_move = Some(make_move);
+        }
+        if score > alpha {
+            alpha = score;
+            if score >= beta {
+                pos.unmake_move();
+                break;
+            }
+        }
+        pos.unmake_move();
     }
     if let Some((best_move, highest_score)) = best_move.zip(highest_score) {
         let entry_type = match () {
