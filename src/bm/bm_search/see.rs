@@ -49,7 +49,6 @@ fn test_see() {
 
     for ((&fen, &expected), &mv) in fens.iter().zip(expected).zip(moves) {
         let board = Board::from_fen(fen, false).unwrap();
-        assert_eq!(calculate_see(&board, mv), expected, "fen: {}", fen);
         assert!(compare_see(&board, mv, expected), "fen: {}", fen,);
         assert!(!compare_see(&board, mv, expected + 1), "fen: {}", fen,);
     }
@@ -123,63 +122,6 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
         break;
     }
     gain >= cmp
-}
-
-pub fn calculate_see(board: &Board, make_move: Move) -> i16 {
-    let mut gains = [0_i16; 16];
-    let mut index = 0;
-    let target = make_move.to;
-    let mut piece = board.piece_on(make_move.from);
-
-    let is_quiet = board.color_on(make_move.to) != Some(!board.side_to_move());
-
-    let move_gain = match is_quiet {
-        true => 0,
-        false => match board.piece_on(target) {
-            Some(piece) => piece_pts(piece),
-            None => 0,
-        },
-    };
-    if piece == Some(Piece::King) {
-        return move_gain;
-    }
-    gains[0] = move_gain;
-    let mut blockers = board.occupied() & !make_move.from.bitboard();
-    let mut stm = !board.side_to_move();
-    'outer: for i in 1..16 {
-        for &attacker in &Piece::ALL {
-            let pieces = board.colored_pieces(stm, attacker);
-            if pieces.is_empty() {
-                continue;
-            }
-            let potential = match attacker {
-                Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
-                Piece::Knight => cozy_chess::get_knight_moves(target),
-                Piece::Bishop => cozy_chess::get_bishop_moves(target, blockers),
-                Piece::Rook => cozy_chess::get_rook_moves(target, blockers),
-                Piece::Queen => {
-                    cozy_chess::get_rook_moves(target, blockers)
-                        | cozy_chess::get_bishop_moves(target, blockers)
-                }
-                Piece::King => cozy_chess::get_king_moves(target),
-            } & pieces
-                & blockers;
-
-            if let Some(sq) = potential.next_square() {
-                blockers &= !sq.bitboard();
-                gains[i] = piece.map_or(0, piece_pts) - gains[i - 1];
-                piece = Some(attacker);
-                stm = !stm;
-                continue 'outer;
-            }
-        }
-        index = i;
-        break;
-    }
-    for i in (1..index).rev() {
-        gains[i - 1] = -i16::max(-gains[i - 1], gains[i]);
-    }
-    gains[0]
 }
 
 fn piece_pts(piece: Piece) -> i16 {
