@@ -1,7 +1,7 @@
 use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
-use super::see::{calculate_see, compare_see, move_value};
+use super::see::{compare_see, move_value};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
@@ -229,7 +229,7 @@ impl QSearchMoveGen {
         }
     }
 
-    pub fn next(&mut self, pos: &Position, hist: &History) -> Option<(Move, i16)> {
+    pub fn next(&mut self, pos: &Position, hist: &History) -> Option<Move> {
         if self.phase == QPhase::GenCaptures {
             self.phase = QPhase::GoodCaptures;
             let stm = pos.board().side_to_move();
@@ -245,11 +245,7 @@ impl QSearchMoveGen {
         if self.phase == QPhase::GoodCaptures {
             while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
                 let capture = self.captures.swap_remove(index).mv;
-                let see = calculate_see(pos.board(), capture);
-                if see < 0 {
-                    continue;
-                }
-                return Some((capture, see));
+                return Some(capture);
             }
         }
         None
