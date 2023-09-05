@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{Board, Piece, PieceMoves, Rank};
 
 const MAX_MOVES: usize = 218;
 
@@ -234,7 +234,11 @@ impl QSearchMoveGen {
             self.phase = QPhase::GoodCaptures;
             let stm = pos.board().side_to_move();
             pos.board().generate_moves(|mut piece_moves| {
-                piece_moves.to &= pos.board().colors(!stm);
+                let mut mask = pos.board().colors(!stm);
+                if piece_moves.piece == Piece::Pawn {
+                    mask |= Rank::Eighth.bitboard() | Rank::First.bitboard();
+                }
+                piece_moves.to &= mask;
                 for mv in piece_moves {
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(Capture::new(mv, score));

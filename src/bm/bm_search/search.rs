@@ -296,12 +296,13 @@ pub fn search<Search: SearchType>(
         }
 
         move_exists = true;
-        let is_capture = pos
+        let is_noisy = pos
             .board()
             .colors(!pos.board().side_to_move())
-            .has(make_move.to);
+            .has(make_move.to)
+            || make_move.promotion.is_some();
 
-        let h_score = match is_capture {
+        let h_score = match is_noisy {
             true => thread.history.get_capture(pos, make_move),
             false => {
                 (thread.history.get_quiet(pos, make_move)
@@ -378,7 +379,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_noisy && depth <= 5;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.skip_quiets();
@@ -389,7 +390,7 @@ pub fn search<Search: SearchType>(
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
         if non_mate_line
-            && !is_capture
+            && !is_noisy
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
@@ -548,7 +549,7 @@ pub fn search<Search: SearchType>(
                 if score >= beta {
                     if !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
-                        if !is_capture {
+                        if !is_noisy {
                             thread.killer_moves[ply as usize].push(make_move);
                         }
                         thread.history.update_history(
@@ -565,7 +566,7 @@ pub fn search<Search: SearchType>(
                 alpha = score;
             }
         }
-        if is_capture {
+        if is_noisy {
             if !captures.is_full() {
                 captures.push(make_move);
             }
@@ -662,10 +663,11 @@ pub fn q_search(
 
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &local_context.history) {
+        let promo = make_move.promotion.is_some();
         /*
         Prune all losing captures
         */
-        if !compare_see(pos.board(), make_move, 0) {
+        if !promo && !compare_see(pos.board(), make_move, 0) {
             continue;
         }
         /*
@@ -677,7 +679,7 @@ pub fn q_search(
             return beta;
         }
         // Also prune neutral captures when static eval is low
-        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if !promo && stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
         pos.make_move(make_move);
