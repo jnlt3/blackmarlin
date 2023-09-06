@@ -258,7 +258,7 @@ impl QSearchMoveGen {
         if self.phase == QPhase::GenEvasions {
             let stm = pos.board().side_to_move();
             pos.board().generate_moves(|mut piece_moves| {
-                piece_moves.to &= pos.board().colors(stm);
+                piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     let score = hist.get_quiet(pos, mv);
                     self.evasions.push(Quiet::new(mv, score));
