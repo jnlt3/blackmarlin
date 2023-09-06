@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -214,11 +214,14 @@ impl OrderedMoveGen {
 enum QPhase {
     GenCaptures,
     GoodCaptures,
+    GenEvasions,
+    Evasions,
 }
 
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<Capture, MAX_MOVES>,
+    evasions: ArrayVec<Quiet, MAX_MOVES>,
 }
 
 impl QSearchMoveGen {
@@ -226,6 +229,7 @@ impl QSearchMoveGen {
         Self {
             phase: QPhase::GenCaptures,
             captures: ArrayVec::new(),
+            evasions: ArrayVec::new(),
         }
     }
 
@@ -246,6 +250,27 @@ impl QSearchMoveGen {
             while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
                 let capture = self.captures.swap_remove(index).mv;
                 return Some(capture);
+            }
+            if pos.board().checkers() != BitBoard::EMPTY {
+                self.phase = QPhase::GenEvasions;
+            }
+        }
+        if self.phase == QPhase::GenEvasions {
+            let stm = pos.board().side_to_move();
+            pos.board().generate_moves(|mut piece_moves| {
+                piece_moves.to &= pos.board().colors(stm);
+                for mv in piece_moves {
+                    let score = hist.get_quiet(pos, mv);
+                    self.evasions.push(Quiet::new(mv, score));
+                }
+                false
+            });
+            self.phase = QPhase::Evasions;
+        }
+        if self.phase == QPhase::Evasions {
+            while let Some(index) = select_highest(&self.evasions, |evasion| evasion.score) {
+                let evasion = self.evasions.swap_remove(index).mv;
+                return Some(evasion);
             }
         }
         None
