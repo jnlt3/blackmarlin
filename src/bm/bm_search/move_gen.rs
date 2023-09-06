@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{Board, Piece, PieceMoves, Rank};
 
 const MAX_MOVES: usize = 218;
 
@@ -14,12 +14,12 @@ const MAX_MOVES: usize = 218;
 pub enum Phase {
     PvMove,
     GenPieceMoves,
-    GenCaptures,
-    GoodCaptures,
+    GenNoisy,
+    GoodNoisy,
     Killers,
     GenQuiets,
     Quiets,
-    BadCaptures,
+    BadNoisy,
 }
 
 struct Quiet {
@@ -55,8 +55,8 @@ pub struct OrderedMoveGen {
     piece_moves: ArrayVec<PieceMoves, 18>,
 
     quiets: ArrayVec<Quiet, MAX_MOVES>,
-    captures: ArrayVec<Capture, MAX_MOVES>,
-    bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    noisy: ArrayVec<Capture, MAX_MOVES>,
+    bad_noisy: ArrayVec<Capture, MAX_MOVES>,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -85,8 +85,8 @@ impl OrderedMoveGen {
             killer_index: 0,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
-            captures: ArrayVec::new(),
-            bad_captures: ArrayVec::new(),
+            noisy: ArrayVec::new(),
+            bad_noisy: ArrayVec::new(),
         }
     }
 
@@ -96,7 +96,7 @@ impl OrderedMoveGen {
 
     pub fn skip_quiets(&mut self) {
         self.phase = match self.phase {
-            Phase::Killers | Phase::GenQuiets | Phase::Quiets => Phase::BadCaptures,
+            Phase::Killers | Phase::GenQuiets | Phase::Quiets => Phase::BadNoisy,
             _ => return,
         }
     }
@@ -114,17 +114,21 @@ impl OrderedMoveGen {
             }
         }
         if self.phase == Phase::GenPieceMoves {
-            self.phase = Phase::GenCaptures;
+            self.phase = Phase::GenNoisy;
             pos.board().generate_moves(|piece_moves| {
                 self.piece_moves.push(piece_moves);
                 false
             });
         }
-        if self.phase == Phase::GenCaptures {
-            self.phase = Phase::GoodCaptures;
+        if self.phase == Phase::GenNoisy {
+            self.phase = Phase::GoodNoisy;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
-                piece_moves.to &= pos.board().colors(!stm);
+                let mut mask = pos.board().colors(!stm);
+                if piece_moves.piece == Piece::Pawn {
+                    mask |= Rank::First.bitboard() | Rank::Eighth.bitboard();
+                }
+                piece_moves.to &= mask;
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
                         continue;
@@ -133,15 +137,15 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score))
+                    self.noisy.push(Capture::new(mv, score))
                 }
             }
         }
-        if self.phase == Phase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
-                let capture = self.captures.swap_remove(index);
+        if self.phase == Phase::GoodNoisy {
+            while let Some(index) = select_highest(&self.noisy, |capture| capture.score) {
+                let capture = self.noisy.swap_remove(index);
                 if !compare_see(pos.board(), capture.mv, 0) {
-                    self.bad_captures.push(capture);
+                    self.bad_noisy.push(capture);
                     continue;
                 }
                 return Some(capture.mv);
@@ -199,11 +203,11 @@ impl OrderedMoveGen {
             if let Some(index) = select_highest(&self.quiets, |quiet| quiet.score) {
                 return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
             }
-            self.phase = Phase::BadCaptures;
+            self.phase = Phase::BadNoisy;
         }
-        if self.phase == Phase::BadCaptures {
-            if let Some(index) = select_highest(&self.bad_captures, |capture| capture.score) {
-                return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
+        if self.phase == Phase::BadNoisy {
+            if let Some(index) = select_highest(&self.bad_noisy, |capture| capture.score) {
+                return self.bad_noisy.swap_pop(index).map(|capture| capture.mv);
             }
         }
         None
