@@ -607,22 +607,22 @@ This is done as the static evaluation function isn't suited to detecting tactica
 
 pub fn q_search(
     pos: &mut Position,
-    local_context: &mut ThreadContext,
+    thread: &mut ThreadContext,
     shared_context: &SharedContext,
     ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
-    if local_context.abort || shared_context.abort_search(local_context.nodes()) {
-        local_context.trigger_abort();
+    if thread.abort || shared_context.abort_search(thread.nodes()) {
+        thread.trigger_abort();
         return Evaluation::min();
     }
 
-    local_context.increment_nodes();
+    thread.increment_nodes();
 
-    local_context.update_sel_depth(ply);
+    thread.update_sel_depth(ply);
     if ply >= MAX_PLY {
-        return pos.get_eval(local_context.stm, local_context.eval);
+        return pos.get_eval(thread.stm, thread.eval);
     }
 
     let initial_alpha = alpha;
@@ -647,7 +647,7 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval(local_context.stm, local_context.eval);
+    let stand_pat = pos.get_eval(thread.stm, thread.eval);
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
@@ -661,7 +661,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QSearchMoveGen::new();
-    while let Some(make_move) = move_gen.next(pos, &local_context.history) {
+    while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
         Prune all losing captures
         */
@@ -683,7 +683,7 @@ pub fn q_search(
         pos.make_move(make_move);
         let search_score = q_search(
             pos,
-            local_context,
+            thread,
             shared_context,
             ply + 1,
             beta >> Next,
@@ -702,6 +702,10 @@ pub fn q_search(
             }
         }
         pos.unmake_move();
+    }
+
+    if thread.abort {
+        return Evaluation::min();
     }
     if let Some((best_move, highest_score)) = best_move.zip(highest_score) {
         let entry_type = match () {
