@@ -43,7 +43,6 @@ impl Position {
             .full_reset(&self.current, self.w_threats, self.b_threats);
     }
 
-    #[inline]
     pub fn forced_draw(&self, ply: u32) -> bool {
         if self.insufficient_material()
             || (self.half_ply() >= 100
@@ -52,19 +51,26 @@ impl Position {
             return true;
         }
         let hash = self.hash();
-        self.boards
+        let two_fold = self
+            .boards
             .iter()
             .rev()
             .take(ply as usize - 1)
-            .any(|board| board.hash() == hash)
-            || self
-                .boards
-                .iter()
-                .rev()
-                .skip(ply as usize - 1)
-                .filter(|board| board.hash() == hash)
-                .count()
-                >= 2
+            .any(|board| board.hash() == hash);
+        if two_fold {
+            return true;
+        }
+        let mut cnt = 0;
+        for board in self.boards.iter().rev().skip(ply as usize - 1) {
+            if board.hash() != hash {
+                continue;
+            }
+            cnt += 1;
+            if cnt >= 2 {
+                return true;
+            }
+        }
+        false
     }
 
     #[inline]
