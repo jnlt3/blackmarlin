@@ -295,6 +295,8 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let is_killer = move_gen.phase() == Phase::Killers;
+
         move_exists = true;
         let is_capture = pos
             .board()
@@ -378,7 +380,12 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
+        let do_fp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && !is_killer
+            && depth <= 5;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.skip_quiets();
@@ -390,6 +397,7 @@ pub fn search<Search: SearchType>(
         */
         if non_mate_line
             && !is_capture
+            && !is_killer
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
@@ -459,7 +467,7 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if killers.contains(make_move) {
+            if is_killer {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
