@@ -43,6 +43,7 @@ impl Position {
             .full_reset(&self.current, self.w_threats, self.b_threats);
     }
 
+    #[inline]
     pub fn forced_draw(&self, ply: u32) -> bool {
         if self.insufficient_material()
             || (self.half_ply() >= 100
