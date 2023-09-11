@@ -676,8 +676,10 @@ pub fn q_search(
         {
             return beta;
         }
+        let cap_hist = thread.history.get_capture(pos, make_move);
+        let do_neutral_prune = cap_hist < 0 || stand_pat <= alpha;
         // Also prune neutral captures when static eval is low
-        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if do_neutral_prune && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
         pos.make_move(make_move);
