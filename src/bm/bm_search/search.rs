@@ -288,6 +288,9 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let lmp_move_cnt = shared_context
+        .get_lmp_lookup()
+        .get(depth as usize, improving as usize);
     let hist_indices = HistoryIndices::new(opp_move, prev_move);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
@@ -378,25 +381,23 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 5;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.skip_quiets();
-            continue;
+            if !is_capture {
+                continue;
+            }
         }
 
         /*
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
-        if non_mate_line
-            && !is_capture
-            && quiets.len()
-                >= shared_context
-                    .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
-        {
+        if non_mate_line && quiets.len() >= lmp_move_cnt {
             move_gen.skip_quiets();
-            continue;
+            if !is_capture {
+                continue;
+            }
         }
 
         /*

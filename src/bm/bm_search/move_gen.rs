@@ -57,6 +57,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<Quiet, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
     bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    skip_quiets: bool,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -87,6 +88,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            skip_quiets: false,
         }
     }
 
@@ -95,6 +97,14 @@ impl OrderedMoveGen {
     }
 
     pub fn skip_quiets(&mut self) {
+        self.skip_quiets = true;
+        self.skip_phase();
+    }
+
+    fn skip_phase(&mut self) {
+        if !self.skip_quiets {
+            return;
+        }
         self.phase = match self.phase {
             Phase::Killers | Phase::GenQuiets | Phase::Quiets => Phase::BadCaptures,
             _ => return,
@@ -107,6 +117,7 @@ impl OrderedMoveGen {
         hist: &History,
         hist_indices: &HistoryIndices,
     ) -> Option<Move> {
+        self.skip_phase();
         if self.phase == Phase::PvMove {
             self.phase = Phase::GenPieceMoves;
             if self.pv_move.is_some() {
