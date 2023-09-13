@@ -144,10 +144,9 @@ impl Position {
         let raw_eval = self
             .evaluator
             .feed_forward(self.board().side_to_move(), piece_cnt as usize)
-            + frc_score
-            + eval_bonus;
+            + frc_score;
         let fmr_dampen = raw_eval as i32 * (200 - self.half_ply() as i32) / 200;
-        Evaluation::new(fmr_dampen as i16)
+        Evaluation::new(fmr_dampen as i16 + eval_bonus)
     }
 
     pub fn insufficient_material(&self) -> bool {
