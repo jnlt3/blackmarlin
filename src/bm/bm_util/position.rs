@@ -146,7 +146,7 @@ impl Position {
             .feed_forward(self.board().side_to_move(), piece_cnt as usize)
             + frc_score
             + eval_bonus;
-        let fmr_dampen = raw_eval as i32 * (200 - self.half_ply() as i32) / 200;
+        let fmr_dampen = raw_eval as i32 * (150 - self.half_ply() as i32) / 150;
         Evaluation::new(fmr_dampen as i16)
     }
 
