@@ -191,8 +191,9 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let stm = pos.board().side_to_move();
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
+    let nstm_threats = match stm {
         Color::White => b_threats,
         Color::Black => w_threats,
     };
@@ -281,6 +282,7 @@ pub fn search<Search: SearchType>(
 
     let killers = thread.killer_moves[ply as usize];
     let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let tt_is_cap = best_move.map_or(false, |mv| pos.board().colors(!stm).has(mv.to));
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -461,6 +463,9 @@ pub fn search<Search: SearchType>(
             }
             if killers.contains(make_move) {
                 reduction -= 1;
+            }
+            if tt_is_cap {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
