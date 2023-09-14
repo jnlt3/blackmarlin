@@ -8,6 +8,7 @@ use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
+use crate::bm::bm_util::threats::THREAT_MIN_SEE;
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
 use super::see::compare_see;
@@ -652,10 +653,19 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check && stand_pat > alpha {
+    let (w_threats, b_threats) = pos.threats();
+    let nstm_threats = match pos.board().side_to_move() {
+        Color::White => b_threats,
+        Color::Black => w_threats,
+    };
+    let extra = match nstm_threats.is_empty() {
+        true => 0,
+        false => THREAT_MIN_SEE,
+    };
+    if !in_check && stand_pat + extra > alpha {
         alpha = stand_pat;
         highest_score = Some(stand_pat);
-        if stand_pat >= beta {
+        if stand_pat + extra >= beta {
             return stand_pat;
         }
     }

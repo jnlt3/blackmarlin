@@ -124,7 +124,7 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
     gain >= cmp
 }
 
-fn piece_pts(piece: Piece) -> i16 {
+pub const fn piece_pts(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 96,
         Piece::Knight => 323,

@@ -1,5 +1,29 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
+use crate::bm::bm_search::see::piece_pts;
+
+macro_rules! min {
+    ($a: expr) => {
+        $a
+    };
+    ($a: expr, $($b: expr),+) => {
+        {
+            let b = min!($($b),+);
+            if $a < b {
+                $a
+            } else {
+                b
+            }
+        }
+    };
+}
+
+pub const THREAT_MIN_SEE: i16 = min!(
+    piece_pts(Piece::Queen) - piece_pts(Piece::Rook),
+    piece_pts(Piece::Rook) - piece_pts(Piece::Bishop),
+    piece_pts(Piece::Bishop) - piece_pts(Piece::Pawn)
+);
+
 pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
     let occupied = board.occupied();
     let white = board.colors(Color::White);
@@ -61,8 +85,12 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
 
 fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {
     let threats = match color {
-        Color::White => ((pawns & !File::A.bitboard()).0 << 7) | ((pawns & !File::H.bitboard()).0 << 9),
-        Color::Black => ((pawns & !File::A.bitboard()).0 >> 9) | ((pawns & !File::H.bitboard()).0 >> 7),
+        Color::White => {
+            ((pawns & !File::A.bitboard()).0 << 7) | ((pawns & !File::H.bitboard()).0 << 9)
+        }
+        Color::Black => {
+            ((pawns & !File::A.bitboard()).0 >> 9) | ((pawns & !File::H.bitboard()).0 >> 7)
+        }
     };
     BitBoard(threats)
 }
