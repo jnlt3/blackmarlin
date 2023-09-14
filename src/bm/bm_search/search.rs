@@ -653,16 +653,17 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
+    const MARGIN: i16 = 193;
     if !in_check && stand_pat > alpha {
         alpha = stand_pat;
         let (w_threats, b_threats) = pos.threats();
-        let nstm_threats = match pos.board().side_to_move() {
-            Color::White => b_threats,
-            Color::Black => w_threats,
+        let stm_threats = match pos.board().side_to_move() {
+            Color::White => w_threats,
+            Color::Black => b_threats,
         };
-        let extra = match nstm_threats.is_empty() {
+        let extra = match stm_threats.is_empty() {
             true => 0,
-            false => THREAT_MIN_SEE,
+            false => THREAT_MIN_SEE - MARGIN,
         };
         highest_score = Some(stand_pat);
         if stand_pat + extra >= beta {
@@ -682,7 +683,7 @@ pub fn q_search(
         Fail high if SEE puts us above beta
         */
         if stand_pat + 1000 >= beta
-            && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
+            && compare_see(pos.board(), make_move, (beta - stand_pat + MARGIN).raw())
         {
             return beta;
         }
