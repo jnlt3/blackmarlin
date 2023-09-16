@@ -100,6 +100,10 @@ const fn history_lmr(history: i16) -> i16 {
     history / 92
 }
 
+fn draw(thread: &ThreadContext) -> Evaluation {
+    Evaluation::new((1 - (thread.nodes() & 0x2)) as i16)
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     thread: &mut ThreadContext,
@@ -119,7 +123,7 @@ pub fn search<Search: SearchType>(
     thread.update_sel_depth(ply);
     if ply != 0 && pos.forced_draw(ply) {
         thread.increment_nodes();
-        return Evaluation::new(0);
+        return draw(thread);
     }
 
     /*
