@@ -579,7 +579,7 @@ pub fn search<Search: SearchType>(
     }
     if !move_exists {
         return match pos.board().checkers().is_empty() {
-            true => Evaluation::new(0),
+            true => draw(thread),
             false => Evaluation::new_checkmate(-1),
         };
     }
