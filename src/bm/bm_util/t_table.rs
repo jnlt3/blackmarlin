@@ -97,22 +97,18 @@ impl Analysis {
         }
     }
 
-    #[inline]
     pub fn depth(&self) -> u32 {
         self.depth as u32
     }
 
-    #[inline]
     pub fn entry_type(&self) -> EntryType {
         self.entry_type
     }
 
-    #[inline]
     pub fn score(&self) -> Evaluation {
         self.score
     }
 
-    #[inline]
     pub fn table_move(&self) -> Move {
         self.table_move.to_move()
     }
@@ -166,7 +162,6 @@ impl TranspositionTable {
         }
     }
 
-    #[inline]
     fn index(&self, hash: u64) -> usize {
         (hash as usize) & self.mask
     }

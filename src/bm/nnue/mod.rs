@@ -326,7 +326,6 @@ impl Nnue {
         self.head -= 1;
     }
 
-    #[inline]
     pub fn feed_forward(&mut self, stm: Color, piece_cnt: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
         let mut incr = Align([0; MID * 2]);

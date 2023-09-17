@@ -43,7 +43,6 @@ impl Position {
             .full_reset(&self.current, self.w_threats, self.b_threats);
     }
 
-    #[inline]
     pub fn forced_draw(&self, ply: u32) -> bool {
         if self.insufficient_material()
             || (self.half_ply() >= 100
@@ -67,17 +66,14 @@ impl Position {
                 >= 2
     }
 
-    #[inline]
     pub fn board(&self) -> &Board {
         &self.current
     }
 
-    #[inline]
     pub fn half_ply(&self) -> u8 {
         self.current.halfmove_clock()
     }
 
-    #[inline]
     pub fn null_move(&mut self) -> bool {
         if let Some(new_board) = self.board().null_move() {
             self.evaluator.null_move();
@@ -90,7 +86,6 @@ impl Position {
         }
     }
 
-    #[inline]
     pub fn make_move(&mut self, make_move: Move) {
         let old_board = self.current.clone();
         let old_w_threats = self.w_threats;
@@ -112,7 +107,6 @@ impl Position {
         self.threats.push((old_w_threats, old_b_threats));
     }
 
-    #[inline]
     pub fn unmake_move(&mut self) {
         self.evaluator.unmake_move();
         let current = self.boards.pop().unwrap();
@@ -120,7 +114,6 @@ impl Position {
         self.current = current;
     }
 
-    #[inline]
     pub fn hash(&self) -> u64 {
         self.board().hash()
     }
