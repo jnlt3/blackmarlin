@@ -124,7 +124,6 @@ pub struct ThreadContext {
 }
 
 impl SharedContext {
-    #[inline]
     pub fn abort_search(&self, node_cnt: u64) -> bool {
         if node_cnt % 1024 != 0 {
             return false;
@@ -132,22 +131,18 @@ impl SharedContext {
         self.time_manager.abort_search(self.start, node_cnt)
     }
 
-    #[inline]
     pub fn abort_deepening(&self, depth: u32, nodes: u64) -> bool {
         self.time_manager.abort_deepening(self.start, depth, nodes)
     }
 
-    #[inline]
     pub fn get_t_table(&self) -> &Arc<TranspositionTable> {
         &self.t_table
     }
 
-    #[inline]
     pub fn get_lmr_lookup(&self) -> &Arc<LmrLookup> {
         &self.lmr_lookup
     }
 
-    #[inline]
     pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
         &self.lmp_lookup
     }

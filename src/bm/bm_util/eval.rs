@@ -12,12 +12,10 @@ pub struct Evaluation {
 }
 
 impl Evaluation {
-    #[inline]
     pub const fn new(score: i16) -> Self {
         Self { score }
     }
 
-    #[inline]
     pub fn new_checkmate(mate_in: i16) -> Self {
         Self {
             score: if mate_in < 0 {
@@ -28,12 +26,10 @@ impl Evaluation {
         }
     }
 
-    #[inline]
     pub const fn is_mate(&self) -> bool {
         self.score.saturating_abs() > MAX_EVAL
     }
 
-    #[inline]
     pub const fn mate_in(&self) -> Option<i16> {
         if self.is_mate() {
             Some(self.score.signum() * (CHECKMATE_EVAL - self.score.abs() + 1) / 2)
@@ -42,19 +38,16 @@ impl Evaluation {
         }
     }
 
-    #[inline]
     pub const fn raw(&self) -> i16 {
         self.score
     }
 
-    #[inline]
     pub const fn min() -> Self {
         Self {
             score: -CHECKMATE_EVAL,
         }
     }
 
-    #[inline]
     pub const fn max() -> Self {
         Self {
             score: CHECKMATE_EVAL,
