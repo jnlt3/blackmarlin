@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Move, Piece};
 
 #[test]
 fn test_see() {
@@ -79,6 +79,20 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
 
     let mut blockers = board.occupied() & !make_move.from.bitboard();
     let mut stm = !board.side_to_move();
+
+    let bishops = board.pieces(Piece::Bishop);
+    let rooks = board.pieces(Piece::Rook);
+    let queens = board.pieces(Piece::Queen);
+    let mut orthos = rooks | queens;
+    let mut diags = bishops | queens;
+    let mut bishop_moves = match diags.is_empty() {
+        true => BitBoard::EMPTY,
+        false => cozy_chess::get_bishop_moves(target, blockers),
+    };
+    let mut rook_moves = match orthos.is_empty() {
+        true => BitBoard::EMPTY,
+        false => cozy_chess::get_rook_moves(target, blockers),
+    };
     'outer: for i in 1..16 {
         let start_stm = i % 2 == 0;
 
@@ -97,18 +111,25 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
             let potential = match attacker {
                 Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
                 Piece::Knight => cozy_chess::get_knight_moves(target),
-                Piece::Bishop => cozy_chess::get_bishop_moves(target, blockers),
-                Piece::Rook => cozy_chess::get_rook_moves(target, blockers),
-                Piece::Queen => {
-                    cozy_chess::get_rook_moves(target, blockers)
-                        | cozy_chess::get_bishop_moves(target, blockers)
-                }
+                Piece::Bishop => bishop_moves,
+                Piece::Rook => rook_moves,
+                Piece::Queen => bishop_moves | rook_moves,
                 Piece::King => cozy_chess::get_king_moves(target),
             } & pieces
                 & blockers;
 
             if let Some(sq) = potential.next_square() {
-                blockers &= !sq.bitboard();
+                let rm = !sq.bitboard();
+                blockers &= rm;
+                diags &= rm;
+                orthos &= rm;
+
+                if !diags.is_empty() && bishop_moves.has(sq) {
+                    bishop_moves = cozy_chess::get_bishop_moves(target, blockers);
+                }
+                if !orthos.is_empty() && rook_moves.has(sq) {
+                    rook_moves = cozy_chess::get_rook_moves(target, blockers);
+                }
                 let move_value = piece.map_or(0, piece_pts);
                 match start_stm {
                     true => gain += move_value,
