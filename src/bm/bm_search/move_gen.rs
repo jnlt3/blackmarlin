@@ -22,23 +22,12 @@ pub enum Phase {
     BadCaptures,
 }
 
-struct Quiet {
+struct ScoredMove {
     mv: Move,
     score: i16,
 }
 
-impl Quiet {
-    pub fn new(mv: Move, score: i16) -> Self {
-        Self { mv, score }
-    }
-}
-
-struct Capture {
-    mv: Move,
-    score: i16,
-}
-
-impl Capture {
+impl ScoredMove {
     pub fn new(mv: Move, score: i16) -> Self {
         Self { mv, score }
     }
@@ -54,26 +43,24 @@ pub struct OrderedMoveGen {
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
-    quiets: ArrayVec<Quiet, MAX_MOVES>,
-    captures: ArrayVec<Capture, MAX_MOVES>,
-    bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    quiets: ArrayVec<ScoredMove, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
-fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
+fn select_highest(array: &[ScoredMove]) -> Option<usize> {
     if array.is_empty() {
         return None;
     }
-    let mut best: Option<(U, usize)> = None;
-    for (index, mv) in array.iter().enumerate() {
-        let score = score(mv);
-        if let Some((best_score, _)) = &best {
-            if &score <= best_score {
-                continue;
-            }
+    let mut best_score = array[0].score;
+    let mut best_index = 0;
+    for (index, mv) in array.iter().enumerate().skip(1) {
+        if mv.score > best_score {
+            best_score = mv.score;
+            best_index = index;
         }
-        best = Some((score, index));
     }
-    best.map(|(_, index)| index)
+    Some(best_index)
 }
 
 impl OrderedMoveGen {
@@ -133,12 +120,12 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score))
+                    self.captures.push(ScoredMove::new(mv, score))
                 }
             }
         }
         if self.phase == Phase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
+            while let Some(index) = select_highest(&self.captures) {
                 let capture = self.captures.swap_remove(index);
                 if !compare_see(pos.board(), capture.mv, 0) {
                     self.bad_captures.push(capture);
@@ -191,18 +178,18 @@ impl OrderedMoveGen {
                             quiet_hist + counter_move_hist + followup_move_hist
                         }
                     };
-                    self.quiets.push(Quiet::new(mv, score));
+                    self.quiets.push(ScoredMove::new(mv, score));
                 }
             }
         }
         if self.phase == Phase::Quiets {
-            if let Some(index) = select_highest(&self.quiets, |quiet| quiet.score) {
+            if let Some(index) = select_highest(&self.quiets) {
                 return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
             }
             self.phase = Phase::BadCaptures;
         }
         if self.phase == Phase::BadCaptures {
-            if let Some(index) = select_highest(&self.bad_captures, |capture| capture.score) {
+            if let Some(index) = select_highest(&self.bad_captures) {
                 return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
             }
         }
@@ -218,7 +205,7 @@ enum QPhase {
 
 pub struct QSearchMoveGen {
     phase: QPhase,
-    captures: ArrayVec<Capture, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 impl QSearchMoveGen {
@@ -237,13 +224,13 @@ impl QSearchMoveGen {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score));
+                    self.captures.push(ScoredMove::new(mv, score));
                 }
                 false
             });
         }
         if self.phase == QPhase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
+            while let Some(index) = select_highest(&self.captures) {
                 let capture = self.captures.swap_remove(index).mv;
                 return Some(capture);
             }
