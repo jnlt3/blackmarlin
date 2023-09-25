@@ -373,6 +373,7 @@ pub fn search<Search: SearchType>(
             }
         }
 
+        let close_to_root = ply <= (depth + ply) / 3;
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
@@ -389,6 +390,7 @@ pub fn search<Search: SearchType>(
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
         if non_mate_line
+            && !close_to_root
             && !is_capture
             && quiets.len()
                 >= shared_context
@@ -450,7 +452,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
+            if close_to_root {
                 reduction -= 1;
             }
             if !Search::PV {
