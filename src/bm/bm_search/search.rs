@@ -549,7 +549,7 @@ pub fn search<Search: SearchType>(
                     if !thread.abort {
                         let amt = depth
                             + (eval <= alpha) as u32
-                            + (eval + 50 <= alpha) as u32
+                            + (eval + 100 <= alpha) as u32
                             + (score - 50 > beta) as u32;
                         if !is_capture {
                             thread.killer_moves[ply as usize].push(make_move);
