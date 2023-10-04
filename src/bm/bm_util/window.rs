@@ -52,7 +52,8 @@ impl Window {
     }
 
     fn expand(&mut self) {
-        self.window += self.window * self.factor / self.divisor + self.add;
+        self.window +=
+            (self.window as i32 * self.factor as i32 / self.divisor as i32) as i16 + self.add;
     }
 
     fn set_bounds(&mut self) {
