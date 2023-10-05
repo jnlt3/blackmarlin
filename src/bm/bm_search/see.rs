@@ -130,7 +130,7 @@ fn piece_pts(piece: Piece) -> i16 {
         Piece::Knight => 323,
         Piece::Bishop => 323,
         Piece::Rook => 551,
-        Piece::Queen => 864,
+        Piece::Queen => 884,
         Piece::King => i16::MAX / 2,
     }
 }
