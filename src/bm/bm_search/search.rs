@@ -45,7 +45,7 @@ const fn do_rev_fp(depth: u32) -> bool {
 }
 
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 59 - improving as i16 * 44
+    depth as i16 * 63 - improving as i16 * 55
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -53,7 +53,7 @@ const fn do_razor(depth: u32) -> bool {
 }
 
 const fn razor(depth: u32) -> i16 {
-    depth as i16 * 193
+    depth as i16 * 287
 }
 
 fn do_nmp<Search: SearchType>(
@@ -65,19 +65,19 @@ fn do_nmp<Search: SearchType>(
 ) -> bool {
     Search::NM
         && depth > 4
-        && !(nstm_threat && depth <= 10)
+        && !(nstm_threat && depth <= 9)
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth * 2 / 5 + ((eval - beta) / 250) as u32;
+    let r = 3 + depth / 2 + ((eval - beta) / 216) as u32;
     depth.saturating_sub(r).max(1)
 }
 
 const fn iir(depth: u32) -> u32 {
-    if depth >= 2 {
+    if depth >= 5 {
         1
     } else {
         0
@@ -85,19 +85,19 @@ const fn iir(depth: u32) -> u32 {
 }
 
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 81
+    depth as i16 * 90
 }
 
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 96
+    depth as i16 * 106
 }
 
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 98 / 10
+    -((depth * depth) as i32) * 118 / 10
 }
 
 const fn history_lmr(history: i16) -> i16 {
-    history / 107
+    history / 132
 }
 
 pub fn search<Search: SearchType>(
@@ -351,7 +351,7 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 3 < s_beta {
+                    if !Search::PV && multi_cut && s_score + 2 < s_beta {
                         extension += 1;
                     }
                     thread.history.update_history(
@@ -378,7 +378,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 9;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 10;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.skip_quiets();
@@ -403,7 +403,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 5 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -416,7 +416,7 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 8
+            && depth <= 7
             && move_gen.phase() > Phase::GoodCaptures;
 
         let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
