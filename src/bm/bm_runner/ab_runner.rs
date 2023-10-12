@@ -397,7 +397,7 @@ impl AbRunner {
                 start: Instant::now(),
             },
             main_thread_context: Arc::new(Mutex::new(ThreadContext {
-                window: Window::new(12, 36, 100, 8),
+                window: Window::new(18, 36, 100, 8),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(Color::White, Evaluation::new(0)),
