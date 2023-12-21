@@ -40,20 +40,53 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const fn do_rev_fp(depth: u32) -> bool {
-    depth <= 8
+pub static mut REV_FP_DEPTH: u32 = 7; // 4 12 3
+pub static mut REV_FP: i16 = 63; // 30 100 20
+pub static mut REV_FP_IMPR: i16 = 55; // 30 100 20
+pub static mut RAZOR_DEPTH: u32 = 4; // 1 10 2
+pub static mut RAZOR: i16 = 287; // 50 400 100
+pub static mut NMP_MIN_DEPTH: u32 = 4; // 4 10 3
+pub static mut NMP_MAX_THREAT_DEPTH: u32 = 9; // 4 20 3
+pub static mut NMP_BASE: u32 = 3; // 0 10 3
+pub static mut NMP_MUL: u32 = 30; // 0 120 10
+pub static mut NMP_EVAL_DIV: i16 = 216; // 50 400 50
+pub static mut IIR_DEPTH: u32 = 5; // 2 10 2
+
+pub static mut FP: i16 = 90; // 30 160 30
+pub static mut SEE_FP: i16 = 106; // 30 160 30
+pub static mut HP: i32 = 118; // 30 210 30
+pub static mut HIST_LMR_DIV: i16 = 132; // 40 200 30
+pub static mut MC_DEPTH: u32 = 6; // 2 15 3
+pub static mut D_EXT_MARGIN: i16 = 2; // 1 100 15
+
+pub static mut FP_DEPTH: u32 = 10; // 2 12 3
+pub static mut HP_DEPTH: u32 = 5; // 2 12 3
+pub static mut SEEFP_DEPTH: u32 = 7; // 2 12 3
+
+pub static mut LMR_BASE: u32 = 54; // 0 200 20
+pub static mut LMR_DIV: u32 = 161; // 100 400 40
+
+pub static mut LMP_BASE: u32 = 244; // 100 500 50
+pub static mut LMP_IMPR_DIV: u32 = 203; // 50 350 50
+
+pub static mut ASP_START: i16 = 36; // 5 50 5
+pub static mut ASP_FACTOR: i32 = 100; // 10 100 15
+pub static mut ASP_ADD: i32 = 8; // 1 20 5
+
+fn do_rev_fp(depth: u32) -> bool {
+    depth <= unsafe { REV_FP_DEPTH }
 }
 
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 54 - improving as i16 * 49
+fn rev_fp(depth: u32, improving: bool) -> i16 {
+    unsafe { depth as i16 * REV_FP - improving as i16 * REV_FP_IMPR }
 }
 
-const fn do_razor(depth: u32) -> bool {
-    depth <= 3
+fn do_razor(depth: u32) -> bool {
+    depth <= unsafe { RAZOR_DEPTH }
 }
 
-const fn razor(depth: u32) -> i16 {
-    depth as i16 * 200
+fn razor(depth: u32) -> i16 {
+    depth as i16 * unsafe { RAZOR }
 }
 
 fn do_nmp<Search: SearchType>(
@@ -64,40 +97,42 @@ fn do_nmp<Search: SearchType>(
     nstm_threat: bool,
 ) -> bool {
     Search::NM
-        && depth > 4
-        && !(nstm_threat && depth <= 8)
+        && depth > unsafe { NMP_MIN_DEPTH }
+        && !(nstm_threat && depth <= unsafe { NMP_MAX_THREAT_DEPTH })
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 206) as u32;
-    depth.saturating_sub(r).max(1)
+    unsafe {
+        let r = NMP_BASE + depth * NMP_MUL / 60 + ((eval - beta) / NMP_EVAL_DIV) as u32;
+        depth.saturating_sub(r).max(1)
+    }
 }
 
-const fn iir(depth: u32) -> u32 {
-    if depth >= 2 {
+fn iir(depth: u32) -> u32 {
+    if depth >= unsafe { IIR_DEPTH } {
         1
     } else {
         0
     }
 }
 
-const fn fp(depth: u32) -> i16 {
-    depth as i16 * 62
+fn fp(depth: u32) -> i16 {
+    depth as i16 * unsafe { FP }
 }
 
-const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 81
+fn see_fp(depth: u32) -> i16 {
+    depth as i16 * unsafe { SEE_FP }
 }
 
-const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 71 / 10
+fn hp(depth: u32) -> i32 {
+    -((depth * depth) as i32) * unsafe { HP } / 10
 }
 
-const fn history_lmr(history: i16) -> i16 {
-    history / 92
+fn history_lmr(history: i16) -> i16 {
+    history / unsafe { HIST_LMR_DIV }
 }
 
 pub fn search<Search: SearchType>(
@@ -334,7 +369,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 5;
+                let multi_cut = depth >= unsafe { MC_DEPTH };
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
@@ -351,7 +386,7 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 19 < s_beta {
+                    if !Search::PV && multi_cut && s_score + unsafe { D_EXT_MARGIN } < s_beta {
                         extension += 1;
                     }
                     thread.history.update_history(
@@ -378,7 +413,11 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 5;
+        let do_fp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && depth <= unsafe { FP_DEPTH };
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.skip_quiets();
@@ -403,7 +442,11 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
+        let do_hp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && depth <= unsafe { HP_DEPTH }
+            && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -416,7 +459,7 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 7
+            && depth <= unsafe { SEEFP_DEPTH }
             && move_gen.phase() > Phase::GoodCaptures;
 
         let see_margin = (alpha - eval - see_fp(depth) + 1).raw();

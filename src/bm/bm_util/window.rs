@@ -3,9 +3,9 @@ use crate::bm::bm_util::eval::Evaluation;
 #[derive(Debug, Clone)]
 pub struct Window {
     start: i16,
-    factor: i16,
-    divisor: i16,
-    add: i16,
+    factor: i32,
+    divisor: i32,
+    add: i32,
 
     center: Evaluation,
     alpha: Evaluation,
@@ -14,7 +14,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub const fn new(start: i16, factor: i16, divisor: i16, add: i16) -> Self {
+    pub const fn new(start: i16, factor: i32, divisor: i32, add: i32) -> Self {
         Self {
             start,
             factor,
@@ -52,7 +52,7 @@ impl Window {
     }
 
     fn expand(&mut self) {
-        self.window += self.window * self.factor / self.divisor + self.add;
+        self.window += (self.window as i32 * self.factor / self.divisor + self.add) as i16;
     }
 
     fn set_bounds(&mut self) {
