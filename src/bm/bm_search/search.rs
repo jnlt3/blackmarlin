@@ -453,6 +453,9 @@ pub fn search<Search: SearchType>(
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
+            if ply >= (depth + ply) * 2 / 3 {
+                reduction += 1;
+            }
             if !Search::PV {
                 reduction += 1;
             };
