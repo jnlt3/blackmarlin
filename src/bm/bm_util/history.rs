@@ -1,6 +1,7 @@
 use cozy_chess::{Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::MoveData;
+use crate::bm::bm_search::search::HIST_BONUS;
 
 use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
@@ -8,7 +9,7 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 pub const MAX_HIST: i16 = 512;
 
 fn hist_stat(amt: i16) -> i16 {
-    (amt * 16).min(MAX_HIST)
+    (amt * unsafe { HIST_BONUS }).min(MAX_HIST)
 }
 
 fn bonus(hist: &mut i16, amt: i16) {
