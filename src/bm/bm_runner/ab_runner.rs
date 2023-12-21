@@ -6,8 +6,8 @@ use cozy_chess::{Board, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
-use crate::bm::bm_search::search;
-use crate::bm::bm_search::search::Pv;
+use crate::bm::bm_search::search::{self, ASP_ADD, ASP_FACTOR, ASP_START, LMP_BASE, LMP_IMPR_DIV};
+use crate::bm::bm_search::search::{Pv, LMR_BASE, LMR_DIV};
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::lookup::LookUp2d;
@@ -393,20 +393,26 @@ impl AbRunner {
                     if depth == 0 || mv == 0 {
                         0
                     } else {
-                        (0.51 + (depth as f32).ln() * (mv as f32).ln() / 2.07) as u32
+                        /*
+                        LMP_
+                        */
+                        (unsafe {
+                            LMR_BASE as f32 / 100.0
+                                + (depth as f32).ln() * (mv as f32).ln() / (LMR_DIV as f32 / 100.0)
+                        }) as u32
                     }
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
-                    let mut x = 2.64 + depth as f32 * depth as f32;
+                    let mut x = unsafe { LMP_BASE as f32 / 100.0 } + depth as f32 * depth as f32;
                     if improving == 0 {
-                        x /= 1.79;
+                        x /= unsafe { LMP_IMPR_DIV as f32 / 100.0 };
                     }
                     x as usize
                 })),
                 start: Instant::now(),
             },
             main_thread_context: Arc::new(Mutex::new(ThreadContext {
-                window: Window::new(14, 43, 100, 8),
+                window: unsafe { Window::new(ASP_START, ASP_FACTOR, 100, ASP_ADD) },
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),

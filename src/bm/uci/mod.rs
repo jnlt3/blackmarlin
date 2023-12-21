@@ -34,6 +34,9 @@ pub struct UciAdapter {
     forced: bool,
     chess960: bool,
     show_wdl: bool,
+
+    params: Vec<Box<dyn Fn(&str, &str) -> ()>>,
+    print_uci: Vec<Box<dyn Fn() -> ()>>,
 }
 
 impl UciAdapter {
@@ -60,6 +63,64 @@ impl UciAdapter {
                 }
             }
         });
+        let mut params: Vec<Box<dyn Fn(&str, &str) -> ()>> = vec![];
+        let mut print_uci: Vec<Box<dyn Fn() -> ()>> = vec![];
+
+        macro_rules! add_param {
+            ($name: ident: $value_type: ty = range($min: expr, $max: expr)) => {
+                use crate::bm::bm_search::search::$name;
+                params.push(Box::new(|name: &str, value: &str| {
+                    if name != stringify!($name) {
+                        return;
+                    }
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    let value = value.parse::<$value_type>().unwrap();
+                    assert!(value >= min && value <= max);
+                    unsafe { $name = value };
+                }));
+                print_uci.push(Box::new(|| {
+                    let value = unsafe { $name };
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    println!(
+                        "option name {} type spin default {} min {} max {}",
+                        stringify!($name),
+                        value,
+                        min,
+                        max,
+                    )
+                }))
+            };
+        }
+
+        add_param!(REV_FP_DEPTH: u32 = range(4, 12));
+        add_param!(REV_FP: i16 = range(30, 100));
+        add_param!(REV_FP_IMPR: i16 = range(30, 100));
+        add_param!(RAZOR_DEPTH: u32 = range(1, 10));
+        add_param!(RAZOR: i16 = range(50, 400));
+        add_param!(NMP_MIN_DEPTH: u32 = range(4, 10));
+        add_param!(NMP_MAX_THREAT_DEPTH: u32 = range(4, 20));
+        add_param!(NMP_BASE: u32 = range(0, 10));
+        add_param!(NMP_MUL: u32 = range(0, 120));
+        add_param!(NMP_EVAL_DIV: i16 = range(50, 400));
+        add_param!(IIR_DEPTH: u32 = range(2, 10));
+        add_param!(FP: i16 = range(30, 160));
+        add_param!(SEE_FP: i16 = range(30, 160));
+        add_param!(HP: i32 = range(30, 210));
+        add_param!(HIST_LMR_DIV: i16 = range(40, 200));
+        add_param!(MC_DEPTH: u32 = range(2, 15));
+        add_param!(FP_DEPTH: u32 = range(2, 12));
+        add_param!(HP_DEPTH: u32 = range(2, 12));
+        add_param!(SEEFP_DEPTH: u32 = range(2, 12));
+        add_param!(LMR_BASE: u32 = range(0, 200));
+        add_param!(LMR_DIV: u32 = range(100, 400));
+        add_param!(LMP_BASE: u32 = range(100, 500));
+        add_param!(LMP_IMPR_DIV: u32 = range(50, 350));
+        add_param!(ASP_START: i16 = range(5, 50));
+        add_param!(ASP_FACTOR: i32 = range(10, 100));
+        add_param!(ASP_ADD: i32 = range(1, 20));
+
         Self {
             bm_runner,
             forced: false,
@@ -67,6 +128,8 @@ impl UciAdapter {
             time_manager,
             chess960: false,
             show_wdl: false,
+            params,
+            print_uci,
         }
     }
 
@@ -81,6 +144,9 @@ impl UciAdapter {
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
+                for print_param in &self.print_uci {
+                    print_param();
+                }
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -139,6 +205,9 @@ impl UciAdapter {
                             .set_uci_show_wdl(self.show_wdl);
                     }
                     _ => {}
+                }
+                for params in self.params.iter() {
+                    params(&name, &value);
                 }
             }
             UciCommand::Bench(depth) => {
