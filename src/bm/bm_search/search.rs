@@ -69,8 +69,8 @@ pub static mut LMR_DIV: u32 = 161; // 100 400 40
 pub static mut LMP_BASE: u32 = 244; // 100 500 50
 pub static mut LMP_IMPR_DIV: u32 = 203; // 50 350 50
 
-pub static mut ASP_START: i16 = 36; // 5 50 5
-pub static mut ASP_FACTOR: i32 = 100; // 10 100 15
+pub static mut ASP_START: i16 = 12; // 5 50 5
+pub static mut ASP_FACTOR: i32 = 36; // 10 100 15
 pub static mut ASP_ADD: i32 = 8; // 1 20 5
 
 fn do_rev_fp(depth: u32) -> bool {
@@ -123,7 +123,7 @@ fn fp(depth: u32) -> i16 {
     depth as i16 * unsafe { FP }
 }
 
-fn see_fp(depth: u32) -> i16 {
+fn see_fp(depth: u32) -> i16 {  
     depth as i16 * unsafe { SEE_FP }
 }
 
