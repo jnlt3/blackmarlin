@@ -41,11 +41,11 @@ impl SearchType for NoNm {
 }
 
 const fn do_rev_fp(depth: u32) -> bool {
-    depth <= 7
+    depth <= 8
 }
 
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 63 - improving as i16 * 55
+    depth as i16 * 68 - improving as i16 * 61
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -65,19 +65,19 @@ fn do_nmp<Search: SearchType>(
 ) -> bool {
     Search::NM
         && depth > 4
-        && !(nstm_threat && depth <= 9)
+        && !(nstm_threat && depth <= 7)
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 3 + depth / 2 + ((eval - beta) / 216) as u32;
+    let r = 4 + depth / 3 + ((eval - beta) / 201) as u32;
     depth.saturating_sub(r).max(1)
 }
 
 const fn iir(depth: u32) -> u32 {
-    if depth >= 5 {
+    if depth >= 4 {
         1
     } else {
         0
@@ -85,19 +85,19 @@ const fn iir(depth: u32) -> u32 {
 }
 
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 90
+    depth as i16 * 97
 }
 
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 106
+    depth as i16 * 104
 }
 
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 118 / 10
+    -((depth * depth) as i32) * 129 / 10
 }
 
 const fn history_lmr(history: i16) -> i16 {
-    history / 132
+    history / 119
 }
 
 pub fn search<Search: SearchType>(
@@ -403,7 +403,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 5 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -416,7 +416,7 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 7
+            && depth <= 6
             && move_gen.phase() > Phase::GoodCaptures;
 
         let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
