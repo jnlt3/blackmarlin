@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Move, Piece};
 
 #[test]
 fn test_see() {
@@ -58,6 +58,51 @@ pub fn move_value(board: &Board, make_move: Move) -> i16 {
     board
         .piece_on(make_move.to)
         .map_or(0, |piece| piece_pts(piece))
+}
+
+pub fn mvv_lva(board: &Board, make_move: Move) -> i16 {
+    let target = make_move.to;
+    let piece = board.piece_on(make_move.from);
+
+    let is_quiet = board.color_on(make_move.to) != Some(!board.side_to_move());
+
+    let gain = match is_quiet {
+        true => 0,
+        false => match board.piece_on(target) {
+            Some(piece) => piece_pts(piece),
+            None => 0,
+        },
+    };
+    if piece == Some(Piece::King) {
+        return gain;
+    }
+
+    let blockers = board.occupied() & !make_move.from.bitboard();
+    let stm = !board.side_to_move();
+    for &attacker in &Piece::ALL {
+        let pieces = board.colored_pieces(stm, attacker);
+        if pieces.is_empty() {
+            continue;
+        }
+        let potential = match attacker {
+            Piece::Pawn => cozy_chess::get_pawn_attacks(target, !stm),
+            Piece::Knight => cozy_chess::get_knight_moves(target),
+            Piece::Bishop => cozy_chess::get_bishop_moves(target, blockers),
+            Piece::Rook => cozy_chess::get_rook_moves(target, blockers),
+            Piece::Queen => {
+                cozy_chess::get_rook_moves(target, blockers)
+                    | cozy_chess::get_bishop_moves(target, blockers)
+            }
+            Piece::King => cozy_chess::get_king_moves(target),
+        } & pieces
+            & blockers;
+
+        if potential != BitBoard::EMPTY {
+            let move_value = piece.map_or(0, piece_pts);
+            return gain - move_value;
+        }
+    }
+    0
 }
 
 pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
