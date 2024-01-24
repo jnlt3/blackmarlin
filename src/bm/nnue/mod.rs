@@ -20,6 +20,10 @@ pub struct Accumulator {
     b_input_layer: Incremental<INPUT, MID>,
 }
 
+fn king_to_index(sq: Square) -> usize {
+    sq.file() as usize * Rank::NUM + sq.rank() as usize
+}
+
 fn halfka_feature(
     perspective: Color,
     king: Square,
@@ -34,9 +38,9 @@ fn halfka_feature(
     if king.file() > File::D {
         king = king.flip_file();
         square = square.flip_file();
-    }
+    };
     let mut index = 0;
-    index = index * Square::NUM / 2 + king as usize;
+    index = index * Square::NUM / 2 + king_to_index(king);
     index = index * Color::NUM + color as usize;
     index = index * (Piece::NUM + 1) + piece as usize;
     index = index * Square::NUM + square as usize;
@@ -53,7 +57,7 @@ fn threat_feature(perspective: Color, king: Square, color: Color, square: Square
         square = square.flip_file();
     }
     let mut index = 0;
-    index = index * Square::NUM + king as usize;
+    index = index * Square::NUM / 2 + king_to_index(king);
     index = index * Color::NUM + color as usize;
     index = index * (Piece::NUM + 1) + Piece::NUM;
     index = index * Square::NUM + square as usize;
