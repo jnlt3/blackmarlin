@@ -56,8 +56,8 @@ const fn razor_margin(depth: u32) -> i16 {
     depth as i16 * 287
 }
 
-const fn razor_qsearch(depth: u32) -> i16 {
-    depth as i16 * 143
+const fn razor_qsearch() -> i16 {
+    287
 }
 
 fn do_nmp<Search: SearchType>(
@@ -212,7 +212,7 @@ pub fn search<Search: SearchType>(
 
         let razor_margin = razor_margin(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
-            let zw = alpha - razor_qsearch(depth);
+            let zw = alpha - razor_qsearch();
             let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
                 return q_search;
