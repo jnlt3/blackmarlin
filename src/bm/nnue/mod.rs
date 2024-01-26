@@ -235,43 +235,13 @@ impl Nnue {
                 let current = threats.to_piece(color, piece);
                 let diff = current ^ old_threats.to_piece(color, piece);
                 for sq in diff & current {
-                    self.update::<true>(indices(w_king, b_king, sq, piece, !color, true));
+                    self.update::<true>(indices(w_king, b_king, sq, piece, color, true));
                 }
                 for sq in diff & !current {
-                    self.update::<false>(indices(w_king, b_king, sq, piece, !color, true));
+                    self.update::<false>(indices(w_king, b_king, sq, piece, color, true));
                 }
             }
         }
-
-        /*
-        let w_threats = threats.colored(Color::White);
-        let b_threats = threats.colored(Color::Black);
-        let old_w_threats = old_threats.colored(Color::White);
-        let old_b_threats = old_threats.colored(Color::Black);
-
-
-        for w_threat_sq in w_threats ^ old_w_threats {
-            match w_threats.has(w_threat_sq) {
-                true => {
-                    self.update::<true>(threat_indices(w_king, b_king, w_threat_sq, Color::Black))
-                }
-                false => {
-                    self.update::<false>(threat_indices(w_king, b_king, w_threat_sq, Color::Black))
-                }
-            };
-        }
-
-        for b_threat_sq in b_threats ^ old_b_threats {
-            match b_threats.has(b_threat_sq) {
-                true => {
-                    self.update::<true>(threat_indices(w_king, b_king, b_threat_sq, Color::White))
-                }
-                false => {
-                    self.update::<false>(threat_indices(w_king, b_king, b_threat_sq, Color::White))
-                }
-            }
-        }
-        */
 
         self.update::<false>(indices(w_king, b_king, from_sq, from_type, stm, false));
 
