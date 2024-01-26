@@ -10,7 +10,7 @@ fn parse_bm_net() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
 
     let eval_path = Path::new(&out_dir).join("eval.bin");
-    let nn_bytes = std::fs::read(nn_dir).expect("nnue file doesn't exist");
+    let nn_bytes = std::fs::read(&nn_dir).expect("nnue file doesn't exist");
     let layers = parse_arch(&nn_bytes);
 
     let arch_path = Path::new(&out_dir).join("arch.rs");
@@ -22,6 +22,9 @@ fn parse_bm_net() {
 
     std::fs::write(&eval_path, nn_bytes).unwrap();
     std::fs::write(&arch_path, def_nodes).unwrap();
+
+    println!("cargo:rerun-if-env-changed=EVALFILE");
+    println!("cargo:rerun-if-changed={nn_dir}");
 }
 
 pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
