@@ -1,5 +1,3 @@
-use std::mem::MaybeUninit;
-
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
 pub const NUM_PIECES: usize = 4;
@@ -15,12 +13,10 @@ impl Threats {
     pub fn new(board: &Board) -> Self {
         let (w_threats, b_threats) = threats(board);
         let all_threats = w_threats | b_threats;
-        let mut piece_threats = [MaybeUninit::uninit(); NUM_PIECES];
+        let mut piece_threats = [BitBoard::EMPTY; NUM_PIECES];
         for (piece_threat, &piece) in piece_threats.iter_mut().zip(&PIECES) {
-            piece_threat.write(all_threats & board.pieces(piece));
+            *piece_threat = all_threats & board.pieces(piece);
         }
-        let piece_threats =
-            unsafe { std::mem::transmute::<_, [BitBoard; NUM_PIECES]>(piece_threats) };
         Threats {
             color_threats: [w_threats, b_threats],
             piece_threats,
