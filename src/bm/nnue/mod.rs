@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
+use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
 use self::layers::{Align, Dense, Incremental};
 
-use super::bm_runner::ab_runner;
+use super::{
+    bm_runner::ab_runner,
+    bm_util::threats::{self, Threats},
+};
 
 mod include;
 mod layers;
@@ -13,7 +16,6 @@ mod layers;
 include!(concat!(env!("OUT_DIR"), "/arch.rs"));
 
 const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
-
 #[derive(Debug, Clone)]
 pub struct Accumulator {
     w_input_layer: Incremental<INPUT, MID>,
@@ -30,6 +32,7 @@ fn halfka_feature(
     color: Color,
     piece: Piece,
     square: Square,
+    is_threat: bool,
 ) -> usize {
     let (mut king, mut square, color) = match perspective {
         Color::White => (king, square, color),
@@ -39,27 +42,21 @@ fn halfka_feature(
         king = king.flip_file();
         square = square.flip_file();
     };
-    let mut index = 0;
-    index = index * Square::NUM / 2 + king_to_index(king);
-    index = index * Color::NUM + color as usize;
-    index = index * (Piece::NUM + 1) + piece as usize;
-    index = index * Square::NUM + square as usize;
-    index
-}
-
-fn threat_feature(perspective: Color, king: Square, color: Color, square: Square) -> usize {
-    let (mut king, mut square, color) = match perspective {
-        Color::White => (king, square, color),
-        Color::Black => (king.flip_rank(), square.flip_rank(), !color),
+    let piece_idx = if is_threat {
+        match piece {
+            Piece::Knight => Piece::NUM,
+            Piece::Bishop => Piece::NUM + 1,
+            Piece::Rook => Piece::NUM + 2,
+            Piece::Queen => Piece::NUM + 3,
+            _ => unreachable!(),
+        }
+    } else {
+        piece as usize
     };
-    if king.file() > File::D {
-        king = king.flip_file();
-        square = square.flip_file();
-    }
     let mut index = 0;
     index = index * Square::NUM / 2 + king_to_index(king);
     index = index * Color::NUM + color as usize;
-    index = index * (Piece::NUM + 1) + Piece::NUM;
+    index = index * (Piece::NUM + 4) + piece_idx as usize;
     index = index * Square::NUM + square as usize;
     index
 }
@@ -76,15 +73,16 @@ impl Update {
     }
 }
 
-fn piece_indices(w_king: Square, b_king: Square, sq: Square, piece: Piece, color: Color) -> Update {
-    let w_index = halfka_feature(Color::White, w_king, color, piece, sq);
-    let b_index = halfka_feature(Color::Black, b_king, color, piece, sq);
-    Update::new(w_index, b_index)
-}
-
-fn threat_indices(w_king: Square, b_king: Square, sq: Square, color: Color) -> Update {
-    let w_index = threat_feature(Color::White, w_king, color, sq);
-    let b_index = threat_feature(Color::Black, b_king, color, sq);
+fn indices(
+    w_king: Square,
+    b_king: Square,
+    sq: Square,
+    piece: Piece,
+    color: Color,
+    is_threat: bool,
+) -> Update {
+    let w_index = halfka_feature(Color::White, w_king, color, piece, sq, is_threat);
+    let b_index = halfka_feature(Color::Black, b_king, color, piece, sq, is_threat);
     Update::new(w_index, b_index)
 }
 
@@ -170,20 +168,17 @@ impl Nnue {
         self.b_rm.clear();
     }
 
-    pub fn reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
+    pub fn reset(&mut self, board: &Board, threats: Threats) {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
 
         for sq in board.occupied() {
             let piece = board.piece_on(sq).unwrap();
             let color = board.color_on(sq).unwrap();
-            self.update::<true>(piece_indices(w_king, b_king, sq, piece, color));
-        }
-        for sq in w_threats {
-            self.update::<true>(threat_indices(w_king, b_king, sq, Color::Black));
-        }
-        for sq in b_threats {
-            self.update::<true>(threat_indices(w_king, b_king, sq, Color::White));
+            self.update::<true>(indices(w_king, b_king, sq, piece, color, false));
+            if threats.from_color(!color).has(sq) {
+                self.update::<true>(indices(w_king, b_king, sq, piece, color, true));
+            }
         }
 
         let acc = &mut self.accumulator[self.head];
@@ -198,9 +193,9 @@ impl Nnue {
         self.clear();
     }
 
-    pub fn full_reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
+    pub fn full_reset(&mut self, board: &Board, threats: Threats) {
         self.head = 0;
-        self.reset(board, w_threats, b_threats);
+        self.reset(board, threats);
     }
 
     fn push_accumulator(&mut self) {
@@ -219,10 +214,8 @@ impl Nnue {
         &mut self,
         board: &Board,
         make_move: Move,
-        w_threats: BitBoard,
-        b_threats: BitBoard,
-        old_w_threats: BitBoard,
-        old_b_threats: BitBoard,
+        threats: Threats,
+        old_threats: Threats,
     ) {
         self.push_accumulator();
         let from_sq = make_move.from;
@@ -233,9 +226,30 @@ impl Nnue {
         if from_type == Piece::King {
             let mut board_clone = board.clone();
             board_clone.play_unchecked(make_move);
-            self.reset(&board_clone, w_threats, b_threats);
+            self.reset(&board_clone, threats);
             return;
         }
+
+        for color in Color::ALL {
+            for piece in threats::PIECES {
+                let current = threats.to_piece(color, piece);
+                let diff = current ^ old_threats.to_piece(color, piece);
+                for sq in diff & current {
+                    self.update::<true>(indices(w_king, b_king, sq, piece, !color, true));
+                }
+                for sq in diff & !current {
+                    self.update::<false>(indices(w_king, b_king, sq, piece, !color, true));
+                }
+            }
+        }
+
+        /*
+        let w_threats = threats.colored(Color::White);
+        let b_threats = threats.colored(Color::Black);
+        let old_w_threats = old_threats.colored(Color::White);
+        let old_b_threats = old_threats.colored(Color::Black);
+
+
         for w_threat_sq in w_threats ^ old_w_threats {
             match w_threats.has(w_threat_sq) {
                 true => {
@@ -257,12 +271,13 @@ impl Nnue {
                 }
             }
         }
+        */
 
-        self.update::<false>(piece_indices(w_king, b_king, from_sq, from_type, stm));
+        self.update::<false>(indices(w_king, b_king, from_sq, from_type, stm, false));
 
         let to_sq = make_move.to;
         if let Some((captured, color)) = board.piece_on(to_sq).zip(board.color_on(to_sq)) {
-            self.update::<false>(piece_indices(w_king, b_king, to_sq, captured, color));
+            self.update::<false>(indices(w_king, b_king, to_sq, captured, color, false));
         }
 
         if let Some(ep) = board.en_passant() {
@@ -271,12 +286,13 @@ impl Nnue {
                 Color::Black => (Rank::Fourth, Rank::Third),
             };
             if from_type == Piece::Pawn && to_sq == Square::new(ep, stm_sixth) {
-                self.update::<false>(piece_indices(
+                self.update::<false>(indices(
                     w_king,
                     b_king,
                     Square::new(ep, stm_fifth),
                     Piece::Pawn,
                     !stm,
+                    false,
                 ));
             }
         }
@@ -286,43 +302,48 @@ impl Nnue {
                 Color::Black => Rank::Eighth,
             };
             if to_sq.file() > from_sq.file() {
-                self.update::<true>(piece_indices(
+                self.update::<true>(indices(
                     w_king,
                     b_king,
                     Square::new(File::G, stm_first),
                     Piece::King,
                     stm,
+                    false,
                 ));
-                self.update::<true>(piece_indices(
+                self.update::<true>(indices(
                     w_king,
                     b_king,
                     Square::new(File::F, stm_first),
                     Piece::Rook,
                     stm,
+                    false,
                 ));
             } else {
-                self.update::<true>(piece_indices(
+                self.update::<true>(indices(
                     w_king,
                     b_king,
                     Square::new(File::C, stm_first),
                     Piece::King,
                     stm,
+                    false,
                 ));
-                self.update::<true>(piece_indices(
+                self.update::<true>(indices(
                     w_king,
                     b_king,
                     Square::new(File::D, stm_first),
                     Piece::Rook,
                     stm,
+                    false,
                 ));
             }
         } else {
-            self.update::<true>(piece_indices(
+            self.update::<true>(indices(
                 w_king,
                 b_king,
                 to_sq,
                 make_move.promotion.unwrap_or(from_type),
                 stm,
+                false,
             ));
         }
         self.accumulator[self.head].perform_update(
