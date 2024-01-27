@@ -1,6 +1,14 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
-pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
+#[derive(Debug, Clone, Copy)]
+pub struct ThreatOffense {
+    pub w_threats: BitBoard,
+    pub b_threats: BitBoard,
+    pub w_offense: BitBoard,
+    pub b_offense: BitBoard,
+}
+
+pub fn threats(board: &Board) -> ThreatOffense {
     let occupied = board.occupied();
     let white = board.colors(Color::White);
     let black = board.colors(Color::Black);
@@ -51,12 +59,20 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
         }
     }
 
-    (
-        ((w_pawn_attacks & pieces) | (w_minor_attacks & majors) | (w_rook_attacks & queens))
-            & black,
-        ((b_pawn_attacks & pieces) | (b_minor_attacks & majors) | (b_rook_attacks & queens))
-            & white,
-    )
+    let w_attacks =
+        (w_pawn_attacks & pieces) | (w_minor_attacks & majors) | (w_rook_attacks & queens);
+    let b_attacks =
+        (b_pawn_attacks & pieces) | (b_minor_attacks & majors) | (b_rook_attacks & queens);
+
+    let w_king = cozy_chess::get_king_moves(board.king(Color::White));
+    let b_king = cozy_chess::get_king_moves(board.king(Color::Black));
+
+    ThreatOffense {
+        w_threats: w_attacks & black,
+        b_threats: b_attacks & white,
+        w_offense: w_attacks & b_king,
+        b_offense: b_attacks & w_attacks,
+    }
 }
 
 fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {

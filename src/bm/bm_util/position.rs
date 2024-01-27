@@ -2,45 +2,50 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{
+    eval::Evaluation,
+    frc,
+    threats::{threats, ThreatOffense},
+};
 
 #[derive(Debug, Clone)]
 pub struct Position {
     current: Board,
-    w_threats: BitBoard,
-    b_threats: BitBoard,
+    threats: ThreatOffense,
     boards: Vec<Board>,
-    threats: Vec<(BitBoard, BitBoard)>,
+    threats_stack: Vec<ThreatOffense>,
     evaluator: Nnue,
 }
 
 impl Position {
     pub fn new(board: Board) -> Self {
         let mut evaluator = Nnue::new();
-        let (w_threats, b_threats) = threats(&board);
-        evaluator.full_reset(&board, w_threats, b_threats);
+        let threats = threats(&board);
+        evaluator.full_reset(&board, threats.w_threats, threats.b_threats);
         Self {
             current: board,
-            w_threats,
-            b_threats,
-            threats: vec![],
+            threats: threats,
             boards: vec![],
+            threats_stack: vec![],
             evaluator,
         }
     }
 
     pub fn set_board(&mut self, board: Board) {
-        let (w_threats, b_threats) = threats(&board);
-        self.evaluator.full_reset(&board, w_threats, b_threats);
-        self.w_threats = w_threats;
-        self.b_threats = b_threats;
+        let threats = threats(&board);
+        self.evaluator
+            .full_reset(&board, threats.w_threats, threats.b_threats);
+        self.threats = threats;
         self.current = board;
         self.boards.clear();
     }
 
     pub fn reset(&mut self) {
-        self.evaluator
-            .full_reset(&self.current, self.w_threats, self.b_threats);
+        self.evaluator.full_reset(
+            &self.current,
+            self.threats.w_threats,
+            self.threats.b_threats,
+        );
     }
 
     pub fn forced_draw(&self, ply: u32) -> bool {
@@ -78,7 +83,7 @@ impl Position {
         if let Some(new_board) = self.board().null_move() {
             self.evaluator.null_move();
             self.boards.push(self.current.clone());
-            self.threats.push((self.w_threats, self.b_threats));
+            self.threats_stack.push(self.threats);
             self.current = new_board;
             true
         } else {
@@ -88,29 +93,28 @@ impl Position {
 
     pub fn make_move(&mut self, make_move: Move) {
         let old_board = self.current.clone();
-        let old_w_threats = self.w_threats;
-        let old_b_threats = self.b_threats;
+        let old_threats = self.threats;
 
         self.current.play_unchecked(make_move);
-        (self.w_threats, self.b_threats) = threats(&self.current);
+        self.threats = threats(&self.current);
 
         self.evaluator.make_move(
             &old_board,
             make_move,
-            self.w_threats,
-            self.b_threats,
-            old_w_threats,
-            old_b_threats,
+            self.threats.w_threats,
+            self.threats.b_threats,
+            old_threats.w_threats,
+            old_threats.b_threats,
         );
 
         self.boards.push(old_board);
-        self.threats.push((old_w_threats, old_b_threats));
+        self.threats_stack.push(old_threats);
     }
 
     pub fn unmake_move(&mut self) {
         self.evaluator.unmake_move();
         let current = self.boards.pop().unwrap();
-        (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
+        self.threats = self.threats_stack.pop().unwrap();
         self.current = current;
     }
 
@@ -119,7 +123,7 @@ impl Position {
     }
 
     pub fn threats(&self) -> (BitBoard, BitBoard) {
-        (self.w_threats, self.b_threats)
+        (self.threats.w_threats, self.threats.b_threats)
     }
 
     pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
