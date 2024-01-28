@@ -80,7 +80,8 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 
 impl OrderedMoveGen {
     pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
-        let stm_pawns = board.colored_pieces(board.side_to_move(), Piece::Pawn);
+        let nstm = !board.side_to_move();
+        let stm_pawns = board.colored_pieces(nstm, Piece::Pawn);
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
@@ -90,7 +91,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
-            opp_pawn_threats: pawn_threats(stm_pawns, !board.side_to_move()),
+            opp_pawn_threats: pawn_threats(stm_pawns, nstm),
         }
     }
 
