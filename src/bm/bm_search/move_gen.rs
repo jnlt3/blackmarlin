@@ -196,7 +196,7 @@ impl OrderedMoveGen {
                                 .unwrap_or_default();
                             let threatened = self.opp_pawn_threats.has(mv.to);
                             let pawn_threat = match piece != Piece::Pawn && threatened {
-                                true => -128,
+                                true => -256,
                                 false => 0,
                             };
                             quiet_hist + counter_move_hist + followup_move_hist + pawn_threat
