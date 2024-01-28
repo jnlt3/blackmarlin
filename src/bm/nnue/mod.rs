@@ -206,6 +206,7 @@ impl Nnue {
     pub fn make_move(
         &mut self,
         board: &Board,
+        new_board: &Board,
         make_move: Move,
         w_threats: BitBoard,
         b_threats: BitBoard,
@@ -219,9 +220,7 @@ impl Nnue {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
         if from_type == Piece::King {
-            let mut board_clone = board.clone();
-            board_clone.play_unchecked(make_move);
-            self.reset(&board_clone, w_threats, b_threats);
+            self.reset(&new_board, w_threats, b_threats);
             return;
         }
         for w_threat_sq in w_threats ^ old_w_threats {

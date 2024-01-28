@@ -96,6 +96,7 @@ impl Position {
 
         self.evaluator.make_move(
             &old_board,
+            &self.current,
             make_move,
             self.w_threats,
             self.b_threats,
