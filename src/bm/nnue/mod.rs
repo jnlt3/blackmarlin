@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
+use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
 use self::layers::{Align, Dense, Incremental};
 
-use super::bm_runner::ab_runner;
+use super::{bm_runner::ab_runner, bm_util::threats::ThreatOffense};
 
 mod include;
 mod layers;
@@ -42,12 +42,18 @@ fn halfka_feature(
     let mut index = 0;
     index = index * Square::NUM / 2 + king_to_index(king);
     index = index * Color::NUM + color as usize;
-    index = index * (Piece::NUM + 1) + piece as usize;
+    index = index * (Piece::NUM + 2) + piece as usize;
     index = index * Square::NUM + square as usize;
     index
 }
 
-fn threat_feature(perspective: Color, king: Square, color: Color, square: Square) -> usize {
+fn extra_feature(
+    perspective: Color,
+    king: Square,
+    color: Color,
+    square: Square,
+    extra: usize,
+) -> usize {
     let (mut king, mut square, color) = match perspective {
         Color::White => (king, square, color),
         Color::Black => (king.flip_rank(), square.flip_rank(), !color),
@@ -59,7 +65,7 @@ fn threat_feature(perspective: Color, king: Square, color: Color, square: Square
     let mut index = 0;
     index = index * Square::NUM / 2 + king_to_index(king);
     index = index * Color::NUM + color as usize;
-    index = index * (Piece::NUM + 1) + Piece::NUM;
+    index = index * (Piece::NUM + 2) + Piece::NUM + extra;
     index = index * Square::NUM + square as usize;
     index
 }
@@ -82,9 +88,9 @@ fn piece_indices(w_king: Square, b_king: Square, sq: Square, piece: Piece, color
     Update::new(w_index, b_index)
 }
 
-fn threat_indices(w_king: Square, b_king: Square, sq: Square, color: Color) -> Update {
-    let w_index = threat_feature(Color::White, w_king, color, sq);
-    let b_index = threat_feature(Color::Black, b_king, color, sq);
+fn extra_indices(w_king: Square, b_king: Square, sq: Square, color: Color, extra: usize) -> Update {
+    let w_index = extra_feature(Color::White, w_king, color, sq, extra);
+    let b_index = extra_feature(Color::Black, b_king, color, sq, extra);
     Update::new(w_index, b_index)
 }
 
@@ -170,7 +176,7 @@ impl Nnue {
         self.b_rm.clear();
     }
 
-    pub fn reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
+    pub fn reset(&mut self, board: &Board, threats: ThreatOffense) {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
 
@@ -179,11 +185,17 @@ impl Nnue {
             let color = board.color_on(sq).unwrap();
             self.update::<true>(piece_indices(w_king, b_king, sq, piece, color));
         }
-        for sq in w_threats {
-            self.update::<true>(threat_indices(w_king, b_king, sq, Color::Black));
+        for sq in threats.w_threats {
+            self.update::<true>(extra_indices(w_king, b_king, sq, Color::Black, 0));
         }
-        for sq in b_threats {
-            self.update::<true>(threat_indices(w_king, b_king, sq, Color::White));
+        for sq in threats.b_threats {
+            self.update::<true>(extra_indices(w_king, b_king, sq, Color::White, 0));
+        }
+        for sq in threats.w_offense {
+            self.update::<true>(extra_indices(w_king, b_king, sq, Color::Black, 1));
+        }
+        for sq in threats.b_offense {
+            self.update::<true>(extra_indices(w_king, b_king, sq, Color::White, 1));
         }
 
         let acc = &mut self.accumulator[self.head];
@@ -198,9 +210,9 @@ impl Nnue {
         self.clear();
     }
 
-    pub fn full_reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
+    pub fn full_reset(&mut self, board: &Board, threats: ThreatOffense) {
         self.head = 0;
-        self.reset(board, w_threats, b_threats);
+        self.reset(board, threats);
     }
 
     fn push_accumulator(&mut self) {
@@ -219,10 +231,8 @@ impl Nnue {
         &mut self,
         board: &Board,
         make_move: Move,
-        w_threats: BitBoard,
-        b_threats: BitBoard,
-        old_w_threats: BitBoard,
-        old_b_threats: BitBoard,
+        threats: ThreatOffense,
+        old_threats: ThreatOffense,
     ) {
         self.push_accumulator();
         let from_sq = make_move.from;
@@ -233,27 +243,50 @@ impl Nnue {
         if from_type == Piece::King {
             let mut board_clone = board.clone();
             board_clone.play_unchecked(make_move);
-            self.reset(&board_clone, w_threats, b_threats);
+            self.reset(&board_clone, threats);
             return;
         }
-        for w_threat_sq in w_threats ^ old_w_threats {
-            match w_threats.has(w_threat_sq) {
+
+        for threat_sq in threats.w_threats ^ old_threats.w_threats {
+            match threats.w_threats.has(threat_sq) {
                 true => {
-                    self.update::<true>(threat_indices(w_king, b_king, w_threat_sq, Color::Black))
+                    self.update::<true>(extra_indices(w_king, b_king, threat_sq, Color::Black, 0))
                 }
                 false => {
-                    self.update::<false>(threat_indices(w_king, b_king, w_threat_sq, Color::Black))
+                    self.update::<false>(extra_indices(w_king, b_king, threat_sq, Color::Black, 0))
                 }
             };
         }
 
-        for b_threat_sq in b_threats ^ old_b_threats {
-            match b_threats.has(b_threat_sq) {
+        for threat_sq in threats.b_threats ^ old_threats.b_threats {
+            match threats.b_threats.has(threat_sq) {
                 true => {
-                    self.update::<true>(threat_indices(w_king, b_king, b_threat_sq, Color::White))
+                    self.update::<true>(extra_indices(w_king, b_king, threat_sq, Color::White, 0))
                 }
                 false => {
-                    self.update::<false>(threat_indices(w_king, b_king, b_threat_sq, Color::White))
+                    self.update::<false>(extra_indices(w_king, b_king, threat_sq, Color::White, 0))
+                }
+            }
+        }
+
+        for offense_sq in threats.w_offense ^ old_threats.w_offense {
+            match threats.w_offense.has(offense_sq) {
+                true => {
+                    self.update::<true>(extra_indices(w_king, b_king, offense_sq, Color::Black, 1))
+                }
+                false => {
+                    self.update::<false>(extra_indices(w_king, b_king, offense_sq, Color::Black, 1))
+                }
+            };
+        }
+
+        for offense_sq in threats.b_offense ^ old_threats.b_offense {
+            match threats.b_offense.has(offense_sq) {
+                true => {
+                    self.update::<true>(extra_indices(w_king, b_king, offense_sq, Color::White, 1))
+                }
+                false => {
+                    self.update::<false>(extra_indices(w_king, b_king, offense_sq, Color::White, 1))
                 }
             }
         }

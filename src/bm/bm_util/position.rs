@@ -21,7 +21,7 @@ impl Position {
     pub fn new(board: Board) -> Self {
         let mut evaluator = Nnue::new();
         let threats = threats(&board);
-        evaluator.full_reset(&board, threats.w_threats, threats.b_threats);
+        evaluator.full_reset(&board, threats);
         Self {
             current: board,
             threats: threats,
@@ -33,19 +33,14 @@ impl Position {
 
     pub fn set_board(&mut self, board: Board) {
         let threats = threats(&board);
-        self.evaluator
-            .full_reset(&board, threats.w_threats, threats.b_threats);
+        self.evaluator.full_reset(&board, threats);
         self.threats = threats;
         self.current = board;
         self.boards.clear();
     }
 
     pub fn reset(&mut self) {
-        self.evaluator.full_reset(
-            &self.current,
-            self.threats.w_threats,
-            self.threats.b_threats,
-        );
+        self.evaluator.full_reset(&self.current, self.threats);
     }
 
     pub fn forced_draw(&self, ply: u32) -> bool {
@@ -98,14 +93,8 @@ impl Position {
         self.current.play_unchecked(make_move);
         self.threats = threats(&self.current);
 
-        self.evaluator.make_move(
-            &old_board,
-            make_move,
-            self.threats.w_threats,
-            self.threats.b_threats,
-            old_threats.w_threats,
-            old_threats.b_threats,
-        );
+        self.evaluator
+            .make_move(&old_board, make_move, self.threats, old_threats);
 
         self.boards.push(old_board);
         self.threats_stack.push(old_threats);
