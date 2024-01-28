@@ -5,8 +5,9 @@ use super::see::{compare_see, move_value};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
+use crate::bm::bm_util::threats::pawn_threats;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -57,6 +58,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<Quiet, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
     bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    opp_pawn_threats: BitBoard,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -78,6 +80,7 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 
 impl OrderedMoveGen {
     pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+        let stm_pawns = board.colored_pieces(board.side_to_move(), Piece::Pawn);
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
@@ -87,6 +90,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            opp_pawn_threats: pawn_threats(stm_pawns, !board.side_to_move()),
         }
     }
 
@@ -168,6 +172,7 @@ impl OrderedMoveGen {
             self.phase = Phase::Quiets;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
+                let piece = piece_moves.piece;
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
@@ -188,7 +193,12 @@ impl OrderedMoveGen {
                             let followup_move_hist = hist
                                 .get_followup_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
+                            let threatened = self.opp_pawn_threats.has(mv.to);
+                            let pawn_threat = match piece != Piece::Pawn && threatened {
+                                true => -128,
+                                false => 0,
+                            };
+                            quiet_hist + counter_move_hist + followup_move_hist + pawn_threat
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
