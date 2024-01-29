@@ -62,8 +62,8 @@ pub fn threats(board: &Board) -> ThreatOffense {
     ThreatOffense {
         w_threats: w_attacks & black,
         b_threats: b_attacks & white,
-        w_offense: (w_pawn_attacks | w_minor_attacks | w_rook_attacks) & b_king,
-        b_offense: (b_pawn_attacks | b_minor_attacks | b_rook_attacks) & w_king,
+        w_offense: (w_minor_attacks | w_rook_attacks) & b_king,
+        b_offense: (b_minor_attacks | b_rook_attacks) & w_king,
     }
 }
 
