@@ -125,7 +125,6 @@ pub fn search<Search: SearchType>(
         thread.increment_nodes();
         return Evaluation::new(0);
     }
-
     /*
     At depth 0, we run Quiescence Search
     */
@@ -604,6 +603,7 @@ pub fn search<Search: SearchType>(
     }
 
     if !in_check
+        && depth >= 2
         && best_move.is_some_and(|mv| pos.board().colors(!stm).has(mv.to))
         && !highest_score.is_mate()
     {

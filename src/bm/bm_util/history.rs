@@ -10,9 +10,9 @@ pub const MAX_HIST: i16 = 512;
 
 const FMR_PLIES: usize = 101;
 const GRAIN: i32 = 256;
-const INVERSE_LR: i32 = 1000;
+const INVERSE_LR: i32 = 100;
 
-const FMR_CORRECTION_PLIES: usize = 20;
+const FMR_CORRECTION_PLIES: usize = 1;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
@@ -56,7 +56,7 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
-    fmr_correction: Box<[i32; FMR_PLIES]>,
+    pub fmr_correction: Box<[i32; FMR_PLIES]>,
 }
 
 impl History {
