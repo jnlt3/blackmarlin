@@ -7,6 +7,11 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 
 pub const MAX_HIST: i16 = 512;
 
+const MASK: u64 = u16::MAX as u64;
+const POS_CNT: usize = MASK as usize + 1;
+
+const GRAIN: i32 = 255;
+
 fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
 }
@@ -49,6 +54,7 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    eval_correction: Box<[i32; POS_CNT]>,
 }
 
 impl History {
@@ -58,7 +64,26 @@ impl History {
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            eval_correction: Box::new([0; POS_CNT]),
         }
+    }
+
+    pub fn get_eval_correction(&self, pos: &Position) -> i16 {
+        let index = (pos.board().hash() & MASK) as usize;
+        (self.eval_correction[index] / GRAIN) as i16
+    }
+
+    fn get_eval_correction_mut(&mut self, pos: &Position) -> &mut i32 {
+        let index = (pos.board().hash() & MASK) as usize;
+        &mut self.eval_correction[index]
+    }
+
+    pub fn update_eval_correction(&mut self, pos: &Position, eval: i16, search: i16) {
+        let correction = self.get_eval_correction_mut(pos);
+        let delta = search as i32 - (eval as i32 * GRAIN + *correction);
+        let new_correction =
+            (*correction as i32 * GRAIN + *correction as i32 + delta) / (GRAIN + 1);
+        *correction = new_correction;
     }
 
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {

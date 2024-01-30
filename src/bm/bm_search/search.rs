@@ -181,7 +181,11 @@ pub fn search<Search: SearchType>(
 
     let eval = match skip_move {
         Some(_) => thread.ss[ply as usize].eval,
-        None => pos.get_eval(thread.stm, thread.eval),
+        None => {
+            let eval = pos.get_eval(thread.stm, thread.eval);
+            let correction = thread.history.get_eval_correction(pos);
+            eval + correction
+        }
     };
 
     thread.ss[ply as usize].eval = eval;
@@ -195,8 +199,9 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let stm = pos.board().side_to_move();
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
+    let nstm_threats = match stm {
         Color::White => b_threats,
         Color::Black => w_threats,
     };
@@ -300,10 +305,7 @@ pub fn search<Search: SearchType>(
         }
 
         move_exists = true;
-        let is_capture = pos
-            .board()
-            .colors(!pos.board().side_to_move())
-            .has(make_move.to);
+        let is_capture = pos.board().colors(!stm).has(make_move.to);
 
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
@@ -601,6 +603,16 @@ pub fn search<Search: SearchType>(
             );
         }
     }
+
+    if !in_check
+        && best_move.is_some_and(|mv| pos.board().colors(!stm).has(mv.to))
+        && !highest_score.is_mate()
+    {
+        thread
+            .history
+            .update_eval_correction(pos, eval.raw(), highest_score.raw());
+    }
+
     highest_score
 }
 
