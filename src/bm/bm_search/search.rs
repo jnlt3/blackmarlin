@@ -183,8 +183,7 @@ pub fn search<Search: SearchType>(
         Some(_) => thread.ss[ply as usize].eval,
         None => {
             let eval = pos.get_eval(thread.stm, thread.eval);
-            let correction = thread.history.get_eval_correction(pos);
-            eval + correction
+            thread.history.correct_eval(pos, eval)
         }
     };
 

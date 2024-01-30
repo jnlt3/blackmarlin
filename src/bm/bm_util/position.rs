@@ -45,7 +45,7 @@ impl Position {
 
     pub fn forced_draw(&self, ply: u32) -> bool {
         if self.insufficient_material()
-            || (self.half_ply() >= 100
+            || (self.fmr_plies() >= 100
                 && (self.current.checkers().is_empty() || self.current.status() != GameStatus::Won))
         {
             return true;
@@ -70,7 +70,7 @@ impl Position {
         &self.current
     }
 
-    pub fn half_ply(&self) -> u8 {
+    pub fn fmr_plies(&self) -> u8 {
         self.current.halfmove_clock()
     }
 
