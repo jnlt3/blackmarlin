@@ -12,6 +12,8 @@ const FMR_PLIES: usize = 101;
 const GRAIN: i32 = 256;
 const INVERSE_LR: i32 = 1000;
 
+const FMR_CORRECTION_PLIES: usize = 20;
+
 fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
 }
@@ -69,16 +71,19 @@ impl History {
     }
 
     pub fn correct_eval(&self, pos: &Position, eval: Evaluation) -> Evaluation {
-        if eval.is_mate() {
+        let fmr_plies = pos.fmr_plies() as usize;
+        if eval.is_mate() || fmr_plies < FMR_CORRECTION_PLIES {
             return eval;
         }
-        let fmr_plies = pos.fmr_plies() as usize;
         Evaluation::new((eval.raw() as i32 * self.fmr_correction[fmr_plies] / GRAIN) as i16)
     }
 
     pub fn update_eval_correction(&mut self, pos: &Position, eval: i16, search: i16) {
-        let eval = eval as i32;
         let fmr_plies = pos.fmr_plies() as usize;
+        if fmr_plies < FMR_CORRECTION_PLIES {
+            return;
+        }
+        let eval = eval as i32;
         let correction = &mut self.fmr_correction[fmr_plies];
         let corrected = eval * *correction / GRAIN;
         let delta = search as i32 - corrected;
