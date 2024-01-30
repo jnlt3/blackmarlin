@@ -599,17 +599,24 @@ pub fn search<Search: SearchType>(
                 highest_score,
                 *final_move,
             );
-        }
-    }
 
-    if !in_check
-        && depth >= 2
-        && best_move.is_some_and(|mv| pos.board().colors(!stm).has(mv.to))
-        && !highest_score.is_mate()
-    {
-        thread
-            .history
-            .update_eval_correction(pos, eval.raw(), highest_score.raw());
+            let bound_check = match entry_type {
+                LowerBound => highest_score > eval,
+                Exact => true,
+                UpperBound => highest_score < eval,
+            };
+            let sane_score = highest_score.raw().abs() < 1000;
+            if !in_check
+                && sane_score
+                && bound_check
+                && depth >= 2
+                && pos.board().colors(!stm).has(final_move.to)
+            {
+                thread
+                    .history
+                    .update_eval_correction(pos, eval.raw(), highest_score.raw());
+            }
+        }
     }
 
     highest_score

@@ -8,11 +8,8 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 
 pub const MAX_HIST: i16 = 512;
 
-const FMR_PLIES: usize = 101;
-const GRAIN: i32 = 256;
-const INVERSE_LR: i32 = 100;
-
-const FMR_CORRECTION_PLIES: usize = 1;
+const GRAIN: i32 = 63;
+const THREAT_DIFF: usize = 7;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
@@ -56,7 +53,7 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
-    pub fmr_correction: Box<[i32; FMR_PLIES]>,
+    correction: Box<[i32; THREAT_DIFF]>,
 }
 
 impl History {
@@ -66,29 +63,36 @@ impl History {
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
-            fmr_correction: Box::new([GRAIN; FMR_PLIES]),
+            correction: Box::new([0; THREAT_DIFF]),
         }
+    }
+
+    fn threat_index(pos: &Position) -> usize {
+        let (w_threats, b_threats) = pos.threats();
+        let (stm_threats, nstm_threats) = match pos.board().side_to_move() {
+            Color::White => (w_threats, b_threats),
+            Color::Black => (b_threats, w_threats),
+        };
+        ((THREAT_DIFF / 2) as u32 + stm_threats.len())
+            .saturating_sub(nstm_threats.len())
+            .min(THREAT_DIFF as u32 - 1) as usize
     }
 
     pub fn correct_eval(&self, pos: &Position, eval: Evaluation) -> Evaluation {
-        let fmr_plies = pos.fmr_plies() as usize;
-        if eval.is_mate() || fmr_plies < FMR_CORRECTION_PLIES {
+        if eval.is_mate() {
             return eval;
         }
-        Evaluation::new((eval.raw() as i32 * self.fmr_correction[fmr_plies] / GRAIN) as i16)
+        Evaluation::new(
+            (eval.raw() as i32 + self.correction[Self::threat_index(pos)] / GRAIN) as i16,
+        )
     }
 
     pub fn update_eval_correction(&mut self, pos: &Position, eval: i16, search: i16) {
-        let fmr_plies = pos.fmr_plies() as usize;
-        if fmr_plies < FMR_CORRECTION_PLIES {
-            return;
-        }
         let eval = eval as i32;
-        let correction = &mut self.fmr_correction[fmr_plies];
-        let corrected = eval * *correction / GRAIN;
+        let correction = &mut self.correction[Self::threat_index(pos)];
+        let corrected = eval + *correction / GRAIN;
         let delta = search as i32 - corrected;
-        *correction += eval * delta / (GRAIN * INVERSE_LR);
-        *correction = (*correction).max(0);
+        *correction = (*correction * GRAIN + delta) / (GRAIN + 1);
     }
 
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
