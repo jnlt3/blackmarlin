@@ -9,7 +9,7 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 pub const MAX_HIST: i16 = 512;
 
 const GRAIN: i32 = 63;
-const THREAT_DIFF: usize = 7;
+const THREAT_DIFF: usize = 3;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
