@@ -1,12 +1,12 @@
 use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
-use super::see::{compare_see, move_value};
+use super::see::{compare_see, move_value, piece_pts};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -57,6 +57,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<Quiet, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
     bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    nstm_threats: BitBoard,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -77,7 +78,12 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        nstm_threats: BitBoard,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
@@ -87,6 +93,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            nstm_threats,
         }
     }
 
@@ -124,6 +131,7 @@ impl OrderedMoveGen {
             self.phase = Phase::GoodCaptures;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
+                let piece = piece_moves.piece;
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
@@ -132,7 +140,10 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 8;
+                    if self.nstm_threats.has(mv.from) {
+                        score += piece_pts(piece) * 16;
+                    }
                     self.captures.push(Capture::new(mv, score))
                 }
             }
