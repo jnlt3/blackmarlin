@@ -1,13 +1,21 @@
-use std::{ops::Range, sync::Arc};
+use std::{
+    arch::x86_64::{
+        _mm256_load_si256, _mm256_max_epi16, _mm256_min_epi16, _mm256_mullo_epi16,
+        _mm256_packus_epi16, _mm256_permute4x64_epi64, _mm256_set1_epi16, _mm256_setzero_si256,
+        _mm256_srai_epi16, _mm256_store_si256, _mm_load_ps1, _mm_mullo_epi16,
+    },
+    ops::Range,
+    sync::Arc,
+};
 
 use cfg_if::cfg_if;
 
 const UNITS: i16 = 400_i16;
-const FT_SCALE: i16 = 255;
+const FT_SCALE: i16 = 127;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
-const SHIFT: i16 = 8;
+const SHIFT: i16 = 7;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, align(64))]
@@ -176,20 +184,38 @@ pub fn scale_network_output(x: i32) -> i16 {
 }
 
 pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
-    cfg_if! {
-        if #[cfg(target_feature = "neon")]
-        {
-            for (array, out) in array.chunks(256).zip(out.chunks_mut(256)) {
-                for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-                    let tmp = x.max(MIN).min(MAX) as u16;
-                    *clipped = ((tmp * tmp) >> SHIFT) as u8;
-                }
-            }
-        } else {
-            for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-                let tmp = x.max(MIN).min(MAX) as u16;
-                *clipped = ((tmp * tmp) >> SHIFT) as u8;
-            }
+    let mut array = Align(array);
+    unsafe {
+        let min = _mm256_setzero_si256();
+        let max = _mm256_set1_epi16(MAX as i16);
+        for (array, out) in array.0.chunks_mut(32).zip(out.chunks_mut(32)) {
+            let mut a = _mm256_load_si256(array.as_ptr() as *const _);
+            a = _mm256_min_epi16(_mm256_max_epi16(a, min), max);
+            a = _mm256_mullo_epi16(a, a);
+            a = _mm256_srai_epi16::<{ SHIFT as i32 }>(a);
+
+            let mut b = _mm256_load_si256(array.as_ptr().add(16) as *const _);
+            b = _mm256_min_epi16(_mm256_max_epi16(b, min), max);
+            b = _mm256_mullo_epi16(b, b);
+            b = _mm256_srai_epi16::<{ SHIFT as i32 }>(b);
+
+            /*
+            let mut random_shit = Align([0_i16; 16]);
+            _mm256_store_si256(random_shit.0.as_mut_ptr() as *mut _, a);
+            println!("{random_shit:?}");
+            _mm256_store_si256(random_shit.0.as_mut_ptr() as *mut _, b);
+            println!("{random_shit:?}"); */
+
+            let mut c = _mm256_packus_epi16(a, b);
+            c = _mm256_permute4x64_epi64::<0b11011000>(c);
+            _mm256_store_si256(out.as_mut_ptr() as *mut _, c);
+
+            //println!("{:?}", out);
         }
     }
+    /*
+    for (&x, clipped) in array.iter().zip(out.iter_mut()) {
+        let tmp = x.max(MIN).min(MAX) as i16;
+        *clipped = ((tmp * tmp) >> SHIFT) as u8;
+    } */
 }

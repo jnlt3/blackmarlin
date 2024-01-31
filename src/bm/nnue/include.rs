@@ -4,10 +4,11 @@ use super::layers::Align;
 
 pub fn sparse_from_bytes_i16<const INPUT: usize, const OUTPUT: usize>(
     bytes: &[u8],
+    div: i16,
 ) -> Box<Align<[[i16; OUTPUT]; INPUT]>> {
     let mut weights = vec![];
     for bytes in bytes.chunks(2).take(INPUT * OUTPUT) {
-        weights.push(i16::from_le_bytes([bytes[0], bytes[1]]))
+        weights.push(i16::from_le_bytes([bytes[0], bytes[1]]) / div)
     }
 
     let mut dense = unsafe {
@@ -25,10 +26,11 @@ pub fn sparse_from_bytes_i16<const INPUT: usize, const OUTPUT: usize>(
 
 pub fn bias_from_bytes_i16<T: From<i16> + Copy + Default, const LEN: usize>(
     bytes: &[u8],
+    div: i16,
 ) -> Align<[T; LEN]> {
     let mut weights = Align([T::default(); LEN]);
     for (bytes, weight) in bytes.chunks(2).zip(&mut weights.0).take(LEN) {
-        *weight = T::from(i16::from_le_bytes([bytes[0], bytes[1]]));
+        *weight = T::from(i16::from_le_bytes([bytes[0], bytes[1]]) / div);
     }
     weights
 }
