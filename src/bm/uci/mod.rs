@@ -1,5 +1,5 @@
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{atomic::Ordering, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use cozy_chess::{Board, File, Move, Piece, Square};
@@ -34,6 +34,9 @@ pub struct UciAdapter {
     forced: bool,
     chess960: bool,
     show_wdl: bool,
+
+    params: Vec<Box<dyn Fn(&str, &str) -> ()>>,
+    print_uci: Vec<Box<dyn Fn() -> ()>>,
 }
 
 impl UciAdapter {
@@ -60,6 +63,51 @@ impl UciAdapter {
                 }
             }
         });
+        let mut params: Vec<Box<dyn Fn(&str, &str) -> ()>> = vec![];
+        let mut print_uci: Vec<Box<dyn Fn() -> ()>> = vec![];
+
+        macro_rules! add_param {
+            ($name: ident: $value_type: ty = range($min: expr, $max: expr)) => {
+                use crate::bm::bm_runner::time::$name;
+                params.push(Box::new(|name: &str, value: &str| {
+                    if name != stringify!($name) {
+                        return;
+                    }
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    let value = value.parse::<$value_type>().unwrap();
+                    assert!(value >= min && value <= max);
+                    ($name).store(value, Ordering::Relaxed);
+                }));
+                print_uci.push(Box::new(|| {
+                    let value = $name.load(Ordering::Relaxed);
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    println!(
+                        "option name {} type spin default {} min {} max {}",
+                        stringify!($name),
+                        value,
+                        min,
+                        max,
+                    )
+                }))
+            };
+        }
+
+        add_param!(EXPECTED_MOVES: u32 = range(20, 80));
+        add_param!(MAX_MOVE_STABILITY: u32 = range(5, 20));
+        add_param!(BASE_MOVE_STABILITY: u32 = range(25, 100));
+        add_param!(MOVE_STABILITY_FACTOR: u32 = range(5, 1000));
+
+        add_param!(NODE_MULTIPLIER: u32 = range(50, 1000));
+        add_param!(NODE_BASE: u32 = range(0, 100));
+        add_param!(MIN_NODE: u32 = range(0, 100));
+
+
+        add_param!(EVAL_MIN: u32 = range(0, 1000));
+        add_param!(EVAL_MAX: u32 = range(0, 1000));
+        add_param!(EVAL_MUL: u32 = range(10, 1000));
+
         Self {
             bm_runner,
             forced: false,
@@ -67,6 +115,8 @@ impl UciAdapter {
             time_manager,
             chess960: false,
             show_wdl: false,
+            params,
+            print_uci,
         }
     }
 
@@ -81,6 +131,9 @@ impl UciAdapter {
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
+                for print_param in &self.print_uci {
+                    print_param();
+                }
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -139,6 +192,9 @@ impl UciAdapter {
                             .set_uci_show_wdl(self.show_wdl);
                     }
                     _ => {}
+                }
+                for params in self.params.iter() {
+                    params(&name, &value);
                 }
             }
             UciCommand::Bench(depth) => {

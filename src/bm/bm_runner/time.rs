@@ -7,7 +7,21 @@ use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 40;
+const R: Ordering = Ordering::Relaxed;
+
+pub static EXPECTED_MOVES: AtomicU32 = AtomicU32::new(40);
+
+pub static MAX_MOVE_STABILITY: AtomicU32 = AtomicU32::new(10);
+pub static BASE_MOVE_STABILITY: AtomicU32 = AtomicU32::new(50);
+pub static MOVE_STABILITY_FACTOR: AtomicU32 = AtomicU32::new(25);
+
+pub static NODE_MULTIPLIER: AtomicU32 = AtomicU32::new(200);
+pub static NODE_BASE: AtomicU32 = AtomicU32::new(50);
+pub static MIN_NODE: AtomicU32 = AtomicU32::new(50);
+
+pub static EVAL_MIN: AtomicU32 = AtomicU32::new(20);
+pub static EVAL_MAX: AtomicU32 = AtomicU32::new(60);
+pub static EVAL_MUL: AtomicU32 = AtomicU32::new(50);
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -55,7 +69,7 @@ pub struct TimeManager {
 impl TimeManager {
     pub fn new() -> Self {
         Self {
-            expected_moves: AtomicU32::new(EXPECTED_MOVES),
+            expected_moves: AtomicU32::new(EXPECTED_MOVES.load(R)),
             max_duration: AtomicU32::new(0),
             base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
@@ -92,14 +106,23 @@ impl TimeManager {
 
         let mut move_stability = self.move_stability.load(Ordering::Relaxed);
         move_stability = match Some(mv) == *prev_move {
-            true => (move_stability + 1).min(10),
+            true => (move_stability + 1).min(MAX_MOVE_STABILITY.load(R)),
             false => 0,
         };
         *prev_move = Some(mv);
         self.move_stability.store(move_stability, Ordering::Relaxed);
-        let move_stability_factor = (50 - move_stability) as f32 / 40.0;
-        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
-        let eval_factor = (prev_eval - eval).clamp(20, 60) as f32 / 20.0;
+        let move_stability_factor = (BASE_MOVE_STABILITY.load(R) - move_stability) as f32
+            * MOVE_STABILITY_FACTOR.load(R) as f32
+            / 1000.0;
+
+        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * NODE_MULTIPLIER.load(R) as f32
+            + NODE_BASE.load(R) as f32;
+        let node_factor = node_factor.max(MIN_NODE.load(R) as f32) / 100.0;
+
+        let eval_factor = (prev_eval - eval).clamp(EVAL_MIN.load(R) as i16, EVAL_MAX.load(R) as i16)
+            as f32
+            * EVAL_MUL.load(R) as f32
+            / 1000.0;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
         let target_duration =
             base_duration as f32 * move_stability_factor * node_factor * eval_factor;
@@ -179,7 +202,7 @@ impl TimeManager {
             self.target_duration.store(0, Ordering::SeqCst);
         } else {
             let max_time = time.as_millis() as u32 * 4 / 5;
-            let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
+            let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES.load(R)) + 1;
             let default = if move_cnt > 1 {
                 (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time)
             } else {
