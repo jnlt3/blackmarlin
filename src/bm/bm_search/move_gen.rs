@@ -140,7 +140,7 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 8;
+                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 16;
                     if self.nstm_threats.has(mv.from) {
                         score += piece_pts(piece) * 16;
                     }
