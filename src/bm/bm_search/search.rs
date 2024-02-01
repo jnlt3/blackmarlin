@@ -466,6 +466,10 @@ pub fn search<Search: SearchType>(
             if killers.contains(make_move) {
                 reduction -= 1;
             }
+            let piece_cnt = pos.board().occupied().len();
+            if is_capture && piece_cnt % 4 == 3 {
+                reduction -= 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
