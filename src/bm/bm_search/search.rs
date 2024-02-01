@@ -196,9 +196,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threats, nstm_threats) = match pos.board().side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -284,7 +284,7 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, stm_threats);
 
     let mut moves_seen = 0;
     let mut move_exists = false;

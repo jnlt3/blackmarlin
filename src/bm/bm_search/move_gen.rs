@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -57,6 +57,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<Quiet, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
     bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    stm_threats: BitBoard,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -77,7 +78,12 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        stm_threats: BitBoard,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
@@ -87,6 +93,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            stm_threats,
         }
     }
 
@@ -132,7 +139,10 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let mut score = hist.get_capture(pos, mv);
+                    if self.stm_threats.has(mv.to) {
+                        score += move_value(pos.board(), mv) * 16;
+                    }
                     self.captures.push(Capture::new(mv, score))
                 }
             }
