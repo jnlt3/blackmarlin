@@ -93,7 +93,11 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn see_fp(depth: u32, is_capture: bool) -> i16 {
-    depth as i16 * if is_capture { 124 } else { 104 }
+    (if is_capture {
+        (depth + 1) * (depth + 1) * 26
+    } else {
+        depth * 104
+    }) as i16
 }
 
 const fn hp(depth: u32) -> i32 {
