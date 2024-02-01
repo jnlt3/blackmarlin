@@ -57,7 +57,7 @@ const fn razor_margin(depth: u32) -> i16 {
 }
 
 const fn razor_qsearch() -> i16 {
-    287
+    1
 }
 
 fn do_nmp<Search: SearchType>(
