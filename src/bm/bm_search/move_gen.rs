@@ -131,7 +131,6 @@ impl OrderedMoveGen {
             self.phase = Phase::GoodCaptures;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
-                let piece = piece_moves.piece;
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
@@ -140,10 +139,7 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 8;
-                    if self.nstm_threats.has(mv.from) {
-                        score += piece_pts(piece) * 16;
-                    }
+                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 16;
                     self.captures.push(Capture::new(mv, score))
                 }
             }
@@ -180,6 +176,7 @@ impl OrderedMoveGen {
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= !pos.board().colors(!stm);
+                let piece = piece_moves.piece;
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
                         continue;
@@ -199,7 +196,11 @@ impl OrderedMoveGen {
                             let followup_move_hist = hist
                                 .get_followup_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
+                            let mut score = quiet_hist + counter_move_hist + followup_move_hist;
+                            if self.nstm_threats.has(mv.from) {
+                                score += piece_pts(piece) * 16;
+                            }
+                            score
                         }
                     };
                     self.quiets.push(Quiet::new(mv, score));
