@@ -135,12 +135,11 @@ impl Position {
 
         let frc_score = frc::frc_corner_bishop(self.board());
 
-        Evaluation::new(
-            self.evaluator
-                .feed_forward(self.board().side_to_move(), piece_cnt as usize)
-                + frc_score
-                + eval_bonus,
-        )
+        let nn_eval = self
+            .evaluator
+            .feed_forward(self.board().side_to_move(), piece_cnt as usize);
+        let scaled_eval = (nn_eval as i32) * (62 - piece_cnt as i32) / 30;
+        Evaluation::new(scaled_eval as i16 + frc_score + eval_bonus)
     }
 
     pub fn insufficient_material(&self) -> bool {
