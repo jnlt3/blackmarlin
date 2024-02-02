@@ -2,7 +2,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use cozy_chess::{Board, File, Move, Piece, Square};
+use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
 use crate::bm::bm_runner::ab_runner::AbRunner;
 use crate::bm::bm_runner::config::{NoInfo, Run, UciInfo};
@@ -81,6 +81,12 @@ impl UciAdapter {
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
+
+                println!("option name Analysis type check default false");
+                println!("option name RestrictDepth type spin default 0 min 0 max 128");
+                println!("option name Exclude type string default none");
+                println!("option name Prioritize type string default none");
+
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -137,6 +143,29 @@ impl UciAdapter {
                             .lock()
                             .unwrap()
                             .set_uci_show_wdl(self.show_wdl);
+                    }
+                    "Analysis" => {
+                        self.bm_runner
+                            .lock()
+                            .unwrap()
+                            .set_analysis(value.to_lowercase().parse().unwrap());
+                    }
+                    "RestrictDepth" => self
+                        .bm_runner
+                        .lock()
+                        .unwrap()
+                        .set_restrict_depth(value.parse().unwrap()),
+                    "Exclude" => {
+                        self.bm_runner
+                            .lock()
+                            .unwrap()
+                            .set_exclude(&parse_colored_ps_list(&value));
+                    }
+                    "Prioritize" => {
+                        self.bm_runner
+                            .lock()
+                            .unwrap()
+                            .set_prioritize(&parse_colored_ps_list(&value));
                     }
                     _ => {}
                 }
@@ -239,4 +268,67 @@ fn convert_move(make_move: &mut Move, board: &Board, chess960: bool) {
         };
         make_move.to = Square::new(file, make_move.to.rank());
     }
+}
+
+fn parse_colored_ps_list(list: &str) -> Vec<(Color, Piece, Square)> {
+    let index = list.find(':').unwrap_or(list.len());
+    let (white, black) = list.split_at(index);
+    let white = parse_ps_list(white, Color::White);
+    let black = parse_ps_list(black.get(1..).unwrap_or(""), Color::Black);
+    let mut all = vec![];
+    if let Some(white) = white {
+        all.extend(white);
+    };
+    if let Some(black) = black {
+        all.extend(black);
+    };
+    all
+}
+
+fn parse_ps_list(list: &str, color: Color) -> Option<   Vec<(Color, Piece, Square)>> {
+    let list = list.to_ascii_lowercase();
+    let piece_squares = list.split('-');
+
+    let mut ps_list = Vec::new();
+
+    for piece_square in piece_squares {
+        let mut iter = piece_square.chars();
+        let piece = if piece_square.len() == 2 {
+            Piece::Pawn
+        } else {
+            match iter.next() {
+                Some('n') => Piece::Knight,
+                Some('b') => Piece::Bishop,
+                Some('r') => Piece::Rook,
+                Some('q') => Piece::Queen,
+                Some('k') => Piece::King,
+                _ => return None,
+            }
+        };
+        let file = match iter.next() {
+            Some('a') => File::A,
+            Some('b') => File::B,
+            Some('c') => File::C,
+            Some('d') => File::D,
+            Some('e') => File::E,
+            Some('f') => File::F,
+            Some('g') => File::G,
+            Some('h') => File::H,
+            _ => return None,
+        };
+        let rank = match iter.next() {
+            Some('1') => Rank::First,
+            Some('2') => Rank::Second,
+            Some('3') => Rank::Third,
+            Some('4') => Rank::Fourth,
+            Some('5') => Rank::Fifth,
+            Some('6') => Rank::Sixth,
+            Some('7') => Rank::Seventh,
+            Some('8') => Rank::Eighth,
+            _ => return None,
+        };
+        let square = Square::new(file, rank);
+        ps_list.push((color, piece, square));
+    }
+    Some(ps_list)
 }

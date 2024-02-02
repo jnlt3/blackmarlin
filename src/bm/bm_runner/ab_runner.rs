@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -54,6 +54,12 @@ impl Clone for Nodes {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct AnalysisOptions {
+    exclude: Vec<(Color, Piece, Square)>,
+    prioritize: Vec<(Color, Piece, Square)>,
+}
+
 type LmrLookup = LookUp2d<u32, 32, 64>;
 type LmpLookup = LookUp2d<usize, 16, 2>;
 
@@ -65,6 +71,10 @@ pub struct SharedContext {
     t_table: Arc<TranspositionTable>,
     lmr_lookup: Arc<LmrLookup>,
     lmp_lookup: Arc<LmpLookup>,
+
+    analysis_options: Arc<AnalysisOptions>,
+    analysis: Arc<AtomicBool>,
+    depth: Arc<AtomicU32>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -145,6 +155,18 @@ impl SharedContext {
 
     pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
         &self.lmp_lookup
+    }
+
+    pub fn analyse(&self, ply: u32) -> bool {
+        self.analysis.load(Ordering::Relaxed) && ply <= self.depth.load(Ordering::Relaxed)
+    }
+
+    pub fn exclude(&self, stm: Color, piece: Piece, to: Square) -> bool {
+        self.analysis_options.exclude.contains(&(stm, piece, to))
+    }
+
+    pub fn prioritize(&self, stm: Color, piece: Piece, to: Square) -> bool {
+        self.analysis_options.prioritize.contains(&(stm, piece, to))
     }
 }
 
@@ -395,6 +417,9 @@ impl AbRunner {
                     x as usize
                 })),
                 start: Instant::now(),
+                analysis_options: Arc::new(AnalysisOptions::default()),
+                analysis: Arc::new(AtomicBool::new(false)),
+                depth: Arc::new(AtomicU32::new(0)),
             },
             main_thread_context: Arc::new(Mutex::new(ThreadContext {
                 window: Window::new(14, 43, 100, 8),
@@ -459,6 +484,28 @@ impl AbRunner {
         }
         self.shared_context.t_table.age();
         (final_move.unwrap(), final_eval, max_depth, node_count)
+    }
+
+    pub fn set_analysis(&mut self, analysis: bool) {
+        self.shared_context
+            .analysis
+            .store(analysis, Ordering::Relaxed);
+    }
+
+    pub fn set_restrict_depth(&mut self, depth: u32) {
+        self.shared_context.depth.store(depth, Ordering::Relaxed);
+    }
+
+    pub fn set_exclude(&mut self, exclude: &[(Color, Piece, Square)]) {
+        let mut options = (*self.shared_context.analysis_options).clone();
+        options.exclude = exclude.iter().copied().collect::<Vec<_>>();
+        self.shared_context.analysis_options = Arc::new(options);
+    }
+
+    pub fn set_prioritize(&mut self, prioritize: &[(Color, Piece, Square)]) {
+        let mut options = (*self.shared_context.analysis_options).clone();
+        options.prioritize = prioritize.iter().copied().collect::<Vec<_>>();
+        self.shared_context.analysis_options = Arc::new(options);
     }
 
     pub fn hash(&mut self, hash_mb: usize) {

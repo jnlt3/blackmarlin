@@ -378,6 +378,20 @@ pub fn search<Search: SearchType>(
         }
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
+
+        let analysis = Search::PV && shared_context.analyse(ply);
+        let piece = pos.board().piece_on(make_move.from).unwrap();
+        if analysis && shared_context.exclude(pos.board().side_to_move(), piece, make_move.to) {
+            continue;
+        }
+        let prioritize =
+            analysis && shared_context.prioritize(pos.board().side_to_move(), piece, make_move.to);
+
+        let non_mate_line = non_mate_line && !prioritize;
+
+        if prioritize {
+            extension = extension.max(1);
+        }
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -385,7 +399,9 @@ pub fn search<Search: SearchType>(
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 10;
 
         if do_fp && eval + fp(depth) <= alpha {
-            move_gen.skip_quiets();
+            if !analysis {
+                move_gen.skip_quiets();
+            }
             continue;
         }
 
@@ -399,7 +415,9 @@ pub fn search<Search: SearchType>(
                     .get_lmp_lookup()
                     .get(depth as usize, improving as usize)
         {
-            move_gen.skip_quiets();
+            if !analysis {
+                move_gen.skip_quiets();
+            }
             continue;
         }
 
@@ -446,7 +464,7 @@ pub fn search<Search: SearchType>(
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
 
-        if moves_seen > 0 {
+        if moves_seen > 0 && !prioritize {
             /*
             If a move is quiet, we already have information on this move
             in the history table. If history score is high, we reduce
