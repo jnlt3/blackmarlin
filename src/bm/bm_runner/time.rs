@@ -98,7 +98,7 @@ impl TimeManager {
         *prev_move = Some(mv);
         self.move_stability.store(move_stability, Ordering::Relaxed);
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
-        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
+        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 1.6 + 0.35;
         let eval_factor = (prev_eval - eval).clamp(20, 60) as f32 / 20.0;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
         let target_duration =
