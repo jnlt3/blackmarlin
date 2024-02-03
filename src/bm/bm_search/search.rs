@@ -201,15 +201,7 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
     if !Search::PV && !in_check && skip_move.is_none() {
-        /*
-        Reverse Futility Pruning:
-        If in a non PV node and evaluation is higher than beta + a depth dependent margin
-        we assume we can at least achieve beta
-        */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
-            return eval;
-        }
-
+        let mut rfp_eval = eval;
         let razor_margin = razor_margin(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
             let zw = alpha - razor_qsearch();
@@ -217,6 +209,17 @@ pub fn search<Search: SearchType>(
             if q_search <= zw {
                 return q_search;
             }
+            rfp_eval = rfp_eval.max(q_search);
+        }
+        /*
+        Reverse Futility Pruning:
+        If in a non PV node and evaluation is higher than beta + a depth dependent margin
+        we assume we can at least achieve beta
+        */
+        if do_rev_fp(depth)
+            && rfp_eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta
+        {
+            return eval;
         }
 
         /*
