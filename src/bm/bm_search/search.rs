@@ -463,6 +463,9 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
+            if move_gen.phase() <= Phase::GoodCaptures {
+                reduction -= 1;
+            }
             if killers.contains(make_move) {
                 reduction -= 1;
             }
