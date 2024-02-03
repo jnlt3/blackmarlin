@@ -216,6 +216,8 @@ pub fn search<Search: SearchType>(
             let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
                 return q_search;
+            } else if q_search >= beta {
+                return q_search;
             }
         }
 
