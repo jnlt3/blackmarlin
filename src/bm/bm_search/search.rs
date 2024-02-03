@@ -179,7 +179,7 @@ pub fn search<Search: SearchType>(
 
     let in_check = !pos.board().checkers().is_empty();
 
-    let eval = match skip_move {
+    let mut eval = match skip_move {
         Some(_) => thread.ss[ply as usize].eval,
         None => pos.get_eval(thread.stm, thread.eval),
     };
@@ -351,6 +351,9 @@ pub fn search<Search: SearchType>(
                     ),
                     false => eval,
                 };
+                if s_score > eval && s_score >= s_beta {
+                    eval = s_score;
+                }
 
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
