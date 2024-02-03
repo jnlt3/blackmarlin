@@ -355,8 +355,10 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 2 < s_beta {
-                        extension += 1;
+                    if !Search::PV {
+                        if multi_cut && s_score + 2 < s_beta || s_score + 500 < s_beta {
+                            extension += 1;
+                        }
                     }
                     thread.history.update_history(
                         pos,
