@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 63;
+const EXPECTED_MOVES: u32 = 64;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -90,17 +90,16 @@ impl TimeManager {
         }
 
         let mut prev_move = self.prev_move.lock().unwrap();
-
         let mut move_stability = self.move_stability.load(Ordering::Relaxed);
         move_stability = match Some(mv) == *prev_move {
-            true => (move_stability + 1).min(13),
+            true => (move_stability + 1).min(14),
             false => 0,
         };
         *prev_move = Some(mv);
         self.move_stability.store(move_stability, Ordering::Relaxed);
         let move_stability_factor = (41 - move_stability) as f32 * 0.024;
-        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 3.23 + 0.52;
-        let eval_factor = (prev_eval - eval).clamp(18, 20) as f32 * 0.092;
+        let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 3.42 + 0.52;
+        let eval_factor = (prev_eval - eval).clamp(18, 20) as f32 * 0.088;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
         let target_duration =
             base_duration as f32 * move_stability_factor * node_factor * eval_factor;
