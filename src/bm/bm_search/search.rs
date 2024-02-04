@@ -196,13 +196,13 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threats, nstm_threats) = match pos.board().side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         let mut eval = eval;
-        if !nstm_threats.is_empty() {
+        if !nstm_threats.is_empty() && stm_threats.is_empty() {
             eval = eval - 32;
         };
         /*
