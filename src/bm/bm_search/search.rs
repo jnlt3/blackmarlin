@@ -203,7 +203,7 @@ pub fn search<Search: SearchType>(
     if !Search::PV && !in_check && skip_move.is_none() {
         let mut eval = eval;
         if !nstm_threats.is_empty() {
-            eval = eval - 32;
+            eval = eval - 48;
         };
         /*
         Reverse Futility Pruning:
