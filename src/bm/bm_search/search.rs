@@ -356,7 +356,7 @@ pub fn search<Search: SearchType>(
                 if s_score < s_beta {
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + 2 < s_beta {
-                        extension += 1;
+                        extension += 1 + (s_score + 100 < s_beta) as u32;
                     }
                     thread.history.update_history(
                         pos,
