@@ -201,6 +201,10 @@ pub fn search<Search: SearchType>(
         Color::Black => w_threats,
     };
     if !Search::PV && !in_check && skip_move.is_none() {
+        let mut eval = eval;
+        if !nstm_threats.is_empty() {
+            eval = eval - 32;
+        };
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
