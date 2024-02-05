@@ -421,11 +421,14 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && depth <= 6
+            && !alpha.is_mate()
             && move_gen.phase() > Phase::GoodCaptures;
 
-        let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
-        if do_see_prune && (see_margin > 0 || !compare_see(pos.board(), make_move, see_margin)) {
-            continue;
+        if do_see_prune {
+            let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
+            if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
+                continue;
+            }
         }
 
         thread.ss[ply as usize].move_played = Some(MoveData::from_move(pos.board(), make_move));

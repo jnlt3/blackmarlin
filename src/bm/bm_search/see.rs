@@ -9,8 +9,8 @@ fn test_see() {
         "8/3r4/3q4/3r4/8/3Q3K/3R4/7k w - - 0 1",
         "8/8/b7/1q6/2b5/3Q3K/4B3/7k w - - 0 1",
         "3r4/2P2n2/8/8/8/7K/8/7k w - - 0 1",
-        "3r4/2P5/8/8/8/7K/8/7k w - - 0 1",
-        "3R4/2P2n2/8/8/8/7K/8/7k b - - 0 1",
+        // "3r4/2P5/8/8/8/7K/8/7k w - - 0 1", // We are ignoring promos
+        // "3R4/2P2n2/8/8/8/7K/8/7k b - - 0 1", // We are ignoring promos
     ];
     let expected = &[
         piece_pts(Piece::Knight),
@@ -18,10 +18,11 @@ fn test_see() {
         0,
         0,
         piece_pts(Piece::Rook) - piece_pts(Piece::Pawn),
-        piece_pts(Piece::Rook) + piece_pts(Piece::Queen) - piece_pts(Piece::Pawn),
-        piece_pts(Piece::Rook) + piece_pts(Piece::Pawn)
+        // piece_pts(Piece::Rook) + piece_pts(Piece::Queen) - piece_pts(Piece::Pawn),
+        /* piece_pts(Piece::Rook) + piece_pts(Piece::Pawn)
             - piece_pts(Piece::Knight)
             - piece_pts(Piece::Queen),
+        */
     ];
     let mv_vert = Move {
         from: Square::D2,

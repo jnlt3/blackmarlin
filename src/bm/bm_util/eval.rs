@@ -1,4 +1,4 @@
-const CHECKMATE: i16 = 64;
+const CHECKMATE: i16 = 128;
 const CHECKMATE_EVAL: i16 = i16::MAX - 1024;
 const MAX_EVAL: i16 = CHECKMATE_EVAL - CHECKMATE;
 
@@ -19,9 +19,9 @@ impl Evaluation {
     pub fn new_checkmate(mate_in: i16) -> Self {
         Self {
             score: if mate_in < 0 {
-                -CHECKMATE_EVAL - mate_in - 1
+                -CHECKMATE_EVAL - mate_in
             } else {
-                CHECKMATE_EVAL - mate_in + 1
+                CHECKMATE_EVAL - mate_in
             },
         }
     }
@@ -32,7 +32,7 @@ impl Evaluation {
 
     pub const fn mate_in(&self) -> Option<i16> {
         if self.is_mate() {
-            Some(self.score.signum() * (CHECKMATE_EVAL - self.score.abs() + 1) / 2)
+            Some(self.score.signum() * ((CHECKMATE_EVAL - self.score.abs()) / 2 + 1))
         } else {
             None
         }
