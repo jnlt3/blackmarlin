@@ -132,13 +132,15 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score))
+                    let mvv = move_value(pos.board(), mv) * 32;
+                    self.captures.push(Capture::new(mv, mvv))
                 }
             }
         }
         if self.phase == Phase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
+            while let Some(index) = select_highest(&self.captures, |capture| {
+                capture.score + hist.get_capture(pos, capture.mv)
+            }) {
                 let capture = self.captures.swap_remove(index);
                 if !compare_see(pos.board(), capture.mv, 0) {
                     self.bad_captures.push(capture);
