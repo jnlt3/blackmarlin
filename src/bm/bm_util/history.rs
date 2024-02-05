@@ -49,6 +49,7 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    counter_capture: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
 impl History {
@@ -58,6 +59,7 @@ impl History {
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            counter_capture: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
 
@@ -141,6 +143,36 @@ impl History {
         )
     }
 
+    pub fn get_counter_capture(
+        &self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<i16> {
+        let (prev_piece, prev_to) = indices.counter_move?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            self.counter_capture[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    fn get_counter_capture_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<&mut i16> {
+        let (prev_piece, prev_to) = indices.counter_move?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            &mut self.counter_capture[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
     pub fn update_history(
         &mut self,
         pos: &Position,
@@ -161,8 +193,11 @@ impl History {
         }
         for &failed_move in captures {
             malus(self.get_capture_mut(pos, failed_move), amt);
+            if let Some(counter_capture) = self.get_counter_capture_mut(pos, indices, failed_move) {
+                malus(counter_capture, amt)
+            }
         }
-    }
+    }   
 
     fn update_quiet(
         &mut self,
