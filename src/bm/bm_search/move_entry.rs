@@ -40,23 +40,42 @@ impl MoveEntry {
         self.moves[index].take().map(Killer::mv)
     }
 
-    pub fn push(&mut self, mv: Move, score: i16) {
-        let replace_score = score * 2;
-        let mut index = 1;
-        if self.moves[0].map_or(true, |mv_0| {
-            self.moves[1].map_or(false, |mv_1| mv_0.score < mv_1.score)
-        }) {
-            index = 0;
+    fn lowest(&self) -> usize {
+        let Some(killer_a) = self.moves[0] else {
+            return 0;
+        };
+        let Some(killer_b) = self.moves[1] else {
+            return 1;
+        };
+        match killer_a.score < killer_b.score {
+            true => 0,
+            false => 1,
         }
+    }
 
-        if let Some(killer) = &mut self.moves[index] {
-            if replace_score >= killer.score {
-                killer.mv = mv;
-                killer.score = score;
-            }
-        } else {
-            self.moves[index] = Some(Killer { mv, score });
+    fn clear_dup(&mut self) {
+        let Some(killer) = self.moves[0] else {
+            return;
+        };
+        if Some(killer.mv) == self.moves[1].map(Killer::mv) {
+            self.moves[1] = None;
         }
+    }
+
+    pub fn push(&mut self, mv: Move, score: i16) {
+        let lowest = self.index_of(mv).unwrap_or(self.lowest());
+        let other = 1 - lowest;
+        if self.moves[lowest].is_none() {
+            self.moves[lowest] = Some(Killer { mv, score });
+            return;
+        }
+        self.moves[other] = self.moves[lowest];
+        let killer = self.moves[lowest].as_mut().unwrap();
+        if score * 2 > killer.score {
+            killer.mv = mv;
+            killer.score = score;
+        }
+        self.clear_dup();
     }
 
     pub fn contains(&self, mv: Move) -> bool {
