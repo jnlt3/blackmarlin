@@ -667,8 +667,12 @@ pub fn q_search(
         }
     }
 
+    let mut cnt = 0;
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
+        if cnt >= 3 {
+            break;
+        }
         /*
         Prune all losing captures
         */
@@ -709,6 +713,7 @@ pub fn q_search(
             }
         }
         pos.unmake_move();
+        cnt += 1;
     }
 
     if thread.abort {
