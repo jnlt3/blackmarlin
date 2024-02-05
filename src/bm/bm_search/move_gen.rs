@@ -16,6 +16,7 @@ pub enum Phase {
     GenPieceMoves,
     GenCaptures,
     GoodCaptures,
+    Refutation,
     Killers,
     GenQuiets,
     Quiets,
@@ -107,6 +108,7 @@ impl OrderedMoveGen {
         hist: &History,
         hist_indices: &HistoryIndices,
     ) -> Option<Move> {
+        let stm = pos.board().side_to_move();
         if self.phase == Phase::PvMove {
             self.phase = Phase::GenPieceMoves;
             if self.pv_move.is_some() {
@@ -122,7 +124,6 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::GenCaptures {
             self.phase = Phase::GoodCaptures;
-            let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
@@ -146,7 +147,23 @@ impl OrderedMoveGen {
                 }
                 return Some(capture.mv);
             }
+            self.phase = Phase::Refutation;
+        }
+        if self.phase == Phase::Refutation {
             self.phase = Phase::Killers;
+            if let Some(refutation) = hist.get_refutation_move(pos, hist_indices) {
+                let mut skip = false;
+                skip |= Some(refutation) == self.pv_move;
+                skip |= pos.board().color_on(refutation.to) == Some(!stm);
+                if !skip {
+                    if let Some(index) = self.killers.index_of(refutation) {
+                        self.killers.remove(index);
+                    }
+                    if pos.board().is_legal(refutation) {
+                        return Some(refutation);
+                    }
+                }
+            }
         }
         if self.phase == Phase::Killers {
             while self.killer_index < 2 {
