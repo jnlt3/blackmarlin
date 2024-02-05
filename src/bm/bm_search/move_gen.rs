@@ -22,17 +22,6 @@ pub enum Phase {
     BadCaptures,
 }
 
-struct Quiet {
-    mv: Move,
-    score: i16,
-}
-
-impl Quiet {
-    pub fn new(mv: Move, score: i16) -> Self {
-        Self { mv, score }
-    }
-}
-
 struct Capture {
     mv: Move,
     score: i16,
@@ -54,7 +43,7 @@ pub struct OrderedMoveGen {
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
-    quiets: ArrayVec<Quiet, MAX_MOVES>,
+    quiets: ArrayVec<Move, MAX_MOVES>,
     captures: ArrayVec<Capture, MAX_MOVES>,
     bad_captures: ArrayVec<Capture, MAX_MOVES>,
 }
@@ -74,6 +63,23 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
         best = Some((score, index));
     }
     best.map(|(_, index)| index)
+}
+
+fn score_quiet(pos: &Position, hist: &History, hist_indices: &HistoryIndices, mv: Move) -> i16 {
+    match mv.promotion {
+        Some(Piece::Queen) => i16::MAX,
+        Some(_) => i16::MIN,
+        None => {
+            let quiet_hist = hist.get_quiet(pos, mv);
+            let counter_move_hist = hist
+                .get_counter_move(pos, hist_indices, mv)
+                .unwrap_or_default();
+            let followup_move_hist = hist
+                .get_followup_move(pos, hist_indices, mv)
+                .unwrap_or_default();
+            quiet_hist + counter_move_hist + followup_move_hist
+        }
+    }
 }
 
 impl OrderedMoveGen {
@@ -176,28 +182,15 @@ impl OrderedMoveGen {
                     if self.killers.contains(mv) {
                         continue;
                     }
-
-                    let score = match mv.promotion {
-                        Some(Piece::Queen) => i16::MAX,
-                        Some(_) => i16::MIN,
-                        None => {
-                            let quiet_hist = hist.get_quiet(pos, mv);
-                            let counter_move_hist = hist
-                                .get_counter_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            let followup_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
-                        }
-                    };
-                    self.quiets.push(Quiet::new(mv, score));
+                    self.quiets.push(mv);
                 }
             }
         }
         if self.phase == Phase::Quiets {
-            if let Some(index) = select_highest(&self.quiets, |quiet| quiet.score) {
-                return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
+            if let Some(index) =
+                select_highest(&self.quiets, |&mv| score_quiet(pos, hist, hist_indices, mv))
+            {
+                return self.quiets.swap_pop(index);
             }
             self.phase = Phase::BadCaptures;
         }
