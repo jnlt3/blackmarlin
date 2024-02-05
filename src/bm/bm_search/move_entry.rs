@@ -71,7 +71,7 @@ impl MoveEntry {
         }
         self.moves[other] = self.moves[lowest];
         let killer = self.moves[lowest].as_mut().unwrap();
-        if score * 2 > killer.score {
+        if score - 64 > killer.score {
             killer.mv = mv;
             killer.score = score;
         }
