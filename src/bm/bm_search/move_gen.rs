@@ -52,6 +52,7 @@ pub struct OrderedMoveGen {
 
     killers: MoveEntry,
     killer_index: usize,
+    refutation: Option<Move>,
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
@@ -84,6 +85,7 @@ impl OrderedMoveGen {
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            refutation: None,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -160,6 +162,7 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     if pos.board().is_legal(refutation) {
+                        self.refutation = Some(refutation);
                         return Some(refutation);
                     }
                 }
@@ -188,6 +191,9 @@ impl OrderedMoveGen {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if Some(mv) == self.refutation {
                         continue;
                     }
                     if self.killers.contains(mv) {
