@@ -414,6 +414,19 @@ pub fn search<Search: SearchType>(
         }
 
         /*
+        Prune if there are threats we have to avoid and a quiet move isn't avoiding
+         */
+        let do_tp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && depth <= 3
+            && !nstm_threats.is_empty()
+            && eval <= alpha;
+        if do_tp && !is_capture && !nstm_threats.has(make_move.from) {
+            continue;
+        }
+
+        /*
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
