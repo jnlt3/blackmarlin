@@ -214,18 +214,25 @@ impl OrderedMoveGen {
 enum QPhase {
     GenCaptures,
     GoodCaptures,
+    GenQuiets,
+    Quiets,
+    End,
 }
 
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<Capture, MAX_MOVES>,
+    quiets: ArrayVec<Move, MAX_MOVES>,
+    in_check: bool,
 }
 
 impl QSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(quiets: bool) -> Self {
         Self {
             phase: QPhase::GenCaptures,
             captures: ArrayVec::new(),
+            quiets: ArrayVec::new(),
+            in_check: quiets,
         }
     }
 
@@ -247,6 +254,24 @@ impl QSearchMoveGen {
                 let capture = self.captures.swap_remove(index).mv;
                 return Some(capture);
             }
+            self.phase = QPhase::GenQuiets;
+            if !self.in_check {
+                self.phase = QPhase::End;
+            }
+        }
+        if self.phase == QPhase::GenQuiets {
+            self.phase = QPhase::Quiets;
+            let stm = pos.board().side_to_move();
+            pos.board().generate_moves(|mut piece_moves| {
+                piece_moves.to &= !pos.board().colors(!stm);
+                for mv in piece_moves {
+                    self.quiets.push(mv);
+                }
+                false
+            });
+        }
+        if self.phase == QPhase::Quiets {
+            return self.quiets.pop();
         }
         None
     }
