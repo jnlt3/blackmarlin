@@ -641,6 +641,7 @@ pub fn q_search(
                 if entry.score() >= beta {
                     return entry.score();
                 }
+                tt_move = Some(entry.table_move());
             }
             Exact => return entry.score(),
             UpperBound => {
@@ -649,7 +650,6 @@ pub fn q_search(
                 }
             }
         }
-        tt_move = Some(entry.table_move());
     }
 
     let mut highest_score = None;
