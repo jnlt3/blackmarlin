@@ -167,10 +167,10 @@ impl Nnue {
             let color = board.color_on(sq).unwrap();
             self.update::<true>(piece_indices(w_king, b_king, sq, piece, color));
         }
-        for sq in threats.piece_threats(Color::White) {
+        for sq in threats.pawn_threats(Color::White) {
             self.update::<true>(threat_indices(w_king, b_king, sq, Color::Black));
         }
-        for sq in threats.piece_threats(Color::Black) {
+        for sq in threats.pawn_threats(Color::Black) {
             self.update::<true>(threat_indices(w_king, b_king, sq, Color::White));
         }
 
@@ -221,10 +221,10 @@ impl Nnue {
             self.reset(&new_board, threats);
             return;
         }
-        let w_threats = threats.piece_threats(Color::White);
-        let old_w_threats = old_threats.piece_threats(Color::White);
-        let b_threats = threats.piece_threats(Color::Black);
-        let old_b_threats = old_threats.piece_threats(Color::Black);
+        let w_threats = threats.pawn_threats(Color::White);
+        let old_w_threats = old_threats.pawn_threats(Color::White);
+        let b_threats = threats.pawn_threats(Color::Black);
+        let old_b_threats = old_threats.pawn_threats(Color::Black);
         for w_threat_sq in w_threats ^ old_w_threats {
             match w_threats.has(w_threat_sq) {
                 true => {

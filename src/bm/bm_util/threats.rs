@@ -16,10 +16,10 @@ impl Threats {
         }
     }
 
-    pub fn piece_threats(&self, color: Color) -> BitBoard {
+    pub fn pawn_threats(&self, color: Color) -> BitBoard {
         match color {
-            Color::White => self.w_threats,
-            Color::Black => self.b_threats,
+            Color::White => self.w_pawn_threats,
+            Color::Black => self.b_pawn_threats,
         }
     }
 }
