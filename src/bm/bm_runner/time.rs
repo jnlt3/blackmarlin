@@ -100,9 +100,10 @@ impl TimeManager {
         let move_stability_factor = (50 - move_stability) as f32 / 40.0;
         let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 2.0 + 0.5;
         let eval_factor = (prev_eval - eval).clamp(20, 60) as f32 / 20.0;
+        let ahead_factor = eval.clamp(150, 300) as f32 / 200.0;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
         let target_duration =
-            base_duration as f32 * move_stability_factor * node_factor * eval_factor;
+            base_duration as f32 * move_stability_factor * node_factor * eval_factor * ahead_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }
