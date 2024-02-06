@@ -667,8 +667,10 @@ pub fn q_search(
         }
     }
 
+    let stm = pos.board().side_to_move();
     let mut move_gen = QSearchMoveGen::new(in_check);
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
+        let is_capture = pos.board().colors(!stm).has(make_move.to);
         /*
         Prune all losing captures
         */
@@ -684,7 +686,7 @@ pub fn q_search(
             return beta;
         }
         // Also prune neutral captures when static eval is low
-        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if stand_pat + 200 <= alpha && (!is_capture || !compare_see(pos.board(), make_move, 1)) {
             continue;
         }
         pos.make_move(make_move);
