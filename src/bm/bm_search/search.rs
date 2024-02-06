@@ -634,6 +634,7 @@ pub fn q_search(
 
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
+    let mut tt_move = None;
     if let Some(entry) = tt_entry {
         match entry.entry_type() {
             LowerBound => {
@@ -648,6 +649,7 @@ pub fn q_search(
                 }
             }
         }
+        tt_move = Some(entry.table_move());
     }
 
     let mut highest_score = None;
@@ -667,7 +669,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QSearchMoveGen::new();
+    let mut move_gen = QSearchMoveGen::new(tt_move);
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
         Prune all losing captures
