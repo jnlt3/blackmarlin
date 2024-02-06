@@ -71,7 +71,8 @@ fn do_nmp<Search: SearchType>(
         && depth > 4
         && !(nstm_threat && depth <= 7)
         && eval >= beta
-        && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
+        && (board.pieces(Piece::Pawn) | board.pieces(Piece::Knight) | board.pieces(Piece::King))
+            != board.occupied()
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
