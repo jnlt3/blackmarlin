@@ -293,6 +293,8 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move, prev_move);
+
+    let mut singular_capture = false;
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
@@ -354,6 +356,7 @@ pub fn search<Search: SearchType>(
 
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
+                    singular_capture = is_capture;
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + 2 < s_beta {
                         extension += 1;
@@ -467,6 +470,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
+                reduction -= 1;
+            }
+            if singular_capture {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
