@@ -419,8 +419,9 @@ pub fn search<Search: SearchType>(
         let do_tp = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 3
+            && depth <= 6
             && !nstm_threats.is_empty()
+            && h_score < 0
             && eval <= alpha;
         if do_tp && !is_capture && !nstm_threats.has(make_move.from) {
             continue;
