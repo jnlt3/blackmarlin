@@ -1,6 +1,30 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
-pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
+#[derive(Debug, Copy, Clone)]
+pub struct Threats {
+    w_threats: BitBoard,
+    b_threats: BitBoard,
+    w_pawn_threats: BitBoard,
+    b_pawn_threats: BitBoard,
+}
+
+impl Threats {
+    pub fn all(&self, color: Color) -> BitBoard {
+        match color {
+            Color::White => self.w_threats | self.w_pawn_threats,
+            Color::Black => self.b_threats | self.b_pawn_threats,
+        }
+    }
+
+    pub fn piece_threats(&self, color: Color) -> BitBoard {
+        match color {
+            Color::White => self.w_threats,
+            Color::Black => self.b_threats,
+        }
+    }
+}
+
+pub fn threats(board: &Board) -> Threats {
     let occupied = board.occupied();
     let white = board.colors(Color::White);
     let black = board.colors(Color::Black);
@@ -51,12 +75,16 @@ pub fn threats(board: &Board) -> (BitBoard, BitBoard) {
         }
     }
 
-    (
-        ((w_pawn_attacks & pieces) | (w_minor_attacks & majors) | (w_rook_attacks & queens))
-            & black,
-        ((b_pawn_attacks & pieces) | (b_minor_attacks & majors) | (b_rook_attacks & queens))
-            & white,
-    )
+    let w_threats = ((w_minor_attacks & majors) | (w_rook_attacks & queens)) & black;
+    let b_threats = ((b_minor_attacks & majors) | (b_rook_attacks & queens)) & white;
+    let w_pawn_threats = w_pawn_attacks & pieces & black;
+    let b_pawn_threats = b_pawn_attacks & pieces & white;
+    Threats {
+        w_threats,
+        b_threats,
+        w_pawn_threats,
+        b_pawn_threats,
+    }
 }
 
 fn pawn_threats(pawns: BitBoard, color: Color) -> BitBoard {

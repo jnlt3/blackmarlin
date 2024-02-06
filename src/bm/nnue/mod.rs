@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
+use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
 
 use self::layers::{Align, Dense, Incremental};
 
-use super::bm_runner::ab_runner;
+use super::{bm_runner::ab_runner, bm_util::threats::Threats};
 
 mod include;
 mod layers;
@@ -158,7 +158,7 @@ impl Nnue {
         self.b_rm.clear();
     }
 
-    pub fn reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
+    pub fn reset(&mut self, board: &Board, threats: Threats) {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
 
@@ -167,10 +167,10 @@ impl Nnue {
             let color = board.color_on(sq).unwrap();
             self.update::<true>(piece_indices(w_king, b_king, sq, piece, color));
         }
-        for sq in w_threats {
+        for sq in threats.piece_threats(Color::White) {
             self.update::<true>(threat_indices(w_king, b_king, sq, Color::Black));
         }
-        for sq in b_threats {
+        for sq in threats.piece_threats(Color::Black) {
             self.update::<true>(threat_indices(w_king, b_king, sq, Color::White));
         }
 
@@ -186,9 +186,9 @@ impl Nnue {
         self.clear();
     }
 
-    pub fn full_reset(&mut self, board: &Board, w_threats: BitBoard, b_threats: BitBoard) {
+    pub fn full_reset(&mut self, board: &Board, threats: Threats) {
         self.head = 0;
-        self.reset(board, w_threats, b_threats);
+        self.reset(board, threats);
     }
 
     fn push_accumulator(&mut self) {
@@ -208,10 +208,8 @@ impl Nnue {
         board: &Board,
         new_board: &Board,
         make_move: Move,
-        w_threats: BitBoard,
-        b_threats: BitBoard,
-        old_w_threats: BitBoard,
-        old_b_threats: BitBoard,
+        threats: Threats,
+        old_threats: Threats,
     ) {
         self.push_accumulator();
         let from_sq = make_move.from;
@@ -220,9 +218,13 @@ impl Nnue {
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
         if from_type == Piece::King {
-            self.reset(&new_board, w_threats, b_threats);
+            self.reset(&new_board, threats);
             return;
         }
+        let w_threats = threats.piece_threats(Color::White);
+        let old_w_threats = old_threats.piece_threats(Color::White);
+        let b_threats = threats.piece_threats(Color::Black);
+        let old_b_threats = old_threats.piece_threats(Color::Black);
         for w_threat_sq in w_threats ^ old_w_threats {
             match w_threats.has(w_threat_sq) {
                 true => {

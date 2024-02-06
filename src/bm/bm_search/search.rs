@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Color, Move, Piece};
+use cozy_chess::{Board, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
@@ -195,11 +195,8 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
-    };
+    let stm = pos.board().side_to_move();
+    let nstm_threats = pos.threats().all(!stm);
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
