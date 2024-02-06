@@ -283,8 +283,10 @@ pub fn search<Search: SearchType>(
         false => None,
     };
 
+    let hist_indices = HistoryIndices::new(opp_move, prev_move);
     let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let refutation = thread.history.get_refutation_move(pos, &hist_indices);
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, refutation);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -292,7 +294,6 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(opp_move, prev_move);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {

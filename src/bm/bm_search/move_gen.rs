@@ -79,13 +79,18 @@ fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<us
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(
+        board: &Board,
+        pv_move: Option<Move>,
+        killers: MoveEntry,
+        refutation: Option<Move>,
+    ) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
-            refutation: None,
+            refutation,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -132,6 +137,9 @@ impl OrderedMoveGen {
                     if Some(mv) == self.pv_move {
                         continue;
                     }
+                    if Some(mv) == self.refutation {
+                        continue;
+                    }
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
@@ -153,16 +161,14 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::Refutation {
             self.phase = Phase::Killers;
-            if let Some(refutation) = hist.get_refutation_move(pos, hist_indices) {
+            if let Some(refutation) = self.refutation {
                 let mut skip = false;
                 skip |= Some(refutation) == self.pv_move;
-                skip |= pos.board().color_on(refutation.to) == Some(!stm);
                 if !skip {
                     if let Some(index) = self.killers.index_of(refutation) {
                         self.killers.remove(index);
                     }
                     if pos.board().is_legal(refutation) {
-                        self.refutation = Some(refutation);
                         return Some(refutation);
                     }
                 }
