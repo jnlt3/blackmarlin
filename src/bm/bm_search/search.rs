@@ -196,9 +196,9 @@ pub fn search<Search: SearchType>(
     };
 
     let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
+    let (stm_threats, nstm_threats) = match pos.board().side_to_move() {
+        Color::White => (w_threats, b_threats),
+        Color::Black => (b_threats, w_threats),
     };
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -465,6 +465,9 @@ pub fn search<Search: SearchType>(
             };
             if !improving {
                 reduction += 1;
+            }
+            if !is_capture && !stm_threats.is_empty() {
+                reduction -= 1;
             }
             if killers.contains(make_move) {
                 reduction -= 1;
