@@ -467,7 +467,7 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if !is_capture && !stm_threats.is_empty() {
-                reduction -= 1;
+                reduction += 1;
             }
             if killers.contains(make_move) {
                 reduction -= 1;
