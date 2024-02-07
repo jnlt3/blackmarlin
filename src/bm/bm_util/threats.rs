@@ -4,22 +4,22 @@ use cozy_chess::{BitBoard, Board, Color, File, Piece};
 pub struct Threats {
     w_threats: BitBoard,
     b_threats: BitBoard,
-    w_pawn_threats: BitBoard,
-    b_pawn_threats: BitBoard,
+    w_slider_threats: BitBoard,
+    b_slider_threats: BitBoard,
 }
 
 impl Threats {
     pub fn all(&self, color: Color) -> BitBoard {
         match color {
-            Color::White => self.w_threats | self.w_pawn_threats,
-            Color::Black => self.b_threats | self.b_pawn_threats,
+            Color::White => self.w_threats | self.w_slider_threats,
+            Color::Black => self.b_threats | self.b_slider_threats,
         }
     }
 
-    pub fn pawn_threats(&self, color: Color) -> BitBoard {
+    pub fn slider_threats(&self, color: Color) -> BitBoard {
         match color {
-            Color::White => self.w_pawn_threats,
-            Color::Black => self.b_pawn_threats,
+            Color::White => self.w_slider_threats,
+            Color::Black => self.b_slider_threats,
         }
     }
 }
@@ -42,23 +42,26 @@ pub fn threats(board: &Board) -> Threats {
     let w_pawn_attacks = pawn_threats(pawns & white, Color::White);
     let b_pawn_attacks = pawn_threats(pawns & black, Color::Black);
 
-    let mut w_minor_attacks = BitBoard::EMPTY;
-    let mut b_minor_attacks = BitBoard::EMPTY;
+    let mut w_knight_attacks = BitBoard::EMPTY;
+    let mut b_knight_attacks = BitBoard::EMPTY;
+
+    let mut w_bishop_attacks = BitBoard::EMPTY;
+    let mut b_bishop_attacks = BitBoard::EMPTY;
 
     if !(majors & black).is_empty() {
         for knight in knights & white {
-            w_minor_attacks |= cozy_chess::get_knight_moves(knight);
+            w_knight_attacks |= cozy_chess::get_knight_moves(knight);
         }
         for bishop in bishops & white {
-            w_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
+            w_bishop_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
         }
     }
     if !(majors & white).is_empty() {
         for knight in knights & black {
-            b_minor_attacks |= cozy_chess::get_knight_moves(knight);
+            b_knight_attacks |= cozy_chess::get_knight_moves(knight);
         }
         for bishop in bishops & black {
-            b_minor_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
+            b_bishop_attacks |= cozy_chess::get_bishop_moves(bishop, occupied);
         }
     }
 
@@ -75,15 +78,15 @@ pub fn threats(board: &Board) -> Threats {
         }
     }
 
-    let w_threats = ((w_minor_attacks & majors) | (w_rook_attacks & queens)) & black;
-    let b_threats = ((b_minor_attacks & majors) | (b_rook_attacks & queens)) & white;
-    let w_pawn_threats = w_pawn_attacks & pieces & black;
-    let b_pawn_threats = b_pawn_attacks & pieces & white;
+    let w_threats = w_pawn_attacks & pieces & black;
+    let b_threats = b_pawn_attacks & pieces & white;
+    let w_slider_threats = ((w_bishop_attacks & majors) | (w_rook_attacks & queens)) & black;
+    let b_slider_threats = ((b_bishop_attacks & majors) | (b_rook_attacks & queens)) & white;
     Threats {
         w_threats,
         b_threats,
-        w_pawn_threats,
-        b_pawn_threats,
+        w_slider_threats,
+        b_slider_threats,
     }
 }
 
