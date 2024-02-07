@@ -78,8 +78,8 @@ pub fn threats(board: &Board) -> Threats {
         }
     }
 
-    let w_threats = w_pawn_attacks & pieces & black;
-    let b_threats = b_pawn_attacks & pieces & white;
+    let w_threats = ((w_pawn_attacks & pieces) | (w_knight_attacks & majors)) & black;
+    let b_threats = ((b_pawn_attacks & pieces) | (b_knight_attacks & majors)) & white;
     let w_slider_threats = ((w_bishop_attacks & majors) | (w_rook_attacks & queens)) & black;
     let b_slider_threats = ((b_bishop_attacks & majors) | (b_rook_attacks & queens)) & white;
     Threats {
