@@ -55,6 +55,7 @@ fn test_see() {
     }
 }
 
+#[allow(dead_code)]
 pub fn move_value(board: &Board, make_move: Move) -> i16 {
     board
         .piece_on(make_move.to)

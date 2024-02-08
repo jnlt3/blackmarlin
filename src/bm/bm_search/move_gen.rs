@@ -1,7 +1,7 @@
 use cozy_chess::Move;
 
 use super::move_entry::MoveEntry;
-use super::see::{compare_see, move_value};
+use super::see::compare_see;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
@@ -132,7 +132,7 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score = hist.get_capture(pos, mv);
                     self.captures.push(Capture::new(mv, score))
                 }
             }
@@ -236,7 +236,7 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score = hist.get_capture(pos, mv);
                     self.captures.push(Capture::new(mv, score));
                 }
                 false
