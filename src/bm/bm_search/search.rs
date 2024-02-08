@@ -10,7 +10,7 @@ use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
-use super::see::compare_see;
+use super::see::{cmp_see_custom, compare_see};
 
 pub trait SearchType {
     const NM: bool;
@@ -194,6 +194,16 @@ pub fn search<Search: SearchType>(
         Some(prev_move_eval) => !in_check && eval > prev_move_eval,
         None => false,
     };
+    if ply > 0 && !improving {
+        let ss_0 = &thread.ss[ply as usize - 1];
+        let ss_1 = &thread.ss[ply as usize];
+        let prev_eval = ss_0.eval;
+        let eval = ss_1.eval;
+        if let Some(captured) = ss_0.move_played.and_then(|mv| mv.captured) {
+            let piece_value = (prev_eval - eval).raw();
+            thread.history.update_piece_value(captured, piece_value * 2);
+        }
+    }
 
     let (w_threats, b_threats) = pos.threats();
     let nstm_threats = match pos.board().side_to_move() {
@@ -425,8 +435,9 @@ pub fn search<Search: SearchType>(
             && move_gen.phase() > Phase::GoodCaptures;
 
         if do_see_prune {
+            let see_calc = |piece: Piece| thread.history.get_piece_value(piece);
             let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
-            if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
+            if see_margin > 0 || !cmp_see_custom(pos.board(), make_move, see_margin, &see_calc) {
                 continue;
             }
         }

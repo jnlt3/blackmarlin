@@ -1,11 +1,13 @@
 use cozy_chess::{Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::MoveData;
+use crate::bm::bm_search::see::piece_pts;
 
 use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
-pub const MAX_HIST: i16 = 512;
+pub const MAX_HIST: i16 = 1024;
+const ROLL_FACTOR: i32 = 256;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 16).min(MAX_HIST)
@@ -49,6 +51,7 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    see_values: [i32; Piece::NUM],
 }
 
 impl History {
@@ -58,7 +61,24 @@ impl History {
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            see_values: [
+                piece_pts(Piece::Pawn) as i32,
+                piece_pts(Piece::Knight) as i32,
+                piece_pts(Piece::Bishop) as i32,
+                piece_pts(Piece::Rook) as i32,
+                piece_pts(Piece::Queen) as i32,
+                piece_pts(Piece::King) as i32,
+            ],
         }
+    }
+
+    pub fn get_piece_value(&self, piece: Piece) -> i16 {
+        self.see_values[piece as usize] as i16
+    }
+
+    pub fn update_piece_value(&mut self, piece: Piece, value: i16) {
+        let see = &mut self.see_values[piece as usize];
+        *see = (*see * (ROLL_FACTOR - 1) + value as i32) / ROLL_FACTOR;
     }
 
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {

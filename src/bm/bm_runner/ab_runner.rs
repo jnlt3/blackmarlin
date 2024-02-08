@@ -73,17 +73,21 @@ pub struct MoveData {
     pub to: Square,
     pub promotion: Option<Piece>,
     pub piece: Piece,
-    pub capture: bool,
+    pub captured: Option<Piece>,
 }
 
 impl MoveData {
     pub fn from_move(board: &Board, make_move: Move) -> Self {
+        let stm = board.side_to_move();
         Self {
             from: make_move.from,
             to: make_move.to,
             promotion: make_move.promotion,
             piece: board.piece_on(make_move.from).unwrap(),
-            capture: board.colors(!board.side_to_move()).has(make_move.to),
+            captured: board
+                .colors(!stm)
+                .has(make_move.to)
+                .then(|| board.piece_on(make_move.to).unwrap()),
         }
     }
 }

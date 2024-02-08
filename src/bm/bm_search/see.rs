@@ -62,6 +62,15 @@ pub fn move_value(board: &Board, make_move: Move) -> i16 {
 }
 
 pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
+    cmp_see_custom(board, make_move, cmp, &piece_pts)
+}
+
+pub fn cmp_see_custom<F: Fn(Piece) -> i16>(
+    board: &Board,
+    make_move: Move,
+    cmp: i16,
+    piece_pts: &F,
+) -> bool {
     let target = make_move.to;
     let mut piece = board.piece_on(make_move.from);
 
@@ -125,7 +134,7 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
     gain >= cmp
 }
 
-fn piece_pts(piece: Piece) -> i16 {
+pub fn piece_pts(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 96,
         Piece::Knight => 323,
