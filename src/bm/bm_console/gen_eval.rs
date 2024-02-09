@@ -67,7 +67,7 @@ fn play_single(
             make_move = moves[rand::thread_rng().gen_range(0..moves.len())];
         }
         engine.make_move(make_move);
-        if engine.get_position().forced_draw(ply) {
+        if engine.get_position().forced_draw(1) {
             result = 0.5;
             break;
         }
