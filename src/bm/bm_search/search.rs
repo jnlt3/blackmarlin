@@ -457,7 +457,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
+            if ply <= (depth + ply) / 2 {
                 reduction -= 1;
             }
             if !Search::PV {
@@ -555,7 +555,7 @@ pub fn search<Search: SearchType>(
                 if score >= beta {
                     if !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
-                        if !is_capture {
+                        if !is_capture && h_score <= 0 {
                             thread.killer_moves[ply as usize].push(make_move);
                         }
                         thread.history.update_history(
