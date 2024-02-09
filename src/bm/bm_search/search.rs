@@ -669,6 +669,13 @@ pub fn q_search(
 
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
+        let hist = thread.history.get_capture(pos, make_move);
+        /*
+        Do capture history pruning
+        */
+        if hist < 0 && stand_pat <= alpha {
+            continue;
+        }
         /*
         Prune all losing captures
         */
