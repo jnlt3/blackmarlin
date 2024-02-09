@@ -671,12 +671,6 @@ pub fn q_search(
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         let hist = thread.history.get_capture(pos, make_move);
         /*
-        Do capture history pruning
-        */
-        if hist < 0 && stand_pat <= alpha {
-            continue;
-        }
-        /*
         Prune all losing captures
         */
         if !compare_see(pos.board(), make_move, 0) {
@@ -689,6 +683,12 @@ pub fn q_search(
             && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
         {
             return beta;
+        }
+        /*
+        Do capture history pruning
+        */
+        if hist < 0 && stand_pat <= alpha {
+            continue;
         }
         // Also prune neutral captures when static eval is low
         if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
