@@ -189,14 +189,9 @@ impl TranspositionTable {
         let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
             let analysis: Analysis = unsafe { std::mem::transmute(entry_u64) };
-            if analysis.exists {
-                Some(analysis)
-            } else {
-                None
-            }
-        } else {
-            None
+            return analysis.exists.then_some(analysis);
         }
+        None
     }
 
     pub fn set(
@@ -207,7 +202,7 @@ impl TranspositionTable {
         score: Evaluation,
         table_move: Move,
     ) {
-        let entry = Analysis::new(
+        let new = Analysis::new(
             depth,
             entry_type,
             score,
@@ -217,22 +212,32 @@ impl TranspositionTable {
         let hash = board.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
-        let analysis: Analysis =
+        let previous: Analysis =
             unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-        if !analysis.exists || self.do_replace(&entry, &analysis) {
-            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(entry) };
+        if !previous.exists || self.replace(&new, &previous) {
+            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(new) };
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
     }
 
-    fn do_replace(&self, a: &Analysis, b: &Analysis) -> bool {
-        let current_age = self.age.load(Ordering::Relaxed);
-        let a_extra_depth =
-            matches!(a.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
-        let b_extra_depth =
-            matches!(b.entry_type(), EntryType::Exact | EntryType::LowerBound) as u8;
-        ((a.depth + a_extra_depth).saturating_add(current_age.wrapping_sub(b.age) / 2))
-            >= (b.depth + b_extra_depth) / 2
+    fn age_of(&self, analysis: &Analysis) -> u8 {
+        let age = self.age.load(Ordering::Relaxed);
+        age.wrapping_sub(analysis.age)
+    }
+
+    fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
+        fn extra_depth(analysis: &Analysis) -> u8 {
+            // +1 depth for Exact scores and lower bounds
+            matches!(
+                analysis.entry_type(),
+                EntryType::Exact | EntryType::LowerBound
+            ) as u8
+        }
+
+        let new_depth = new.depth + extra_depth(new) as u8;
+        let prev_depth = prev.depth + extra_depth(prev) as u8;
+
+        new_depth.saturating_add(self.age_of(prev) / 2) >= prev_depth / 2
     }
 
     pub fn clean(&self) {
