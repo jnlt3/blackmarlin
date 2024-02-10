@@ -5,6 +5,12 @@ pub struct MoveEntry {
     moves: [Option<Move>; 2],
 }
 
+unsafe fn is_equal(a: Option<Move>, b: Option<Move>) -> bool {
+    // SAFETY: all possible 24 bit values are valid for (u8, u8, u8)
+    // Enums are guaranteed to have a single discriminant value
+    std::mem::transmute::<_, [u8; 3]>(a) == std::mem::transmute::<_, [u8; 3]>(b)
+}
+
 impl MoveEntry {
     pub fn new() -> Self {
         Self { moves: [None; 2] }
@@ -16,7 +22,9 @@ impl MoveEntry {
 
     /// Returns the index of the move in the killer list or [None](None) if it doesn't exist
     pub fn index_of(&self, mv: Move) -> Option<usize> {
-        self.moves.iter().position(|&maybe_mv| maybe_mv == Some(mv))
+        self.moves
+            .iter()
+            .position(|&maybe_mv| unsafe { is_equal(maybe_mv, Some(mv)) })
     }
 
     /// - Not guaranteed to be legal
@@ -32,7 +40,7 @@ impl MoveEntry {
 
     /// Removes the least recent killer and ensures no duplicates
     pub fn push(&mut self, mv: Move) {
-        if Some(mv) == self.moves[0] {
+        if unsafe { is_equal(Some(mv), self.moves[0]) } {
             return;
         }
         self.moves[1] = self.moves[0];
@@ -41,6 +49,6 @@ impl MoveEntry {
 
     /// Returns true if a given move is a killer
     pub fn contains(&self, mv: Move) -> bool {
-        self.moves.contains(&Some(mv))
+        unsafe { is_equal(self.moves[0], Some(mv)) | is_equal(self.moves[1], Some(mv)) }
     }
 }
