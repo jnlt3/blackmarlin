@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Color, Move, Piece};
+use cozy_chess::{Board, Move, Piece};
 
 use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
@@ -181,7 +181,7 @@ pub fn search<Search: SearchType>(
 
     let eval = match skip_move {
         Some(_) => thread.ss[ply as usize].eval,
-        None => pos.get_eval(thread.stm, thread.eval),
+        None => pos.get_eval() + pos.aggression(thread.stm, thread.eval),
     };
 
     thread.ss[ply as usize].eval = eval;
@@ -195,11 +195,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let (w_threats, b_threats) = pos.threats();
-    let nstm_threats = match pos.board().side_to_move() {
-        Color::White => b_threats,
-        Color::Black => w_threats,
-    };
+    let (_, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -629,7 +625,7 @@ pub fn q_search(
 
     thread.update_sel_depth(ply);
     if ply >= MAX_PLY {
-        return pos.get_eval(thread.stm, thread.eval);
+        return pos.get_eval() + pos.aggression(thread.stm, thread.eval);
     }
 
     let initial_alpha = alpha;
@@ -654,7 +650,7 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval(thread.stm, thread.eval);
+    let stand_pat = pos.get_eval() + pos.aggression(thread.stm, thread.eval);
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.

@@ -400,7 +400,7 @@ impl AbRunner {
                 window: Window::new(14, 43, 100, 8),
                 tt_hits: 0,
                 tt_misses: 0,
-                eval: position.get_eval(Color::White, Evaluation::new(0)),
+                eval: position.get_eval(),
                 ss: vec![
                     SearchStack {
                         eval: Evaluation::new(0),
@@ -474,7 +474,7 @@ impl AbRunner {
     }
 
     pub fn raw_eval(&mut self) -> Evaluation {
-        self.position.get_eval(Color::White, Evaluation::new(0))
+        self.position.get_eval()
     }
 
     pub fn new_game(&self) {

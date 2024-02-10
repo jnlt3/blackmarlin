@@ -29,6 +29,8 @@ impl Position {
         }
     }
 
+    /// Clears position history, sets board as current root
+    /// Forces recalculation of NNUE accumulators and threats
     pub fn set_board(&mut self, board: Board) {
         let (w_threats, b_threats) = threats(&board);
         self.evaluator.full_reset(&board, w_threats, b_threats);
@@ -38,52 +40,61 @@ impl Position {
         self.boards.clear();
     }
 
+    /// Forces recalculation of NNUE accumulators 
     pub fn reset(&mut self) {
         self.evaluator
             .full_reset(&self.current, self.w_threats, self.b_threats);
     }
 
+    /// Returns true for 50 move rule and three fold repetitions
+    ///
+    /// If a two fold repetition occurs with both positions being
+    /// after search root, it's considered a three fold repetition
+    ///
+    /// Returns true if [insufficient material](Self::insufficient_material)
     pub fn forced_draw(&self, ply: u32) -> bool {
         if self.insufficient_material()
-            || (self.half_ply() >= 100
+            || (self.current.halfmove_clock() >= 100
                 && (self.current.checkers().is_empty() || self.current.status() != GameStatus::Won))
         {
             return true;
         }
         let hash = self.hash();
-        self.boards
+        let two_fold = self
+            .boards
             .iter()
             .rev()
             .take(ply as usize - 1)
-            .any(|board| board.hash() == hash)
-            || self
-                .boards
-                .iter()
-                .rev()
-                .skip(ply as usize - 1)
-                .filter(|board| board.hash() == hash)
-                .count()
-                >= 2
+            .any(|board| board.hash() == hash);
+        let three_fold = self
+            .boards
+            .iter()
+            .rev()
+            .skip(ply as usize - 1)
+            .filter(|board| board.hash() == hash)
+            .count()
+            >= 2;
+        two_fold || three_fold
     }
 
     pub fn board(&self) -> &Board {
         &self.current
     }
 
-    pub fn half_ply(&self) -> u8 {
-        self.current.halfmove_clock()
-    }
-
+    /// Attempts to make a null move
+    ///
+    /// Returns false if null move can't be done
+    ///
+    /// Returns true if null move was played
     pub fn null_move(&mut self) -> bool {
-        if let Some(new_board) = self.board().null_move() {
-            self.evaluator.null_move();
-            self.boards.push(self.current.clone());
-            self.threats.push((self.w_threats, self.b_threats));
-            self.current = new_board;
-            true
-        } else {
-            false
-        }
+        let Some(new_board) = self.board().null_move() else {
+            return false;
+        };
+        self.evaluator.null_move();
+        self.boards.push(self.current.clone());
+        self.threats.push((self.w_threats, self.b_threats));
+        self.current = new_board;
+        true
     }
 
     pub fn make_move(&mut self, make_move: Move) {
@@ -119,30 +130,46 @@ impl Position {
         self.board().hash()
     }
 
+    /// Returns side to move relative threats
     pub fn threats(&self) -> (BitBoard, BitBoard) {
-        (self.w_threats, self.b_threats)
+        match self.current.side_to_move() {
+            Color::White => (self.w_threats, self.b_threats),
+            Color::Black => (self.b_threats, self.w_threats),
+        }
     }
 
-    pub fn get_eval(&mut self, stm: Color, root_eval: Evaluation) -> Evaluation {
+    /// Returns aggression value
+    ///
+    /// Value may vary depending on position and root evaluation
+    pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
         let piece_cnt = self.board().occupied().len() as i16;
 
         let clamped_eval = root_eval.raw().clamp(-100, 100);
-        let eval_bonus = if self.board().side_to_move() == stm {
-            piece_cnt * clamped_eval / 50
-        } else {
-            -piece_cnt * clamped_eval / 50
-        };
+        match self.board().side_to_move() == stm {
+            true => piece_cnt * clamped_eval / 50,
+            false => -piece_cnt * clamped_eval / 50,
+        }
+    }
 
+    /// Calculates NN evaluation + FRC bonus
+    ///
+    /// Value is only dependent on the board
+    ///
+    /// Add [aggression](Self::aggression) if using for search results & pruning
+    pub fn get_eval(&mut self) -> Evaluation {
         let frc_score = frc::frc_corner_bishop(self.board());
+        let piece_cnt = self.board().occupied().len() as i16;
 
         Evaluation::new(
             self.evaluator
                 .feed_forward(self.board().side_to_move(), piece_cnt as usize)
-                + frc_score
-                + eval_bonus,
+                + frc_score,
         )
     }
 
+    /// Handles insufficient material for the following cases:
+    ///
+    /// Only two kings, Two kings + one minor piece
     pub fn insufficient_material(&self) -> bool {
         let rooks = self.current.pieces(Piece::Rook);
         let queens = self.current.pieces(Piece::Queen);
