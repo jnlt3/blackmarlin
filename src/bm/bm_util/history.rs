@@ -85,7 +85,7 @@ impl History {
 
     /// Returns None if a previous move isn't available
     ///
-    /// Recommended to .unwrap_or(0)
+    /// Recommended to .unwrap_or_default()
     ///
     /// Do not use for captures
     pub fn get_counter_move(
@@ -120,7 +120,7 @@ impl History {
 
     /// Returns None if a previous move isn't available
     ///
-    /// Recommended to .unwrap_or(0)
+    /// Recommended to .unwrap_or_default()
     ///
     /// Do not use for captures
     pub fn get_followup_move(
