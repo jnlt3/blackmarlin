@@ -15,35 +15,27 @@ pub enum Phase {
     PvMove,
     GenPieceMoves,
     GenCaptures,
+    /// Generated move has a SEE value >= 0
     GoodCaptures,
+    /// Generated move is a killer move
     Killers,
     GenQuiets,
+    /// Generated move is a non capture 
     Quiets,
+    /// Generated move has a SEE value < 0
     BadCaptures,
 }
 
-struct Quiet {
+struct ScoredMove {
     mv: Move,
     score: i16,
 }
 
-impl Quiet {
+impl ScoredMove {
     pub fn new(mv: Move, score: i16) -> Self {
         Self { mv, score }
     }
 }
-
-struct Capture {
-    mv: Move,
-    score: i16,
-}
-
-impl Capture {
-    pub fn new(mv: Move, score: i16) -> Self {
-        Self { mv, score }
-    }
-}
-
 pub struct OrderedMoveGen {
     phase: Phase,
 
@@ -54,9 +46,9 @@ pub struct OrderedMoveGen {
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
-    quiets: ArrayVec<Quiet, MAX_MOVES>,
-    captures: ArrayVec<Capture, MAX_MOVES>,
-    bad_captures: ArrayVec<Capture, MAX_MOVES>,
+    quiets: ArrayVec<ScoredMove, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
@@ -90,10 +82,15 @@ impl OrderedMoveGen {
         }
     }
 
+    /// Returns what phase of move generation the last generated came from
+    /// with the exception of TT move.
+    ///
+    /// The proper way to check if the generated move is a TT move is a direct comparison of the moves
     pub fn phase(&self) -> Phase {
         self.phase
     }
 
+    /// Skips all quiet generation only if the last generated move is a quiet move that is not from the TT  
     pub fn skip_quiets(&mut self) {
         self.phase = match self.phase {
             Phase::Killers | Phase::GenQuiets | Phase::Quiets => Phase::BadCaptures,
@@ -101,6 +98,13 @@ impl OrderedMoveGen {
         }
     }
 
+    /// Generate a legal move that hasn't been given before or
+    ///  return [None](Option::None) if no legal moves are left
+    ///
+    /// Performance Notes:
+    /// - Move generation and capture scoring is done after TT move is returned
+    /// - When generating good captures, each call is at least one [see](super::see::compare_see) call
+    /// - Quiet move lists are generated and scored after killer moves are returned
     pub fn next(
         &mut self,
         pos: &Position,
@@ -133,7 +137,7 @@ impl OrderedMoveGen {
                         self.killers.remove(index);
                     }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score))
+                    self.captures.push(ScoredMove::new(mv, score))
                 }
             }
         }
@@ -191,7 +195,7 @@ impl OrderedMoveGen {
                             quiet_hist + counter_move_hist + followup_move_hist
                         }
                     };
-                    self.quiets.push(Quiet::new(mv, score));
+                    self.quiets.push(ScoredMove::new(mv, score));
                 }
             }
         }
@@ -218,7 +222,7 @@ enum QPhase {
 
 pub struct QSearchMoveGen {
     phase: QPhase,
-    captures: ArrayVec<Capture, MAX_MOVES>,
+    captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 impl QSearchMoveGen {
@@ -229,6 +233,9 @@ impl QSearchMoveGen {
         }
     }
 
+    /// Generate a legal capture that hasn't been generated before primarily ordered
+    /// by captured pieces value and then capture history
+    /// - En-passant is ignored
     pub fn next(&mut self, pos: &Position, hist: &History) -> Option<Move> {
         if self.phase == QPhase::GenCaptures {
             self.phase = QPhase::GoodCaptures;
@@ -237,7 +244,7 @@ impl QSearchMoveGen {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(Capture::new(mv, score));
+                    self.captures.push(ScoredMove::new(mv, score));
                 }
                 false
             });
