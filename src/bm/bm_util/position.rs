@@ -40,7 +40,7 @@ impl Position {
         self.boards.clear();
     }
 
-    /// Forces recalculation of NNUE accumulators 
+    /// Forces recalculation of NNUE accumulators
     pub fn reset(&mut self) {
         self.evaluator
             .full_reset(&self.current, self.w_threats, self.b_threats);
@@ -77,6 +77,7 @@ impl Position {
         two_fold || three_fold
     }
 
+    /// Current board
     pub fn board(&self) -> &Board {
         &self.current
     }
@@ -97,6 +98,8 @@ impl Position {
         true
     }
 
+    /// Makes move, updates accumulators and calculates threats
+    /// - Expensive function, only use if the move is going to be searched
     pub fn make_move(&mut self, make_move: Move) {
         let old_board = self.current.clone();
         let old_w_threats = self.w_threats;
@@ -119,6 +122,7 @@ impl Position {
         self.threats.push((old_w_threats, old_b_threats));
     }
 
+    /// Takes back one (move)[Self::make_move]
     pub fn unmake_move(&mut self) {
         self.evaluator.unmake_move();
         let current = self.boards.pop().unwrap();
@@ -139,8 +143,8 @@ impl Position {
     }
 
     /// Returns aggression value
-    ///
-    /// Value may vary depending on position and root evaluation
+    /// - Value may vary depending on position and root evaluation
+    /// - Avoid storing, instead recalculate for a given position
     pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
         let piece_cnt = self.board().occupied().len() as i16;
 
@@ -152,10 +156,7 @@ impl Position {
     }
 
     /// Calculates NN evaluation + FRC bonus
-    ///
-    /// Value is only dependent on the board
-    ///
-    /// Add [aggression](Self::aggression) if using for search results & pruning
+    /// - Add [aggression](Self::aggression) if using for search results & pruning
     pub fn get_eval(&mut self) -> Evaluation {
         let frc_score = frc::frc_corner_bishop(self.board());
         let piece_cnt = self.board().occupied().len() as i16;
@@ -168,8 +169,8 @@ impl Position {
     }
 
     /// Handles insufficient material for the following cases:
-    ///
-    /// Only two kings, Two kings + one minor piece
+    /// - Two kings
+    /// - Two kings and one minor piece
     pub fn insufficient_material(&self) -> bool {
         let rooks = self.current.pieces(Piece::Rook);
         let queens = self.current.pieces(Piece::Queen);

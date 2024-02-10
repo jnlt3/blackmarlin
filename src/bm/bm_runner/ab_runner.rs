@@ -59,6 +59,7 @@ type LmpLookup = LookUp2d<usize, 16, 2>;
 
 #[derive(Debug, Clone)]
 pub struct SharedContext {
+    /// The instant search was started at
     start: Instant,
     time_manager: Arc<TimeManager>,
 
@@ -112,14 +113,19 @@ pub struct ThreadContext {
     window: Window,
     pub tt_hits: u32,
     pub tt_misses: u32,
+    /// Side to move relative evaluation at root
     pub eval: Evaluation,
+    /// Side to move at root
     pub stm: Color,
+    /// Search Stack
     pub ss: Vec<SearchStack>,
+    /// Maximum depth reached
     pub sel_depth: u32,
     pub history: History,
     pub killer_moves: Vec<MoveEntry>,
     nodes: Nodes,
     pub abort: bool,
+    /// Used for node based time management
     pub root_nodes: [[u64; Square::NUM]; Square::NUM],
 }
 
@@ -131,24 +137,27 @@ impl SharedContext {
         self.time_manager.abort_search(self.start, node_cnt)
     }
 
-    pub fn abort_deepening(&self, depth: u32, nodes: u64) -> bool {
+    fn abort_deepening(&self, depth: u32, nodes: u64) -> bool {
         self.time_manager.abort_deepening(self.start, depth, nodes)
     }
 
-    pub fn get_t_table(&self) -> &Arc<TranspositionTable> {
+    /// Shared transposition table
+    pub fn get_t_table(&self) -> &TranspositionTable {
         &self.t_table
     }
 
-    pub fn get_lmr_lookup(&self) -> &Arc<LmrLookup> {
+    /// Late move reductions look up values
+    pub fn get_lmr_lookup(&self) -> &LmrLookup {
         &self.lmr_lookup
     }
 
-    pub fn get_lmp_lookup(&self) -> &Arc<LmpLookup> {
+    /// Late move pruning look up values
+    pub fn get_lmp_lookup(&self) -> &LmpLookup {
         &self.lmp_lookup
     }
 }
 
-impl ThreadContext {
+impl ThreadContext { 
     pub fn increment_nodes(&self) {
         self.nodes.0.fetch_add(1, Ordering::Relaxed);
     }
