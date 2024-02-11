@@ -297,9 +297,9 @@ pub fn search<Search: SearchType>(
         }
 
         move_exists = true;
-        let is_capture = pos.is_capture(make_move);
+        let is_noisy = !pos.is_quiet(make_move);
 
-        let h_score = match is_capture {
+        let h_score = match is_noisy {
             true => thread.history.get_capture(pos, make_move),
             false => {
                 (thread.history.get_quiet(pos, make_move)
@@ -376,7 +376,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 10;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_noisy && depth <= 10;
 
         if do_fp && eval + fp(depth) <= alpha {
             move_gen.skip_quiets();
@@ -387,7 +387,7 @@ pub fn search<Search: SearchType>(
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
         if non_mate_line
-            && !is_capture
+            && !is_noisy
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
@@ -549,7 +549,7 @@ pub fn search<Search: SearchType>(
                 if score >= beta {
                     if !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
-                        if !is_capture {
+                        if !is_noisy {
                             thread.killer_moves[ply as usize].push(make_move);
                         }
                         thread.history.update_history(
@@ -566,7 +566,7 @@ pub fn search<Search: SearchType>(
                 alpha = score;
             }
         }
-        if is_capture {
+        if is_noisy {
             if !captures.is_full() {
                 captures.push(make_move);
             }

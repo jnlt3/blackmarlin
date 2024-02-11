@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{Board, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -20,7 +20,7 @@ pub enum Phase {
     /// Generated move is a killer move
     Killers,
     GenQuiets,
-    /// Generated move is a non capture 
+    /// Generated move is a non capture
     Quiets,
     /// Generated move has a SEE value < 0
     BadCaptures,
@@ -126,11 +126,12 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::GenCaptures {
             self.phase = Phase::GoodCaptures;
-            let stm = pos.board().side_to_move();
-            for mut piece_moves in self.piece_moves.iter().copied() {
-                piece_moves.to &= pos.board().colors(!stm);
+            for piece_moves in self.piece_moves.iter().copied() {
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if pos.is_quiet(mv) {
                         continue;
                     }
                     if let Some(index) = self.killers.index_of(mv) {
@@ -172,8 +173,12 @@ impl OrderedMoveGen {
             self.phase = Phase::Quiets;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
+                // Ensures no captures except
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
+                    if mv.promotion.is_some() {
+                        continue;
+                    }
                     if Some(mv) == self.pv_move {
                         continue;
                     }
@@ -181,20 +186,15 @@ impl OrderedMoveGen {
                         continue;
                     }
 
-                    let score = match mv.promotion {
-                        Some(Piece::Queen) => i16::MAX,
-                        Some(_) => i16::MIN,
-                        None => {
-                            let quiet_hist = hist.get_quiet(pos, mv);
-                            let counter_move_hist = hist
-                                .get_counter_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            let followup_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv)
-                                .unwrap_or_default();
-                            quiet_hist + counter_move_hist + followup_move_hist
-                        }
-                    };
+                    let quiet_hist = hist.get_quiet(pos, mv);
+                    let counter_move_hist = hist
+                        .get_counter_move(pos, hist_indices, mv)
+                        .unwrap_or_default();
+                    let followup_move_hist = hist
+                        .get_followup_move(pos, hist_indices, mv)
+                        .unwrap_or_default();
+                    let score = quiet_hist + counter_move_hist + followup_move_hist;
+
                     self.quiets.push(ScoredMove::new(mv, score));
                 }
             }
