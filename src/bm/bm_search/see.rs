@@ -9,8 +9,6 @@ fn test_see() {
         "8/3r4/3q4/3r4/8/3Q3K/3R4/7k w - - 0 1",
         "8/8/b7/1q6/2b5/3Q3K/4B3/7k w - - 0 1",
         "3r4/2P2n2/8/8/8/7K/8/7k w - - 0 1",
-        // "3r4/2P5/8/8/8/7K/8/7k w - - 0 1", // We are ignoring promos
-        // "3R4/2P2n2/8/8/8/7K/8/7k b - - 0 1", // We are ignoring promos
     ];
     let expected = &[
         piece_pts(Piece::Knight),
@@ -18,11 +16,6 @@ fn test_see() {
         0,
         0,
         piece_pts(Piece::Rook) - piece_pts(Piece::Pawn),
-        // piece_pts(Piece::Rook) + piece_pts(Piece::Queen) - piece_pts(Piece::Pawn),
-        /* piece_pts(Piece::Rook) + piece_pts(Piece::Pawn)
-            - piece_pts(Piece::Knight)
-            - piece_pts(Piece::Queen),
-        */
     ];
     let mv_vert = Move {
         from: Square::D2,
@@ -55,12 +48,20 @@ fn test_see() {
     }
 }
 
+/// Returns the value of the piece being captured
+///
+/// If there is no piece to capture, returns 0
 pub fn move_value(board: &Board, make_move: Move) -> i16 {
     board
         .piece_on(make_move.to)
         .map_or(0, |piece| piece_pts(piece))
 }
 
+/// Returns true if SEE value is at least cmp
+///
+/// Will always prioritize the least valuable aggressor
+///
+/// Doesn't take promotions and pins into account
 pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
     let target = make_move.to;
     let mut piece = board.piece_on(make_move.from);
@@ -125,7 +126,8 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
     gain >= cmp
 }
 
-fn piece_pts(piece: Piece) -> i16 {
+/// Returns the piece values used by [compare_see](compare_see) and [move_value](move_value)
+pub fn piece_pts(piece: Piece) -> i16 {
     match piece {
         Piece::Pawn => 96,
         Piece::Knight => 323,

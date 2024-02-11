@@ -61,6 +61,7 @@ impl History {
         }
     }
 
+    /// Returns quiet history value for the given move
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
@@ -71,6 +72,7 @@ impl History {
         &mut self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
     }
 
+    /// Returns capture history value for the given move
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
@@ -81,6 +83,11 @@ impl History {
         &mut self.capture[stm as usize][make_move.from as usize][make_move.to as usize]
     }
 
+    /// Returns None if a previous move isn't available
+    ///
+    /// Recommended to .unwrap_or_default()
+    ///
+    /// Do not use for captures
     pub fn get_counter_move(
         &self,
         pos: &Position,
@@ -111,6 +118,11 @@ impl History {
         )
     }
 
+    /// Returns None if a previous move isn't available
+    ///
+    /// Recommended to .unwrap_or_default()
+    ///
+    /// Do not use for captures
     pub fn get_followup_move(
         &self,
         pos: &Position,
@@ -141,11 +153,17 @@ impl History {
         )
     }
 
+    /// If the cut-off move is a capture, the cut-off move is given a bonus in
+    /// capture history and the other captures are given maluses in capture history
+    ///
+    /// If the cut-off move is a quiet, the cut-off move is given a bonus in all
+    /// quiet histories (main quiet history, followup move history, counter move history)
+    /// captures are given maluses in capture-history
     pub fn update_history(
         &mut self,
         pos: &Position,
         indices: &HistoryIndices,
-        make_move: Move,
+        cutoff_move: Move,
         quiets: &[Move],
         captures: &[Move],
         amt: i16,
@@ -153,11 +171,11 @@ impl History {
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())
-            .has(make_move.to);
+            .has(cutoff_move.to);
         if !is_capture {
-            self.update_quiet(pos, indices, make_move, quiets, amt);
+            self.update_quiet(pos, indices, cutoff_move, quiets, amt);
         } else {
-            bonus(self.get_capture_mut(pos, make_move), amt);
+            bonus(self.get_capture_mut(pos, cutoff_move), amt);
         }
         for &failed_move in captures {
             malus(self.get_capture_mut(pos, failed_move), amt);
