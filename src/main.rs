@@ -1,6 +1,6 @@
 use crate::bm::bm_console::BmConsole;
 
-mod bm;
+pub mod bm;
 
 fn main() {
     let mut bm_console = BmConsole::new();

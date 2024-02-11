@@ -181,4 +181,17 @@ impl Position {
             _ => false,
         }
     }
+
+    /// Returns true if a move is capture
+    /// - Excludes en-passant
+    pub fn is_capture(&self, mv: Move) -> bool {
+        let nstm = !self.board().side_to_move();
+        self.board().colors(nstm).has(mv.to)
+    }
+
+    /// Returns true if a move is not a capture or a promotion
+    /// - Counts an en-passant capture as quiet
+    pub fn is_quiet(&self, mv: Move) -> bool {
+        mv.promotion.is_none() && !self.is_capture(mv)
+    }
 }

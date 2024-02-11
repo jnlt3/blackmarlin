@@ -297,10 +297,7 @@ pub fn search<Search: SearchType>(
         }
 
         move_exists = true;
-        let is_capture = pos
-            .board()
-            .colors(!pos.board().side_to_move())
-            .has(make_move.to);
+        let is_capture = pos.is_capture(make_move);
 
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
