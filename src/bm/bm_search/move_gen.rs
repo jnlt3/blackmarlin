@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, PieceMoves};
+use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -145,7 +145,11 @@ impl OrderedMoveGen {
         if self.phase == Phase::GoodCaptures {
             while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
                 let capture = self.captures.swap_remove(index);
-                if !compare_see(pos.board(), capture.mv, 0) {
+                let under_promo = capture
+                    .mv
+                    .promotion
+                    .is_some_and(|promo| promo != Piece::Queen);
+                if under_promo || !compare_see(pos.board(), capture.mv, 0) {
                     self.bad_captures.push(capture);
                     continue;
                 }
