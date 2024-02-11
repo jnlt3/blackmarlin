@@ -236,6 +236,7 @@ pub fn search<Search: SearchType>(
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
+            pos.set_next_eval(-eval);
             let search_score =
                 search::<NoNm>(pos, thread, shared_context, ply + 1, nmp_depth, zw, zw + 1);
             pos.unmake_move();

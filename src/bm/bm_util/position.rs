@@ -12,6 +12,7 @@ pub struct Position {
     boards: Vec<Board>,
     threats: Vec<(BitBoard, BitBoard)>,
     evaluator: Nnue,
+    next_eval: Option<Evaluation>,
 }
 
 impl Position {
@@ -26,6 +27,7 @@ impl Position {
             threats: vec![],
             boards: vec![],
             evaluator,
+            next_eval: None,
         }
     }
 
@@ -98,6 +100,11 @@ impl Position {
         true
     }
 
+    /// This value will be returned the next time [eval](Self::get_eval) is called
+    pub fn set_next_eval(&mut self, eval: Evaluation) {
+        self.next_eval = Some(eval);
+    }
+
     /// Makes move, updates accumulators and calculates threats
     /// - Expensive function, only use if the move is going to be searched
     pub fn make_move(&mut self, make_move: Move) {
@@ -158,6 +165,9 @@ impl Position {
     /// Calculates NN evaluation + FRC bonus
     /// - Add [aggression](Self::aggression) if using for search results & pruning
     pub fn get_eval(&mut self) -> Evaluation {
+        if let Some(eval) = self.next_eval.take() {
+            return eval;
+        }
         let frc_score = frc::frc_corner_bishop(self.board());
         let piece_cnt = self.board().occupied().len() as i16;
 
