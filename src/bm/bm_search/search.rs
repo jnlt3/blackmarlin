@@ -7,7 +7,7 @@ use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, UpperBound};
+use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, Missing, UpperBound};
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
 use super::see::compare_see;
@@ -171,6 +171,7 @@ pub fn search<Search: SearchType>(
                         return score;
                     }
                 }
+                Missing => unreachable!(),
             }
         }
     } else {
@@ -643,6 +644,7 @@ pub fn q_search(
                     return entry.score();
                 }
             }
+            Missing => unreachable!(),
         }
     }
 

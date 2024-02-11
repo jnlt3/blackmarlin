@@ -4,7 +4,7 @@ use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::bm::bm_util::eval::Evaluation;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct TTMove(u16);
 
 impl TTMove {
@@ -49,14 +49,40 @@ fn compressed_moves() {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
+    Missing,
     LowerBound,
     Exact,
     UpperBound,
 }
 
-#[derive(Debug, Copy, Clone)]
+impl EntryType {
+    fn to_u16(self) -> u16 {
+        match self {
+            EntryType::Missing => 0,
+            EntryType::LowerBound => 1,
+            EntryType::Exact => 2,
+            EntryType::UpperBound => 3,
+        }
+    }
+
+    fn from_u16(val: u16) -> EntryType {
+        match val {
+            1 => EntryType::LowerBound,
+            2 => EntryType::Exact,
+            3 => EntryType::UpperBound,
+            _ => EntryType::Missing,
+        }
+    }
+
+    fn missing(self) -> bool {
+        matches!(self, EntryType::Missing)
+    }
+}
+
+type Layout = (u8, u16, i16, u16, u8);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Analysis {
-    exists: bool,
     depth: u8,
     entry_type: EntryType,
     score: Evaluation,
@@ -65,6 +91,30 @@ pub struct Analysis {
 }
 
 impl Analysis {
+    fn from_raw(bits: u64) -> Self {
+        let (depth, entry_type, score, table_move, age) =
+            unsafe { std::mem::transmute::<_, Layout>(bits) };
+        Self {
+            depth,
+            entry_type: EntryType::from_u16(entry_type),
+            score: Evaluation::new(score),
+            table_move: TTMove(table_move),
+            age,
+        }
+    }
+
+    fn to_raw(self) -> u64 {
+        unsafe {
+            std::mem::transmute::<Layout, u64>((
+                self.depth,
+                self.entry_type.to_u16(),
+                self.score.raw(),
+                self.table_move.0,
+                self.age,
+            ))
+        }
+    }
+
     fn new(
         depth: u32,
         entry_type: EntryType,
@@ -73,27 +123,11 @@ impl Analysis {
         age: u8,
     ) -> Self {
         Self {
-            exists: true,
             depth: depth as u8,
             entry_type,
             score,
             table_move: TTMove::new(table_move),
             age,
-        }
-    }
-
-    fn zero() -> Self {
-        Self {
-            exists: false,
-            depth: 0,
-            entry_type: EntryType::LowerBound,
-            score: Evaluation::new(0),
-            table_move: TTMove::new(Move {
-                from: Square::A1,
-                to: Square::A1,
-                promotion: None,
-            }),
-            age: 0,
         }
     }
 
@@ -122,20 +156,14 @@ pub struct Entry {
 
 impl Entry {
     fn zeroed() -> Self {
-        unsafe {
-            Self {
-                hash: AtomicU64::new(std::mem::transmute(Analysis::zero())),
-                analysis: AtomicU64::new(std::mem::transmute(Analysis::zero())),
-            }
+        Self {
+            hash: AtomicU64::new(0),
+            analysis: AtomicU64::new(0),
         }
     }
     fn zero(&self) {
-        unsafe {
-            self.hash
-                .store(std::mem::transmute(Analysis::zero()), Ordering::Relaxed);
-            self.analysis
-                .store(std::mem::transmute(Analysis::zero()), Ordering::Relaxed);
-        }
+        self.hash.store(0, Ordering::Relaxed);
+        self.analysis.store(0, Ordering::Relaxed);
     }
 
     fn set_new(&self, hash: u64, entry: u64) {
@@ -188,8 +216,8 @@ impl TranspositionTable {
         let hash_u64 = entry.hash.load(Ordering::Relaxed);
         let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
-            let analysis: Analysis = unsafe { std::mem::transmute(entry_u64) };
-            return analysis.exists.then_some(analysis);
+            let analysis = Analysis::from_raw(entry_u64);
+            return (!(analysis.entry_type.missing())).then_some(analysis);
         }
         None
     }
@@ -212,10 +240,9 @@ impl TranspositionTable {
         let hash = board.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
-        let previous: Analysis =
-            unsafe { std::mem::transmute(fetched_entry.analysis.load(Ordering::Relaxed)) };
-        if !previous.exists || self.replace(&new, &previous) {
-            let analysis_u64 = unsafe { std::mem::transmute::<Analysis, u64>(new) };
+        let previous: Analysis = Analysis::from_raw(fetched_entry.analysis.load(Ordering::Relaxed));
+        if previous.entry_type.missing() || self.replace(&new, &previous) {
+            let analysis_u64 = new.to_raw();
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
     }
