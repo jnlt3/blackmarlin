@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, PieceMoves};
+use cozy_chess::{Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -176,7 +176,7 @@ impl OrderedMoveGen {
                 // Ensures no captures except
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
-                    if mv.promotion.is_some() {
+                    if mv.promotion == Some(Piece::Queen) {
                         continue;
                     }
                     if Some(mv) == self.pv_move {

@@ -189,9 +189,9 @@ impl Position {
         self.board().colors(nstm).has(mv.to)
     }
 
-    /// Returns true if a move is not a capture or a promotion
+    /// Returns true if a move is not a capture or a queen promotion
     /// - Counts an en-passant capture as quiet
     pub fn is_quiet(&self, mv: Move) -> bool {
-        mv.promotion.is_none() && !self.is_capture(mv)
+        mv.promotion != Some(Piece::Queen) && !self.is_capture(mv)
     }
 }
