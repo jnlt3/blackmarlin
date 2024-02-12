@@ -371,7 +371,7 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        if Search::PV && nstm_threats.has(make_move.from) && is_capture {
+        if !Search::PV && nstm_threats.has(make_move.from) && !is_capture {
             extension = extension.max(1);
         }
 
