@@ -20,7 +20,7 @@ pub enum Phase {
     /// Generated move is a killer move
     Killers,
     GenQuiets,
-    /// Generated move is a non capture 
+    /// Generated move is a non capture
     Quiets,
     /// Generated move has a SEE value < 0
     BadCaptures,
@@ -51,19 +51,18 @@ pub struct OrderedMoveGen {
     bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
-fn select_highest<T, U: Ord, S: Fn(&T) -> U>(array: &[T], score: S) -> Option<usize> {
+fn select_highest(array: &[ScoredMove]) -> Option<usize> {
     if array.is_empty() {
         return None;
     }
-    let mut best: Option<(U, usize)> = None;
+    let mut best: Option<(i16, usize)> = None;
     for (index, mv) in array.iter().enumerate() {
-        let score = score(mv);
-        if let Some((best_score, _)) = &best {
-            if &score <= best_score {
+        if let Some((best_score, _)) = best {
+            if mv.score <= best_score {
                 continue;
             }
         }
-        best = Some((score, index));
+        best = Some((mv.score, index));
     }
     best.map(|(_, index)| index)
 }
@@ -142,7 +141,7 @@ impl OrderedMoveGen {
             }
         }
         if self.phase == Phase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
+            while let Some(index) = select_highest(&self.captures) {
                 let capture = self.captures.swap_remove(index);
                 if !compare_see(pos.board(), capture.mv, 0) {
                     self.bad_captures.push(capture);
@@ -200,13 +199,13 @@ impl OrderedMoveGen {
             }
         }
         if self.phase == Phase::Quiets {
-            if let Some(index) = select_highest(&self.quiets, |quiet| quiet.score) {
+            if let Some(index) = select_highest(&self.quiets) {
                 return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
             }
             self.phase = Phase::BadCaptures;
         }
         if self.phase == Phase::BadCaptures {
-            if let Some(index) = select_highest(&self.bad_captures, |capture| capture.score) {
+            if let Some(index) = select_highest(&self.bad_captures) {
                 return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
             }
         }
@@ -250,7 +249,7 @@ impl QSearchMoveGen {
             });
         }
         if self.phase == QPhase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures, |capture| capture.score) {
+            while let Some(index) = select_highest(&self.captures) {
                 let capture = self.captures.swap_remove(index).mv;
                 return Some(capture);
             }
