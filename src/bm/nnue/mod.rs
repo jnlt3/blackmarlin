@@ -347,7 +347,7 @@ impl Nnue {
         layers::sq_clipped_relu(*stm.get(), &mut incr.0);
         layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
 
-        let bucket = (piece_cnt / 4).min(7);
+        let bucket = (((63 - piece_cnt) * (32 - piece_cnt)) / 225).min(7);
         layers::scale_network_output(self.out_layer.feed_forward(&incr, bucket))
     }
 }
