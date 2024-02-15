@@ -651,16 +651,18 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval() + pos.aggression(thread.stm, thread.eval);
+    let stand_pat = (!in_check).then(|| pos.get_eval() + pos.aggression(thread.stm, thread.eval));
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check && stand_pat > alpha {
-        alpha = stand_pat;
-        highest_score = Some(stand_pat);
-        if stand_pat >= beta {
-            return stand_pat;
+    if let Some(stand_pat) = stand_pat {
+        if stand_pat > alpha {
+            alpha = stand_pat;
+            highest_score = Some(stand_pat);
+            if stand_pat >= beta {
+                return stand_pat;
+            }
         }
     }
 
@@ -669,20 +671,22 @@ pub fn q_search(
         /*
         Prune all losing captures
         */
-        if !compare_see(pos.board(), make_move, 0) {
-            continue;
-        }
-        /*
-        Fail high if SEE puts us above beta
-        */
-        if stand_pat + 1000 >= beta
-            && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
-        {
-            return beta;
-        }
-        // Also prune neutral captures when static eval is low
-        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
-            continue;
+        if let Some(stand_pat) = stand_pat {
+            if !compare_see(pos.board(), make_move, 0) {
+                continue;
+            }
+            /*
+            Fail high if SEE puts us above beta
+            */
+            if stand_pat + 1000 >= beta
+                && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
+            {
+                return beta;
+            }
+            // Also prune neutral captures when static eval is low
+            if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+                continue;
+            }
         }
         pos.make_move(make_move);
         let search_score = q_search(
