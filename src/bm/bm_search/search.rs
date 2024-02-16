@@ -312,7 +312,7 @@ pub fn search<Search: SearchType>(
         };
         thread.ss[ply as usize + 1].pv_len = 0;
 
-        let mut extension = 0;
+        let mut extension: i32 = 0;
         let mut score;
 
         /*
@@ -367,6 +367,8 @@ pub fn search<Search: SearchType>(
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
+                } else if multi_cut && entry.score() >= beta {
+                    extension = -1;
                 }
             }
         }
@@ -468,20 +470,21 @@ pub fn search<Search: SearchType>(
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
-        let lmr_depth = (depth as i16 - reduction) as u32;
-
         if moves_seen == 0 {
+            let depth = (depth as i32 + extension) as u32;
             let search_score = search::<Search>(
                 pos,
                 thread,
                 shared_context,
                 ply + 1,
-                depth - 1 + extension,
+                depth - 1,
                 beta >> Next,
                 alpha >> Next,
             );
             score = search_score << Next;
         } else {
+            let depth = (depth as i32 + extension) as u32;
+            let lmr_depth = (depth as i16 - reduction) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
@@ -490,7 +493,7 @@ pub fn search<Search: SearchType>(
                 thread,
                 shared_context,
                 ply + 1,
-                lmr_depth - 1 + extension,
+                lmr_depth - 1,
                 zw - 1,
                 zw,
             );
@@ -506,7 +509,7 @@ pub fn search<Search: SearchType>(
                     thread,
                     shared_context,
                     ply + 1,
-                    depth - 1 + extension,
+                    depth - 1,
                     zw - 1,
                     zw,
                 );
@@ -521,7 +524,7 @@ pub fn search<Search: SearchType>(
                     thread,
                     shared_context,
                     ply + 1,
-                    depth - 1 + extension,
+                    depth - 1,
                     beta >> Next,
                     alpha >> Next,
                 );
