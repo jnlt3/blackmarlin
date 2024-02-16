@@ -32,7 +32,7 @@ impl Evaluation {
 
     pub const fn mate_in(&self) -> Option<i16> {
         if self.is_mate() {
-            Some(self.score.signum() * ((CHECKMATE_EVAL - self.score.abs()) / 2 + 1))
+            Some(self.score.signum() * ((CHECKMATE_EVAL - self.score.abs()) / 2))
         } else {
             None
         }
