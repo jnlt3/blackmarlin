@@ -4,7 +4,7 @@ use cozy_chess::{Board, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{self, HistoryIndices};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::EntryType;
 use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, Missing, UpperBound};
@@ -422,6 +422,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && depth <= 6
+            && h_score - history::MAX_HIST < hp(depth) as i16
             && !alpha.is_mate()
             && move_gen.phase() > Phase::GoodCaptures;
 
