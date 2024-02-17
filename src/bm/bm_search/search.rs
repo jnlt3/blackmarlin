@@ -421,7 +421,7 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 5
+            && depth <= 4
             && !alpha.is_mate()
             && move_gen.phase() > Phase::GoodCaptures;
 
