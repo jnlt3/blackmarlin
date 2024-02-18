@@ -18,7 +18,7 @@ impl Position {
     pub fn new(board: Board) -> Self {
         let mut evaluator = Nnue::new();
         let (w_threats, b_threats) = threats(&board);
-        evaluator.full_reset(&board, w_threats, b_threats);
+        evaluator.full_reset(&board);
         Self {
             current: board,
             w_threats,
@@ -33,7 +33,7 @@ impl Position {
     /// Forces recalculation of NNUE accumulators and threats
     pub fn set_board(&mut self, board: Board) {
         let (w_threats, b_threats) = threats(&board);
-        self.evaluator.full_reset(&board, w_threats, b_threats);
+        self.evaluator.full_reset(&board);
         self.w_threats = w_threats;
         self.b_threats = b_threats;
         self.current = board;
@@ -42,8 +42,7 @@ impl Position {
 
     /// Forces recalculation of NNUE accumulators
     pub fn reset(&mut self) {
-        self.evaluator
-            .full_reset(&self.current, self.w_threats, self.b_threats);
+        self.evaluator.full_reset(&self.current);
     }
 
     /// Returns true for 50 move rule and three fold repetitions
@@ -109,15 +108,7 @@ impl Position {
         post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
 
-        self.evaluator.make_move(
-            &old_board,
-            &self.current,
-            make_move,
-            self.w_threats,
-            self.b_threats,
-            old_w_threats,
-            old_b_threats,
-        );
+        self.evaluator.make_move(&old_board, make_move);
 
         self.boards.push(old_board);
         self.threats.push((old_w_threats, old_b_threats));
@@ -167,13 +158,8 @@ impl Position {
     /// - Add [aggression](Self::aggression) if using for search results & pruning
     pub fn get_eval(&mut self) -> Evaluation {
         let frc_score = frc::frc_corner_bishop(self.board());
-        let piece_cnt = self.board().occupied().len() as i16;
 
-        Evaluation::new(
-            self.evaluator
-                .feed_forward(self.board().side_to_move(), piece_cnt as usize)
-                + frc_score,
-        )
+        Evaluation::new(self.evaluator.feed_forward(self.board().side_to_move()) + frc_score)
     }
 
     /// Handles insufficient material for the following cases:
