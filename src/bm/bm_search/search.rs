@@ -333,6 +333,7 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 6;
+                let quiet = pos.is_quiet(make_move);
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
@@ -347,7 +348,7 @@ pub fn search<Search: SearchType>(
                 };
 
                 thread.ss[ply as usize].skip_move = None;
-                if s_score < s_beta {
+                if (quiet || multi_cut) && s_score < s_beta {
                     extension = 1;
                     if !Search::PV && multi_cut && s_score + 2 < s_beta {
                         extension += 1;
