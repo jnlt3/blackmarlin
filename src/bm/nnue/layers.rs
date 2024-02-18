@@ -7,7 +7,6 @@ const FT_SCALE: i16 = 255;
 const SCALE: i16 = 64;
 const MIN: i16 = 0;
 const MAX: i16 = FT_SCALE;
-const SHIFT: i16 = 8;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, align(64))]
@@ -181,14 +180,12 @@ pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
         {
             for (array, out) in array.chunks(256).zip(out.chunks_mut(256)) {
                 for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-                    let tmp = x.max(MIN).min(MAX) as u16;
-                    *clipped = ((tmp * tmp) >> SHIFT) as u8;
+                    *clipped = x.max(MIN).min(MAX) as u8;
                 }
             }
         } else {
             for (&x, clipped) in array.iter().zip(out.iter_mut()) {
-                let tmp = x.max(MIN).min(MAX) as u16;
-                *clipped = ((tmp * tmp) >> SHIFT) as u8;
+                *clipped = x.max(MIN).min(MAX) as u8;
             }
         }
     }
