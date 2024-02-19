@@ -344,7 +344,7 @@ pub fn search<Search: SearchType>(
                         s_beta - 1,
                         s_beta,
                     ),
-                    false => eval,
+                    false => eval + depth as i16,
                 };
 
                 thread.ss[ply as usize].skip_move = None;
