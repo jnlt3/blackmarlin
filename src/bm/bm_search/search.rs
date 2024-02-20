@@ -352,14 +352,6 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + 2 < s_beta {
                         extension += 1;
                     }
-                    thread.history.update_history(
-                        pos,
-                        &hist_indices,
-                        make_move,
-                        &[],
-                        &[],
-                        depth as i16,
-                    );
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
@@ -586,6 +578,18 @@ pub fn search<Search: SearchType>(
         };
     }
     let highest_score = highest_score.unwrap();
+    if highest_score <= alpha && skip_move.is_some() {
+        let skip_move = skip_move.unwrap();
+        let amt = depth + (highest_score - 50 > beta) as u32;
+        thread.history.update_history(
+            pos,
+            &hist_indices,
+            skip_move,
+            &quiets,
+            &captures,
+            amt as i16,
+        );
+    }
 
     if skip_move.is_none() && !thread.abort {
         if let Some(final_move) = &best_move {
