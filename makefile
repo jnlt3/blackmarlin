@@ -1,5 +1,5 @@
 EXE    	= BlackMarlin
-EVALFILE = ./nn/default.bin
+EVALFILE = ./blackmarlin/nn/default.bin
 ifeq ($(OS),Windows_NT)
 	NAME := $(EXE).exe
 else
@@ -7,5 +7,5 @@ else
 endif
 
 rule:
-	EVALFILE=$(EVALFILE) cargo build --release --bin blackmarlin-uci
+	EVALFILE=../$(EVALFILE) cargo build --release --bin blackmarlin-uci
 	mv ./target/release/blackmarlin-uci $(NAME)
