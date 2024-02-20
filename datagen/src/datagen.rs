@@ -120,6 +120,7 @@ pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions)
     let mut fen_count = 0;
     let pool = ThreadPool::new(options.threads);
     loop {
+        let start_fen_count = fen_count;
         let (tx, rx) = channel();
         for _ in 0..options.threads {
             let tx = tx.clone();
@@ -154,6 +155,8 @@ pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions)
             .unwrap();
         let mut write = BufWriter::new(file);
         write.write(output.as_bytes()).unwrap();
+        let positions_per_second = (fen_count - start_fen_count) as u64 / options.interval;
+        eprintln!("{} pos/s", positions_per_second);
         if fen_count >= options.pos_count {
             break;
         }
