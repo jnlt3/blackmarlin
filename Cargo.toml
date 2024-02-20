@@ -1,9 +1,4 @@
-workspace = { members = [
-	"blackmarlin",
-	"datagen",
-	"filter",
-	"uci",
-], resolver = "2" }
+workspace = { members = ["blackmarlin", "datagen", "uci"], resolver = "2" }
 
 [profile.release]
 lto = "thin"
