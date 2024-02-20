@@ -2,15 +2,15 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use cozy_chess::{Board, File, Move, Piece, Square};
+use cozy_chess::Board;
 
-use blackmarlin::bm::bm_runner::ab_runner::AbRunner;
+use blackmarlin::bm::bm_runner::ab_runner::{convert_move, convert_move_to_uci, AbRunner};
 use blackmarlin::bm::bm_runner::config::{NoInfo, Run, UciInfo};
 
 use blackmarlin::bm::bm_runner::time::{TimeManagementInfo, TimeManager};
 
-use crate::command::UciCommand;
 use crate::bench;
+use crate::command::UciCommand;
 
 const VERSION: &str = "8.0";
 
@@ -209,32 +209,5 @@ impl UciAdapter {
     fn exit(&mut self) {
         self.time_manager.abort_now();
         self.sender.send(ThreadReq::Quit).unwrap();
-    }
-}
-
-fn convert_move(make_move: &mut Move, board: &Board, chess960: bool) {
-    let convert_castle = !chess960
-        && board.piece_on(make_move.from) == Some(Piece::King)
-        && make_move.from.file() == File::E
-        && matches!(make_move.to.file(), File::C | File::G);
-    if convert_castle {
-        let file = if make_move.to.file() == File::C {
-            File::A
-        } else {
-            File::H
-        };
-        make_move.to = Square::new(file, make_move.to.rank());
-    }
-}
-
-pub fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
-    if !chess960 && board.color_on(make_move.from) == board.color_on(make_move.to) {
-        let rights = board.castle_rights(board.side_to_move());
-        let file = if Some(make_move.to.file()) == rights.short {
-            File::G
-        } else {
-            File::C
-        };
-        make_move.to = Square::new(file, make_move.to.rank());
     }
 }
