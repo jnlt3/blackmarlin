@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use cozy_chess::{Board, Color, Move, Piece, Square};
+use cozy_chess::{Board, Color, File, Move, Piece, Square};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
 use crate::bm::bm_search::move_entry::MoveEntry;
@@ -14,7 +14,6 @@ use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::TranspositionTable;
 use crate::bm::bm_util::window::Window;
-use crate::bm::uci;
 
 use super::time::TimeManager;
 
@@ -139,7 +138,7 @@ impl SharedContext {
         if node_cnt % 1024 != 0 {
             return false;
         }
-        self.time_manager.abort_search(self.start, node_cnt)
+        self.time_manager.abort_search(self.start)
     }
 
     fn abort_deepening(&self, depth: u32, nodes: u64) -> bool {
@@ -196,6 +195,18 @@ fn remove_aggression(eval: Evaluation, scale: i32) -> Evaluation {
             let eval = eval - scale * eval.clamp(-MAX - scale, MAX + scale) / (100 + scale);
             Evaluation::new(eval as i16)
         }
+    }
+}
+
+pub fn convert_move_to_uci(make_move: &mut Move, board: &Board, chess960: bool) {
+    if !chess960 && board.color_on(make_move.from) == board.color_on(make_move.to) {
+        let rights = board.castle_rights(board.side_to_move());
+        let file = if Some(make_move.to.file()) == rights.short {
+            File::G
+        } else {
+            File::C
+        };
+        make_move.to = Square::new(file, make_move.to.rank());
     }
 }
 
@@ -334,7 +345,7 @@ impl AbRunner {
                     for make_move in &root_stack.pv[..root_stack.pv_len] {
                         if let Some(make_move) = *make_move {
                             let mut uci_move = make_move;
-                            uci::convert_move_to_uci(&mut uci_move, position.board(), chess960);
+                            convert_move_to_uci(&mut uci_move, position.board(), chess960);
                             position.make_move(make_move);
                             pv.push(uci_move);
                             if pv.len() > depth as usize {
@@ -500,7 +511,6 @@ impl AbRunner {
         self.position.reset();
     }
 
-    #[cfg(feature = "data")]
     pub fn get_position(&self) -> &Position {
         &self.position
     }
