@@ -27,6 +27,7 @@ fn play_single(
     time_management_info: &[TimeManagementInfo],
     random_plies: usize,
     variant: u8,
+    draw_adj: bool,
 ) -> Vec<(Board, Evaluation, f32, Move, usize)> {
     let mut evals = Vec::new();
 
@@ -41,6 +42,7 @@ fn play_single(
     };
     engine.set_board(start_board);
     let mut result = 0.5;
+    let mut draw_cnt = 0;
     for ply in 0.. {
         match engine.get_board().status() {
             cozy_chess::GameStatus::Won => {
@@ -69,11 +71,16 @@ fn play_single(
                 cozy_chess::Color::White => 1,
                 cozy_chess::Color::Black => -1,
             };
+            if eval.raw() == 0 && ply >= 80 {
+                draw_cnt += 1;
+            } else {
+                draw_cnt = 0;
+            }
             evals.push((engine.get_board().clone(), eval * turn, mv, ply));
             mv
         };
         engine.make_move(make_move);
-        if engine.get_position().forced_draw(1) {
+        if engine.get_position().forced_draw(1) || (draw_adj && draw_cnt >= 8) {
             result = 0.5;
             break;
         }
@@ -89,6 +96,7 @@ fn gen_games(
     tm_options: &[TimeManagementInfo],
     random_plies: usize,
     variant: u8,
+    draw_adj: bool,
 ) -> Vec<(Board, Evaluation, f32, Move, usize)> {
     let start = Instant::now();
     let mut evals = vec![];
@@ -101,6 +109,7 @@ fn gen_games(
             tm_options,
             random_plies,
             variant,
+            draw_adj,
         ));
         engine_0.new_game();
     }
@@ -114,6 +123,7 @@ pub struct DataGenOptions {
     pub variant: u8,
     pub out: PathBuf,
     pub interval: u64,
+    pub draw_adj: bool,
 }
 
 pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions) {
@@ -131,6 +141,7 @@ pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions)
                     &tm_options,
                     options.random_plies,
                     options.variant,
+                    options.draw_adj,
                 ))
                 .unwrap();
             });
