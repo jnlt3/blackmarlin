@@ -39,8 +39,12 @@ struct Args {
     out: PathBuf,
 
     /// Write to file interval in seconds
-    #[arg(short, default_value_t = 30)]
+    #[arg(short, long, default_value_t = 30)]
     write_interval: u64,
+
+    /// Adjudicate draws after 80 plies if score has been 0 for 8 consecutive plies
+    #[arg(long, default_value_t = false)]
+    draw_adj: bool,
 }
 
 fn main() {
@@ -53,6 +57,7 @@ fn main() {
         variant: args.variant,
         out: args.out,
         interval: args.write_interval,
+        draw_adj: args.draw_adj,
     };
     let tm_options = [
         TimeManagementInfo::MaxDepth(args.depth),
