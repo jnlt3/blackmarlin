@@ -1,0 +1,10 @@
+
+[package]
+name = "blackmarlin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cozy-chess = "0.3.1"
+arrayvec = "0.7.1"
+cfg-if = "1.0.0"
