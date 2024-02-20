@@ -157,7 +157,7 @@ impl SharedContext {
     }
 }
 
-impl ThreadContext { 
+impl ThreadContext {
     pub fn increment_nodes(&self) {
         self.nodes.0.fetch_add(1, Ordering::Relaxed);
     }
@@ -179,26 +179,6 @@ impl ThreadContext {
         self.sel_depth = 0;
         self.root_nodes = [[0; Square::NUM]; Square::NUM];
         self.nodes.0.store(0, Ordering::Relaxed);
-    }
-}
-
-fn remove_aggression(eval: Evaluation, piece_count: u32) -> Evaluation {
-    let piece_count = piece_count as i16;
-    match eval.is_mate() {
-        true => eval,
-        false => {
-            let eval = eval.raw();
-            let eval = match eval {
-                _ if eval <= -164 => piece_count * 2 + eval,
-                _ if eval <= -100 && piece_count <= (-eval - 100) / 2 => piece_count * 2 + eval,
-                _ if eval <= -100 => ((50 * eval as i32) / (piece_count as i32 + 50)) as i16,
-                _ if eval >= 164 => eval - 2 * piece_count,
-                _ if eval >= 100 && (eval - 100) / 2 >= piece_count => eval - 2 * piece_count,
-                _ if eval >= 100 => ((50 * eval as i32) / (piece_count as i32 + 50)) as i16,
-                _ => ((50 * eval as i32) / (piece_count as i32 + 50)) as i16,
-            };
-            Evaluation::new(eval)
-        }
     }
 }
 
@@ -350,7 +330,7 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let eval = remove_aggression(eval.unwrap(), position.board().occupied().len());
+                    let eval = eval.unwrap();
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
                         false => None,
