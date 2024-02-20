@@ -580,14 +580,13 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
     if highest_score <= alpha && skip_move.is_some() {
         let skip_move = skip_move.unwrap();
-        let amt = depth + (highest_score - 50 > beta) as u32;
         thread.history.update_history(
             pos,
             &hist_indices,
             skip_move,
             &quiets,
             &captures,
-            amt as i16,
+            depth as i16,
         );
     }
 
