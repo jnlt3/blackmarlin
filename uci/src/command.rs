@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use cozy_chess::{Board, Move};
 
-use crate::bm::bm_runner::time::TimeManagementInfo;
+use blackmarlin::bm::bm_runner::time::TimeManagementInfo;
 
 pub enum UciCommand {
     Uci,

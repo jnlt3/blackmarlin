@@ -157,7 +157,7 @@ impl TimeManager {
                     move_time = Some(*time);
                     infinite = false;
                 }
-                _ => {}
+                TimeManagementInfo::Unknown => {}
             }
         }
         self.infinite.store(infinite, Ordering::SeqCst);
@@ -195,13 +195,12 @@ impl TimeManager {
         self.abort_now.store(true, Ordering::SeqCst);
     }
 
-    pub fn abort_search(&self, start: Instant, nodes: u64) -> bool {
+    pub fn abort_search(&self, start: Instant) -> bool {
         if self.abort_now.load(Ordering::SeqCst) {
             true
         } else {
-            (self.max_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
-                && !self.infinite.load(Ordering::SeqCst))
-                || self.max_nodes.load(Ordering::SeqCst) <= nodes
+            self.max_duration.load(Ordering::SeqCst) < start.elapsed().as_millis() as u32
+                && !self.infinite.load(Ordering::SeqCst)
         }
     }
 
