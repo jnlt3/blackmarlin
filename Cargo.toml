@@ -1,21 +1,5 @@
-[package]
-name = "blackmarlin"
-version = "0.1.0"
-authors = ["doruk <dsekercioglu2003@gmail.com>"]
-edition = "2021"
+workspace = { members = ["blackmarlin", "datagen", "uci"], resolver = "2" }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
 lto = "fat"
 codegen-units = 1
-
-[dependencies]
-cozy-chess = "0.3.1"
-arrayvec = "0.7.1"
-cfg-if = "1.0.0"
-rand = { version = "0.8.4", optional = true }
-rand_distr = { version = "0.4.2", optional = true }
-threadpool = { version = "1.8.1", optional = true }
-
-[features]
-data = ["rand", "rand_distr", "threadpool"]

@@ -8,7 +8,4 @@ else
 endif
 
 rule:
-	cargo rustc --release -- -C target-cpu=native --emit link=$(NAME)
-
-datagen:
-	cargo rustc --release --features data -- -C target-cpu=native --emit link=$(NAME)
+	EVALFILE=$(EVALFILE) cargo build --release --bin blackmarlin-uci && cp ./target/release/blackmarlin-uci $(NAME)

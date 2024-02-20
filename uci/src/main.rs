@@ -1,16 +1,18 @@
-use crate::bm::bm_console::BmConsole;
+mod uci;
+pub mod bench;
+pub mod command;
 
-pub mod bm;
+use uci::UciAdapter;
 
 fn main() {
-    let mut bm_console = BmConsole::new();
+    let mut uci = UciAdapter::new();
     let mut args = String::new();
     for arg in std::env::args().skip(1) {
         args.push_str(&arg);
         args.push_str(" ");
     }
     if !args.is_empty() {
-        bm_console.input(&args);
+        uci.input(&args);
         return;
     }
     loop {
@@ -20,7 +22,7 @@ fn main() {
             return;
         }
         let (command, _new_line) = buffer.split_at(buffer.len() - 1);
-        if !bm_console.input(command) {
+        if !uci.input(command) {
             return;
         }
     }
