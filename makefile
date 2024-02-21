@@ -7,5 +7,4 @@ else
 endif
 
 rule:
-	EVALFILE=../$(EVALFILE) cargo build --release --bin blackmarlin-uci
-	mv ./target/release/blackmarlin-uci $(NAME)
+	EVALFILE=../$(EVALFILE) cargo rustc --package blackmarlin-uci --release -- -C target-cpu=native --emit link=$(NAME)
