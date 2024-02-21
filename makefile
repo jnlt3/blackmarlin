@@ -7,4 +7,4 @@ else
 endif
 
 rule:
-	EVALFILE=../$(EVALFILE) cargo rustc --package blackmarlin-uci --release -- -C target-cpu=native --emit link=$(NAME)
+	EVALFILE=../$(EVALFILE) cargo rustc --package blackmarlin-uci --release -- -C target-cpu=native -C lto=thin --emit link=$(NAME)
