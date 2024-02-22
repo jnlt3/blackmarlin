@@ -148,11 +148,11 @@ impl Position {
     pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
         let piece_cnt = self.board().occupied().len() as i16;
 
-        let clamped_eval = root_eval.raw().clamp(-100, 100);
-        match self.board().side_to_move() == stm {
-            true => piece_cnt * clamped_eval / 50,
-            false => -piece_cnt * clamped_eval / 50,
-        }
+        let clamped_eval = root_eval.raw().clamp(-200, 200);
+        (match self.board().side_to_move() == stm {
+            true => piece_cnt * clamped_eval,
+            false => -piece_cnt * clamped_eval,
+        }) / 100
     }
 
     /// Calculates NN evaluation + FRC bonus
