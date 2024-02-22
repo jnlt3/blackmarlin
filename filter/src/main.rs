@@ -5,6 +5,7 @@ use std::{
     fs::OpenOptions,
     io::{BufRead, BufReader, BufWriter, Write},
     path::PathBuf,
+    str::FromStr,
 };
 
 #[derive(Parser, Debug)]
@@ -88,7 +89,7 @@ fn main() {
         let fen = split.next().unwrap();
         let eval = split.next().unwrap().parse::<i16>().unwrap();
         let wdl = split.next().unwrap(); // "0" "0.5" or "1"
-        let board = Board::from_fen(&fen, false).unwrap();
+        let board = Board::from_str(&fen).unwrap();
         let mv = split.next().unwrap().parse::<Move>().unwrap();
         let ply = split.next().unwrap().parse::<usize>().unwrap();
 
