@@ -1,13 +1,13 @@
 use crate::bm::bm_util::eval::Evaluation;
 use cozy_chess::{Board, Move};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicI16, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use super::ab_runner::MAX_PLY;
 
-const EXPECTED_MOVES: u32 = 64;
+const EXPECTED_MOVES: u32 = 38;
 
 const TIME_DEFAULT: Duration = Duration::from_secs(0);
 const INC_DEFAULT: Duration = Duration::from_secs(0);
@@ -39,7 +39,6 @@ pub struct TimeManager {
     target_duration: AtomicU32,
 
     move_stability: AtomicU32,
-    prev_eval: AtomicI16,
 
     prev_move: Mutex<Option<Move>>,
     board: Mutex<Board>,
@@ -60,7 +59,6 @@ impl TimeManager {
             base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
             move_stability: AtomicU32::new(0),
-            prev_eval: AtomicI16::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
             abort_now: AtomicBool::new(false),
@@ -79,12 +77,9 @@ impl TimeManager {
         depth: u32,
         move_nodes: u64,
         nodes: u64,
-        eval: Evaluation,
+        _eval: Evaluation,
         mv: Move,
     ) {
-        let eval = eval.raw();
-        let prev_eval = self.prev_eval.load(Ordering::Relaxed);
-        self.prev_eval.store(eval, Ordering::Relaxed);
         if thread != 0 || depth <= 4 {
             return;
         }
@@ -99,10 +94,9 @@ impl TimeManager {
         self.move_stability.store(move_stability, Ordering::Relaxed);
         let move_stability_factor = (41 - move_stability) as f32 * 0.024;
         let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 3.42 + 0.52;
-        let eval_factor = (prev_eval - eval).clamp(18, 20) as f32 * 0.088;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
         let target_duration =
-            base_duration as f32 * move_stability_factor * node_factor * eval_factor;
+            base_duration as f32 * move_stability_factor * node_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }
