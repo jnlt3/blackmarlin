@@ -326,10 +326,10 @@ pub fn search<Search: SearchType>(
                 && entry.table_move() == make_move
                 && ply != 0
                 && !entry.score().is_mate()
-                && entry.depth() + 2 >= depth
+                && entry.depth() + 6 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
-                let s_beta = entry.score() - depth as i16;
+                let s_beta = entry.score() - depth as i16 * 2;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 6;
