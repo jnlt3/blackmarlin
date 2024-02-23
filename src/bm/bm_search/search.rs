@@ -6,8 +6,7 @@ use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::EntryType;
-use crate::bm::bm_util::t_table::EntryType::{Exact, LowerBound, Missing, UpperBound};
+use crate::bm::bm_util::t_table::Bounds;
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
 use super::see::compare_see;
@@ -154,24 +153,23 @@ pub fn search<Search: SearchType>(
     */
     if let Some(entry) = tt_entry {
         thread.tt_hits += 1;
-        best_move = Some(entry.table_move());
-        if !Search::PV && entry.depth() >= depth {
-            let score = entry.score();
-            match entry.entry_type() {
-                Exact => {
+        best_move = Some(entry.table_move);
+        if !Search::PV && entry.depth >= depth {
+            let score = entry.score;
+            match entry.bounds {
+                Bounds::Exact => {
                     return score;
                 }
-                LowerBound => {
+                Bounds::LowerBound => {
                     if score >= beta {
                         return score;
                     }
                 }
-                UpperBound => {
+                Bounds::UpperBound => {
                     if score <= alpha {
                         return score;
                     }
                 }
-                Missing => unreachable!(),
             }
         }
     } else {
@@ -323,13 +321,13 @@ pub fn search<Search: SearchType>(
         */
         if let Some(entry) = tt_entry {
             if moves_seen == 0
-                && entry.table_move() == make_move
+                && entry.table_move == make_move
                 && ply != 0
-                && !entry.score().is_mate()
-                && entry.depth() + 2 >= depth
-                && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
+                && !entry.score.is_mate()
+                && entry.depth + 2 >= depth
+                && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
             {
-                let s_beta = entry.score() - depth as i16;
+                let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 6;
@@ -367,7 +365,7 @@ pub fn search<Search: SearchType>(
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
-                } else if multi_cut && entry.score() >= beta {
+                } else if multi_cut && entry.score >= beta {
                     extension = -1;
                 }
             }
@@ -592,13 +590,14 @@ pub fn search<Search: SearchType>(
     if skip_move.is_none() && !thread.abort {
         if let Some(final_move) = &best_move {
             let entry_type = match () {
-                _ if highest_score <= initial_alpha => UpperBound,
-                _ if highest_score >= beta => LowerBound,
-                _ => Exact,
+                _ if highest_score <= initial_alpha => Bounds::UpperBound,
+                _ if highest_score >= beta => Bounds::LowerBound,
+                _ => Bounds::Exact,
             };
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
+                Search::PV,
                 entry_type,
                 highest_score,
                 *final_move,
@@ -636,19 +635,18 @@ pub fn q_search(
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
     if let Some(entry) = tt_entry {
-        match entry.entry_type() {
-            LowerBound => {
-                if entry.score() >= beta {
-                    return entry.score();
+        match entry.bounds {
+            Bounds::LowerBound => {
+                if entry.score >= beta {
+                    return entry.score;
                 }
             }
-            Exact => return entry.score(),
-            UpperBound => {
-                if entry.score() <= alpha {
-                    return entry.score();
+            Bounds::Exact => return entry.score,
+            Bounds::UpperBound => {
+                if entry.score <= alpha {
+                    return entry.score;
                 }
             }
-            Missing => unreachable!(),
         }
     }
 
@@ -720,14 +718,19 @@ pub fn q_search(
     }
     if let Some((best_move, highest_score)) = best_move.zip(highest_score) {
         let entry_type = match () {
-            _ if highest_score <= initial_alpha => UpperBound,
-            _ if highest_score >= beta => LowerBound,
-            _ => Exact,
+            _ if highest_score <= initial_alpha => Bounds::UpperBound,
+            _ if highest_score >= beta => Bounds::LowerBound,
+            _ => Bounds::Exact,
         };
 
-        shared_context
-            .get_t_table()
-            .set(pos.board(), 0, entry_type, highest_score, best_move);
+        shared_context.get_t_table().set(
+            pos.board(),
+            0,
+            false,
+            entry_type,
+            highest_score,
+            best_move,
+        );
     }
     highest_score.unwrap_or(alpha)
 }
