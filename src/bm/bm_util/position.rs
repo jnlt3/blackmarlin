@@ -2,7 +2,7 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{eval::Evaluation, threats::threats};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -149,9 +149,7 @@ impl Position {
     /// Calculates NN evaluation + FRC bonus
     /// - Add [aggression](Self::aggression) if using for search results & pruning
     pub fn get_eval(&mut self) -> Evaluation {
-        let frc_score = frc::frc_corner_bishop(self.board());
-
-        Evaluation::new(self.evaluator.feed_forward(self.board().side_to_move()) + frc_score)
+        Evaluation::new(self.evaluator.feed_forward(self.board().side_to_move()))
     }
 
     /// Handles insufficient material for the following cases:
