@@ -8,7 +8,7 @@ use std::{
 
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
-use rand::Rng;
+use rand::{seq::SliceRandom, Rng};
 
 use blackmarlin::bm::{
     bm_runner::{
@@ -26,6 +26,7 @@ fn play_single(
     time_manager: &TimeManager,
     time_management_info: &[TimeManagementInfo],
     random_plies: usize,
+    random_move_chance: f32,
     variant: u8,
     draw_adj: bool,
 ) -> Vec<(Board, Evaluation, f32, Move, usize)> {
@@ -63,21 +64,33 @@ fn play_single(
             });
             moves[rand::thread_rng().gen_range(0..moves.len())]
         } else {
-            // Random moves and no eval are simply not useful data
-            time_manager.initiate(engine.get_board(), time_management_info);
-            let (mv, eval, _, _) = engine.search::<Run, NoInfo>();
-            time_manager.clear();
-            let turn = match engine.get_board().side_to_move() {
-                cozy_chess::Color::White => 1,
-                cozy_chess::Color::Black => -1,
-            };
-            if eval.raw() == 0 && ply >= 80 {
-                draw_cnt += 1;
-            } else {
-                draw_cnt = 0;
-            }
-            evals.push((engine.get_board().clone(), eval * turn, mv, ply));
-            mv
+            || -> Move {
+                // Random moves and no eval are simply not useful data
+                if rand::thread_rng().gen::<f32>() < random_move_chance {
+                    let mut mv_list = vec![];
+                    let moves = engine.get_board().generate_moves(|p| {
+                        for mv in p {
+                            mv_list.push(mv);
+                        }
+                        false
+                    });
+                    return *mv_list.choose(&mut rand::thread_rng()).unwrap();
+                }
+                time_manager.initiate(engine.get_board(), time_management_info);
+                let (mv, eval, _, _) = engine.search::<Run, NoInfo>();
+                time_manager.clear();
+                let turn = match engine.get_board().side_to_move() {
+                    cozy_chess::Color::White => 1,
+                    cozy_chess::Color::Black => -1,
+                };
+                if eval.raw() == 0 && ply >= 80 {
+                    draw_cnt += 1;
+                } else {
+                    draw_cnt = 0;
+                }
+                evals.push((engine.get_board().clone(), eval * turn, mv, ply));
+                mv
+            }()
         };
         engine.make_move(make_move);
         if engine.get_position().forced_draw(1) || (draw_adj && draw_cnt >= 8) {
@@ -95,6 +108,7 @@ fn gen_games(
     duration: Duration,
     tm_options: &[TimeManagementInfo],
     random_plies: usize,
+    random_move_chance: f32,
     variant: u8,
     draw_adj: bool,
 ) -> Vec<(Board, Evaluation, f32, Move, usize)> {
@@ -108,6 +122,7 @@ fn gen_games(
             &time_manager,
             tm_options,
             random_plies,
+            random_move_chance,
             variant,
             draw_adj,
         ));
@@ -119,6 +134,7 @@ fn gen_games(
 pub struct DataGenOptions {
     pub threads: usize,
     pub random_plies: usize,
+    pub random_move_chance: f32,
     pub pos_count: usize,
     pub variant: u8,
     pub out: PathBuf,
@@ -140,6 +156,7 @@ pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions)
                     Duration::from_secs(options.interval),
                     &tm_options,
                     options.random_plies,
+                    options.random_move_chance,
                     options.variant,
                     options.draw_adj,
                 ))
