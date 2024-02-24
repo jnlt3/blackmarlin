@@ -332,7 +332,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score() - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
+                let multi_cut = depth >= 9;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
