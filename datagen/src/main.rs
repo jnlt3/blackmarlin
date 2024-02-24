@@ -18,6 +18,9 @@ struct Args {
     #[arg(short, long, default_value_t = 0)]
     variant: u8,
 
+    #[arg(long)]
+    random_move_chance: Option<f32>,
+
     /// Max amount of nodes to search (quits the depth after reaching limit)
     #[arg(short, long)]
     nodes: Option<u64>,
@@ -53,6 +56,7 @@ fn main() {
     let options = DataGenOptions {
         threads: args.threads,
         random_plies: args.random_plies.unwrap_or(0),
+        random_move_chance: args.random_move_chance.unwrap_or(0.0),
         pos_count: args.pos_count.unwrap_or(usize::MAX),
         variant: args.variant,
         out: args.out,
