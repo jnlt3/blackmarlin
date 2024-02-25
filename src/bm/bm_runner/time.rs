@@ -85,7 +85,7 @@ impl TimeManager {
         let eval = eval.raw();
         let prev_eval = self.prev_eval.load(Ordering::Relaxed);
         self.prev_eval.store(eval, Ordering::Relaxed);
-        if thread != 0 || depth <= 4 {
+        if thread != 0 || depth <= 4 || self.no_manage.load(Ordering::Relaxed) {
             return;
         }
 
@@ -173,8 +173,9 @@ impl TimeManager {
         self.no_manage.store(no_manage, Ordering::SeqCst);
 
         if let Some(move_time) = move_time {
-            self.target_duration
-                .store(move_time.as_millis() as u32, Ordering::SeqCst);
+            let move_time = move_time.as_millis() as u32;
+            self.target_duration.store(move_time, Ordering::SeqCst);
+            self.max_duration.store(move_time, Ordering::SeqCst);
         } else if move_cnt == 0 {
             self.target_duration.store(0, Ordering::SeqCst);
         } else {
