@@ -329,7 +329,7 @@ pub fn search<Search: SearchType>(
                 && entry.depth() + 2 >= depth
                 && matches!(entry.entry_type(), EntryType::LowerBound | EntryType::Exact)
             {
-                let s_beta = entry.score() - depth as i16;
+                let s_beta = entry.score() - depth as i16 * 3 / 4;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 6;
@@ -339,7 +339,7 @@ pub fn search<Search: SearchType>(
                         thread,
                         shared_context,
                         ply,
-                        depth / 2 - 1,
+                        depth * 2 / 3 - 2,
                         s_beta - 1,
                         s_beta,
                     ),
