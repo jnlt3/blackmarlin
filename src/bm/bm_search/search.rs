@@ -433,8 +433,10 @@ pub fn search<Search: SearchType>(
         }
 
         thread.ss[ply as usize].move_played = Some(MoveData::from_move(pos.board(), make_move));
-        pos.make_move(make_move);
-        shared_context.get_t_table().prefetch(pos.board());
+        pos.make_move_fetch(make_move, |board| {
+            shared_context.get_t_table().prefetch(&board)
+        });
+
         let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
             extension = extension.max(1);
