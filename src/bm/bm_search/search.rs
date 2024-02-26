@@ -230,7 +230,7 @@ pub fn search<Search: SearchType>(
             eval.raw(),
             beta.raw(),
             !nstm_threats.is_empty(),
-        ) && pos.null_move()
+        ) && pos.null_move(|board| shared_context.get_t_table().prefetch(board))
         {
             thread.ss[ply as usize].move_played = None;
 

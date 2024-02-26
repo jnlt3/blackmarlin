@@ -87,10 +87,11 @@ impl Position {
     /// Returns false if null move can't be done
     ///
     /// Returns true if null move was played
-    pub fn null_move(&mut self) -> bool {
+    pub fn null_move<F: Fn(&Board)>(&mut self, post_make: F) -> bool {
         let Some(new_board) = self.board().null_move() else {
             return false;
         };
+        post_make(&new_board);
         self.evaluator.null_move();
         self.boards.push(self.current.clone());
         self.threats.push((self.w_threats, self.b_threats));
