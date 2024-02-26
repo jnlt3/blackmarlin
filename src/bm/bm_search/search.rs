@@ -689,7 +689,9 @@ pub fn q_search(
         if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
-        pos.make_move(make_move);
+        pos.make_move_fetch(make_move, |board| {
+            shared_context.get_t_table().prefetch(board)
+        });
         let search_score = q_search(
             pos,
             thread,
