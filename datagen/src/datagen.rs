@@ -68,7 +68,7 @@ fn play_single(
                 // Random moves and no eval are simply not useful data
                 if rand::thread_rng().gen::<f32>() < random_move_chance {
                     let mut mv_list = vec![];
-                    let moves = engine.get_board().generate_moves(|p| {
+                    engine.get_board().generate_moves(|p| {
                         for mv in p {
                             mv_list.push(mv);
                         }
