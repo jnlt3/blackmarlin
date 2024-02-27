@@ -157,7 +157,7 @@ impl SharedContext {
     }
 }
 
-impl ThreadContext { 
+impl ThreadContext {
     pub fn increment_nodes(&self) {
         self.nodes.0.fetch_add(1, Ordering::Relaxed);
     }
@@ -182,22 +182,14 @@ impl ThreadContext {
     }
 }
 
-fn remove_aggression(eval: Evaluation, piece_count: u32) -> Evaluation {
-    let piece_count = piece_count as i16;
+fn remove_aggression(eval: Evaluation, scale: i32) -> Evaluation {
+    const MAX: i32 = 200;
     match eval.is_mate() {
         true => eval,
         false => {
-            let eval = eval.raw();
-            let eval = match eval {
-                _ if eval <= -164 => piece_count * 2 + eval,
-                _ if eval <= -100 && piece_count <= (-eval - 100) / 2 => piece_count * 2 + eval,
-                _ if eval <= -100 => ((50 * eval as i32) / (piece_count as i32 + 50)) as i16,
-                _ if eval >= 164 => eval - 2 * piece_count,
-                _ if eval >= 100 && (eval - 100) / 2 >= piece_count => eval - 2 * piece_count,
-                _ if eval >= 100 => ((50 * eval as i32) / (piece_count as i32 + 50)) as i16,
-                _ => ((50 * eval as i32) / (piece_count as i32 + 50)) as i16,
-            };
-            Evaluation::new(eval)
+            let eval = eval.raw() as i32;
+            let eval = eval - scale * eval.clamp(-MAX - scale, MAX + scale) / (100 + scale);
+            Evaluation::new(eval as i16)
         }
     }
 }
@@ -350,7 +342,9 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let eval = remove_aggression(eval.unwrap(), position.board().occupied().len());
+                    let scale = position.board().occupied().len()
+                        - position.board().pieces(Piece::Pawn).len();
+                    let eval = remove_aggression(eval.unwrap(), scale as i32 * 2);
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
                         false => None,
