@@ -5,7 +5,6 @@ use std::time::Instant;
 use cozy_chess::{Board, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::config::{GuiInfo, NoInfo, SearchMode, SearchStats};
-use crate::bm::bm_search::move_entry::MoveEntry;
 use crate::bm::bm_search::search;
 use crate::bm::bm_search::search::Pv;
 use crate::bm::bm_util::eval::Evaluation;
@@ -122,7 +121,7 @@ pub struct ThreadContext {
     /// Maximum depth reached
     pub sel_depth: u32,
     pub history: History,
-    pub killer_moves: Vec<MoveEntry>,
+    pub killers: Vec<Option<Move>>,
     nodes: Nodes,
     pub abort: bool,
     /// Used for node based time management
@@ -416,7 +415,7 @@ impl AbRunner {
                 ],
                 sel_depth: 0,
                 history: History::new(),
-                killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
+                killers: vec![None; MAX_PLY as usize + 1],
                 nodes: Nodes(Arc::new(AtomicU64::new(0))),
                 abort: false,
                 stm: Color::White,
