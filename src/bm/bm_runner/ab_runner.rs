@@ -203,7 +203,7 @@ fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
         };
     }
     let raw = eval.raw().clamp(-2000, 2000) as f32 * 0.01;
-    let mut wdl = [raw * 1.42, raw * -1.42, 2.92];
+    let mut wdl = [raw * 0.964, raw * -0.964, 2.68];
     wdl.iter_mut().for_each(|x| *x = x.exp());
     let sum: f32 = wdl.iter().sum();
     wdl.iter_mut().for_each(|x| *x *= 1000.0 / sum);

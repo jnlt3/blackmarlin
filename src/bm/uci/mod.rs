@@ -14,7 +14,7 @@ mod command;
 
 use command::UciCommand;
 
-const VERSION: &str = "8.0";
+const VERSION: &str = "9.0";
 
 enum ThreadReq {
     Go(GoReq),
