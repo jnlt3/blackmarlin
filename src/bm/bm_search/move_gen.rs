@@ -18,6 +18,8 @@ pub enum Phase {
     GoodCaptures,
     /// Generated move is a killer move
     Killers,
+    /// Generated move is a refutation move
+    Refutation,
     GenQuiets,
     /// Generated move is a non capture
     Quiets,
@@ -41,6 +43,7 @@ pub struct OrderedMoveGen {
     pv_move: Option<Move>,
 
     killer: Option<Move>,
+    refutation: Option<Move>,
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
@@ -71,6 +74,7 @@ impl OrderedMoveGen {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killer,
+            refutation: None,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -107,6 +111,7 @@ impl OrderedMoveGen {
         hist: &History,
         hist_indices: &HistoryIndices,
     ) -> Option<Move> {
+        let stm = pos.board().side_to_move();
         if self.phase == Phase::PvMove {
             self.phase = Phase::GenPieceMoves;
             if self.pv_move.is_some() {
@@ -122,7 +127,6 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::GenCaptures {
             self.phase = Phase::GoodCaptures;
-            let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
@@ -146,7 +150,24 @@ impl OrderedMoveGen {
                 }
                 return Some(capture.mv);
             }
+            self.phase = Phase::Refutation;
+        }
+        if self.phase == Phase::Refutation {
             self.phase = Phase::Killers;
+            if let Some(refutation) = hist.get_refutation_move(pos, hist_indices) {
+                let mut skip = false;
+                skip |= Some(refutation) == self.pv_move;
+                skip |= pos.board().color_on(refutation.to) == Some(!stm);
+                if !skip {
+                    if self.killer == Some(refutation) {
+                        self.killer = None;
+                    }
+                    if pos.board().is_legal(refutation) {
+                        self.refutation = Some(refutation);
+                        return Some(refutation);
+                    }
+                }
+            }
         }
         if self.phase == Phase::Killers {
             self.phase = Phase::GenQuiets;
@@ -158,7 +179,6 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::GenQuiets {
             self.phase = Phase::Quiets;
-            let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {

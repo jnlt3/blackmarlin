@@ -49,6 +49,7 @@ pub struct History {
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    refutations: Box<[PieceTo<Option<Move>>; Color::NUM]>,
 }
 
 impl History {
@@ -58,6 +59,7 @@ impl History {
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            refutations: Box::new([new_piece_to_table(None); Color::NUM]),
         }
     }
 
@@ -153,6 +155,23 @@ impl History {
         )
     }
 
+    /// Returns refutation move for a given move
+    pub fn get_refutation_move(&self, pos: &Position, indices: &HistoryIndices) -> Option<Move> {
+        let (prev_piece, prev_to) = indices.counter_move?;
+        let stm = pos.board().side_to_move();
+        self.refutations[stm as usize][prev_piece as usize][prev_to as usize]
+    }
+
+    fn get_refutation_move_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+    ) -> Option<&mut Option<Move>> {
+        let (prev_piece, prev_to) = indices.counter_move?;
+        let stm = pos.board().side_to_move();
+        Some(&mut self.refutations[stm as usize][prev_piece as usize][prev_to as usize])
+    }
+
     /// If the cut-off move is a capture, the cut-off move is given a bonus in
     /// capture history and the other captures are given maluses in capture history
     ///
@@ -190,6 +209,9 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
+        if let Some(refutation) = self.get_refutation_move_mut(pos, indices) {
+            *refutation = Some(make_move);
+        }
         bonus(self.get_quiet_mut(pos, make_move), amt);
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
