@@ -193,6 +193,9 @@ pub fn search<Search: SearchType>(
         2.. if ply >= 2 && !thread.ss[ply as usize - 2].in_check => {
             eval > thread.ss[ply as usize - 2].eval
         }
+        4.. if ply >= 4 && !thread.ss[ply as usize - 4].in_check => {
+            eval > thread.ss[ply as usize - 4].eval
+        }
         _ => false,
     };
 
