@@ -267,17 +267,17 @@ impl TranspositionTable {
     }
 
     fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
-        fn extra_depth(analysis: &Analysis) -> u32 {
+        fn score(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
-            // Bonus for entries made in PV nodes
-            matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
-                + analysis.is_pv as u32 * 4
+            let mut base = analysis.depth
+                + matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32;
+            if analysis.is_pv {
+                base *= 2;
+            }
+            base
         }
 
-        let new_depth = new.depth + extra_depth(new);
-        let prev_depth = prev.depth + extra_depth(prev);
-
-        new_depth.saturating_add(self.age_of(prev) as u32 / 2) >= prev_depth / 2
+        score(new).saturating_add(self.age_of(prev) as u32 / 2) >= score(prev) / 2
     }
 
     pub fn clean(&self) {
