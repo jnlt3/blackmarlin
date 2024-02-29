@@ -214,7 +214,10 @@ impl Nnue {
             Color::White => acc.w_input_layer.reset(*self.bias),
             Color::Black => acc.b_input_layer.reset(*self.bias),
         }
-        acc.perform_update(
+    }
+
+    fn update_and_clear(&mut self) {
+        self.accumulator[self.head].perform_update(
             &mut self.w_add,
             &mut self.w_rm,
             &mut self.b_add,
@@ -227,6 +230,7 @@ impl Nnue {
         self.head = 0;
         self.reset(Color::White, board, w_threats, b_threats);
         self.reset(Color::Black, board, w_threats, b_threats);
+        self.update_and_clear();
     }
 
     fn push_accumulator(&mut self) {
@@ -235,6 +239,7 @@ impl Nnue {
         self.accumulator[self.head + 1].w_input_layer.reset(w_out);
         self.accumulator[self.head + 1].b_input_layer.reset(b_out);
         self.head += 1;
+        self.clear();
     }
 
     pub fn null_move(&mut self) {
@@ -376,20 +381,15 @@ impl Nnue {
                 ));
             }
         }
-        self.accumulator[self.head].perform_update(
-            &mut self.w_add,
-            &mut self.w_rm,
-            &mut self.b_add,
-            &mut self.b_rm,
-        );
-        self.clear();
     }
 
     pub fn unmake_move(&mut self) {
+        self.clear();
         self.head -= 1;
     }
 
     pub fn feed_forward(&mut self, stm: Color, piece_cnt: usize) -> i16 {
+        self.update_and_clear();
         let acc = &mut self.accumulator[self.head];
         let mut incr = Align([0; MID * 2]);
         let (stm, nstm) = match stm {
