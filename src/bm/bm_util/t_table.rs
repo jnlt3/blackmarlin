@@ -269,8 +269,9 @@ impl TranspositionTable {
     fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
         fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
+            // Bonus for entries made in PV nodes
             matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
-                + analysis.is_pv as u32
+                + analysis.is_pv as u32 * 4
         }
 
         let new_depth = new.depth + extra_depth(new);
