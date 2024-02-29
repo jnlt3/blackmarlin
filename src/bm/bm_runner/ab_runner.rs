@@ -92,10 +92,24 @@ impl MoveData {
 #[derive(Debug, Clone)]
 pub struct SearchStack {
     pub eval: Evaluation,
+    pub in_check: bool,
     pub skip_move: Option<Move>,
     pub move_played: Option<MoveData>,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
+}
+
+impl Default for SearchStack {
+    fn default() -> Self {
+        Self {
+            eval: Evaluation::new(0),
+            pv: [None; MAX_PLY as usize + 1],
+            in_check: Default::default(),
+            skip_move: Default::default(),
+            move_played: Default::default(),
+            pv_len: Default::default(),
+        }
+    }
 }
 
 impl SearchStack {
@@ -404,16 +418,7 @@ impl AbRunner {
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
-                ss: vec![
-                    SearchStack {
-                        eval: Evaluation::new(0),
-                        skip_move: None,
-                        move_played: None,
-                        pv: [None; MAX_PLY as usize + 1],
-                        pv_len: 0,
-                    };
-                    MAX_PLY as usize + 1
-                ],
+                ss: vec![SearchStack::default(); MAX_PLY as usize + 1],
                 sel_depth: 0,
                 history: History::new(),
                 killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],

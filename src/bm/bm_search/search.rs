@@ -179,6 +179,7 @@ pub fn search<Search: SearchType>(
     }
 
     let in_check = !pos.board().checkers().is_empty();
+    thread.ss[ply as usize].in_check = in_check;
 
     let eval = match skip_move {
         Some(_) => thread.ss[ply as usize].eval,
@@ -187,13 +188,12 @@ pub fn search<Search: SearchType>(
 
     thread.ss[ply as usize].eval = eval;
 
-    let prev_move_eval = match ply {
-        2.. => Some(thread.ss[ply as usize - 2].eval),
-        _ => None,
-    };
-    let improving = match prev_move_eval {
-        Some(prev_move_eval) => !in_check && eval > prev_move_eval,
-        None => false,
+    let improving = match ply {
+        _ if in_check => false,
+        2.. if ply >= 2 && !thread.ss[ply as usize - 2].in_check => {
+            eval > thread.ss[ply as usize - 2].eval
+        }
+        _ => false,
     };
 
     let (_, nstm_threats) = pos.threats();
