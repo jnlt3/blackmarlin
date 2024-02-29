@@ -400,8 +400,7 @@ pub fn search<Search: SearchType>(
                     .get_lmp_lookup()
                     .get(depth as usize, improving as usize)
         {
-            move_gen.skip_quiets();
-            continue;
+            break;
         }
 
         /*
