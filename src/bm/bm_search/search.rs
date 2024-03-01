@@ -279,6 +279,7 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = thread.killer_moves[ply as usize];
+
     let mut move_gen = OrderedMoveGen::new(
         pos.board(),
         best_move,
@@ -594,18 +595,6 @@ pub fn search<Search: SearchType>(
             false => Evaluation::new_checkmate(-1),
         };
     }
-    /*
-    static mut TOTAL: usize = 0;
-    static mut CAPTURES: usize = 0;
-    unsafe {
-        TOTAL += 1;
-        if !has_good_capture && has_capture {
-            CAPTURES += 1;
-        }
-        if CAPTURES % 100 == 0 {
-            println!("{}", CAPTURES as f64 / TOTAL as f64);
-        }
-    } */
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
@@ -615,10 +604,12 @@ pub fn search<Search: SearchType>(
                 _ if highest_score >= beta => Bounds::LowerBound,
                 _ => Bounds::Exact,
             };
+            let mut no_pos_see = has_capture && !has_good_capture;
+            no_pos_see |= tt_entry.map_or(false, |entry| entry.no_pos_see);
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
-                has_capture && !has_good_capture,
+                no_pos_see,
                 entry_type,
                 highest_score,
                 *final_move,
@@ -687,6 +678,7 @@ pub fn q_search(
             return stand_pat;
         }
     }
+
     if tt_entry.map_or(false, |entry| entry.no_pos_see) {
         return highest_score.unwrap_or(alpha);
     }
