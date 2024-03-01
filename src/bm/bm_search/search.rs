@@ -687,7 +687,11 @@ pub fn q_search(
             return stand_pat;
         }
     }
+    if tt_entry.map_or(false, |entry| entry.no_pos_see) {
+        return highest_score.unwrap_or(alpha);
+    }
 
+    let mut no_pos_see = true;
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
@@ -696,6 +700,7 @@ pub fn q_search(
         if !compare_see(pos.board(), make_move, 0) {
             continue;
         }
+        no_pos_see = false;
         /*
         Fail high if SEE puts us above beta
         */
@@ -747,7 +752,7 @@ pub fn q_search(
         shared_context.get_t_table().set(
             pos.board(),
             0,
-            false,
+            no_pos_see,
             entry_type,
             highest_score,
             best_move,
