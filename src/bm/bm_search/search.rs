@@ -597,7 +597,7 @@ pub fn search<Search: SearchType>(
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
-                Search::PV,
+                eval <= alpha,
                 entry_type,
                 highest_score,
                 *final_move,
