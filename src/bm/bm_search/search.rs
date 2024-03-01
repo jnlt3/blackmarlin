@@ -683,6 +683,13 @@ pub fn q_search(
         if stand_pat + 1000 >= beta
             && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
         {
+            shared_context.get_t_table().set(
+                pos.board(),
+                0,
+                EntryType::LowerBound,
+                beta,
+                make_move,
+            );
             return beta;
         }
         // Also prune neutral captures when static eval is low
