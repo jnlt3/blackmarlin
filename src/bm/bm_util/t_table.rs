@@ -271,7 +271,7 @@ impl TranspositionTable {
             // +1 depth for Exact scores and lower bounds
             // Bonus for entries made in PV nodes
             matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
-                + analysis.is_pv as u32 * 4
+                + analysis.is_pv as u32
         }
 
         let new_depth = new.depth + extra_depth(new);

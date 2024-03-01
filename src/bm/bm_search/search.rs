@@ -588,7 +588,7 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
-        if let Some(final_move) = &best_move {
+        if let Some(final_move) = best_move {
             let entry_type = match () {
                 _ if highest_score <= initial_alpha => Bounds::UpperBound,
                 _ if highest_score >= beta => Bounds::LowerBound,
@@ -597,10 +597,10 @@ pub fn search<Search: SearchType>(
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
-                Search::PV,
+                pos.is_quiet(final_move),
                 entry_type,
                 highest_score,
-                *final_move,
+                final_move,
             );
         }
     }
