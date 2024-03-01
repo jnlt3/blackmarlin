@@ -50,7 +50,7 @@ fn compressed_moves() {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
     Missing,
-    Entry { bounds: Bounds, is_pv: bool },
+    Entry { bounds: Bounds, nmp_fail: bool },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -64,13 +64,13 @@ impl EntryType {
     fn to_u16(self) -> u16 {
         match self {
             EntryType::Missing => 0,
-            EntryType::Entry { bounds, is_pv } => {
+            EntryType::Entry { bounds, nmp_fail } => {
                 let bound = match bounds {
                     Bounds::LowerBound => 0,
                     Bounds::Exact => 1,
                     Bounds::UpperBound => 2,
                 };
-                1 + (bound + 3 * is_pv as u16)
+                1 + (bound + 3 * nmp_fail as u16)
             }
         }
     }
@@ -87,7 +87,7 @@ impl EntryType {
                 };
                 EntryType::Entry {
                     bounds,
-                    is_pv: val > 2,
+                    nmp_fail: val > 2,
                 }
             }
             _ => EntryType::Missing,
@@ -100,7 +100,7 @@ type Layout = (u8, u16, i16, u16, u8);
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Analysis {
     pub depth: u32,
-    pub is_pv: bool,
+    pub nmp_fail: bool,
     pub bounds: Bounds,
     pub score: Evaluation,
     pub table_move: Move,
@@ -115,9 +115,9 @@ impl Analysis {
 
         match entry {
             EntryType::Missing => None,
-            EntryType::Entry { bounds, is_pv } => Some(Self {
+            EntryType::Entry { bounds, nmp_fail } => Some(Self {
                 depth: depth as u32,
-                is_pv,
+                nmp_fail,
                 bounds,
                 score: Evaluation::new(score),
                 table_move: TTMove(table_move).to_move(),
@@ -130,7 +130,7 @@ impl Analysis {
         unsafe {
             let entry = EntryType::Entry {
                 bounds: self.bounds,
-                is_pv: self.is_pv,
+                nmp_fail: self.nmp_fail,
             };
             std::mem::transmute::<Layout, u64>((
                 self.depth as u8,
@@ -144,7 +144,7 @@ impl Analysis {
 
     fn new(
         depth: u32,
-        is_pv: bool,
+        nmp_fail: bool,
         bounds: Bounds,
         score: Evaluation,
         table_move: Move,
@@ -152,7 +152,7 @@ impl Analysis {
     ) -> Self {
         Self {
             depth,
-            is_pv,
+            nmp_fail,
             bounds,
             score,
             table_move,
@@ -238,14 +238,14 @@ impl TranspositionTable {
         &self,
         board: &Board,
         depth: u32,
-        is_pv: bool,
+        nmp_fail: bool,
         entry_type: Bounds,
         score: Evaluation,
         table_move: Move,
     ) {
         let new = Analysis::new(
             depth,
-            is_pv,
+            nmp_fail,
             entry_type,
             score,
             table_move,
@@ -270,7 +270,6 @@ impl TranspositionTable {
         fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
             matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
-                + analysis.is_pv as u32
         }
 
         let new_depth = new.depth + extra_depth(new);

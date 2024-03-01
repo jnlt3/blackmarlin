@@ -194,6 +194,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let mut nmp_fail = false;
     let (_, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -222,13 +223,16 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        if do_nmp::<Search>(
-            pos.board(),
-            depth,
-            eval.raw(),
-            beta.raw(),
-            !nstm_threats.is_empty(),
-        ) && pos.null_move()
+        let tt_do_nmp = tt_entry.map_or(true, |entry| !entry.nmp_fail);
+        if tt_do_nmp
+            && do_nmp::<Search>(
+                pos.board(),
+                depth,
+                eval.raw(),
+                beta.raw(),
+                !nstm_threats.is_empty(),
+            )
+            && pos.null_move()
         {
             thread.ss[ply as usize].move_played = None;
 
@@ -256,6 +260,7 @@ pub fn search<Search: SearchType>(
                     return score;
                 }
             }
+            nmp_fail = true;
         }
     }
 
@@ -597,7 +602,7 @@ pub fn search<Search: SearchType>(
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
-                Search::PV,
+                nmp_fail,
                 entry_type,
                 highest_score,
                 *final_move,
