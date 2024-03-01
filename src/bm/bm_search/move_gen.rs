@@ -120,6 +120,9 @@ impl OrderedMoveGen {
         }
         if self.phase == Phase::GenPieceMoves {
             self.phase = Phase::GenCaptures;
+            if self.no_pos_see {
+                self.phase = Phase::Killers;
+            }
             pos.board().generate_moves(|piece_moves| {
                 self.piece_moves.push(piece_moves);
                 false
@@ -128,17 +131,19 @@ impl OrderedMoveGen {
         if self.phase == Phase::GenCaptures {
             self.phase = Phase::GoodCaptures;
             let stm = pos.board().side_to_move();
+            let mut captures = &mut self.captures;
+            if self.no_pos_see {
+                captures = &mut self.bad_captures;
+                self.phase = Phase::BadCaptures;
+            };
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
                         continue;
                     }
-                    if let Some(index) = self.killers.index_of(mv) {
-                        self.killers.remove(index);
-                    }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(ScoredMove::new(mv, score))
+                    captures.push(ScoredMove::new(mv, score))
                 }
             }
         }
@@ -159,6 +164,9 @@ impl OrderedMoveGen {
                 self.killer_index += 1;
                 if let Some(killer) = killer {
                     if Some(killer) == self.pv_move {
+                        continue;
+                    }
+                    if pos.is_capture(killer) {
                         continue;
                     }
                     if !pos.board().is_legal(killer) {
@@ -205,6 +213,10 @@ impl OrderedMoveGen {
                 return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
             }
             self.phase = Phase::BadCaptures;
+            if self.no_pos_see {
+                self.phase = Phase::GenCaptures;
+                return self.next(pos, hist, hist_indices);
+            }
         }
         if self.phase == Phase::BadCaptures {
             if let Some(index) = select_highest(&self.bad_captures) {
