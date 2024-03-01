@@ -49,6 +49,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<ScoredMove, MAX_MOVES>,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
     bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    no_pos_see: bool,
 }
 
 fn select_highest(array: &[ScoredMove]) -> Option<usize> {
@@ -68,7 +69,7 @@ fn select_highest(array: &[ScoredMove]) -> Option<usize> {
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry, no_pos_see: bool) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
@@ -78,6 +79,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            no_pos_see,
         }
     }
 
@@ -143,7 +145,7 @@ impl OrderedMoveGen {
         if self.phase == Phase::GoodCaptures {
             while let Some(index) = select_highest(&self.captures) {
                 let capture = self.captures.swap_remove(index);
-                if !compare_see(pos.board(), capture.mv, 0) {
+                if self.no_pos_see || !compare_see(pos.board(), capture.mv, 0) {
                     self.bad_captures.push(capture);
                     continue;
                 }

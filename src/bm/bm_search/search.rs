@@ -279,7 +279,12 @@ pub fn search<Search: SearchType>(
     };
 
     let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(
+        pos.board(),
+        best_move,
+        killers,
+        tt_entry.map_or(false, |entry| entry.no_pos_see),
+    );
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -288,14 +293,18 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move, prev_move);
+    let mut has_good_capture = false;
+    let mut has_capture = false;
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
             continue;
         }
-
         move_exists = true;
         let is_capture = pos.is_capture(make_move);
+        has_capture |= is_capture;
+        has_good_capture |= moves_seen == 0 && is_capture;
+        has_good_capture |= move_gen.phase() == Phase::GoodCaptures;
 
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
@@ -585,6 +594,18 @@ pub fn search<Search: SearchType>(
             false => Evaluation::new_checkmate(-1),
         };
     }
+    /*
+    static mut TOTAL: usize = 0;
+    static mut CAPTURES: usize = 0;
+    unsafe {
+        TOTAL += 1;
+        if !has_good_capture && has_capture {
+            CAPTURES += 1;
+        }
+        if CAPTURES % 100 == 0 {
+            println!("{}", CAPTURES as f64 / TOTAL as f64);
+        }
+    } */
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
@@ -597,7 +618,7 @@ pub fn search<Search: SearchType>(
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
-                Search::PV,
+                has_capture && !has_good_capture,
                 entry_type,
                 highest_score,
                 *final_move,
