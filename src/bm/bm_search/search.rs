@@ -223,7 +223,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let tt_do_nmp = tt_entry.map_or(true, |entry| !entry.nmp_fail);
+        let tt_do_nmp = tt_entry.map_or(true, |entry| !entry.nmp_fail || entry.depth < depth);
         if tt_do_nmp
             && do_nmp::<Search>(
                 pos.board(),
