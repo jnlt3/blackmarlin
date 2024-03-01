@@ -151,8 +151,10 @@ pub fn search<Search: SearchType>(
     We also use the best move from the transposition table
     to help with move ordering
     */
+    let mut no_pos_see = false;
     if let Some(entry) = tt_entry {
         thread.tt_hits += 1;
+        no_pos_see = entry.no_pos_see;
         best_move = Some(entry.table_move);
         if !Search::PV && entry.depth >= depth {
             let score = entry.score;
@@ -206,7 +208,7 @@ pub fn search<Search: SearchType>(
         }
 
         let razor_margin = razor_margin(depth);
-        if do_razor(depth) && eval + razor_margin <= alpha {
+        if do_razor(depth) && eval + razor_margin <= alpha && no_pos_see {
             let zw = alpha - razor_qsearch();
             let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
@@ -280,12 +282,7 @@ pub fn search<Search: SearchType>(
 
     let killers = thread.killer_moves[ply as usize];
 
-    let mut move_gen = OrderedMoveGen::new(
-        pos.board(),
-        best_move,
-        killers,
-        tt_entry.map_or(false, |entry| entry.no_pos_see),
-    );
+    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers, no_pos_see);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
