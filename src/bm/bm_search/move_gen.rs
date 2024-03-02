@@ -215,7 +215,7 @@ impl OrderedMoveGen {
 
 #[derive(PartialEq, Eq)]
 enum QPhase {
-    TtEvasion,
+    TtCapture,
     GenCaptures,
     GoodCaptures,
 }
@@ -229,7 +229,7 @@ pub struct QSearchMoveGen {
 impl QSearchMoveGen {
     pub fn new(tt_move: Option<Move>) -> Self {
         Self {
-            phase: QPhase::TtEvasion,
+            phase: QPhase::TtCapture,
             captures: ArrayVec::new(),
             tt_move,
         }
@@ -239,11 +239,10 @@ impl QSearchMoveGen {
     /// by captured pieces value and then capture history
     /// - En-passant is ignored
     pub fn next(&mut self, pos: &Position, hist: &History) -> Option<Move> {
-        if self.phase == QPhase::TtEvasion {
+        if self.phase == QPhase::TtCapture {
             self.phase = QPhase::GenCaptures;
             if let Some(tt_move) = self.tt_move {
-                let in_check = !pos.board().checkers().is_empty();
-                if pos.board().is_legal(tt_move) && (in_check || pos.is_capture(tt_move)) {
+                if pos.board().is_legal(tt_move) && pos.is_capture(tt_move) {
                     return Some(tt_move);
                 }
             }
