@@ -224,7 +224,7 @@ pub fn search<Search: SearchType>(
         move ordering for the next ply
         */
         let tt_do_nmp = tt_entry.map_or(true, |entry| {
-            !(entry.nmp_fail && entry.depth >= depth && entry.bounds != Bounds::UpperBound)
+            !(entry.nmp_fail && entry.depth + 2 >= depth && entry.bounds != Bounds::UpperBound)
         });
         if tt_do_nmp
             && do_nmp::<Search>(
