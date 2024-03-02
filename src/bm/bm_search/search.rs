@@ -597,7 +597,6 @@ pub fn search<Search: SearchType>(
             shared_context.get_t_table().set(
                 pos.board(),
                 depth,
-                Search::PV,
                 entry_type,
                 highest_score,
                 *final_move,
@@ -723,14 +722,9 @@ pub fn q_search(
             _ => Bounds::Exact,
         };
 
-        shared_context.get_t_table().set(
-            pos.board(),
-            0,
-            false,
-            entry_type,
-            highest_score,
-            best_move,
-        );
+        shared_context
+            .get_t_table()
+            .set(pos.board(), 0, entry_type, highest_score, best_move);
     }
     highest_score.unwrap_or(alpha)
 }
