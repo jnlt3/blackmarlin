@@ -469,7 +469,7 @@ pub fn search<Search: SearchType>(
             if killers.contains(make_move) {
                 reduction -= 1;
             }
-            reduction = reduction.min(depth as i16 - 2).max(0);
+            reduction = reduction.min(depth as i16 - 2 - extension as i16).max(0);
         }
 
         if moves_seen == 0 {
