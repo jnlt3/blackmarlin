@@ -50,6 +50,11 @@ fn compressed_moves() {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
     Missing,
+    Entry { bounds: Bounds },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Bounds {
     LowerBound,
     Exact,
     UpperBound,
@@ -59,23 +64,28 @@ impl EntryType {
     fn to_u16(self) -> u16 {
         match self {
             EntryType::Missing => 0,
-            EntryType::LowerBound => 1,
-            EntryType::Exact => 2,
-            EntryType::UpperBound => 3,
+            EntryType::Entry { bounds } => match bounds {
+                Bounds::LowerBound => 1,
+                Bounds::Exact => 2,
+                Bounds::UpperBound => 3,
+            },
         }
     }
 
     fn from_u16(val: u16) -> EntryType {
         match val {
-            1 => EntryType::LowerBound,
-            2 => EntryType::Exact,
-            3 => EntryType::UpperBound,
+            1..=6 => {
+                let val = val - 1;
+                let bounds = match val % 3 {
+                    0 => Bounds::LowerBound,
+                    1 => Bounds::Exact,
+                    2 => Bounds::UpperBound,
+                    _ => unreachable!(),
+                };
+                EntryType::Entry { bounds }
+            }
             _ => EntryType::Missing,
         }
-    }
-
-    fn missing(self) -> bool {
-        matches!(self, EntryType::Missing)
     }
 }
 
@@ -83,68 +93,54 @@ type Layout = (u8, u16, i16, u16, u8);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Analysis {
-    depth: u8,
-    entry_type: EntryType,
-    score: Evaluation,
-    table_move: TTMove,
-    age: u8,
+    pub depth: u32,
+    pub bounds: Bounds,
+    pub score: Evaluation,
+    pub table_move: Move,
+    pub age: u8,
 }
 
 impl Analysis {
-    fn from_raw(bits: u64) -> Self {
+    fn from_raw(bits: u64) -> Option<Self> {
         let (depth, entry_type, score, table_move, age) =
             unsafe { std::mem::transmute::<_, Layout>(bits) };
-        Self {
-            depth,
-            entry_type: EntryType::from_u16(entry_type),
-            score: Evaluation::new(score),
-            table_move: TTMove(table_move),
-            age,
+        let entry = EntryType::from_u16(entry_type);
+
+        match entry {
+            EntryType::Missing => None,
+            EntryType::Entry { bounds } => Some(Self {
+                depth: depth as u32,
+                bounds,
+                score: Evaluation::new(score),
+                table_move: TTMove(table_move).to_move(),
+                age,
+            }),
         }
     }
 
     fn to_raw(self) -> u64 {
         unsafe {
+            let entry = EntryType::Entry {
+                bounds: self.bounds,
+            };
             std::mem::transmute::<Layout, u64>((
-                self.depth,
-                self.entry_type.to_u16(),
+                self.depth as u8,
+                entry.to_u16(),
                 self.score.raw(),
-                self.table_move.0,
+                TTMove::new(self.table_move).0,
                 self.age,
             ))
         }
     }
 
-    fn new(
-        depth: u32,
-        entry_type: EntryType,
-        score: Evaluation,
-        table_move: Move,
-        age: u8,
-    ) -> Self {
+    fn new(depth: u32, bounds: Bounds, score: Evaluation, table_move: Move, age: u8) -> Self {
         Self {
-            depth: depth as u8,
-            entry_type,
+            depth,
+            bounds,
             score,
-            table_move: TTMove::new(table_move),
+            table_move,
             age,
         }
-    }
-
-    pub fn depth(&self) -> u32 {
-        self.depth as u32
-    }
-
-    pub fn entry_type(&self) -> EntryType {
-        self.entry_type
-    }
-
-    pub fn score(&self) -> Evaluation {
-        self.score
-    }
-
-    pub fn table_move(&self) -> Move {
-        self.table_move.to_move()
     }
 }
 
@@ -216,8 +212,7 @@ impl TranspositionTable {
         let hash_u64 = entry.hash.load(Ordering::Relaxed);
         let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
-            let analysis = Analysis::from_raw(entry_u64);
-            return (!(analysis.entry_type.missing())).then_some(analysis);
+            return Analysis::from_raw(entry_u64);
         }
         None
     }
@@ -226,7 +221,7 @@ impl TranspositionTable {
         &self,
         board: &Board,
         depth: u32,
-        entry_type: EntryType,
+        entry_type: Bounds,
         score: Evaluation,
         table_move: Move,
     ) {
@@ -240,8 +235,8 @@ impl TranspositionTable {
         let hash = board.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
-        let previous: Analysis = Analysis::from_raw(fetched_entry.analysis.load(Ordering::Relaxed));
-        if previous.entry_type.missing() || self.replace(&new, &previous) {
+        let previous = Analysis::from_raw(fetched_entry.analysis.load(Ordering::Relaxed));
+        if previous.map_or(true, |previous| self.replace(&new, &previous)) {
             let analysis_u64 = new.to_raw();
             fetched_entry.set_new(hash ^ analysis_u64, analysis_u64);
         }
@@ -253,18 +248,15 @@ impl TranspositionTable {
     }
 
     fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
-        fn extra_depth(analysis: &Analysis) -> u8 {
+        fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
-            matches!(
-                analysis.entry_type(),
-                EntryType::Exact | EntryType::LowerBound
-            ) as u8
+            matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
         }
 
-        let new_depth = new.depth + extra_depth(new) as u8;
-        let prev_depth = prev.depth + extra_depth(prev) as u8;
+        let new_depth = new.depth + extra_depth(new);
+        let prev_depth = prev.depth + extra_depth(prev);
 
-        new_depth.saturating_add(self.age_of(prev) / 2) >= prev_depth / 2
+        new_depth.saturating_add(self.age_of(prev) as u32 / 2) >= prev_depth / 2
     }
 
     pub fn clean(&self) {
