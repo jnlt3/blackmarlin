@@ -74,9 +74,9 @@ impl EntryType {
 
     fn from_u16(val: u16) -> EntryType {
         match val {
-            1..=6 => {
+            1..=3 => {
                 let val = val - 1;
-                let bounds = match val % 3 {
+                let bounds = match val {
                     0 => Bounds::LowerBound,
                     1 => Bounds::Exact,
                     2 => Bounds::UpperBound,
