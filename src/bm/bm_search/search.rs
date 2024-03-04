@@ -671,7 +671,7 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QSearchMoveGen::new();
+    let mut move_gen = QSearchMoveGen::new(tt_entry.map(|entry| entry.table_move));
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
         Prune all losing captures

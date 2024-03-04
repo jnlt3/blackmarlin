@@ -215,6 +215,7 @@ impl OrderedMoveGen {
 
 #[derive(PartialEq, Eq)]
 enum QPhase {
+    TtCapture,
     GenCaptures,
     GoodCaptures,
 }
@@ -222,13 +223,15 @@ enum QPhase {
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    tt_move: Option<Move>,
 }
 
 impl QSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(tt_move: Option<Move>) -> Self {
         Self {
-            phase: QPhase::GenCaptures,
+            phase: QPhase::TtCapture,
             captures: ArrayVec::new(),
+            tt_move,
         }
     }
 
@@ -236,12 +239,23 @@ impl QSearchMoveGen {
     /// by captured pieces value and then capture history
     /// - En-passant is ignored
     pub fn next(&mut self, pos: &Position, hist: &History) -> Option<Move> {
+        if self.phase == QPhase::TtCapture {
+            self.phase = QPhase::GenCaptures;
+            if let Some(tt_move) = self.tt_move {
+                if pos.board().is_legal(tt_move) && pos.is_capture(tt_move) {
+                    return Some(tt_move);
+                }
+            }
+        }
         if self.phase == QPhase::GenCaptures {
             self.phase = QPhase::GoodCaptures;
             let stm = pos.board().side_to_move();
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
+                    if Some(mv) == self.tt_move {
+                        continue;
+                    }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(ScoredMove::new(mv, score));
                 }
