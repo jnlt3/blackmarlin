@@ -45,7 +45,7 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
-    quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
+    quiet: Box<[Butterfly<i16>; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -54,8 +54,8 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
+            quiet: Box::new([new_butterfly_table(0); Color::NUM]),
+            capture: Box::new([[new_butterfly_table(0); 2]; Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
@@ -64,24 +64,20 @@ impl History {
     /// Returns quiet history value for the given move
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize][make_move.from as usize]
-            [make_move.to as usize]
+        self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
     }
 
     fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        &mut self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        &mut self.quiet[stm as usize][make_move.from as usize][make_move.to as usize]
     }
 
     /// Returns capture history value for the given move
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         let (stm_threats, _) = pos.threats();
-        self.capture[stm as usize][stm_threats.has(make_move.to) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        self.capture[stm as usize][stm_threats.has(make_move.to) as usize][make_move.from as usize]
+            [make_move.to as usize]
     }
 
     fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
