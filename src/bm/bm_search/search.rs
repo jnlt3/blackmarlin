@@ -206,7 +206,7 @@ pub fn search<Search: SearchType>(
         }
 
         let tt_do_razor = tt_entry.map_or(true, |entry| {
-            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
+            entry.score + razor_qsearch() <= alpha && entry.bounds != Bounds::LowerBound
         });
         let razor_margin = razor_margin(depth);
         if do_razor(depth) && tt_do_razor && eval + razor_margin <= alpha {
