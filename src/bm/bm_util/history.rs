@@ -79,15 +79,15 @@ impl History {
     /// Returns capture history value for the given move
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
+        let (stm_threats, _) = pos.threats();
+        self.capture[stm as usize][stm_threats.has(make_move.to) as usize]
             [make_move.from as usize][make_move.to as usize]
     }
 
     fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        &mut self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
+        let (stm_threats, _) = pos.threats();
+        &mut self.capture[stm as usize][stm_threats.has(make_move.to) as usize]
             [make_move.from as usize][make_move.to as usize]
     }
 
