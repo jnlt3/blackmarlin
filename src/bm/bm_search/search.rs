@@ -194,7 +194,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let (_, nstm_threats) = pos.threats();
+    let (stm_threats, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -206,7 +206,7 @@ pub fn search<Search: SearchType>(
         }
 
         let razor_margin = razor_margin(depth);
-        if do_razor(depth) && eval + razor_margin <= alpha {
+        if do_razor(depth) && eval + razor_margin <= alpha && stm_threats.is_empty() {
             let zw = alpha - razor_qsearch();
             let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
