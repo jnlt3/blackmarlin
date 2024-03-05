@@ -194,6 +194,9 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let tt_skip_nmp = tt_entry.map_or(false, |entry| {
+        entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
+    });
     let (_, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -222,9 +225,6 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let tt_skip_nmp = tt_entry.map_or(false, |entry| {
-            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
-        });
         if !tt_skip_nmp
             && do_nmp::<Search>(
                 pos.board(),
@@ -401,7 +401,7 @@ pub fn search<Search: SearchType>(
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                    .get(depth as usize, (improving && !tt_skip_nmp) as usize)
         {
             move_gen.skip_quiets();
             continue;
