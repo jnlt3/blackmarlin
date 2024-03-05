@@ -206,7 +206,8 @@ pub fn search<Search: SearchType>(
         }
 
         let razor_margin = razor_margin(depth);
-        if do_razor(depth) && eval + razor_margin <= alpha && stm_threats.is_empty() {
+        if do_razor(depth) && eval + razor_margin <= alpha && (depth <= 2 || stm_threats.is_empty())
+        {
             let zw = alpha - razor_qsearch();
             let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
