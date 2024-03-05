@@ -205,8 +205,11 @@ pub fn search<Search: SearchType>(
             return eval;
         }
 
+        let tt_do_razor = tt_entry.map_or(true, |entry| {
+            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
+        });
         let razor_margin = razor_margin(depth);
-        if do_razor(depth) && eval + razor_margin <= alpha {
+        if do_razor(depth) && tt_do_razor && eval + razor_margin <= alpha {
             let zw = alpha - razor_qsearch();
             let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
