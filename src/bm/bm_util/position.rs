@@ -154,7 +154,8 @@ impl Position {
     /// - Avoid storing, instead recalculate for a given position
     pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
         let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
-        let scale = 2 * piece_cnt as i16;
+        let queen_cnt = self.board().pieces(Piece::Queen).len();
+        let scale = 2 * piece_cnt as i16 + queen_cnt as i16;
 
         let clamped_eval = root_eval.raw().clamp(-200, 200);
         (match self.board().side_to_move() == stm {

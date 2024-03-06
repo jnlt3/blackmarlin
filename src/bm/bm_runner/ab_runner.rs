@@ -342,8 +342,10 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let scale = position.board().occupied().len()
+                    let piece_cnt = position.board().occupied().len()
                         - position.board().pieces(Piece::Pawn).len();
+                    let queen_cnt = position.board().pieces(Piece::Queen).len();
+                    let scale = 2 * piece_cnt as i16 + queen_cnt as i16;
                     let eval = remove_aggression(eval.unwrap(), scale as i32 * 2);
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
