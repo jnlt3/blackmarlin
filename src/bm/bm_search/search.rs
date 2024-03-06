@@ -11,6 +11,18 @@ use crate::bm::bm_util::t_table::Bounds;
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
 use super::see::compare_see;
 
+pub static mut HP_SELECT: u32 = 0;
+pub static mut SEE_FP_SELECT: u32 = 0;
+
+pub static mut HP_SELECT_MARG: u32 = 0;
+pub static mut SEE_FP_SELECT_MARG: u32 = 0;
+
+pub static mut HP_DEPTH: u32 = 6;
+pub static mut SEE_FP_DEPTH: u32 = 6;
+
+pub static mut HP_LMR_DEPTH: u32 = 4;
+pub static mut SEE_FP_LMR_DEPTH: u32 = 4;
+
 pub trait SearchType {
     const NM: bool;
     const PV: bool;
@@ -386,6 +398,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
+
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
 
         if do_fp && eval + fp(lmr_depth) <= alpha {
@@ -407,31 +420,53 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
-        /*
-        In low depth, non-PV nodes, we assume it's safe to prune a move
-        if it has very low history
-        */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
+        unsafe {
+            let do_see = match SEE_FP_SELECT {
+                0 => depth <= SEE_FP_DEPTH,
+                1 => lmr_depth <= SEE_FP_LMR_DEPTH,
+                _ => unreachable!(),
+            };
+            let do_hp = match HP_SELECT {
+                0 => depth <= HP_DEPTH,
+                1 => lmr_depth <= HP_LMR_DEPTH,
+                _ => unreachable!(),
+            };
+            let see_fp_depth = match SEE_FP_SELECT_MARG {
+                0 => depth,
+                1 => lmr_depth,
+                _ => unreachable!(),
+            };
+            let hp_depth = match HP_SELECT_MARG {
+                0 => depth,
+                1 => lmr_depth,
+                _ => unreachable!(),
+            };
+            /*
+            In low depth, non-PV nodes, we assume it's safe to prune a move
+            if it has very low history
+            */
+            let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && do_hp && eval <= alpha;
 
-        if do_hp && (h_score as i32) < hp(depth) {
-            continue;
-        }
-
-        /*
-        In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
-        we assume it's safe to prune this move
-        */
-        let do_see_prune = !Search::PV
-            && non_mate_line
-            && moves_seen > 0
-            && depth <= 6
-            && !alpha.is_mate()
-            && move_gen.phase() > Phase::GoodCaptures;
-
-        if do_see_prune {
-            let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
-            if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
+            if do_hp && (h_score as i32) < hp(hp_depth) {
                 continue;
+            }
+
+            /*
+            In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
+            we assume it's safe to prune this move
+            */
+            let do_see_prune = !Search::PV
+                && non_mate_line
+                && moves_seen > 0
+                && do_see
+                && !alpha.is_mate()
+                && move_gen.phase() > Phase::GoodCaptures;
+
+            if do_see_prune {
+                let see_margin = (alpha - eval - see_fp(see_fp_depth) + 1).raw();
+                if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
+                    continue;
+                }
             }
         }
 
