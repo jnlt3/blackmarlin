@@ -129,11 +129,11 @@ pub fn compare_see(board: &Board, make_move: Move, cmp: i16) -> bool {
 /// Returns the piece values used by [compare_see](compare_see) and [move_value](move_value)
 pub fn piece_pts(piece: Piece) -> i16 {
     match piece {
-        Piece::Pawn => 96,
-        Piece::Knight => 323,
-        Piece::Bishop => 323,
-        Piece::Rook => 551,
-        Piece::Queen => 864,
+        Piece::Pawn => 93,
+        Piece::Knight => 338,
+        Piece::Bishop => 338,
+        Piece::Rook => 591,
+        Piece::Queen => 848,
         Piece::King => i16::MAX / 2,
     }
 }
