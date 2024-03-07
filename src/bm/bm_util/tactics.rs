@@ -1,5 +1,29 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
+macro_rules! init {
+    (| $i:ident, $size:literal | $($r:tt)+) => {{
+        let mut $i = 0;
+        let mut res = [{$($r)+}; $size];
+        while $i < $size - 1 {
+            $i += 1;
+            res[$i] = {$($r)+};
+        }
+        res
+    }}
+}
+
+const FRONT_SPANS: [u64; 64] = init!(|sq, 64| {
+    let mut bb = (1 << sq) << 8;
+    bb |= bb << 8;
+    bb |= bb << 16;
+    bb |= bb << 32;
+    bb | (bb & !File::H.bitboard().0) << 1 | (bb & !File::A.bitboard().0) >> 1
+});
+
+pub const SPANS: [[u64; 64]; 2] = [
+    FRONT_SPANS,
+    init!(|sq, 64| FRONT_SPANS[sq ^ 56].swap_bytes()),
+];
 
 /// Return pieces that can be directly captured by weaker pieces
 /// - Do not modify as the NN evaluation depends on this function

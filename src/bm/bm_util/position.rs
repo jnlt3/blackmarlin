@@ -1,8 +1,12 @@
-use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
+use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece, Square};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{
+    eval::Evaluation,
+    frc,
+    tactics::{threats, SPANS},
+};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -80,6 +84,13 @@ impl Position {
     /// Current board
     pub fn board(&self) -> &Board {
         &self.current
+    }
+
+    pub fn is_passer(&self, sq: Square, color: Color) -> bool {
+        self.board().colored_pieces(color, Piece::Pawn).has(sq)
+            && SPANS[color as usize][sq as usize]
+                & self.board().colored_pieces(!color, Piece::Pawn).0
+                == 0
     }
 
     /// Attempts to make a null move

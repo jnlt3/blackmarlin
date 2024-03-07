@@ -5,5 +5,5 @@ pub mod lookup;
 pub mod position;
 pub mod t_table;
 mod table_types;
-mod threats;
+mod tactics;
 pub mod window;
