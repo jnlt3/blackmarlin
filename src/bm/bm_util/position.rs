@@ -87,10 +87,7 @@ impl Position {
     }
 
     pub fn is_passer(&self, sq: Square, color: Color) -> bool {
-        self.board().colored_pieces(color, Piece::Pawn).has(sq)
-            && SPANS[color as usize][sq as usize]
-                & self.board().colored_pieces(!color, Piece::Pawn).0
-                == 0
+        SPANS[color as usize][sq as usize] & self.board().colored_pieces(!color, Piece::Pawn).0 == 0
     }
 
     /// Attempts to make a null move
