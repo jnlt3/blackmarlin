@@ -672,6 +672,7 @@ pub fn q_search(
     }
 
     let mut move_gen = QSearchMoveGen::new();
+    let mut moves_searched = 0;
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
         Prune all losing captures
@@ -702,6 +703,7 @@ pub fn q_search(
             beta >> Next,
             alpha >> Next,
         );
+        moves_searched += 1;
         let score = search_score << Next;
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
@@ -727,9 +729,13 @@ pub fn q_search(
             _ => Bounds::Exact,
         };
 
-        shared_context
-            .get_t_table()
-            .set(pos.board(), 0, entry_type, highest_score, best_move);
+        shared_context.get_t_table().set(
+            pos.board(),
+            (moves_searched > 5) as u32,
+            entry_type,
+            highest_score,
+            best_move,
+        );
     }
     highest_score.unwrap_or(alpha)
 }
