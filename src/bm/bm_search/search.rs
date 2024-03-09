@@ -731,7 +731,7 @@ pub fn q_search(
 
         shared_context.get_t_table().set(
             pos.board(),
-            (moves_searched > 5) as u32,
+            (moves_searched >= 4) as u32,
             entry_type,
             highest_score,
             best_move,
