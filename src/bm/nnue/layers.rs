@@ -192,4 +192,4 @@ pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
             }
         }
     }
-}
+}   

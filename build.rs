@@ -11,7 +11,7 @@ fn parse_bm_net() {
 
     let eval_path = Path::new(&out_dir).join("eval.bin");
     let nn_bytes = std::fs::read(&nn_dir).expect("nnue file doesn't exist");
-    let layers = parse_arch(&nn_bytes);
+    let layers = &[768, 1024, 1];
 
     let arch_path = Path::new(&out_dir).join("arch.rs");
     let mut def_nodes = String::new();
@@ -25,13 +25,4 @@ fn parse_bm_net() {
 
     println!("cargo:rerun-if-env-changed=EVALFILE");
     println!("cargo:rerun-if-changed={nn_dir}");
-}
-
-pub fn parse_arch(bytes: &[u8]) -> [usize; 3] {
-    let mut layers = [0; 3];
-    for (bytes, layer) in bytes.chunks(4).take(3).zip(&mut layers) {
-        let bytes = bytes.try_into().unwrap();
-        *layer = u32::from_le_bytes(bytes) as usize;
-    }
-    layers
 }

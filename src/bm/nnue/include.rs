@@ -33,7 +33,7 @@ pub fn bias_from_bytes_i16<T: From<i16> + Copy + Default, const LEN: usize>(
     weights
 }
 
-pub fn dense_from_bytes_i8<
+pub fn dense_from_bytes_i16<
     T: From<i8> + Copy + Default,
     const INPUT: usize,
     const OUTPUT: usize,
@@ -41,8 +41,10 @@ pub fn dense_from_bytes_i8<
     bytes: &[u8],
 ) -> Box<Align<[[T; INPUT]; OUTPUT]>> {
     let mut weights = vec![];
-    for &byte in bytes.iter().take(INPUT * OUTPUT) {
-        weights.push(i8::from_le_bytes([byte]))
+    for bytes in bytes.chunks(2).take(INPUT * OUTPUT) {
+        let weight = i16::from_le_bytes([bytes[0], bytes[1]]);
+        assert!(weight >= -128 && weight <= 127);
+        weights.push(weight as i8)
     }
     let mut dense = Box::new(Align([[T::default(); INPUT]; OUTPUT]));
     for (i, weights) in weights.chunks(INPUT).enumerate() {

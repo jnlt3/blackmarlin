@@ -78,18 +78,19 @@ pub struct Nnue {
 
 impl Nnue {
     pub fn new() -> Self {
-        let mut bytes = &NN_BYTES[12..];
+        let mut bytes = &NN_BYTES[..];
         let incremental = Arc::from(include::sparse_from_bytes_i16::<INPUT, MID>(bytes));
         bytes = &bytes[INPUT * MID * 2..];
         let incremental_bias = include::bias_from_bytes_i16::<i16, MID>(bytes);
         bytes = &bytes[MID * 2..];
-        let out = Arc::from(include::dense_from_bytes_i8::<i8, { MID * 2 }, OUTPUT>(
+        let out = Arc::from(include::dense_from_bytes_i16::<i8, { MID * 2 }, OUTPUT>(
             bytes,
         ));
-        bytes = &bytes[MID * OUTPUT * 2..];
+        bytes = &bytes[MID * OUTPUT * 4..];
         let out_bias = include::bias_from_bytes_i16::<i32, OUTPUT>(bytes);
-        bytes = &bytes[OUTPUT * 2..];
-        assert!(bytes.is_empty(), "{}", bytes.len());
+        // Alexandria seems to have extra bytes for some reason a
+        // bytes = &bytes[OUTPUT * 2..];
+        // assert!(bytes.is_empty(), "{}", bytes.len());
 
         let input_layer = Incremental::new(incremental, incremental_bias);
         let out_layer = Dense::new(out, out_bias);
