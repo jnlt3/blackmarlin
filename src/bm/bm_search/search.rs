@@ -371,7 +371,10 @@ pub fn search<Search: SearchType>(
                     */
                     return s_beta;
                 } else if multi_cut && entry.score >= beta {
-                    extension = -1;
+                    extension = match Search::PV {
+                        true => -2,
+                        false => -3,
+                    }
                 }
             }
         }
