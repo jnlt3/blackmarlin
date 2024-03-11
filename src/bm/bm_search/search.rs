@@ -386,7 +386,12 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
+        let do_fp = !Search::PV
+            && !in_check
+            && non_mate_line
+            && moves_seen > 0
+            && !is_capture
+            && depth <= 8;
 
         if do_fp && eval + fp(lmr_depth) <= alpha {
             move_gen.skip_quiets();
@@ -397,6 +402,7 @@ pub fn search<Search: SearchType>(
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
         if non_mate_line
+            && !in_check
             && !is_capture
             && quiets.len()
                 >= shared_context
