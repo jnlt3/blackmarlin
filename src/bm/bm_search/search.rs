@@ -304,14 +304,7 @@ pub fn search<Search: SearchType>(
 
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
-            false => {
-                (thread.history.get_quiet(pos, make_move)
-                    + thread
-                        .history
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
-            }
+            false => thread.history.get_quiet(pos, make_move),
         };
         thread.ss[ply as usize + 1].pv_len = 0;
 
