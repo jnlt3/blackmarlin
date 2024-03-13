@@ -353,7 +353,7 @@ pub fn search<Search: SearchType>(
                 if s_score < s_beta {
                     extension = 1;
                     let sing_d_ext = multi_cut && s_score + 2 < s_beta;
-                    let low_d_ext = s_score + 100 < s_beta;
+                    let low_d_ext = s_score + 200 < s_beta;
                     if !Search::PV && (sing_d_ext || low_d_ext) {
                         extension += 1;
                     }
