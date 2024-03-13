@@ -149,12 +149,25 @@ impl Position {
         }
     }
 
+    fn material(&self, color: Color) -> u32 {
+        let board = self.board();
+        let colors = board.colors(color);
+        let pawns = board.pieces(Piece::Pawn) & colors;
+        let minors = (board.pieces(Piece::Bishop) | board.pieces(Piece::Knight)) & colors;
+        let rooks = board.pieces(Piece::Rook);
+        let queens = board.pieces(Piece::Queen);
+        pawns.len() + minors.len() * 3 + rooks.len() * 5 + queens.len() * 9
+    }
+
     /// Returns aggression value
     /// - Value may vary depending on position and root evaluation
     /// - Avoid storing, instead recalculate for a given position
     pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
         let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
-        let scale = 2 * piece_cnt as i16;
+        let material = self.material(stm) as i16 - self.material(!stm) as i16;
+
+        let scale = 2 * piece_cnt as i16 + material;
+
 
         let clamped_eval = root_eval.raw().clamp(-200, 200);
         (match self.board().side_to_move() == stm {
