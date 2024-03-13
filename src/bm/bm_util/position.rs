@@ -154,8 +154,8 @@ impl Position {
         let colors = board.colors(color);
         let pawns = board.pieces(Piece::Pawn) & colors;
         let minors = (board.pieces(Piece::Bishop) | board.pieces(Piece::Knight)) & colors;
-        let rooks = board.pieces(Piece::Rook);
-        let queens = board.pieces(Piece::Queen);
+        let rooks = board.pieces(Piece::Rook) & colors;
+        let queens = board.pieces(Piece::Queen) & colors;
         pawns.len() + minors.len() * 3 + rooks.len() * 5 + queens.len() * 9
     }
 
