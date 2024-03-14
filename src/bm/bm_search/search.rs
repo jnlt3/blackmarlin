@@ -39,8 +39,8 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-const fn do_rev_fp(depth: u32) -> bool {
-    depth <= 8
+const fn do_rev_fp(depth: u32, ply: u32) -> bool {
+    depth <= 8 && depth * 2 < (depth + ply)
 }
 
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
@@ -201,7 +201,9 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        if do_rev_fp(depth, ply)
+            && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta
+        {
             return eval;
         }
 
