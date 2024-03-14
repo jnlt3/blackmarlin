@@ -166,7 +166,7 @@ impl Position {
         let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
         let material = self.material(stm) as i16 - self.material(!stm) as i16;
 
-        let scale = 2 * piece_cnt as i16 - material;
+        let scale = 2 * piece_cnt as i16 - material / 2;
 
         let clamped_eval = root_eval.raw().clamp(-200, 200);
         (match self.board().side_to_move() == stm {
