@@ -342,7 +342,7 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let fmr_scale = 10 - position.board().halfmove_clock().saturating_sub(50) / 5;
+                    let fmr_scale = 25 - position.board().halfmove_clock().saturating_sub(50) / 2;
                     let piece_cnt = position.board().occupied().len()
                         - position.board().pieces(Piece::Pawn).len();
                     let scale = piece_cnt as i32 * 2 + fmr_scale as i32;

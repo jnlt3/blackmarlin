@@ -156,7 +156,7 @@ impl Position {
         let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
 
         let fmr = self.board().halfmove_clock();
-        let fmr_scale = 10 - fmr.saturating_sub(50) / 5;
+        let fmr_scale = 25 - fmr.saturating_sub(50) / 2;
 
         let scale = 2 * piece_cnt as i16 + fmr_scale as i16;
 
