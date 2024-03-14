@@ -342,9 +342,11 @@ impl AbRunner {
                         position.unmake_move()
                     }
                     let total_nodes = node_counter.as_ref().unwrap().get_node_count();
-                    let scale = position.board().occupied().len()
+                    let fmr_scale = 20 - position.board().halfmove_clock() / 5;
+                    let piece_cnt = position.board().occupied().len()
                         - position.board().pieces(Piece::Pawn).len();
-                    let eval = remove_aggression(eval.unwrap(), scale as i32 * 2);
+                    let scale = piece_cnt as i32 * 2 + fmr_scale as i32;
+                    let eval = remove_aggression(eval.unwrap(), scale);
                     let wld = match show_wdl {
                         true => Some(to_wld(eval)),
                         false => None,
