@@ -335,35 +335,30 @@ pub fn search<Search: SearchType>(
         estimation of best move/eval
         */
         if let Some(entry) = tt_entry {
-            if moves_seen == 0
+            let do_tt_ext = moves_seen == 0
                 && entry.table_move == make_move
                 && ply != 0
                 && !entry.score.is_mate()
-                && entry.depth + 2 >= depth
-                && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
-            {
+                && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact);
+            if do_tt_ext && depth >= 6 && entry.depth + 2 >= depth {
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
-                let s_score = match multi_cut {
-                    true => search::<Search::Zw>(
-                        pos,
-                        thread,
-                        shared_context,
-                        ply,
-                        depth / 2 - 1,
-                        s_beta - 1,
-                        s_beta,
-                        cut_node,
-                    ),
-                    false => eval,
-                };
+                let s_score = search::<Search::Zw>(
+                    pos,
+                    thread,
+                    shared_context,
+                    ply,
+                    depth / 2 - 1,
+                    s_beta - 1,
+                    s_beta,
+                    cut_node,
+                );
 
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 2 < s_beta {
+                    if !Search::PV && s_score + 2 < s_beta {
                         extension += 1;
                     }
                     thread.history.update_history(
@@ -374,15 +369,29 @@ pub fn search<Search: SearchType>(
                         &[],
                         depth as i16,
                     );
-                } else if multi_cut && s_beta >= beta {
+                } else if s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
-                } else if multi_cut && entry.score >= beta {
+                } else if entry.score >= beta {
                     extension = -1;
+                }
+            }
+            if do_tt_ext && depth < 6 && entry.depth + 2 >= depth {
+                let s_beta = entry.score - depth as i16;
+                if eval < s_beta {
+                    extension = 1;
+                    thread.history.update_history(
+                        pos,
+                        &hist_indices,
+                        make_move,
+                        &[],
+                        &[],
+                        depth as i16,
+                    );
                 }
             }
         }
