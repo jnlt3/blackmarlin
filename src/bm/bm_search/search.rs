@@ -324,19 +324,19 @@ pub fn search<Search: SearchType>(
         is singular (only solution) and extend in order to get a more accurate
         estimation of best move/eval
         */
+        let do_singular = depth >= 6;
         if let Some(entry) = tt_entry {
             if moves_seen == 0
                 && entry.table_move == make_move
                 && ply != 0
                 && !entry.score.is_mate()
-                && entry.depth + 2 >= depth
+                && (entry.depth + 2 >= depth || !do_singular)
                 && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
             {
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
-                let s_score = match multi_cut {
+                let s_score = match do_singular {
                     true => search::<Search::Zw>(
                         pos,
                         thread,
@@ -352,7 +352,7 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 2 < s_beta {
+                    if !Search::PV && do_singular && s_score + 2 < s_beta {
                         extension += 1;
                     }
                     thread.history.update_history(
@@ -363,14 +363,14 @@ pub fn search<Search: SearchType>(
                         &[],
                         depth as i16,
                     );
-                } else if multi_cut && s_beta >= beta {
+                } else if do_singular && s_beta >= beta {
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
-                } else if multi_cut && entry.score >= beta {
+                } else if do_singular && entry.score >= beta {
                     extension = -1;
                 }
             }
