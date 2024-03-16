@@ -349,14 +349,6 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && s_score + 2 < s_beta {
                         extension += 1;
                     }
-                    thread.history.update_history(
-                        pos,
-                        &hist_indices,
-                        make_move,
-                        &[],
-                        &[],
-                        depth as i16,
-                    );
                 } else if s_beta >= beta {
                     /*
                     Multi-cut:
