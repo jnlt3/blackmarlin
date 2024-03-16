@@ -96,7 +96,7 @@ const fn see_fp(depth: u32) -> i16 {
 }
 
 const fn static_see(depth: u32) -> i16 {
-    depth as i16 * 50
+    depth as i16 * 75
 }
 
 const fn hp(depth: u32) -> i32 {
