@@ -367,6 +367,9 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 } else if multi_cut && entry.score >= beta {
                     extension = -1;
+                    thread
+                        .history
+                        .update_single(pos, &hist_indices, make_move, -(depth as i16));
                 }
             }
         }
