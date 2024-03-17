@@ -69,11 +69,10 @@ impl History {
             [make_move.to as usize]
     }
 
-    fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+    fn get_quiet_mut(&mut self, pos: &Position, make_move: Move, nstm_threat: bool) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        &mut self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        &mut self.quiet[stm as usize][nstm_threat as usize][make_move.from as usize]
+            [make_move.to as usize]
     }
 
     /// Returns capture history value for the given move
@@ -194,9 +193,16 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
-        bonus(self.get_quiet_mut(pos, make_move), amt);
+        let (_, nstm_threats) = pos.threats();
+        bonus(self.get_quiet_mut(pos, make_move, true), amt);
+        if !nstm_threats.has(make_move.from) {
+            bonus(self.get_quiet_mut(pos, make_move, false), amt);
+        }
         for &failed_move in fails {
-            malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(self.get_quiet_mut(pos, failed_move, true), amt);
+            if !nstm_threats.has(failed_move.from) {
+                malus(self.get_quiet_mut(pos, failed_move, false), amt);
+            }
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
