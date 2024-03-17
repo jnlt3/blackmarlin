@@ -1,4 +1,4 @@
-use cozy_chess::{Color, Move, Piece, Square};
+use cozy_chess::{BitBoard, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::MoveData;
 
@@ -45,7 +45,7 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
-    quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
+    quiet: Box<[[Butterfly<i16>; 3]; Color::NUM]>,
     capture: Box<[Butterfly<i16>; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -54,10 +54,17 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
+            quiet: Box::new([[new_butterfly_table(0); 3]; Color::NUM]),
             capture: Box::new([new_butterfly_table(0); Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+        }
+    }
+
+    fn threat_index(nstm_threats: BitBoard, from: Square) -> usize {
+        match nstm_threats.is_empty() {
+            true => 2,
+            false => nstm_threats.has(from) as usize,
         }
     }
 
@@ -65,15 +72,15 @@ impl History {
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
-        self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize][make_move.from as usize]
-            [make_move.to as usize]
+        let threat_index = Self::threat_index(nstm_threats, make_move.from);
+        self.quiet[stm as usize][threat_index][make_move.from as usize][make_move.to as usize]
     }
 
     fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
-        &mut self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        let threat_index = Self::threat_index(nstm_threats, make_move.from);
+        &mut self.quiet[stm as usize][threat_index][make_move.from as usize][make_move.to as usize]
     }
 
     /// Returns capture history value for the given move
