@@ -369,8 +369,7 @@ pub fn search<Search: SearchType>(
                 }
             }
             if do_tt_ext && depth < 6 && entry.depth + 2 >= depth {
-                let s_beta = entry.score - depth as i16;
-                if eval < s_beta {
+                if (eval + depth as i16 * 50) < entry.score {
                     extension = 1;
                     thread.history.update_history(
                         pos,
