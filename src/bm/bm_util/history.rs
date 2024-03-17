@@ -153,6 +153,24 @@ impl History {
         )
     }
 
+    pub fn update_single(&mut self, pos: &Position, indices: &HistoryIndices, mv: Move, amt: i16) {
+        let update: fn(&mut i16, i16) = match amt >= 0 {
+            true => |hist, amt| bonus(hist, amt),
+            false => |hist, amt| malus(hist, -amt),
+        };
+        if pos.is_capture(mv) {
+            update(self.get_capture_mut(pos, mv), amt);
+        } else {
+            update(self.get_quiet_mut(pos, mv), amt);
+            if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, mv) {
+                update(counter_move_hist, amt);
+            }
+            if let Some(followup_move_hist) = self.get_followup_move_mut(pos, indices, mv) {
+                update(followup_move_hist, amt);
+            }
+        }
+    }
+
     /// If the cut-off move is a capture, the cut-off move is given a bonus in
     /// capture history and the other captures are given maluses in capture history
     ///
