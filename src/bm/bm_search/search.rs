@@ -365,8 +365,10 @@ pub fn search<Search: SearchType>(
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
-                } else if multi_cut && entry.score >= beta {
-                    extension = -1;
+                } else if entry.score >= beta {
+                    if multi_cut {
+                        extension = -1;
+                    }
                     thread
                         .history
                         .update_single(pos, &hist_indices, make_move, -(depth as i16));
