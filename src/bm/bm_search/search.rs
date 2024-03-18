@@ -95,6 +95,10 @@ const fn see_fp(depth: u32) -> i16 {
     depth as i16 * 104
 }
 
+const fn static_see(depth: u32) -> i16 {
+    depth as i16 * 75
+}
+
 const fn hp(depth: u32) -> i32 {
     -((depth * depth) as i32) * 129 / 10
 }
@@ -371,7 +375,7 @@ pub fn search<Search: SearchType>(
                     */
                     return s_beta;
                 } else if multi_cut && entry.score >= beta {
-                    extension = -1;
+                    extension = -2;
                 }
             }
         }
@@ -429,7 +433,12 @@ pub fn search<Search: SearchType>(
             && move_gen.phase() > Phase::GoodCaptures;
 
         if do_see_prune {
-            let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
+            let dyn_margin = (alpha - eval - see_fp(depth) + 1).raw();
+            let static_margin = match !is_capture {
+                true => -static_see(depth),
+                false => i16::MIN,
+            };
+            let see_margin = i16::max(dyn_margin, static_margin);
             if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
                 continue;
             }
