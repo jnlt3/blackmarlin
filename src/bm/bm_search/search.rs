@@ -460,7 +460,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
+            if (Search::PV || is_capture) && ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
             if !Search::PV {
