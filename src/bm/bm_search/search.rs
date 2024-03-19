@@ -673,6 +673,14 @@ pub fn q_search(
 
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
+        let hist = thread.history.get_capture(pos, make_move);
+
+        /*
+        Prune moves that have negative capture history if stand pat is low
+         */
+        if stand_pat + 150 <= alpha && hist < 0 {
+            continue;
+        }
         /*
         Prune all losing captures
         */
