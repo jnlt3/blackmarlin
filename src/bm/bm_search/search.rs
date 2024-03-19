@@ -378,6 +378,9 @@ pub fn search<Search: SearchType>(
         let mut reduction = shared_context
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
+        if ply <= (depth + ply) / 3 {
+            reduction -= 1;
+        }
 
         let lmr_depth = depth.saturating_sub(reduction as u32);
 
@@ -460,9 +463,6 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
-                reduction -= 1;
-            }
             if !Search::PV {
                 reduction += 1;
             };
