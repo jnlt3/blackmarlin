@@ -258,7 +258,7 @@ pub fn search<Search: SearchType>(
                     verified = verification >= beta;
                 }
                 if verified {
-                    return score;
+                    return (score + beta) / 2;
                 }
             }
         }
