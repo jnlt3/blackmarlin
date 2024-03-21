@@ -329,6 +329,7 @@ pub fn search<Search: SearchType>(
                 && entry.table_move == make_move
                 && ply != 0
                 && !entry.score.is_mate()
+                && depth >= 3
                 && entry.depth + 2 >= depth
                 && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
             {
