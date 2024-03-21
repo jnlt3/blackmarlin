@@ -678,7 +678,7 @@ pub fn q_search(
         /*
         Prune moves that have negative capture history if stand pat is low
          */
-        if stand_pat + 150 <= alpha && hist < 0 {
+        if stand_pat <= alpha && hist < 0 {
             continue;
         }
         /*
