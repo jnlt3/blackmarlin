@@ -317,7 +317,6 @@ pub fn search<Search: SearchType>(
 
         let mut extension: i32 = 0;
         let mut score;
-
         /*
         Singular Extensions:
         If a move can't be beaten by any other move, we assume the move
@@ -368,7 +367,7 @@ pub fn search<Search: SearchType>(
                     extension = -1;
                 }
             }
-            if do_tt_ext && depth < 6 && entry.depth + 2 >= depth {
+            if do_tt_ext && extension == 0 && depth < 10 && entry.depth + 2 >= depth {
                 let s_beta = entry.score - depth as i16;
                 if eval < s_beta {
                     extension = 1;
