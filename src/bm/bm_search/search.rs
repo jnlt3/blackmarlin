@@ -367,7 +367,7 @@ pub fn search<Search: SearchType>(
                     extension = -1;
                 }
             }
-            if do_tt_ext && extension == 0 && depth < 10 && entry.depth + 2 >= depth {
+            if do_tt_ext && extension == 0 && entry.depth + 2 >= depth {
                 let s_beta = entry.score - depth as i16;
                 if eval < s_beta {
                     extension = 1;
