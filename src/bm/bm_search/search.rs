@@ -263,7 +263,7 @@ pub fn search<Search: SearchType>(
                         nmp_depth,
                         alpha,
                         beta,
-                        !cut_node,
+                        false,
                     );
                     verified = verification >= beta;
                 }
@@ -499,7 +499,7 @@ pub fn search<Search: SearchType>(
                 depth - 1,
                 beta >> Next,
                 alpha >> Next,
-                !cut_node,
+                false,
             );
             score = search_score << Next;
         } else {
