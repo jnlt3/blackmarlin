@@ -212,7 +212,16 @@ impl TranspositionTable {
         let hash_u64 = entry.hash.load(Ordering::Relaxed);
         let entry_u64 = entry.analysis.load(Ordering::Relaxed);
         if entry_u64 ^ hash == hash_u64 {
-            return Analysis::from_raw(entry_u64);
+            let Some(mut analysis) = Analysis::from_raw(entry_u64) else {
+                return None;
+            };
+            let table_age = self.age.load(Ordering::Relaxed);
+            if analysis.age != table_age {
+                analysis.age = table_age;
+            }
+            let analysis_u64 = analysis.to_raw();
+            entry.set_new(hash ^ analysis_u64, analysis_u64);
+            return Some(analysis);
         }
         None
     }
