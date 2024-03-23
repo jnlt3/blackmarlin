@@ -81,7 +81,7 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 
 const fn iir<Search: SearchType>(depth: u32) -> u32 {
     if depth >= 4 {
-        1 + (Search::PV as u32)
+        1 + (Search::PV as u32) * 2
     } else {
         0
     }
