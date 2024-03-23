@@ -222,13 +222,15 @@ enum QPhase {
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    tt_move: Option<Move>,
 }
 
 impl QSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(tt_move: Option<Move>) -> Self {
         Self {
-            phase: QPhase::GenCaptures,
+            phase: QPhase::GenCaptures  ,
             captures: ArrayVec::new(),
+            tt_move,
         }
     }
 
@@ -242,6 +244,10 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
+                    if Some(mv) == self.tt_move {
+                        self.captures.push(ScoredMove::new(mv, i16::MIN));
+                        continue;
+                    }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(ScoredMove::new(mv, score));
                 }
