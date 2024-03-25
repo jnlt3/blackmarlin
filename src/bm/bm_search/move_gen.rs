@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{BitBoard, Board, Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -222,13 +222,15 @@ enum QPhase {
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    nstm_threats: BitBoard,
 }
 
 impl QSearchMoveGen {
-    pub fn new() -> Self {
+    pub fn new(nstm_threats: BitBoard) -> Self {
         Self {
             phase: QPhase::GenCaptures,
             captures: ArrayVec::new(),
+            nstm_threats,
         }
     }
 
@@ -242,7 +244,10 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let mut score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    if self.nstm_threats.has(mv.from) { 
+                        score += 512;
+                    }
                     self.captures.push(ScoredMove::new(mv, score));
                 }
                 false
