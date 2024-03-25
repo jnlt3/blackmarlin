@@ -274,7 +274,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.is_none() {
+    if Search::PV && tt_entry.is_none() {
         depth -= iir(depth)
     }
 
