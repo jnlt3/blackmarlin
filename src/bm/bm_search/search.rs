@@ -303,6 +303,7 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(opp_move, prev_move);
+    let tt_cap = tt_entry.map_or(false, |entry| pos.is_capture(entry.table_move));
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
@@ -380,7 +381,7 @@ pub fn search<Search: SearchType>(
                     extension = -1;
                 }
             }
-            if do_tt_ext && depth < 6 && entry.depth + 2 >= depth {
+            if do_tt_ext && !tt_cap && depth < 6 && entry.depth + 2 >= depth {
                 let s_beta = entry.score - depth as i16;
                 if eval < s_beta {
                     extension = 1;
