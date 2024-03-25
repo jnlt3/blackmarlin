@@ -452,7 +452,7 @@ pub fn search<Search: SearchType>(
         });
 
         let gives_check = !pos.board().checkers().is_empty();
-        if gives_check {
+        if depth <= 1 && gives_check {
             extension = extension.max(1);
         }
 
