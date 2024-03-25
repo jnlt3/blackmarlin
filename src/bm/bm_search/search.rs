@@ -111,6 +111,7 @@ pub fn search<Search: SearchType>(
     mut depth: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
+    cut_node: bool,
 ) -> Evaluation {
     thread.ss[ply as usize].pv_len = 0;
 
@@ -239,8 +240,16 @@ pub fn search<Search: SearchType>(
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
-            let search_score =
-                search::<NoNm>(pos, thread, shared_context, ply + 1, nmp_depth, zw, zw + 1);
+            let search_score = search::<NoNm>(
+                pos,
+                thread,
+                shared_context,
+                ply + 1,
+                nmp_depth,
+                zw,
+                zw + 1,
+                !cut_node,
+            );
             pos.unmake_move();
             let score = search_score << Next;
             if score >= beta {
@@ -254,6 +263,7 @@ pub fn search<Search: SearchType>(
                         nmp_depth,
                         alpha,
                         beta,
+                        false,
                     );
                     verified = verification >= beta;
                 }
@@ -345,6 +355,7 @@ pub fn search<Search: SearchType>(
                         depth / 2 - 1,
                         s_beta - 1,
                         s_beta,
+                        cut_node,
                     ),
                     false => eval,
                 };
@@ -472,6 +483,9 @@ pub fn search<Search: SearchType>(
             if killers.contains(make_move) {
                 reduction -= 1;
             }
+            if cut_node {
+                reduction += 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
@@ -485,6 +499,7 @@ pub fn search<Search: SearchType>(
                 depth - 1,
                 beta >> Next,
                 alpha >> Next,
+                false,
             );
             score = search_score << Next;
         } else {
@@ -501,6 +516,7 @@ pub fn search<Search: SearchType>(
                 lmr_depth - 1,
                 zw - 1,
                 zw,
+                true,
             );
             score = lmr_score << Next;
 
@@ -517,6 +533,7 @@ pub fn search<Search: SearchType>(
                     depth - 1,
                     zw - 1,
                     zw,
+                    !cut_node,
                 );
                 score = zw_score << Next;
             }
@@ -532,6 +549,7 @@ pub fn search<Search: SearchType>(
                     depth - 1,
                     beta >> Next,
                     alpha >> Next,
+                    false,
                 );
                 score = search_score << Next;
             }
