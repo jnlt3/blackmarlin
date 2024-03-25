@@ -130,7 +130,7 @@ pub fn search<Search: SearchType>(
     At depth 0, we run Quiescence Search
     */
     if depth == 0 || ply >= MAX_PLY {
-        return q_search(pos, thread, shared_context, ply, alpha, beta);
+        return q_search::<Search>(pos, thread, shared_context, ply, alpha, beta);
     }
 
     let skip_move = thread.ss[ply as usize].skip_move;
@@ -209,7 +209,7 @@ pub fn search<Search: SearchType>(
         let razor_margin = razor_margin(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
             let zw = alpha - razor_qsearch();
-            let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
+            let q_search = q_search::<Search::Zw>(pos, thread, shared_context, ply, zw, zw + 1);
             if q_search <= zw {
                 return q_search;
             }
@@ -634,7 +634,7 @@ Quiescence Search is a form of search that only searches tactical moves to achie
 This is done as the static evaluation function isn't suited to detecting tactical aspects of the position.
 */
 
-pub fn q_search(
+pub fn q_search<Search: SearchType>(
     pos: &mut Position,
     thread: &mut ThreadContext,
     shared_context: &SharedContext,
@@ -700,7 +700,8 @@ pub fn q_search(
         /*
         Fail high if SEE puts us above beta
         */
-        if stand_pat + 1000 >= beta
+        if !Search::PV
+            && stand_pat + 1000 >= beta
             && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
         {
             return beta;
@@ -712,7 +713,7 @@ pub fn q_search(
         pos.make_move_fetch(make_move, |board| {
             shared_context.get_t_table().prefetch(board)
         });
-        let search_score = q_search(
+        let search_score = q_search::<Search>(
             pos,
             thread,
             shared_context,
