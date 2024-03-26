@@ -695,7 +695,7 @@ pub fn q_search(
         /*
         Prune all losing captures
         */
-        if !compare_see(pos.board(), make_move, -cap_hist / 8) {
+        if !compare_see(pos.board(), make_move, -cap_hist / 16) {
             continue;
         }
         /*
