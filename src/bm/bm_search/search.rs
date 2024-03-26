@@ -611,19 +611,15 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
-        if let Some(final_move) = &best_move {
+        if let Some(final_move) = best_move {
             let entry_type = match () {
                 _ if highest_score <= initial_alpha => Bounds::UpperBound,
                 _ if highest_score >= beta => Bounds::LowerBound,
                 _ => Bounds::Exact,
             };
-            shared_context.get_t_table().set(
-                pos.board(),
-                depth,
-                entry_type,
-                highest_score,
-                *final_move,
-            );
+            shared_context
+                .get_t_table()
+                .set(pos, depth, entry_type, highest_score, final_move);
         }
     }
     highest_score
@@ -747,7 +743,7 @@ pub fn q_search(
 
         shared_context
             .get_t_table()
-            .set(pos.board(), 0, entry_type, highest_score, best_move);
+            .set(pos, 0, entry_type, highest_score, best_move);
     }
     highest_score.unwrap_or(alpha)
 }

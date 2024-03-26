@@ -4,6 +4,8 @@ use cozy_chess::{Board, Move, Piece, Square};
 
 use crate::bm::bm_util::eval::Evaluation;
 
+use super::position::Position;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct TTMove(u16);
 
@@ -50,7 +52,7 @@ fn compressed_moves() {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
     Missing,
-    Entry { bounds: Bounds },
+    Entry { bounds: Bounds, is_quiet: bool },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -64,25 +66,29 @@ impl EntryType {
     fn to_u16(self) -> u16 {
         match self {
             EntryType::Missing => 0,
-            EntryType::Entry { bounds } => match bounds {
-                Bounds::LowerBound => 1,
-                Bounds::Exact => 2,
-                Bounds::UpperBound => 3,
-            },
+            EntryType::Entry { bounds, is_quiet } => {
+                let bounds = match bounds {
+                    Bounds::LowerBound => 0,
+                    Bounds::Exact => 1,
+                    Bounds::UpperBound => 2,
+                };
+                1 + (is_quiet as u16) * 3 + bounds
+            }
         }
     }
 
     fn from_u16(val: u16) -> EntryType {
         match val {
-            1..=3 => {
+            1..=6 => {
                 let val = val - 1;
-                let bounds = match val {
+                let bounds = match val % 3 {
                     0 => Bounds::LowerBound,
                     1 => Bounds::Exact,
                     2 => Bounds::UpperBound,
                     _ => unreachable!(),
                 };
-                EntryType::Entry { bounds }
+                let is_quiet = val >= 3;
+                EntryType::Entry { bounds, is_quiet }
             }
             _ => EntryType::Missing,
         }
@@ -97,6 +103,7 @@ pub struct Analysis {
     pub bounds: Bounds,
     pub score: Evaluation,
     pub table_move: Move,
+    pub is_quiet: bool,
     pub age: u8,
 }
 
@@ -108,11 +115,12 @@ impl Analysis {
 
         match entry {
             EntryType::Missing => None,
-            EntryType::Entry { bounds } => Some(Self {
+            EntryType::Entry { bounds, is_quiet } => Some(Self {
                 depth: depth as u32,
                 bounds,
                 score: Evaluation::new(score),
                 table_move: TTMove(table_move).to_move(),
+                is_quiet,
                 age,
             }),
         }
@@ -122,6 +130,7 @@ impl Analysis {
         unsafe {
             let entry = EntryType::Entry {
                 bounds: self.bounds,
+                is_quiet: self.is_quiet,
             };
             std::mem::transmute::<Layout, u64>((
                 self.depth as u8,
@@ -133,12 +142,20 @@ impl Analysis {
         }
     }
 
-    fn new(depth: u32, bounds: Bounds, score: Evaluation, table_move: Move, age: u8) -> Self {
+    fn new(
+        depth: u32,
+        bounds: Bounds,
+        score: Evaluation,
+        table_move: Move,
+        is_quiet: bool,
+        age: u8,
+    ) -> Self {
         Self {
             depth,
             bounds,
             score,
             table_move,
+            is_quiet,
             age,
         }
     }
@@ -219,7 +236,7 @@ impl TranspositionTable {
 
     pub fn set(
         &self,
-        board: &Board,
+        pos: &Position,
         depth: u32,
         entry_type: Bounds,
         score: Evaluation,
@@ -230,9 +247,10 @@ impl TranspositionTable {
             entry_type,
             score,
             table_move,
+            pos.is_quiet(table_move),
             self.age.load(Ordering::Relaxed),
         );
-        let hash = board.hash();
+        let hash = pos.hash();
         let index = self.index(hash);
         let fetched_entry = &self.table[index];
         let previous = Analysis::from_raw(fetched_entry.analysis.load(Ordering::Relaxed));
@@ -250,7 +268,10 @@ impl TranspositionTable {
     fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
         fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
-            matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
+            let mut extra = 0;
+            extra += matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32;
+            extra += analysis.is_quiet as u32 * 2;
+            extra
         }
 
         let new_depth = new.depth + extra_depth(new);
