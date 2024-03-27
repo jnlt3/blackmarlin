@@ -270,7 +270,7 @@ impl TranspositionTable {
             // +1 depth for Exact scores and lower bounds
             let mut extra = 0;
             extra += matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32;
-            extra += analysis.is_quiet as u32 * 2;
+            extra += analysis.is_quiet as u32;
             extra
         }
 
