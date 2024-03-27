@@ -123,13 +123,13 @@ impl UciAdapter {
         add_param!(ASP_ADD: i32 = range(1, 20));
 
         add_param!(SE_BASE: i16 = range(-2, 2));
-        add_param!(ROOT_LMR_MUL: i32 = range(0, 30));
-        add_param!(HIST_BONUS: i32 = range(1, 64));
-        add_param!(RAZOR_QS: i32 = range(0, 400));
+        add_param!(ROOT_LMR_MUL: u32 = range(0, 30));
+        add_param!(HIST_BONUS: i16 = range(1, 64));
+        add_param!(RAZOR_QS: i16 = range(0, 400));
 
-        add_param!(QS_LOSING: i32 = range(0, 200));
-        add_param!(QS_WINNING: i32 = range(0, 500));
-        add_param!(QS_NEUTRAL: i32 = range(0, 500));
+        add_param!(QS_LOSING: i16 = range(0, 200));
+        add_param!(QS_WINNING: i16 = range(0, 500));
+        add_param!(QS_NEUTRAL: i16 = range(0, 500));
 
         Self {
             bm_runner,
