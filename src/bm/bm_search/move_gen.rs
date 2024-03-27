@@ -143,7 +143,7 @@ impl OrderedMoveGen {
         if self.phase == Phase::GoodCaptures {
             while let Some(index) = select_highest(&self.captures) {
                 let capture = self.captures.swap_remove(index);
-                if !compare_see(pos.board(), capture.mv, 0) {
+                if !compare_see(pos.board(), capture.mv, -capture.score / 8) {
                     self.bad_captures.push(capture);
                     continue;
                 }
