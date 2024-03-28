@@ -44,6 +44,9 @@ pub struct OrderedMoveGen {
     killers: MoveEntry,
     killer_index: usize,
 
+    next_mv: Option<Move>,
+    do_next: bool,
+
     piece_moves: ArrayVec<PieceMoves, 18>,
 
     quiets: ArrayVec<ScoredMove, MAX_MOVES>,
@@ -74,6 +77,8 @@ impl OrderedMoveGen {
             pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
             killers,
             killer_index: 0,
+            next_mv: None,
+            do_next: false,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -97,6 +102,14 @@ impl OrderedMoveGen {
         }
     }
 
+    /// Move Gen will return this move as the next move and remove from move list
+    /// - Assumes the move is legal
+    /// - Can cause duplicates if the move has been used before
+    pub fn set_next(&mut self, mv: Move) {
+        self.next_mv = Some(mv);
+        self.do_next = true;
+    }
+
     /// Generate a legal move that hasn't been given before or
     ///  return [None](Option::None) if no legal moves are left
     ///
@@ -110,6 +123,10 @@ impl OrderedMoveGen {
         hist: &History,
         hist_indices: &HistoryIndices,
     ) -> Option<Move> {
+        if self.do_next && self.next_mv.is_some() {
+            self.do_next = false;
+            return self.next_mv;
+        }
         if self.phase == Phase::PvMove {
             self.phase = Phase::GenPieceMoves;
             if self.pv_move.is_some() {
@@ -130,6 +147,9 @@ impl OrderedMoveGen {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if Some(mv) == self.next_mv {
                         continue;
                     }
                     if let Some(index) = self.killers.index_of(mv) {
@@ -159,6 +179,9 @@ impl OrderedMoveGen {
                     if Some(killer) == self.pv_move {
                         continue;
                     }
+                    if Some(killer) == self.next_mv {
+                        continue;
+                    }
                     if !pos.board().is_legal(killer) {
                         continue;
                     }
@@ -174,6 +197,9 @@ impl OrderedMoveGen {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
+                        continue;
+                    }
+                    if Some(mv) == self.next_mv {
                         continue;
                     }
                     if self.killers.contains(mv) {

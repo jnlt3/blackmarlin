@@ -127,6 +127,8 @@ pub struct ThreadContext {
     pub abort: bool,
     /// Used for node based time management
     pub root_nodes: [[u64; Square::NUM]; Square::NUM],
+    /// The move from the last search called
+    pub node_move: Option<Move>,
 }
 
 impl SharedContext {
@@ -422,6 +424,7 @@ impl AbRunner {
                 abort: false,
                 stm: Color::White,
                 root_nodes: [[0; Square::NUM]; Square::NUM],
+                node_move: None,
             })),
             thread_contexts: vec![],
             position,

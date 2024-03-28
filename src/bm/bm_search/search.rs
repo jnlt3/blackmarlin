@@ -113,6 +113,7 @@ pub fn search<Search: SearchType>(
     beta: Evaluation,
     cut_node: bool,
 ) -> Evaluation {
+    thread.node_move = None;
     thread.ss[ply as usize].pv_len = 0;
 
     if ply != 0 && (thread.abort || shared_context.abort_search(thread.nodes())) {
@@ -359,6 +360,11 @@ pub fn search<Search: SearchType>(
                     ),
                     false => eval,
                 };
+                if multi_cut && s_score >= s_beta {
+                    if let Some(mv) = thread.node_move {
+                        move_gen.set_next(mv);
+                    }
+                }
 
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
@@ -386,6 +392,7 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
+
         let mut reduction = shared_context
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
@@ -608,6 +615,7 @@ pub fn search<Search: SearchType>(
             false => Evaluation::new_checkmate(-1),
         };
     }
+    thread.node_move = best_move;
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
