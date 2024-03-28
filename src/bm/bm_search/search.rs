@@ -360,7 +360,7 @@ pub fn search<Search: SearchType>(
                     ),
                     false => eval,
                 };
-                if multi_cut && s_score >= s_beta {
+                if multi_cut {
                     if let Some(mv) = thread.node_move {
                         move_gen.set_next(mv);
                     }
