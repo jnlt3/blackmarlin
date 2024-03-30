@@ -303,6 +303,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
+    let mut s_search_mv = None;
     let hist_indices = HistoryIndices::new(opp_move, prev_move);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
@@ -363,6 +364,7 @@ pub fn search<Search: SearchType>(
                 if multi_cut && s_score >= s_beta {
                     if let Some(mv) = thread.node_move {
                         move_gen.set_next(mv);
+                        s_search_mv = Some(mv);
                     }
                 }
 
@@ -391,6 +393,10 @@ pub fn search<Search: SearchType>(
                     extension = -1;
                 }
             }
+        }
+
+        if Some(make_move) == s_search_mv {
+            extension = 1;
         }
 
         let mut reduction = shared_context
