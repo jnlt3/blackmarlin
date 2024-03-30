@@ -44,19 +44,19 @@ const fn do_rev_fp(depth: u32) -> bool {
 }
 
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 68 - improving as i16 * 61
+    depth as i16 * 63 - improving as i16 * 32
 }
 
 const fn do_razor(depth: u32) -> bool {
-    depth <= 4
+    depth <= 6
 }
 
 const fn razor_margin(depth: u32) -> i16 {
-    depth as i16 * 287
+    depth as i16 * 388
 }
 
 const fn razor_qsearch() -> i16 {
-    287
+    371
 }
 
 fn do_nmp<Search: SearchType>(
@@ -68,19 +68,19 @@ fn do_nmp<Search: SearchType>(
 ) -> bool {
     Search::NM
         && depth > 4
-        && !(nstm_threat && depth <= 7)
+        && !(nstm_threat && depth <= 9)
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 201) as u32;
+    let r = 2 + depth * 2 / 3 + ((eval - beta) / 241) as u32;
     depth.saturating_sub(r).max(1)
 }
 
 const fn iir(depth: u32) -> u32 {
-    if depth >= 4 {
+    if depth >= 5 {
         1
     } else {
         0
@@ -88,19 +88,19 @@ const fn iir(depth: u32) -> u32 {
 }
 
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 97
+    depth as i16 * 100
 }
 
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 104
+    depth as i16 * 133
 }
 
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 129 / 10
+    -((depth * depth) as i32) * 207 / 10
 }
 
 const fn history_lmr(history: i16) -> i16 {
-    history / 119
+    history / 132
 }
 
 pub fn search<Search: SearchType>(
@@ -345,7 +345,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
+                let multi_cut = depth >= 5;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
@@ -363,7 +363,7 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 2 < s_beta {
+                    if !Search::PV && multi_cut && s_score + 1 < s_beta {
                         extension += 1;
                     }
                     thread.history.update_history(
@@ -422,7 +422,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
+        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 7 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -435,7 +435,7 @@ pub fn search<Search: SearchType>(
         let do_see_prune = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 6
+            && depth <= 10
             && !alpha.is_mate()
             && move_gen.phase() > Phase::GoodCaptures;
 
@@ -471,7 +471,7 @@ pub fn search<Search: SearchType>(
             */
 
             reduction -= history_lmr(h_score);
-            if ply <= (depth + ply) / 3 {
+            if ply <= (depth + ply) * 2 / 5 {
                 reduction -= 1;
             }
             if !Search::PV {
@@ -694,19 +694,19 @@ pub fn q_search(
         /*
         Prune all losing captures
         */
-        if !compare_see(pos.board(), make_move, 0) {
+        if !compare_see(pos.board(), make_move, -8) {
             continue;
         }
         /*
         Fail high if SEE puts us above beta
         */
         if stand_pat + 1000 >= beta
-            && compare_see(pos.board(), make_move, (beta - stand_pat + 193).raw())
+            && compare_see(pos.board(), make_move, (beta - stand_pat + 195).raw())
         {
             return beta;
         }
         // Also prune neutral captures when static eval is low
-        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if stand_pat + 204 <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
         pos.make_move_fetch(make_move, |board| {
