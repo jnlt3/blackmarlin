@@ -202,7 +202,13 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        let tt_skip_fh = tt_entry.map_or(false, |entry| {
+            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
+        });
+        if !tt_skip_fh
+            && do_rev_fp(depth)
+            && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta
+        {
             return (eval + beta) / 2;
         }
 
@@ -223,10 +229,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let tt_skip_nmp = tt_entry.map_or(false, |entry| {
-            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
-        });
-        if !tt_skip_nmp
+        if !tt_skip_fh
             && do_nmp::<Search>(
                 pos.board(),
                 depth,
