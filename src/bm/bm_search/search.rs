@@ -204,7 +204,10 @@ pub fn search<Search: SearchType>(
         */
         let rfp_eval = tt_entry
             .and_then(|entry| {
-                (entry.bounds != Bounds::UpperBound && entry.score > eval).then_some(entry.score)
+                (entry.depth + 2 >= depth
+                    && entry.score > eval
+                    && entry.bounds != Bounds::UpperBound)
+                    .then_some(entry.score)
             })
             .unwrap_or(eval);
         if do_rev_fp(depth)
