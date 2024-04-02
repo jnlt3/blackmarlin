@@ -202,8 +202,15 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
-            return (eval + beta) / 2;
+        let rfp_eval = tt_entry
+            .and_then(|entry| {
+                (entry.bounds != Bounds::UpperBound && entry.score > eval).then_some(entry.score)
+            })
+            .unwrap_or(eval);
+        if do_rev_fp(depth)
+            && rfp_eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta
+        {
+            return (rfp_eval + beta) / 2;
         }
 
         let razor_margin = razor_margin(depth);
