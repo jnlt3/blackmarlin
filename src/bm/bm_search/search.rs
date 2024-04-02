@@ -685,7 +685,7 @@ pub fn q_search(
         alpha = stand_pat;
         highest_score = Some(stand_pat);
         if stand_pat >= beta {
-            return stand_pat;
+            return (stand_pat + beta) / 2;
         }
     }
 
