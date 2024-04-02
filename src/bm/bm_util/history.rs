@@ -190,9 +190,9 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
-        bonus(self.get_quiet_mut(pos, make_move), amt);
+        bonus(self.get_quiet_mut(pos, make_move), amt * 2);
         for &failed_move in fails {
-            malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(self.get_quiet_mut(pos, failed_move), amt * 2);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
