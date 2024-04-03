@@ -429,7 +429,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && depth <= 6
-            && eval + h_score / 8 <= alpha;
+            && eval + h_score / 4 <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
