@@ -152,15 +152,8 @@ impl Position {
     /// Returns aggression value
     /// - Value may vary depending on position and root evaluation
     /// - Avoid storing, instead recalculate for a given position
-    pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
-        let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
-        let scale = 2 * piece_cnt as i16;
-
-        let clamped_eval = root_eval.raw().clamp(-200, 200);
-        (match self.board().side_to_move() == stm {
-            true => scale * clamped_eval,
-            false => -scale * clamped_eval,
-        }) / 100
+    pub fn aggression(&self, _stm: Color, _root_eval: Evaluation) -> i16 {
+        0
     }
 
     /// Calculates NN evaluation + FRC bonus

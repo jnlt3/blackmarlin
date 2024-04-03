@@ -182,16 +182,8 @@ impl ThreadContext {
     }
 }
 
-fn remove_aggression(eval: Evaluation, scale: i32) -> Evaluation {
-    const MAX: i32 = 200;
-    match eval.is_mate() {
-        true => eval,
-        false => {
-            let eval = eval.raw() as i32;
-            let eval = eval - scale * eval.clamp(-MAX - scale, MAX + scale) / (100 + scale);
-            Evaluation::new(eval as i16)
-        }
-    }
+fn remove_aggression(eval: Evaluation, _scale: i32) -> Evaluation {
+    eval
 }
 
 fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
