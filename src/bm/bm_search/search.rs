@@ -474,7 +474,7 @@ pub fn search<Search: SearchType>(
             */
 
             let mut hist_lmr = -history_lmr(h_score);
-            if hist_lmr < 0 && move_gen.phase() <= Phase::GoodCaptures {
+            if hist_lmr > 0 && move_gen.phase() <= Phase::GoodCaptures {
                 hist_lmr = 0;
             }
             reduction += hist_lmr;
