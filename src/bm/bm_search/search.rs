@@ -473,7 +473,11 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score);
+            let mut hist_lmr = -history_lmr(h_score);
+            if hist_lmr < 0 && move_gen.phase() <= Phase::GoodCaptures {
+                hist_lmr = 0;
+            }
+            reduction += hist_lmr;
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
