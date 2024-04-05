@@ -284,14 +284,14 @@ pub fn search<Search: SearchType>(
 
     let mut highest_score = None;
 
-    let prev_move = match ply > 1 {
-        true => thread.ss[ply as usize - 2].move_played,
+    let prev_move = |prev: u32| match ply >= prev {
+        true => thread.ss[(ply - prev) as usize].move_played,
         false => None,
     };
-    let opp_move = match ply != 0 {
-        true => thread.ss[ply as usize - 1].move_played,
-        false => None,
-    };
+
+    let cont_1 = prev_move(1);
+    let cont_2 = prev_move(2);
+    let cont_4 = prev_move(4);
 
     let killers = thread.killer_moves[ply as usize];
     let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
@@ -302,7 +302,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(opp_move, prev_move);
+    let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
