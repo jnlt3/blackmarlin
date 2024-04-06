@@ -43,8 +43,8 @@ const fn do_rev_fp(depth: u32) -> bool {
     depth <= 8
 }
 
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 68 - improving as i16 * 61
+const fn rev_fp(depth: u32, improving: bool, stm_threat: bool) -> i16 {
+    depth as i16 * 68 - improving as i16 * 61 - stm_threat as i16 * 100
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -195,14 +195,23 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let (_, nstm_threats) = pos.threats();
+    let (stm_threats, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        if do_rev_fp(depth)
+            && eval >= beta
+            && eval
+                - rev_fp(
+                    depth,
+                    improving && nstm_threats.is_empty(),
+                    !stm_threats.is_empty(),
+                )
+                >= beta
+        {
             return (eval + beta) / 2;
         }
 
