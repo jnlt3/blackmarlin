@@ -123,7 +123,8 @@ pub fn search<Search: SearchType>(
     thread.update_sel_depth(ply);
     if ply != 0 && pos.forced_draw(ply) {
         thread.increment_nodes();
-        return Evaluation::new(0);
+        let random_eval = (thread.nodes() % 5) as i16 - 2;
+        return Evaluation::new(random_eval);
     }
 
     /*
