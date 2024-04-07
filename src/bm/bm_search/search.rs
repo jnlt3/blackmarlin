@@ -489,6 +489,9 @@ pub fn search<Search: SearchType>(
             if cut_node {
                 reduction += 1;
             }
+            if reduction < -2 {
+                extension = extension.max(1);
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
