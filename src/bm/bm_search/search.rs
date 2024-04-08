@@ -328,7 +328,7 @@ pub fn search<Search: SearchType>(
                     .history
                     .get_followup_move(pos, &hist_indices, make_move)
                     .unwrap_or_default();
-                (main * 2 + cont_1 * 2 + cont_2 + cont_4) / 6
+                (main + cont_1 + cont_2 + cont_4) / 4
             }
         };
         thread.ss[ply as usize + 1].pv_len = 0;
