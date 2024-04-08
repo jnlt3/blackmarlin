@@ -315,12 +315,20 @@ pub fn search<Search: SearchType>(
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
             false => {
-                (thread.history.get_quiet(pos, make_move)
-                    + thread
-                        .history
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
+                let main = thread.history.get_quiet(pos, make_move);
+                let cont_1 = thread
+                    .history
+                    .get_counter_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+                let cont_2 = thread
+                    .history
+                    .get_followup_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+                let cont_4 = thread
+                    .history
+                    .get_followup_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+                (main * 2 + cont_1 * 2 + cont_2 + cont_4) / 6
             }
         };
         thread.ss[ply as usize + 1].pv_len = 0;
