@@ -291,6 +291,7 @@ pub fn search<Search: SearchType>(
 
     let cont_1 = prev_move(1);
     let cont_2 = prev_move(2);
+    let cont_3 = prev_move(3);
     let cont_4 = prev_move(4);
 
     let killers = thread.killer_moves[ply as usize];
@@ -302,7 +303,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4);
+    let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_3, cont_4);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {

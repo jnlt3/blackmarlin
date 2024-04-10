@@ -30,6 +30,7 @@ fn malus(hist: &mut i16, amt: i16) {
 pub struct HistoryIndices {
     cont_mv_1: Option<(Piece, Square)>,
     cont_mv_2: Option<(Piece, Square)>,
+    cont_mv_3: Option<(Piece, Square)>,
     cont_mv_4: Option<(Piece, Square)>,
 }
 
@@ -37,15 +38,18 @@ impl HistoryIndices {
     pub fn new(
         cont_mv_1: Option<MoveData>,
         cont_mv_2: Option<MoveData>,
+        cont_mv_3: Option<MoveData>,
         cont_mv_4: Option<MoveData>,
     ) -> Self {
         let convert = |mv: MoveData| (mv.piece, mv.to);
         let cont_mv_1 = cont_mv_1.map(convert);
         let cont_mv_2 = cont_mv_2.map(convert);
+        let cont_mv_3 = cont_mv_3.map(convert);
         let cont_mv_4 = cont_mv_4.map(convert);
         Self {
             cont_mv_1,
             cont_mv_2,
+            cont_mv_3,
             cont_mv_4,
         }
     }
@@ -126,6 +130,41 @@ impl History {
         make_move: Move,
     ) -> Option<&mut i16> {
         let (prev_piece, prev_to) = indices.cont_mv_1?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    /// Returns None if a previous move isn't available
+    ///
+    /// Recommended to .unwrap_or_default()
+    ///
+    /// Do not use for captures
+    pub fn get_counter_move_2(
+        &self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<i16> {
+        let (prev_piece, prev_to) = indices.cont_mv_3?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    fn get_counter_move_2_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<&mut i16> {
+        let (prev_piece, prev_to) = indices.cont_mv_3?;
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
@@ -250,6 +289,15 @@ impl History {
             for &failed_move in fails {
                 let failed_hist = self
                     .get_counter_move_mut(pos, indices, failed_move)
+                    .unwrap();
+                malus(failed_hist, amt);
+            }
+        }
+        if let Some(counter_move_hist) = self.get_counter_move_2_mut(pos, indices, make_move) {
+            bonus(counter_move_hist, amt);
+            for &failed_move in fails {
+                let failed_hist = self
+                    .get_counter_move_2_mut(pos, indices, failed_move)
                     .unwrap();
                 malus(failed_hist, amt);
             }
