@@ -318,7 +318,7 @@ pub fn search<Search: SearchType>(
                 (thread.history.get_quiet(pos, make_move)
                     + thread
                         .history
-                        .get_counter_move(pos, &hist_indices, make_move)
+                        .get_followup_move(pos, &hist_indices, make_move)
                         .unwrap_or_default())
                     / 2
             }
