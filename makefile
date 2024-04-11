@@ -7,5 +7,5 @@ else
 endif
 
 rule:
-	EVALFILE=$(EVALFILE) cargo build --release --bin blackmarlin-uci
+	RUSTFLAGS='-C target-cpu=native' EVALFILE=$(EVALFILE) cargo build --release --bin blackmarlin-uci
 	mv ./target/release/blackmarlin-uci $(NAME)
