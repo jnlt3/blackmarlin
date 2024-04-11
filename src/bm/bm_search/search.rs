@@ -386,6 +386,8 @@ pub fn search<Search: SearchType>(
                     return s_beta;
                 } else if multi_cut && entry.score >= beta {
                     extension = -2;
+                } else if multi_cut && cut_node {
+                    extension = -1;
                 }
             }
         }
