@@ -456,7 +456,11 @@ pub fn search<Search: SearchType>(
 
         let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
-            extension = extension.max(1);
+            let check_ext = match Search::PV || is_capture {
+                true => 1,
+                false => 2,
+            };
+            extension = extension.max(check_ext);
         }
 
         /*
