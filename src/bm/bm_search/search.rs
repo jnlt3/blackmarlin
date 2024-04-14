@@ -274,7 +274,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+    if tt_entry.map_or(true, |entry| entry.depth * 2 < depth) {
         depth -= iir(depth)
     }
 
