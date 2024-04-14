@@ -79,9 +79,9 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     depth.saturating_sub(r).max(1)
 }
 
-const fn iir(depth: u32) -> u32 {
+const fn iir<Search: SearchType>(depth: u32, cut_node: bool) -> u32 {
     if depth >= 4 {
-        1
+        1 + (Search::PV || cut_node) as u32
     } else {
         0
     }
@@ -275,7 +275,7 @@ pub fn search<Search: SearchType>(
     }
 
     if tt_entry.is_none() {
-        depth -= iir(depth)
+        depth -= iir::<Search>(depth, cut_node);
     }
 
     if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
