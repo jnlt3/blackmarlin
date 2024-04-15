@@ -286,7 +286,7 @@ pub fn search<Search: SearchType>(
         depth -= iir(depth)
     }
 
-    if tt_entry.is_some_and(|entry| depth + 4 < entry.depth) {
+    if tt_entry.is_some_and(|entry| depth + 4 < entry.depth && entry.bounds != Bounds::LowerBound) {
         depth += node_ext(depth);
     }
 
