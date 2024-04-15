@@ -87,6 +87,14 @@ const fn iir(depth: u32) -> u32 {
     }
 }
 
+const fn node_ext(depth: u32) -> u32 {
+    if depth >= 4 {
+        1
+    } else {
+        0
+    }
+}
+
 const fn fp(depth: u32) -> i16 {
     depth as i16 * 97
 }
@@ -276,6 +284,10 @@ pub fn search<Search: SearchType>(
 
     if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
         depth -= iir(depth)
+    }
+
+    if tt_entry.is_some_and(|entry| depth + 4 < entry.depth) {
+        depth += node_ext(depth);
     }
 
     if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
