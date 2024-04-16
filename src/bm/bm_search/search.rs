@@ -445,7 +445,11 @@ pub fn search<Search: SearchType>(
             && move_gen.phase() > Phase::GoodCaptures;
 
         if do_see_prune {
-            let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
+            let see_depth = match is_capture {
+                true => depth,
+                false => lmr_depth,
+            };
+            let see_margin = (alpha - eval - see_fp(see_depth) + 1).raw();
             if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
                 continue;
             }
