@@ -402,7 +402,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
+        let do_fp = non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
 
         if do_fp && eval + fp(lmr_depth) <= alpha {
             move_gen.skip_quiets();
@@ -427,7 +427,7 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
+        let do_hp = non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -437,8 +437,7 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move evaluated by SEE isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_see_prune = !Search::PV
-            && non_mate_line
+        let do_see_prune = non_mate_line
             && moves_seen > 0
             && depth <= 6
             && !alpha.is_mate()
