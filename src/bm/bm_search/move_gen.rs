@@ -189,10 +189,10 @@ impl OrderedMoveGen {
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
                             let followup_move_hist = hist
-                                .get_followup_move(pos, hist_indices, mv)
+                                .get_followup_move(pos, hist_indices, mv, 0)
                                 .unwrap_or_default();
                             let followup_move_hist_2 = hist
-                                .get_followup_move_2(pos, hist_indices, mv)
+                                .get_followup_move(pos, hist_indices, mv, 1)
                                 .unwrap_or_default();
                             quiet_hist
                                 + counter_move_hist
