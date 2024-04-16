@@ -236,40 +236,46 @@ pub fn search<Search: SearchType>(
             )
             && pos.null_move()
         {
-            thread.ss[ply as usize].move_played = None;
-
-            let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
             let zw = beta >> Next;
-            let search_score = search::<NoNm>(
-                pos,
-                thread,
-                shared_context,
-                ply + 1,
-                nmp_depth,
-                zw,
-                zw + 1,
-                !cut_node,
-            );
-            pos.unmake_move();
-            let score = search_score << Next;
-            if score >= beta {
-                let mut verified = depth < 10;
-                if !verified {
-                    let verification = search::<NoNm>(
-                        pos,
-                        thread,
-                        shared_context,
-                        ply + 1,
-                        nmp_depth,
-                        alpha,
-                        beta,
-                        false,
-                    );
-                    verified = verification >= beta;
+            let q_score = q_search(pos, thread, shared_context, ply, zw, zw + 1);
+            let q_score = q_score << Next;
+            if q_score >= beta {
+                thread.ss[ply as usize].move_played = None;
+
+                let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
+                let search_score = search::<NoNm>(
+                    pos,
+                    thread,
+                    shared_context,
+                    ply + 1,
+                    nmp_depth,
+                    zw,
+                    zw + 1,
+                    !cut_node,
+                );
+                pos.unmake_move();
+                let score = search_score << Next;
+                if score >= beta {
+                    let mut verified = depth < 10;
+                    if !verified {
+                        let verification = search::<NoNm>(
+                            pos,
+                            thread,
+                            shared_context,
+                            ply + 1,
+                            nmp_depth,
+                            alpha,
+                            beta,
+                            false,
+                        );
+                        verified = verification >= beta;
+                    }
+                    if verified {
+                        return score;
+                    }
                 }
-                if verified {
-                    return score;
-                }
+            } else {
+                pos.unmake_move();
             }
         }
     }
