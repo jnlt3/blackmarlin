@@ -112,10 +112,10 @@ pub struct Nnue {
     head: usize,
     out_layer: Dense<{ MID * 2 }, OUTPUT>,
 
-    w_add: ArrayVec<usize, 48>,
-    b_add: ArrayVec<usize, 48>,
-    w_rm: ArrayVec<usize, 48>,
-    b_rm: ArrayVec<usize, 48>,
+    w_add: ArrayVec<usize, 64>,
+    b_add: ArrayVec<usize, 64>,
+    w_rm: ArrayVec<usize, 64>,
+    b_rm: ArrayVec<usize, 64>,
 }
 
 impl Nnue {
