@@ -285,7 +285,12 @@ pub fn search<Search: SearchType>(
     let mut highest_score = None;
 
     let prev_move = |prev: u32| match ply >= prev {
-        true => thread.ss[(ply - prev) as usize].move_played,
+        true => {
+            let Some(mv) = thread.ss[(ply - prev) as usize].move_played else {
+                return None;
+            };
+            (!mv.capture).then_some(mv)
+        }
         false => None,
     };
 
