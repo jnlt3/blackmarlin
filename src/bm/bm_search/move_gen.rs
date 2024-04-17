@@ -26,6 +26,7 @@ pub enum Phase {
     BadCaptures,
 }
 
+#[derive(Debug, Clone, Copy)]
 struct ScoredMove {
     mv: Move,
     score: i16,
@@ -51,20 +52,19 @@ pub struct OrderedMoveGen {
     bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
-fn select_highest(array: &[ScoredMove]) -> Option<usize> {
+fn sort(array: &mut [ScoredMove]) {
     if array.is_empty() {
-        return None;
+        return;
     }
-    let mut best: Option<(i16, usize)> = None;
-    for (index, mv) in array.iter().enumerate() {
-        if let Some((best_score, _)) = best {
-            if mv.score <= best_score {
-                continue;
+    for i in 0..array.len() - 1 {
+        let mut lowest = i;
+        for j in i + 1..array.len() {
+            if array[j].score < array[lowest].score {
+                lowest = j;
             }
         }
-        best = Some((mv.score, index));
+        (array[i], array[lowest]) = (array[lowest], array[i]);
     }
-    best.map(|(_, index)| index)
 }
 
 impl OrderedMoveGen {
@@ -139,15 +139,15 @@ impl OrderedMoveGen {
                     self.captures.push(ScoredMove::new(mv, score))
                 }
             }
+            sort(&mut self.captures);
         }
         if self.phase == Phase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures) {
-                let capture = self.captures.swap_remove(index);
-                if !compare_see(pos.board(), capture.mv, 0) {
-                    self.bad_captures.push(capture);
+            while let Some(cap) = self.captures.pop() {
+                if !compare_see(pos.board(), cap.mv, 0) {
+                    self.bad_captures.push(cap);
                     continue;
                 }
-                return Some(capture.mv);
+                return Some(cap.mv);
             }
             self.phase = Phase::Killers;
         }
@@ -203,17 +203,16 @@ impl OrderedMoveGen {
                     self.quiets.push(ScoredMove::new(mv, score));
                 }
             }
+            sort(&mut self.quiets);
         }
         if self.phase == Phase::Quiets {
-            if let Some(index) = select_highest(&self.quiets) {
-                return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
+            if let Some(quiet) = self.quiets.pop() {
+                return Some(quiet.mv);
             }
             self.phase = Phase::BadCaptures;
         }
         if self.phase == Phase::BadCaptures {
-            if let Some(index) = select_highest(&self.bad_captures) {
-                return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
-            }
+            return self.bad_captures.pop_at(0).map(|cap| cap.mv);
         }
         None
     }
@@ -253,12 +252,10 @@ impl QSearchMoveGen {
                 }
                 false
             });
+            sort(&mut self.captures);
         }
         if self.phase == QPhase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures) {
-                let capture = self.captures.swap_remove(index).mv;
-                return Some(capture);
-            }
+            return self.captures.pop().map(|cap| cap.mv);
         }
         None
     }
