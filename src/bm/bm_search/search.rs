@@ -114,6 +114,7 @@ pub fn search<Search: SearchType>(
     cut_node: bool,
 ) -> Evaluation {
     thread.ss[ply as usize].pv_len = 0;
+    thread.ss[ply as usize].fail_ext = 0;
 
     if ply != 0 && (thread.abort || shared_context.abort_search(thread.nodes())) {
         thread.trigger_abort();
@@ -509,7 +510,7 @@ pub fn search<Search: SearchType>(
             score = search_score << Next;
         } else {
             let depth = (depth as i32 + extension) as u32;
-            let lmr_depth = (depth as i16 - reduction) as u32;
+            let mut lmr_depth = (depth as i16 - reduction) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
@@ -529,6 +530,8 @@ pub fn search<Search: SearchType>(
             If no reductions occured in LMR we don't waste time re-searching
             otherwise, we run a full depth search to attempt a fail low
             */
+
+            lmr_depth += thread.ss[ply as usize + 1].fail_ext;
             if lmr_depth < depth && score > alpha {
                 let zw_score = search::<Search::Zw>(
                     pos,
@@ -580,6 +583,9 @@ pub fn search<Search: SearchType>(
                     thread.ss[ply as usize].update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
+                    if extension > 0 && moves_seen == 1 {
+                        thread.ss[ply as usize].fail_ext = extension.max(0) as u32;
+                    }
                     if !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
