@@ -594,8 +594,8 @@ pub fn search<Search: SearchType>(
                             amt as i16,
                         );
                     }
-                    if moves_seen == 1 && extension > 0 {
-                        depth += extension as u32;
+                    if moves_seen == 1  {
+                        depth = (depth as i32 + extension) as u32;
                     }
                     break;
                 }
