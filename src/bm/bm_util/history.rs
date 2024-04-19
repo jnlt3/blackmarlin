@@ -51,10 +51,17 @@ impl HistoryIndices {
     }
 }
 
+const PIECE_BUCKETS: usize = 8;
+
+fn phase_index(piece_cnt: u32) -> usize {
+    (piece_cnt as usize - 2) / 4
+}
+
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
+    phased_quiet: Box<[[[Butterfly<i16>; 2]; PIECE_BUCKETS]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
@@ -64,6 +71,7 @@ impl History {
         Self {
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
+            phased_quiet: Box::new([[[new_butterfly_table(0); Color::NUM]; PIECE_BUCKETS]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
@@ -96,6 +104,23 @@ impl History {
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
         &mut self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
+            [make_move.from as usize][make_move.to as usize]
+    }
+
+    /// Returns quiet history value for the given move
+    pub fn get_phased_quiet(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        let bucket = phase_index(pos.board().occupied().len());
+        let (_, nstm_threats) = pos.threats();
+        self.phased_quiet[stm as usize][bucket][nstm_threats.has(make_move.from) as usize]
+            [make_move.from as usize][make_move.to as usize]
+    }
+
+    fn get_phased_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        let bucket = phase_index(pos.board().occupied().len());
+        let (_, nstm_threats) = pos.threats();
+        &mut self.phased_quiet[stm as usize][bucket][nstm_threats.has(make_move.from) as usize]
             [make_move.from as usize][make_move.to as usize]
     }
 
@@ -242,8 +267,10 @@ impl History {
         amt: i16,
     ) {
         bonus(self.get_quiet_mut(pos, make_move), amt);
+        bonus(self.get_phased_quiet_mut(pos, make_move), amt);
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(self.get_phased_quiet_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
