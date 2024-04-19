@@ -623,7 +623,7 @@ pub fn search<Search: SearchType>(
                 _ => Bounds::Exact,
             };
             let final_move = match entry_type {
-                Bounds::LowerBound => None,
+                Bounds::UpperBound => None,
                 _ => Some(final_move),
             };
             shared_context.get_t_table().set(
