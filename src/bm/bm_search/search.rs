@@ -274,7 +274,11 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+    let iir_margin = match cut_node {
+        true => 3,
+        false => 5,
+    };
+    if tt_entry.map_or(true, |entry| entry.depth + iir_margin <= depth) {
         depth -= iir(depth)
     }
 
