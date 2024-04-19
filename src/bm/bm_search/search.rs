@@ -495,18 +495,31 @@ pub fn search<Search: SearchType>(
         }
 
         if moves_seen == 0 {
-            let depth = (depth as i32 + extension) as u32;
+            let ext_depth = (depth as i32 + extension) as u32;
             let search_score = search::<Search>(
                 pos,
                 thread,
                 shared_context,
                 ply + 1,
-                depth - 1,
+                ext_depth - 1,
                 beta >> Next,
                 alpha >> Next,
                 false,
             );
             score = search_score << Next;
+            if extension < 0 && search_score >= beta {
+                let search_score = search::<Search>(
+                    pos,
+                    thread,
+                    shared_context,
+                    ply + 1,
+                    depth - 1,
+                    beta >> Next,
+                    alpha >> Next,
+                    false,
+                );
+                score = search_score << Next;
+            }
         } else {
             let depth = (depth as i32 + extension) as u32;
             let lmr_depth = (depth as i16 - reduction) as u32;
