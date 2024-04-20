@@ -79,14 +79,6 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
     depth.saturating_sub(r).max(1)
 }
 
-const fn iir(depth: u32) -> u32 {
-    if depth >= 4 {
-        1
-    } else {
-        0
-    }
-}
-
 const fn fp(depth: u32) -> i16 {
     depth as i16 * 97
 }
@@ -195,7 +187,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let (_, nstm_threats) = pos.threats();
+    let (stm_threats, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -274,8 +266,11 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
-        depth -= iir(depth)
+    if depth >= 4 && tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+        depth -= 1;
+        if tt_entry.is_none() && stm_threats.is_empty() {
+            depth -= 1;
+        }
     }
 
     if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
