@@ -335,8 +335,10 @@ pub fn search<Search: SearchType>(
         estimation of best move/eval
         */
         if let Some(entry) = tt_entry {
+            let multi_cut = depth >= 6;
             if moves_seen == 0
                 && entry.table_move == make_move
+                && (multi_cut || !cut_node)
                 && ply != 0
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
@@ -345,7 +347,6 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
