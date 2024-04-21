@@ -59,6 +59,10 @@ const fn razor_qsearch() -> i16 {
     287
 }
 
+const fn nmp_min_depth() -> u32 {
+    5
+}
+
 fn do_nmp<Search: SearchType>(
     board: &Board,
     depth: u32,
@@ -67,7 +71,7 @@ fn do_nmp<Search: SearchType>(
     nstm_threat: bool,
 ) -> bool {
     Search::NM
-        && depth > 4
+        && depth >= nmp_min_depth()
         && !(nstm_threat && depth <= 7)
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
@@ -226,6 +230,20 @@ pub fn search<Search: SearchType>(
         let tt_skip_nmp = tt_entry.map_or(false, |entry| {
             entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
         });
+        if depth <= nmp_min_depth() {
+            'prune: {
+                let Some(board) = pos.board().null_move() else {
+                    break 'prune;
+                };
+                let Some(entry) = shared_context.get_t_table().get(&board) else {
+                    break 'prune;
+                };
+                let score = entry.score << Next;
+                if entry.bounds != Bounds::LowerBound && entry.depth >= depth && score >= beta {
+                    return score;
+                }
+            }
+        }
         if !tt_skip_nmp
             && do_nmp::<Search>(
                 pos.board(),
