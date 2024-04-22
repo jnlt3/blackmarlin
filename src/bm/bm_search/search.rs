@@ -226,7 +226,7 @@ pub fn search<Search: SearchType>(
         let tt_skip_nmp = tt_entry.map_or(false, |entry| {
             entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
         });
-        let close_to_root = ply <= (depth + ply) / 3;
+        let close_to_root = ply <= (depth + ply) / 6;
         if !tt_skip_nmp
             && !close_to_root
             && do_nmp::<Search>(
