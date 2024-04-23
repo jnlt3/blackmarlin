@@ -241,7 +241,7 @@ pub fn search<Search: SearchType>(
                     break 'prune;
                 };
                 let score = entry.score << Next;
-                if entry.bounds != Bounds::LowerBound && entry.depth >= depth && score >= beta {
+                if entry.bounds != Bounds::LowerBound && score >= beta {
                     return score;
                 }
             }
