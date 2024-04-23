@@ -59,8 +59,9 @@ const fn razor_qsearch() -> i16 {
     287
 }
 
-fn do_tt_nmp<Search: SearchType>(board: &Board, depth: u32) -> bool {
+fn do_tt_nmp<Search: SearchType>(board: &Board, depth: u32, nstm_threat: bool) -> bool {
     Search::NM
+        && !nstm_threat
         && depth < 5
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
@@ -232,7 +233,7 @@ pub fn search<Search: SearchType>(
         let tt_skip_nmp = tt_entry.map_or(false, |entry| {
             entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
         });
-        if do_tt_nmp::<Search>(pos.board(), depth) {
+        if do_tt_nmp::<Search>(pos.board(), depth, !nstm_threats.is_empty()) {
             'prune: {
                 let Some(board) = pos.board().null_move() else {
                     break 'prune;
