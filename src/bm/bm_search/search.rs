@@ -346,13 +346,14 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
                 let multi_cut = depth >= 6;
+                let s_depth = depth / 2 - 1;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
                         thread,
                         shared_context,
                         ply,
-                        depth / 2 - 1,
+                        s_depth,
                         s_beta - 1,
                         s_beta,
                         cut_node,
@@ -375,7 +376,7 @@ pub fn search<Search: SearchType>(
                 } else if multi_cut && s_beta >= beta {
                     thread
                         .history
-                        .update_single(pos, &hist_indices, make_move, -(depth as i16));
+                        .update_single(pos, &hist_indices, make_move, -(s_depth as i16));
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
