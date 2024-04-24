@@ -585,14 +585,16 @@ pub fn search<Search: SearchType>(
                         if !is_capture {
                             thread.killer_moves[ply as usize].push(make_move);
                         }
-                        thread.history.update_history(
-                            pos,
-                            &hist_indices,
-                            make_move,
-                            &quiets,
-                            &captures,
-                            amt as i16,
-                        );
+                        if !(moves_seen == 1 && depth <= 3) {
+                            thread.history.update_history(
+                                pos,
+                                &hist_indices,
+                                make_move,
+                                &quiets,
+                                &captures,
+                                amt as i16,
+                            );
+                        }
                     }
                     break;
                 }
