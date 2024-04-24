@@ -345,8 +345,8 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
-                let s_score = match multi_cut {
+                let s_search = depth >= 6;
+                let s_score = match s_search {
                     true => search::<Search::Zw>(
                         pos,
                         thread,
@@ -363,7 +363,7 @@ pub fn search<Search: SearchType>(
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
                     extension = 1;
-                    if !Search::PV && multi_cut && s_score + 2 < s_beta {
+                    if !Search::PV && s_search && s_score + 2 < s_beta {
                         extension += 1;
                         if !is_capture && s_score + 180 < s_beta {
                             extension += 1;
@@ -377,16 +377,15 @@ pub fn search<Search: SearchType>(
                         &[],
                         depth as i16,
                     );
-                } else if multi_cut && s_beta >= beta {
-                    /*
-                    Multi-cut:
-                    If a move isn't singular and the move that disproves the singularity
-                    our singular beta is above beta, we assume the move is good enough to beat beta
-                    */
-                    return s_beta;
-                } else if multi_cut && entry.score >= beta {
-                    extension = -2;
-                } else if multi_cut && cut_node {
+                } else if s_search {
+                    if s_beta >= beta {
+                        /*
+                        Multi-cut:
+                        If a move isn't singular and the move that disproves the singularity
+                        our singular beta is above beta, we assume the move is good enough to beat beta
+                        */
+                        return s_beta;
+                    }
                     extension = -2;
                 }
             }
