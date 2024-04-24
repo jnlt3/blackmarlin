@@ -661,6 +661,7 @@ pub fn q_search(
 
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
+    let mut max = Evaluation::max();
     if let Some(entry) = tt_entry {
         match entry.bounds {
             Bounds::LowerBound => {
@@ -673,6 +674,7 @@ pub fn q_search(
                 if entry.score <= alpha {
                     return entry.score;
                 }
+                max = entry.score;
             }
         }
     }
@@ -681,7 +683,8 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval() + pos.aggression(thread.stm, thread.eval);
+    let mut stand_pat = pos.get_eval() + pos.aggression(thread.stm, thread.eval);
+
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
@@ -693,7 +696,9 @@ pub fn q_search(
             return stand_pat;
         }
     }
-
+    if max < stand_pat {
+        stand_pat = max;
+    }
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
