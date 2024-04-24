@@ -466,7 +466,7 @@ impl AbRunner {
     }
 
     pub fn hash(&mut self, hash_mb: usize) {
-        let entry_count = (hash_mb as u64) * 1024 * 1024 / 12;
+        let entry_count = hash_mb as u64 * 1024 * 1024 / 12;
         self.shared_context.t_table = Arc::new(TranspositionTable::new(entry_count as usize));
     }
 

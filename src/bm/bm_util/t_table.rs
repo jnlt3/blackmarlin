@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 
 use cozy_chess::{Board, Move, Piece, Square};
 
@@ -147,24 +147,26 @@ impl Analysis {
 #[derive(Debug)]
 pub struct Entry {
     hash: AtomicU32,
-    analysis: AtomicU64,
+    analysis: [AtomicU32; 2],
 }
 
 impl Entry {
     fn zeroed() -> Self {
         Self {
             hash: AtomicU32::new(0),
-            analysis: AtomicU64::new(0),
+            analysis: [AtomicU32::new(0), AtomicU32::new(0)],
         }
     }
     fn zero(&self) {
         self.hash.store(0, Ordering::Relaxed);
-        self.analysis.store(0, Ordering::Relaxed);
+        self.analysis[0].store(0, Ordering::Relaxed);
+        self.analysis[1].store(0, Ordering::Relaxed);
     }
 
     fn set_new(&self, hash: u32, entry: u64) {
         self.hash.store(hash, Ordering::Relaxed);
-        self.analysis.store(entry, Ordering::Relaxed);
+        self.analysis[0].store(entry as u32, Ordering::Relaxed);
+        self.analysis[1].store((entry >> 32) as u32, Ordering::Relaxed);
     }
 }
 
@@ -176,7 +178,6 @@ pub struct TranspositionTable {
 
 impl TranspositionTable {
     pub fn new(size: usize) -> Self {
-        let size = size.next_power_of_two();
         let table = (0..size).map(|_| Entry::zeroed()).collect::<Box<_>>();
         Self {
             table,
@@ -184,7 +185,7 @@ impl TranspositionTable {
         }
     }
 
-    // From Viridithas - Cosmo 
+    // From Viridithas - Cosmo
     fn tt_index(&self, hash: u64) -> usize {
         let key = u128::from(hash);
         let len = self.table.len() as u128;
@@ -217,7 +218,9 @@ impl TranspositionTable {
 
         let entry = &self.table[tt_index];
         let entry_hash = entry.hash.load(Ordering::Relaxed);
-        let entry_u64 = entry.analysis.load(Ordering::Relaxed);
+        let entry_a = entry.analysis[0].load(Ordering::Relaxed);
+        let entry_b = entry.analysis[1].load(Ordering::Relaxed);
+        let entry_u64 = entry_a as u64 | ((entry_b as u64) << 32);
         if tt_hash == entry_hash {
             return Analysis::from_raw(entry_u64);
         }
@@ -243,7 +246,10 @@ impl TranspositionTable {
         let tt_hash = self.tt_hash(hash);
         let tt_index = self.tt_index(hash);
         let fetched_entry = &self.table[tt_index];
-        let previous = Analysis::from_raw(fetched_entry.analysis.load(Ordering::Relaxed));
+        let entry_a = fetched_entry.analysis[0].load(Ordering::Relaxed);
+        let entry_b = fetched_entry.analysis[1].load(Ordering::Relaxed);
+        let entry_u64 = entry_a as u64 | ((entry_b as u64) << 32);
+        let previous = Analysis::from_raw(entry_u64);
         if previous.map_or(true, |previous| self.replace(&new, &previous)) {
             let analysis_u64 = new.to_raw();
             fetched_entry.set_new(tt_hash, analysis_u64);
