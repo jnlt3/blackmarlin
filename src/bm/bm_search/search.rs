@@ -447,6 +447,13 @@ pub fn search<Search: SearchType>(
         if do_see_prune {
             let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
             if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
+                let failed = match is_capture {
+                    true => &mut captures,
+                    false => &mut quiets,
+                };
+                if eval >= beta {
+                    failed.push(make_move);
+                }
                 continue;
             }
         }
