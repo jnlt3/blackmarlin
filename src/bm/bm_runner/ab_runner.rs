@@ -383,7 +383,7 @@ impl AbRunner {
             },
             shared_context: SharedContext {
                 time_manager,
-                t_table: Arc::new(TranspositionTable::new(2_usize.pow(20))),
+                t_table: Arc::new(TranspositionTable::new(16 * 1024 * 1024 / 12)),
                 lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
                     if depth == 0 || mv == 0 {
                         0
@@ -466,8 +466,8 @@ impl AbRunner {
     }
 
     pub fn hash(&mut self, hash_mb: usize) {
-        let entry_count = hash_mb * 65536;
-        self.shared_context.t_table = Arc::new(TranspositionTable::new(entry_count));
+        let entry_count = (hash_mb as u64) * 1024 * 1024 / 12;
+        self.shared_context.t_table = Arc::new(TranspositionTable::new(entry_count as usize));
     }
 
     pub fn set_threads(&mut self, threads: u8) {
