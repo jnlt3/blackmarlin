@@ -369,14 +369,9 @@ pub fn search<Search: SearchType>(
                             extension += 1;
                         }
                     }
-                    thread.history.update_history(
-                        pos,
-                        &hist_indices,
-                        make_move,
-                        &[],
-                        &[],
-                        depth as i16,
-                    );
+                    thread
+                        .history
+                        .update_single(pos, &hist_indices, make_move, depth as i16);
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
@@ -384,10 +379,11 @@ pub fn search<Search: SearchType>(
                     our singular beta is above beta, we assume the move is good enough to beat beta
                     */
                     return s_beta;
-                } else if multi_cut && entry.score >= beta {
+                } else if multi_cut && (entry.score >= beta || cut_node) {
                     extension = -2;
-                } else if multi_cut && cut_node {
-                    extension = -2;
+                    thread
+                        .history
+                        .update_single(pos, &hist_indices, make_move, depth as i16);
                 }
             }
         }
