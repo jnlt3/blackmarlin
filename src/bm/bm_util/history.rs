@@ -233,6 +233,41 @@ impl History {
         }
     }
 
+    pub fn update_single(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+        mut amt: i16,
+    ) {
+        let update = match amt {
+            _ if amt > 0 => bonus,
+            _ if amt < 0 => {
+                amt = -amt;
+                malus
+            }
+            _ => return,
+        };
+        let is_capture = pos
+            .board()
+            .colors(!pos.board().side_to_move())
+            .has(make_move.to);
+        if is_capture {
+            update(self.get_capture_mut(pos, make_move), amt);
+            return;
+        }
+        update(self.get_quiet_mut(pos, make_move), amt);
+        if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
+            update(counter_move_hist, amt);
+        }
+        if let Some(followup_move_hist) = self.get_followup_move_mut(pos, indices, make_move) {
+            update(followup_move_hist, amt);
+        }
+        if let Some(followup_move_2_hist) = self.get_followup_move_2_mut(pos, indices, make_move) {
+            update(followup_move_2_hist, amt);
+        }
+    }
+
     fn update_quiet(
         &mut self,
         pos: &Position,
