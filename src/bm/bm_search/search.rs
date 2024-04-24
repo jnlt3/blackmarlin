@@ -662,12 +662,14 @@ pub fn q_search(
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
     let mut max = Evaluation::max();
+    let mut min = Evaluation::min();
     if let Some(entry) = tt_entry {
         match entry.bounds {
             Bounds::LowerBound => {
                 if entry.score >= beta {
                     return entry.score;
                 }
+                min = entry.score;
             }
             Bounds::Exact => return entry.score,
             Bounds::UpperBound => {
@@ -698,6 +700,9 @@ pub fn q_search(
     }
     if max < stand_pat {
         stand_pat = max;
+    }
+    if min > stand_pat {
+        stand_pat = min;
     }
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
