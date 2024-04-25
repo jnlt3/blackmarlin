@@ -689,15 +689,15 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
+    if max < stand_pat {
+        stand_pat = max;
+    }
     if !in_check && stand_pat > alpha {
         alpha = stand_pat;
         highest_score = Some(stand_pat);
         if stand_pat >= beta {
             return stand_pat;
         }
-    }
-    if max < stand_pat {
-        stand_pat = max;
     }
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
