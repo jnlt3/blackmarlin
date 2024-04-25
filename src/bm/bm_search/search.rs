@@ -153,9 +153,12 @@ pub fn search<Search: SearchType>(
     to help with move ordering
     */
     if let Some(entry) = tt_entry {
+        best_move = pos
+            .board()
+            .is_legal(entry.table_move)
+            .then_some(entry.table_move);
         thread.tt_hits += 1;
-        best_move = Some(entry.table_move);
-        if !Search::PV && entry.depth >= depth {
+        if !Search::PV && entry.depth >= depth && best_move.is_some() {
             let score = entry.score;
             match entry.bounds {
                 Bounds::Exact => {
@@ -294,7 +297,7 @@ pub fn search<Search: SearchType>(
     let cont_4 = prev_move(4);
 
     let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(pos.board(), best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(best_move, killers);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
