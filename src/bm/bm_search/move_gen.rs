@@ -6,7 +6,7 @@ use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Piece, PieceMoves};
+use cozy_chess::{Piece, PieceMoves};
 
 const MAX_MOVES: usize = 218;
 
@@ -68,10 +68,12 @@ fn select_highest(array: &[ScoredMove]) -> Option<usize> {
 }
 
 impl OrderedMoveGen {
-    pub fn new(board: &Board, pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    /// Expects legal PV move
+    /// Killers are verified for legality in [next](OrderedMoveGen::next)
+    pub fn new(pv_move: Option<Move>, killers: MoveEntry) -> Self {
         Self {
             phase: Phase::PvMove,
-            pv_move: pv_move.filter(|&mv| board.is_legal(mv)),
+            pv_move,
             killers,
             killer_index: 0,
             piece_moves: ArrayVec::new(),
