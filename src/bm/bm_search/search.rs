@@ -312,10 +312,11 @@ pub fn search<Search: SearchType>(
         move_exists = true;
         let is_capture = pos.is_capture(make_move);
 
+        let main_hist = thread.history.get_main(pos, make_move);
         let h_score = match is_capture {
-            true => thread.history.get_capture(pos, make_move),
+            true => main_hist,
             false => {
-                (thread.history.get_quiet(pos, make_move)
+                (main_hist
                     + thread
                         .history
                         .get_counter_move(pos, &hist_indices, make_move)
