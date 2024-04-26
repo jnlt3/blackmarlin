@@ -661,12 +661,14 @@ pub fn q_search(
 
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
+    let mut lower_bound = Evaluation::min();
     if let Some(entry) = tt_entry {
         match entry.bounds {
             Bounds::LowerBound => {
                 if entry.score >= beta {
                     return entry.score;
                 }
+                lower_bound = entry.score;
             }
             Bounds::Exact => return entry.score,
             Bounds::UpperBound => {
@@ -694,7 +696,13 @@ pub fn q_search(
         }
     }
 
-    let mut move_gen = QSearchMoveGen::new();
+    let mut tt_move = None;
+    if lower_bound > stand_pat {
+        tt_move = tt_entry
+            .map(|entry| entry.table_move)
+            .filter(|&mv| pos.board().is_legal(mv));
+    }
+    let mut move_gen = QSearchMoveGen::new(tt_move);
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
         Prune all losing captures
