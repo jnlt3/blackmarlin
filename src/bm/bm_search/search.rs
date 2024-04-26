@@ -317,7 +317,10 @@ pub fn search<Search: SearchType>(
             .history
             .get_counter_move(pos, &hist_indices, make_move)
             .unwrap_or_default();
-        let hist_score = (main_hist + cont_hist) / 2;
+        let hist_score = match is_capture {
+            false => (main_hist + cont_hist) / 2,
+            true => (main_hist * 2 + cont_hist) / 3,
+        };
         thread.ss[ply as usize + 1].pv_len = 0;
 
         let mut extension: i32 = 0;
