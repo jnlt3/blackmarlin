@@ -710,8 +710,13 @@ pub fn q_search(
         {
             return beta;
         }
-        // Also prune neutral captures when static eval is low
-        if stand_pat + 200 <= alpha && !compare_see(pos.board(), make_move, 1) {
+
+        // Prune captures don't bring static eval above alpha - a safety margin
+        // Prunes neutral captures if eval + 200 <= alpha
+        if stand_pat + 1500 <= alpha
+            || (stand_pat + 200 <= alpha)
+                && !compare_see(pos.board(), make_move, (alpha - stand_pat - 199).raw())
+        {
             continue;
         }
         pos.make_move_fetch(make_move, |board| {
