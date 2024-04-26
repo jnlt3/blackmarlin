@@ -135,7 +135,7 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score = hist.get_main(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(ScoredMove::new(mv, score))
                 }
             }
@@ -184,7 +184,7 @@ impl OrderedMoveGen {
                         Some(Piece::Queen) => i16::MAX,
                         Some(_) => i16::MIN,
                         None => {
-                            let quiet_hist = hist.get_quiet(pos, mv);
+                            let quiet_hist = hist.get_main(pos, mv);
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
@@ -248,7 +248,7 @@ impl QSearchMoveGen {
             pos.board().generate_moves(|mut piece_moves| {
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                    let score = hist.get_main(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(ScoredMove::new(mv, score));
                 }
                 false

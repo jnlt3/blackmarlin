@@ -3,7 +3,9 @@ use cozy_chess::{Color, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{
+    new_butterfly_table, new_piece_to_table, new_threats_table, Butterfly, PieceTo, Threats,
+};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -53,49 +55,34 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
-    quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
-    capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
-    counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    main: Box<[Threats<Butterfly<i16>>; Color::NUM]>,
+    counter_move: Box<[[PieceTo<PieceTo<i16>>; 2]; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            main: Box::new([new_threats_table(new_butterfly_table(0)); Color::NUM]),
+            counter_move: Box::new([[new_piece_to_table(new_piece_to_table(0)); 2]; Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
 
-    /// Returns quiet history value for the given move
-    pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
+    /// Returns main history value for the given move
+    pub fn get_main(&self, pos: &Position, make_move: Move) -> i16 {
+        let is_capture = pos.is_capture(make_move);
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
-        self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize][make_move.from as usize]
-            [make_move.to as usize]
-    }
-
-    fn get_quiet_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
-        let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        &mut self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize]
+        self.main[stm as usize][nstm_threats.has(make_move.from) as usize][is_capture as usize]
             [make_move.from as usize][make_move.to as usize]
     }
 
-    /// Returns capture history value for the given move
-    pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
+    fn get_main_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let is_capture = pos.is_capture(make_move);
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
-        self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
-    }
-
-    fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
-        let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        &mut self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
+        &mut self.main[stm as usize][nstm_threats.has(make_move.from) as usize][is_capture as usize]
             [make_move.from as usize][make_move.to as usize]
     }
 
@@ -111,11 +98,12 @@ impl History {
         make_move: Move,
     ) -> Option<i16> {
         let (prev_piece, prev_to) = indices.cont_mv_1?;
+        let is_capture = pos.is_capture(make_move);
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
-                [current_piece as usize][make_move.to as usize],
+            self.counter_move[stm as usize][is_capture as usize][prev_piece as usize]
+                [prev_to as usize][current_piece as usize][make_move.to as usize],
         )
     }
 
@@ -126,11 +114,12 @@ impl History {
         make_move: Move,
     ) -> Option<&mut i16> {
         let (prev_piece, prev_to) = indices.cont_mv_1?;
+        let is_capture = pos.is_capture(make_move);
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
-                [current_piece as usize][make_move.to as usize],
+            &mut self.counter_move[stm as usize][is_capture as usize][prev_piece as usize]
+                [prev_to as usize][current_piece as usize][make_move.to as usize],
         )
     }
 
@@ -226,10 +215,21 @@ impl History {
         if !is_capture {
             self.update_quiet(pos, indices, cutoff_move, quiets, amt);
         } else {
-            bonus(self.get_capture_mut(pos, cutoff_move), amt);
+            bonus(self.get_main_mut(pos, cutoff_move), amt);
         }
         for &failed_move in captures {
-            malus(self.get_capture_mut(pos, failed_move), amt);
+            malus(self.get_main_mut(pos, failed_move), amt);
+        }
+        if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, cutoff_move) {
+            if is_capture {
+                bonus(counter_move_hist, amt);
+            }
+            for &failed_move in captures {
+                let failed_hist = self
+                    .get_counter_move_mut(pos, indices, failed_move)
+                    .unwrap();
+                malus(failed_hist, amt);
+            }
         }
     }
 
@@ -241,9 +241,9 @@ impl History {
         fails: &[Move],
         amt: i16,
     ) {
-        bonus(self.get_quiet_mut(pos, make_move), amt);
+        bonus(self.get_main_mut(pos, make_move), amt);
         for &failed_move in fails {
-            malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(self.get_main_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);

@@ -312,17 +312,12 @@ pub fn search<Search: SearchType>(
         move_exists = true;
         let is_capture = pos.is_capture(make_move);
 
-        let h_score = match is_capture {
-            true => thread.history.get_capture(pos, make_move),
-            false => {
-                (thread.history.get_quiet(pos, make_move)
-                    + thread
-                        .history
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
-            }
-        };
+        let main_hist = thread.history.get_main(pos, make_move);
+        let cont_hist = thread
+            .history
+            .get_counter_move(pos, &hist_indices, make_move)
+            .unwrap_or_default();
+        let hist_score = (main_hist + cont_hist) / 2;
         thread.ss[ply as usize + 1].pv_len = 0;
 
         let mut extension: i32 = 0;
@@ -429,7 +424,7 @@ pub fn search<Search: SearchType>(
         */
         let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
 
-        if do_hp && (h_score as i32) < hp(depth) {
+        if do_hp && (hist_score as i32) < hp(depth) {
             continue;
         }
 
@@ -475,7 +470,7 @@ pub fn search<Search: SearchType>(
             less and if history score is low we reduce more.
             */
 
-            reduction -= history_lmr(h_score);
+            reduction -= history_lmr(hist_score);
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
