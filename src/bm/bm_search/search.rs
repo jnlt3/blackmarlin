@@ -369,7 +369,7 @@ pub fn search<Search: SearchType>(
                         if !is_capture && s_score + 180 < s_beta {
                             extension += 1;
                         }
-                    }
+                    }   
                     thread.history.update_history(
                         pos,
                         &hist_indices,

@@ -56,7 +56,7 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     main: Box<[Threats<Butterfly<i16>>; Color::NUM]>,
-    counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    counter_move: Box<[[PieceTo<PieceTo<i16>>; 2]; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
@@ -64,7 +64,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             main: Box::new([new_threats_table(new_butterfly_table(0)); Color::NUM]),
-            counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            counter_move: Box::new([[new_piece_to_table(new_piece_to_table(0)); 2]; Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
@@ -98,11 +98,12 @@ impl History {
         make_move: Move,
     ) -> Option<i16> {
         let (prev_piece, prev_to) = indices.cont_mv_1?;
+        let is_capture = pos.is_capture(make_move);
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
-                [current_piece as usize][make_move.to as usize],
+            self.counter_move[stm as usize][is_capture as usize][prev_piece as usize]
+                [prev_to as usize][current_piece as usize][make_move.to as usize],
         )
     }
 
@@ -113,11 +114,12 @@ impl History {
         make_move: Move,
     ) -> Option<&mut i16> {
         let (prev_piece, prev_to) = indices.cont_mv_1?;
+        let is_capture = pos.is_capture(make_move);
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
-            &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
-                [current_piece as usize][make_move.to as usize],
+            &mut self.counter_move[stm as usize][is_capture as usize][prev_piece as usize]
+                [prev_to as usize][current_piece as usize][make_move.to as usize],
         )
     }
 
@@ -217,6 +219,17 @@ impl History {
         }
         for &failed_move in captures {
             malus(self.get_main_mut(pos, failed_move), amt);
+        }
+        if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, cutoff_move) {
+            if is_capture {
+                bonus(counter_move_hist, amt);
+            }
+            for &failed_move in captures {
+                let failed_hist = self
+                    .get_counter_move_mut(pos, indices, failed_move)
+                    .unwrap();
+                malus(failed_hist, amt);
+            }
         }
     }
 
