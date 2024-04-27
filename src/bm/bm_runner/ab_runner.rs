@@ -461,8 +461,13 @@ impl AbRunner {
         if final_move.is_none() {
             panic!("# All move generation has failed");
         }
-        self.shared_context.t_table.age();
-        (final_move.unwrap(), final_eval, max_depth, node_count)
+        let final_move = final_move.unwrap();
+        if self.position.is_capture(final_move)
+            || self.position.board().piece_on(final_move.from) == Some(Piece::Pawn)
+        {
+            self.shared_context.t_table.age();
+        }
+        (final_move, final_eval, max_depth, node_count)
     }
 
     pub fn hash(&mut self, hash_mb: usize) {
