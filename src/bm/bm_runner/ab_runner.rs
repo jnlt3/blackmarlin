@@ -433,6 +433,10 @@ impl AbRunner {
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
     ) -> (Move, Evaluation, u32, u64) {
+        let curr_fmr = self.position.board().halfmove_clock();
+        if curr_fmr < 2 {
+            self.shared_context.t_table.age();
+        }
         let thread_count = self.thread_contexts.len() as u8 + 1;
         let mut join_handlers = vec![];
         self.shared_context.start = Instant::now();
@@ -461,7 +465,6 @@ impl AbRunner {
         if final_move.is_none() {
             panic!("# All move generation has failed");
         }
-        self.shared_context.t_table.age();
         (final_move.unwrap(), final_eval, max_depth, node_count)
     }
 
