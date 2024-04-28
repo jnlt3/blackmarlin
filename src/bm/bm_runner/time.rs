@@ -182,7 +182,8 @@ impl TimeManager {
             let max_time = time.as_millis() as u32 * 4 / 5;
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
             let default = if move_cnt > 1 {
-                (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time)
+                (inc.as_millis() as u32 * 3 / 4 + time.as_millis() as u32 / expected_moves)
+                    .min(max_time)
             } else {
                 0
             };
