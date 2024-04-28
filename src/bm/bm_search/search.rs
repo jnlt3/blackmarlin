@@ -345,6 +345,7 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
+                let s_depth = depth / 2 - 1;
                 let multi_cut = depth >= 6;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
@@ -352,7 +353,7 @@ pub fn search<Search: SearchType>(
                         thread,
                         shared_context,
                         ply,
-                        depth / 2 - 1,
+                        s_depth,
                         s_beta - 1,
                         s_beta,
                         cut_node,
@@ -378,7 +379,7 @@ pub fn search<Search: SearchType>(
                             pos,
                             &hist_indices,
                             make_move,
-                            -(depth as i16),
+                            -(s_depth as i16),
                         );
                     }
                     /*
