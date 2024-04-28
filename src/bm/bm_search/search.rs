@@ -126,6 +126,9 @@ pub fn search<Search: SearchType>(
         return Evaluation::new(0);
     }
 
+    if depth == 0 && !pos.board().checkers().is_empty() {
+        depth += 1;
+    }
     /*
     At depth 0, we run Quiescence Search
     */
@@ -455,12 +458,6 @@ pub fn search<Search: SearchType>(
         pos.make_move_fetch(make_move, |board| {
             shared_context.get_t_table().prefetch(&board)
         });
-
-        let gives_check = !pos.board().checkers().is_empty();
-        if gives_check {
-            extension = extension.max(1);
-        }
-
         /*
         LMR
         We try to prove a move is worse than alpha at a reduced depth
