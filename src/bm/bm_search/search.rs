@@ -88,7 +88,7 @@ const fn iir(depth: u32) -> u32 {
 }
 
 const fn fp(depth: u32) -> i16 {
-    depth as i16 * 97
+    100 + depth as i16 * 97
 }
 
 const fn see_fp(depth: u32) -> i16 {
