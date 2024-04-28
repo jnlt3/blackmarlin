@@ -180,12 +180,41 @@ impl Position {
     /// - Two kings
     /// - Two kings and one minor piece
     pub fn insufficient_material(&self) -> bool {
+        let bishops = self.current.pieces(Piece::Bishop);
         let rooks = self.current.pieces(Piece::Rook);
         let queens = self.current.pieces(Piece::Queen);
         let pawns = self.current.pieces(Piece::Pawn);
+        let minor_pieces_only = (rooks | queens | pawns).is_empty();
         match self.current.occupied().len() {
             2 => true,
-            3 => (rooks | queens | pawns).is_empty(),
+            3 if minor_pieces_only => true,
+            4 if minor_pieces_only => {
+                /*
+                KNNvK, KNvKN, KNvKB, KBvKN, KBvKB are almost always guaranteed draws.
+                The exception to this is if a king is in the corner, it can be checkmated.
+                 */
+                let nstm = !self.board().side_to_move();
+                if BitBoard::CORNERS & self.current.colored_pieces(nstm, Piece::King)
+                    != BitBoard::EMPTY
+                {
+                    return false;
+                }
+                // Having a bishop is a pre-condition for winning in 4 piece minor piece only end games.
+                let white = self.current.colors(Color::White);
+                let black = self.current.colors(Color::Black);
+                let white_has_bishop = (white & bishops) != BitBoard::EMPTY;
+                let black_has_bishop = (black & bishops) != BitBoard::EMPTY;
+
+                // If one side has 3 piece, the other side has 1
+                // This does not consider same color bishops
+                // However, it won't return false positives
+                let imbalance = white.len() == 3;
+                let one_side_can_win = match imbalance {
+                    true => white_has_bishop,
+                    false => black_has_bishop,
+                };
+                return !one_side_can_win;
+            }
             _ => false,
         }
     }
