@@ -373,9 +373,14 @@ pub fn search<Search: SearchType>(
                         .history
                         .update_single(pos, &hist_indices, make_move, depth as i16);
                 } else if multi_cut && s_beta >= beta {
-                    thread
-                        .history
-                        .update_single(pos, &hist_indices, make_move, -(depth as i16));
+                    if !pos.is_capture(entry.table_move) {
+                        thread.history.update_single(
+                            pos,
+                            &hist_indices,
+                            make_move,
+                            -(depth as i16),
+                        );
+                    }
                     /*
                     Multi-cut:
                     If a move isn't singular and the move that disproves the singularity
