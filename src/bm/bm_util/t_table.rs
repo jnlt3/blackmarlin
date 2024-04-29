@@ -47,10 +47,13 @@ fn compressed_moves() {
     });
 }
 
+const PIECE_CNT: u16 = 31;
+const BOUND_CNT: u16 = 3;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
     Missing,
-    Entry { bounds: Bounds },
+    Entry { bounds: Bounds, piece_cnt: u16 },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -64,25 +67,36 @@ impl EntryType {
     fn to_u16(self) -> u16 {
         match self {
             EntryType::Missing => 0,
-            EntryType::Entry { bounds } => match bounds {
-                Bounds::LowerBound => 1,
-                Bounds::Exact => 2,
-                Bounds::UpperBound => 3,
-            },
+            EntryType::Entry { bounds, piece_cnt } => {
+                let bound_idx = match bounds {
+                    Bounds::LowerBound => 0,
+                    Bounds::Exact => 1,
+                    Bounds::UpperBound => 2,
+                };
+                // A minimum of 2 pieces on the board at all times
+                let piece_cnt_idx = piece_cnt - 2;
+                1 + piece_cnt_idx * 3 + bound_idx
+            }
         }
     }
 
     fn from_u16(val: u16) -> EntryType {
+        const MAX_VAL: u16 = PIECE_CNT * BOUND_CNT;
         match val {
-            1..=3 => {
+            1..=MAX_VAL => {
                 let val = val - 1;
-                let bounds = match val {
+                //let bound_val
+                let bounds = match val % BOUND_CNT {
                     0 => Bounds::LowerBound,
                     1 => Bounds::Exact,
                     2 => Bounds::UpperBound,
                     _ => unreachable!(),
                 };
-                EntryType::Entry { bounds }
+                let piece_cnt = val / BOUND_CNT;
+                EntryType::Entry {
+                    bounds,
+                    piece_cnt: piece_cnt + 2,
+                }
             }
             _ => EntryType::Missing,
         }
@@ -98,6 +112,7 @@ pub struct Analysis {
     pub score: Evaluation,
     pub table_move: Move,
     pub age: u8,
+    pub piece_cnt: u16,
 }
 
 impl Analysis {
@@ -108,12 +123,13 @@ impl Analysis {
 
         match entry {
             EntryType::Missing => None,
-            EntryType::Entry { bounds } => Some(Self {
+            EntryType::Entry { bounds, piece_cnt } => Some(Self {
                 depth: depth as u32,
                 bounds,
                 score: Evaluation::new(score),
                 table_move: TTMove(table_move).to_move(),
                 age,
+                piece_cnt: piece_cnt + 2,
             }),
         }
     }
@@ -122,6 +138,7 @@ impl Analysis {
         unsafe {
             let entry = EntryType::Entry {
                 bounds: self.bounds,
+                piece_cnt: self.piece_cnt,
             };
             std::mem::transmute::<Layout, u64>((
                 self.depth as u8,
@@ -133,13 +150,21 @@ impl Analysis {
         }
     }
 
-    fn new(depth: u32, bounds: Bounds, score: Evaluation, table_move: Move, age: u8) -> Self {
+    fn new(
+        depth: u32,
+        bounds: Bounds,
+        score: Evaluation,
+        table_move: Move,
+        age: u8,
+        piece_cnt: u16,
+    ) -> Self {
         Self {
             depth,
             bounds,
             score,
             table_move,
             age,
+            piece_cnt,
         }
     }
 }
@@ -241,6 +266,7 @@ impl TranspositionTable {
             score,
             table_move,
             self.age.load(Ordering::Relaxed),
+            board.occupied().len() as u16,
         );
         let hash = board.hash();
         let tt_hash = self.tt_hash(hash);
