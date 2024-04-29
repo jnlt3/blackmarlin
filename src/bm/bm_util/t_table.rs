@@ -246,11 +246,14 @@ impl TranspositionTable {
         let tt_hash = self.tt_hash(hash);
         let tt_index = self.tt_index(hash);
         let fetched_entry = &self.table[tt_index];
+        let fetched_hash = fetched_entry.hash.load(Ordering::Relaxed);
         let entry_a = fetched_entry.analysis[0].load(Ordering::Relaxed);
         let entry_b = fetched_entry.analysis[1].load(Ordering::Relaxed);
         let entry_u64 = entry_a as u64 | ((entry_b as u64) << 32);
         let previous = Analysis::from_raw(entry_u64);
-        if previous.map_or(true, |previous| self.replace(&new, &previous)) {
+        if previous.map_or(true, |previous| {
+            self.replace(&new, &previous, tt_hash == fetched_hash)
+        }) {
             let analysis_u64 = new.to_raw();
             fetched_entry.set_new(tt_hash, analysis_u64);
         }
@@ -261,7 +264,7 @@ impl TranspositionTable {
         age.wrapping_sub(analysis.age)
     }
 
-    fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
+    fn replace(&self, new: &Analysis, prev: &Analysis, same: bool) -> bool {
         fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
             matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
@@ -270,7 +273,10 @@ impl TranspositionTable {
         let new_depth = new.depth + extra_depth(new);
         let prev_depth = prev.depth + extra_depth(prev);
 
-        new_depth.saturating_add(self.age_of(prev) as u32 / 2) >= prev_depth / 2
+        match same {
+            true => new_depth + 2 >= prev_depth,
+            false => new_depth.saturating_add(self.age_of(prev) as u32 / 2) >= prev_depth / 2,
+        }
     }
 
     pub fn clean(&self) {
