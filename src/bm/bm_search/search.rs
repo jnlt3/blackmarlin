@@ -134,7 +134,7 @@ pub fn search<Search: SearchType>(
     }
 
     let skip_move = thread.ss[ply as usize].skip_move;
-    let tt_entry = match skip_move {
+    let mut tt_entry = match skip_move {
         Some(_) => None,
         None => shared_context.get_t_table().get(pos.board()),
     };
@@ -158,6 +158,9 @@ pub fn search<Search: SearchType>(
             .is_legal(entry.table_move)
             .then_some(entry.table_move);
         thread.tt_hits += 1;
+        if best_move.is_none() {
+            tt_entry = None;
+        }
         if !Search::PV && entry.depth >= depth && best_move.is_some() {
             let score = entry.score;
             match entry.bounds {
