@@ -492,6 +492,9 @@ impl AbRunner {
     pub fn make_move(&mut self, make_move: Move) {
         self.position.make_move(make_move);
         self.position.reset();
+        self.shared_context
+            .get_t_table()
+            .set_root_piece_count(self.position.board().occupied().len());
     }
 
     #[cfg(feature = "data")]

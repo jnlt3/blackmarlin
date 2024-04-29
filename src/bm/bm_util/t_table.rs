@@ -129,7 +129,7 @@ impl Analysis {
                 score: Evaluation::new(score),
                 table_move: TTMove(table_move).to_move(),
                 age,
-                piece_cnt: piece_cnt + 2,
+                piece_cnt: piece_cnt,
             }),
         }
     }
@@ -199,6 +199,7 @@ impl Entry {
 pub struct TranspositionTable {
     table: Box<[Entry]>,
     age: AtomicU8,
+    piece_cnt: AtomicU32,
 }
 
 impl TranspositionTable {
@@ -207,7 +208,12 @@ impl TranspositionTable {
         Self {
             table,
             age: AtomicU8::new(0),
+            piece_cnt: AtomicU32::new(32),
         }
+    }
+
+    pub fn set_root_piece_count(&self, piece_cnt: u32) {
+        self.piece_cnt.store(piece_cnt, Ordering::Relaxed);
     }
 
     // From Viridithas - Cosmo
@@ -291,6 +297,10 @@ impl TranspositionTable {
         fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
             matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
+        }
+        let tt_piece_count = self.piece_cnt.load(Ordering::Relaxed) as u16;
+        if tt_piece_count < prev.piece_cnt {
+            return true;
         }
 
         let new_depth = new.depth + extra_depth(new);
