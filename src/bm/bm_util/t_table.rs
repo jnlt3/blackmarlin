@@ -274,7 +274,7 @@ impl TranspositionTable {
         let prev_depth = prev.depth + extra_depth(prev);
 
         match same {
-            true => new_depth + 2 >= prev_depth,
+            true => new_depth * 3 / 2 >= prev_depth,
             false => new_depth.saturating_add(self.age_of(prev) as u32 / 2) >= prev_depth / 2,
         }
     }
