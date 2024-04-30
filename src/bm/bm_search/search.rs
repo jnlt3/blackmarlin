@@ -92,7 +92,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn cap_fp(depth: u32) -> i16 {
-    depth as i16 * 300
+    depth as i16 * 97
 }
 
 const fn see_fp(depth: u32) -> i16 {
