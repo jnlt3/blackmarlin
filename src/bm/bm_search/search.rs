@@ -88,7 +88,7 @@ const fn iir(depth: u32) -> u32 {
 }
 
 const fn fp(depth: u32, hist: i16) -> i16 {
-    let margin = depth as i16 * 97 + hist * 104 / 128;
+    let margin = depth as i16 * 97 - hist * 104 / 128;
     match margin {
         _ if margin > 0 => margin,
         _ => 0,
