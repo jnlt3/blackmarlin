@@ -419,7 +419,8 @@ pub fn search<Search: SearchType>(
                 move_gen.skip_quiets();
                 continue;
             }
-            if is_capture && eval + cap_fp(depth) <= alpha {
+            let is_bad_capture = is_capture && move_gen.phase() > Phase::GoodCaptures;
+            if is_bad_capture && eval + cap_fp(depth) <= alpha {
                 continue;
             }
         }
