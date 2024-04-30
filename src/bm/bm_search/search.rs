@@ -91,6 +91,10 @@ const fn fp(depth: u32) -> i16 {
     depth as i16 * 97
 }
 
+const fn cap_fp(depth: u32) -> i16 {
+    depth as i16 * 300
+}
+
 const fn see_fp(depth: u32) -> i16 {
     depth as i16 * 104
 }
@@ -408,11 +412,16 @@ pub fn search<Search: SearchType>(
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
         */
-        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
+        let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 8;
 
-        if do_fp && eval + fp(lmr_depth) <= alpha {
-            move_gen.skip_quiets();
-            continue;
+        if do_fp {
+            if !is_capture && eval + fp(lmr_depth) <= alpha {
+                move_gen.skip_quiets();
+                continue;
+            }
+            if is_capture && eval + cap_fp(depth) <= alpha {
+                continue;
+            }
         }
 
         /*
