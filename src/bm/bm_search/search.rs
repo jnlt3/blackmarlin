@@ -433,7 +433,11 @@ pub fn search<Search: SearchType>(
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
+        let do_hp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && depth <= 6
+            && (eval <= alpha || move_gen.phase() > Phase::Quiets);
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
