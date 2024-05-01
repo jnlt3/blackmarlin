@@ -179,7 +179,7 @@ impl TimeManager {
         } else if move_cnt == 0 {
             self.target_duration.store(0, Ordering::SeqCst);
         } else {
-            let max_time = time.as_millis() as u32 * 4 / 5;
+            let max_time = time.as_millis() as u32 * 2 / 5;
             let expected_moves = moves_to_go.unwrap_or(EXPECTED_MOVES) + 1;
             let default = if move_cnt > 1 {
                 (inc.as_millis() as u32 + time.as_millis() as u32 / expected_moves).min(max_time)
