@@ -401,8 +401,9 @@ pub fn search<Search: SearchType>(
         let mut reduction = shared_context
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
+        reduction -= history_lmr(h_score);
 
-        let lmr_depth = depth.saturating_sub(reduction as u32);
+        let lmr_depth = (depth as i16 - reduction).max(1) as u32;
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
@@ -481,13 +482,6 @@ pub fn search<Search: SearchType>(
         */
 
         if moves_seen > 0 {
-            /*
-            If a move is quiet, we already have information on this move
-            in the history table. If history score is high, we reduce
-            less and if history score is low we reduce more.
-            */
-
-            reduction -= history_lmr(h_score);
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
