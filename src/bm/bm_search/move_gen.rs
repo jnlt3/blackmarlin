@@ -196,10 +196,19 @@ impl OrderedMoveGen {
                             let followup_move_hist_2 = hist
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist
+                            let sum = quiet_hist
                                 + counter_move_hist
                                 + followup_move_hist
-                                + followup_move_hist_2
+                                + followup_move_hist_2;
+                            let min = i16::min(
+                                i16::min(quiet_hist, counter_move_hist),
+                                i16::min(followup_move_hist, followup_move_hist_2),
+                            );
+                            let max = i16::max(
+                                i16::max(quiet_hist, counter_move_hist),
+                                i16::max(followup_move_hist, followup_move_hist_2),
+                            );
+                            sum - max - min
                         }
                     };
                     self.quiets.push(ScoredMove::new(mv, score));
