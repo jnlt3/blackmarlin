@@ -342,13 +342,14 @@ pub fn search<Search: SearchType>(
         */
         if let Some(entry) = tt_entry {
             let multi_cut = depth >= 6;
+            let do_eval_ext = eval <= alpha && h_score > 0;
             if moves_seen == 0
                 && entry.table_move == make_move
                 && ply != 0
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
                 && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
-                && (multi_cut || eval <= alpha)
+                && (multi_cut || do_eval_ext)
             {
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
