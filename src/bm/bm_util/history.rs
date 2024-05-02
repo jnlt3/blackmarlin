@@ -3,7 +3,10 @@ use cozy_chess::{Color, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{
+    new_butterfly_table, new_piece_piece_to_table, new_piece_to_table, Butterfly, PiecePieceTo,
+    PieceTo,
+};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -54,7 +57,7 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
-    capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
+    capture: Box<[[PiecePieceTo<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
@@ -63,7 +66,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
+            capture: Box::new([[new_piece_piece_to_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
@@ -88,15 +91,19 @@ impl History {
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
-        self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        let mv_piece = pos.board().piece_on(make_move.from).unwrap();
+        let cap_piece = pos.board().piece_on(make_move.to).unwrap();
+        self.capture[stm as usize][nstm_threats.has(make_move.from) as usize][mv_piece as usize]
+            [cap_piece as usize][make_move.to as usize]
     }
 
     fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         let (_, nstm_threats) = pos.threats();
+        let mv_piece = pos.board().piece_on(make_move.from).unwrap();
+        let cap_piece = pos.board().piece_on(make_move.to).unwrap();
         &mut self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+            [mv_piece as usize][cap_piece as usize][make_move.to as usize]
     }
 
     /// Returns None if a previous move isn't available
