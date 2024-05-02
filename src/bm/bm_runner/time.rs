@@ -187,7 +187,7 @@ impl TimeManager {
                 0
             };
             self.base_duration.store(default, Ordering::SeqCst);
-            self.target_duration.store(default * 4, Ordering::SeqCst);
+            self.target_duration.store(max_time, Ordering::SeqCst);
             self.max_duration.store(max_time, Ordering::SeqCst);
         };
     }
