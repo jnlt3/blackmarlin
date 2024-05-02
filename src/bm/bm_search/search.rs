@@ -341,17 +341,18 @@ pub fn search<Search: SearchType>(
         estimation of best move/eval
         */
         if let Some(entry) = tt_entry {
+            let multi_cut = depth >= 6;
             if moves_seen == 0
                 && entry.table_move == make_move
                 && ply != 0
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
                 && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
+                && (multi_cut || eval <= alpha)
             {
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
-                let multi_cut = depth >= 6;
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
@@ -400,8 +401,9 @@ pub fn search<Search: SearchType>(
         let mut reduction = shared_context
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
+        reduction -= history_lmr(h_score);
 
-        let lmr_depth = depth.saturating_sub(reduction as u32);
+        let lmr_depth = (depth as i16 - reduction).max(1) as u32;
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
@@ -429,11 +431,16 @@ pub fn search<Search: SearchType>(
             continue;
         }
 
+        let good_capture = move_gen.phase() <= Phase::GoodCaptures;
         /*
         In low depth, non-PV nodes, we assume it's safe to prune a move
         if it has very low history
         */
-        let do_hp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 6 && eval <= alpha;
+        let do_hp = !Search::PV
+            && non_mate_line
+            && moves_seen > 0
+            && depth <= 6
+            && (!good_capture || eval <= alpha);
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
@@ -448,7 +455,7 @@ pub fn search<Search: SearchType>(
             && moves_seen > 0
             && depth <= 6
             && !alpha.is_mate()
-            && move_gen.phase() > Phase::GoodCaptures;
+            && !good_capture;
 
         if do_see_prune {
             let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
@@ -475,13 +482,6 @@ pub fn search<Search: SearchType>(
         */
 
         if moves_seen > 0 {
-            /*
-            If a move is quiet, we already have information on this move
-            in the history table. If history score is high, we reduce
-            less and if history score is low we reduce more.
-            */
-
-            reduction -= history_lmr(h_score);
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
