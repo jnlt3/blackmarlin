@@ -74,8 +74,7 @@ fn do_nmp<Search: SearchType>(
 }
 
 fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
-    assert!(eval >= beta);
-    let r = 4 + depth / 3 + ((eval - beta) / 201) as u32;
+    let r = 4 + depth / 3 + ((eval - beta) / 201).max(0) as u32;
     depth.saturating_sub(r).max(1)
 }
 
@@ -232,16 +231,18 @@ pub fn search<Search: SearchType>(
         let tt_skip_nmp = tt_entry.map_or(false, |entry| {
             entry.score <= alpha && entry.bounds != Bounds::LowerBound
         });
-        if !tt_skip_nmp
-            && do_nmp::<Search>(
-                pos.board(),
-                depth,
-                eval.raw(),
-                beta.raw(),
-                !nstm_threats.is_empty(),
-            )
-            && pos.null_move()
-        {
+        let tt_force_nmp = tt_entry.map_or(false, |entry| {
+            entry.score >= beta && entry.bounds != Bounds::UpperBound
+        });
+        assert!(tt_entry.is_none() || !tt_skip_nmp || !tt_force_nmp);
+        let do_nmp = do_nmp::<Search>(
+            pos.board(),
+            depth,
+            eval.raw(),
+            beta.raw(),
+            !nstm_threats.is_empty(),
+        );
+        if (!tt_skip_nmp && do_nmp || tt_force_nmp) && pos.null_move() {
             thread.ss[ply as usize].move_played = None;
 
             let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
