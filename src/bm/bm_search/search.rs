@@ -229,22 +229,22 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let tt_skip_nmp = tt_entry.map_or(false, |entry| {
-            entry.score <= alpha && entry.bounds != Bounds::LowerBound
+        let nmp_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
+            Bounds::Exact => entry.score,
+            Bounds::UpperBound => entry.score.min(eval),
+            _ => eval,
         });
-        if !tt_skip_nmp
-            && do_nmp::<Search>(
-                pos.board(),
-                depth,
-                eval.raw(),
-                beta.raw(),
-                !nstm_threats.is_empty(),
-            )
-            && pos.null_move()
+        if do_nmp::<Search>(
+            pos.board(),
+            depth,
+            nmp_eval.raw(),
+            beta.raw(),
+            !nstm_threats.is_empty(),
+        ) && pos.null_move()
         {
             thread.ss[ply as usize].move_played = None;
 
-            let nmp_depth = nmp_depth(depth, eval.raw(), beta.raw());
+            let nmp_depth = nmp_depth(depth, nmp_eval.raw(), beta.raw());
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
                 pos,
