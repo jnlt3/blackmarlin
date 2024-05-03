@@ -12,7 +12,7 @@ use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::TranspositionTable;
+use crate::bm::bm_util::t_table::{Analysis, Bounds, TranspositionTable};
 use crate::bm::bm_util::window::Window;
 use crate::bm::uci;
 
@@ -94,6 +94,7 @@ pub struct SearchStack {
     pub eval: Evaluation,
     pub skip_move: Option<Move>,
     pub move_played: Option<MoveData>,
+    pub dbs: Option<DepthBoundScore>,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
 }
@@ -105,6 +106,34 @@ impl SearchStack {
             *pv = child;
         }
         self.pv_len = child_pv.len() + 1;
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct DepthBoundScore {
+    pub depth: u32,
+    pub bounds: Bounds,
+    pub score: Evaluation,
+}
+
+impl DepthBoundScore {
+    pub fn from_tt(analysis: Analysis) -> Self {
+        Self {
+            depth: analysis.depth,
+            bounds: analysis.bounds,
+            score: analysis.score,
+        }
+    }
+
+    pub fn next(mut self) -> Self {
+        self.depth -= 1;
+        self.bounds = match self.bounds {
+            Bounds::LowerBound => Bounds::UpperBound,
+            Bounds::Exact => Bounds::Exact,
+            Bounds::UpperBound => Bounds::LowerBound,
+        };
+        self.score = -self.score;
+        self
     }
 }
 
@@ -411,6 +440,7 @@ impl AbRunner {
                         skip_move: None,
                         move_played: None,
                         pv: [None; MAX_PLY as usize + 1],
+                        dbs: None,
                         pv_len: 0,
                     };
                     MAX_PLY as usize + 1

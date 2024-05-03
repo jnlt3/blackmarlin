@@ -1,7 +1,9 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
 
-use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
+use crate::bm::bm_runner::ab_runner::{
+    DepthBoundScore, MoveData, SharedContext, ThreadContext, MAX_PLY,
+};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
@@ -152,6 +154,7 @@ pub fn search<Search: SearchType>(
     We also use the best move from the transposition table
     to help with move ordering
     */
+
     if let Some(entry) = tt_entry {
         best_move = pos
             .board()
@@ -229,9 +232,14 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let tt_skip_nmp = tt_entry.map_or(false, |entry| {
+
+        let parent_tt_skip_nmp = thread.ss[ply as usize].dbs.map_or(false, |entry| {
             entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
         });
+        let tt_skip_nmp = tt_entry.map_or(parent_tt_skip_nmp, |entry| {
+            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
+        });
+
         if !tt_skip_nmp
             && do_nmp::<Search>(
                 pos.board(),
@@ -465,6 +473,12 @@ pub fn search<Search: SearchType>(
         }
 
         thread.ss[ply as usize].move_played = Some(MoveData::from_move(pos.board(), make_move));
+
+        if let Some(entry) = tt_entry {
+            if entry.depth > 0 && entry.table_move == make_move && !entry.score.is_mate() {
+                thread.ss[ply as usize + 1].dbs = Some(DepthBoundScore::from_tt(entry).next());
+            }
+        }
         pos.make_move_fetch(make_move, |board| {
             shared_context.get_t_table().prefetch(&board)
         });
@@ -567,6 +581,7 @@ pub fn search<Search: SearchType>(
         }
 
         pos.unmake_move();
+        thread.ss[ply as usize + 1].dbs = None;
         moves_seen += 1;
 
         if ply == 0 {
