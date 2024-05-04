@@ -125,7 +125,11 @@ impl Dbs {
             return Some(self);
         }
         match init_bounds {
-            Bounds::Exact | Bounds::UpperBound => Some(self),
+            Bounds::UpperBound => Some(self),
+            Bounds::Exact => {
+                self.bounds = Bounds::UpperBound;
+                Some(self)
+            }
             Bounds::LowerBound => None,
         }
     }
