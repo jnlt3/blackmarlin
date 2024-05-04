@@ -127,7 +127,7 @@ impl Dbs {
         match init_bounds {
             Bounds::UpperBound => Some(self),
             Bounds::Exact => {
-                self.bounds = Bounds::UpperBound;
+                self.bounds = Bounds::LowerBound;
                 Some(self)
             }
             Bounds::LowerBound => None,
