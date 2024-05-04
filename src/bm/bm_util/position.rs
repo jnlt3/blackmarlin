@@ -11,6 +11,8 @@ pub struct Position {
     b_threats: BitBoard,
     boards: Vec<Board>,
     threats: Vec<(BitBoard, BitBoard)>,
+    moves: Vec<Option<Move>>,
+    last_eval: usize,
     evaluator: Nnue,
 }
 
@@ -25,6 +27,8 @@ impl Position {
             b_threats,
             threats: vec![],
             boards: vec![],
+            moves: vec![],
+            last_eval: 0,
             evaluator,
         }
     }
@@ -38,6 +42,8 @@ impl Position {
         self.b_threats = b_threats;
         self.current = board;
         self.boards.clear();
+        self.threats.clear();
+        self.moves.clear();
     }
 
     /// Forces recalculation of NNUE accumulators
@@ -91,7 +97,7 @@ impl Position {
         let Some(new_board) = self.board().null_move() else {
             return false;
         };
-        self.evaluator.null_move();
+        self.moves.push(None);
         self.boards.push(self.current.clone());
         self.threats.push((self.w_threats, self.b_threats));
         self.current = new_board;
@@ -109,18 +115,36 @@ impl Position {
         post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
 
+        self.moves.push(Some(make_move));
+        self.boards.push(old_board);
+        self.threats.push((old_w_threats, old_b_threats));
+    }
+
+    fn update_nnue(&mut self) {
+        while self.last_eval + 1 < self.boards.len() {
+            self.last_eval += 1;
+            todo!("implement multi step");
+        }
+        if self.last_eval == self.boards.len() {
+            return;
+        }
+        assert!(self.last_eval + 1 == self.boards.len());
+        let idx = self.last_eval;
+        self.last_eval = self.boards.len();
+        let Some(last_mv) = self.moves[idx] else {
+            self.evaluator.null_move();
+            return;
+        };
+        let (old_w_threats, old_b_threats) = self.threats[idx];
         self.evaluator.make_move(
-            &old_board,
+            &self.boards[idx],
             &self.current,
-            make_move,
+            last_mv,
             self.w_threats,
             self.b_threats,
             old_w_threats,
             old_b_threats,
         );
-
-        self.boards.push(old_board);
-        self.threats.push((old_w_threats, old_b_threats));
     }
 
     /// Makes move, updates accumulators and calculates threats
@@ -131,10 +155,14 @@ impl Position {
 
     /// Takes back one (move)[Self::make_move]
     pub fn unmake_move(&mut self) {
-        self.evaluator.unmake_move();
+        self.moves.pop().unwrap();
         let current = self.boards.pop().unwrap();
         (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
+        while self.last_eval > self.boards.len() {
+            self.evaluator.unmake_move();
+            self.last_eval -= 1;
+        }
     }
 
     pub fn hash(&self) -> u64 {
@@ -166,6 +194,7 @@ impl Position {
     /// Calculates NN evaluation + FRC bonus
     /// - Add [aggression](Self::aggression) if using for search results & pruning
     pub fn get_eval(&mut self) -> Evaluation {
+        self.update_nnue();
         let frc_score = frc::frc_corner_bishop(self.board());
         let piece_cnt = self.board().occupied().len() as i16;
 
