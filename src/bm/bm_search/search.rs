@@ -1,7 +1,7 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
 
-use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
+use crate::bm::bm_runner::ab_runner::{Dbs, MoveData, SharedContext, ThreadContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
@@ -182,6 +182,10 @@ pub fn search<Search: SearchType>(
     } else {
         thread.tt_misses += 1;
     }
+    let mut dbs = thread.ss[ply as usize].dbs;
+    if let Some(entry) = tt_entry {
+        dbs = Some(Dbs::from_tt(&entry));
+    }
 
     let in_check = !pos.board().checkers().is_empty();
 
@@ -229,7 +233,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let nmp_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
+        let nmp_eval = dbs.map_or(eval, |entry| match entry.bounds {
             Bounds::LowerBound => entry.score.max(eval),
             Bounds::Exact => entry.score,
             Bounds::UpperBound => entry.score.min(eval),
@@ -465,6 +469,7 @@ pub fn search<Search: SearchType>(
         }
 
         thread.ss[ply as usize].move_played = Some(MoveData::from_move(pos.board(), make_move));
+        thread.ss[ply as usize + 1].dbs = dbs.and_then(|dbs| dbs.next(make_move));
         pos.make_move_fetch(make_move, |board| {
             shared_context.get_t_table().prefetch(&board)
         });

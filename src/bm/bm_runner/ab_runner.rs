@@ -12,7 +12,7 @@ use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::lookup::LookUp2d;
 use crate::bm::bm_util::position::Position;
-use crate::bm::bm_util::t_table::TranspositionTable;
+use crate::bm::bm_util::t_table::{Analysis, Bounds, TranspositionTable};
 use crate::bm::bm_util::window::Window;
 use crate::bm::uci;
 
@@ -89,6 +89,48 @@ impl MoveData {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct Dbs {
+    pub depth: u32,
+    pub bounds: Bounds,
+    pub score: Evaluation,
+    pub mv: Option<Move>,
+}
+
+impl Dbs {
+    pub fn from_tt(analysis: &Analysis) -> Self {
+        Self {
+            depth: analysis.depth,
+            bounds: analysis.bounds,
+            score: analysis.score,
+            mv: Some(analysis.table_move),
+        }
+    }
+
+    pub fn next(mut self, mv: Move) -> Option<Self> {
+        if self.depth == 0 {
+            return None;
+        }
+        let init_mv = self.mv;
+        let init_bounds = self.bounds;
+        self.depth -= 1;
+        self.bounds = match self.bounds {
+            Bounds::LowerBound => Bounds::UpperBound,
+            Bounds::Exact => Bounds::Exact,
+            Bounds::UpperBound => Bounds::LowerBound,
+        };
+        self.score = -self.score;
+        self.mv = None;
+        if Some(mv) == init_mv {
+            return Some(self);
+        }
+        match init_bounds {
+            Bounds::Exact | Bounds::UpperBound => Some(self),
+            Bounds::LowerBound => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SearchStack {
     pub eval: Evaluation,
@@ -96,6 +138,7 @@ pub struct SearchStack {
     pub move_played: Option<MoveData>,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
+    pub dbs: Option<Dbs>,
 }
 
 impl SearchStack {
@@ -412,6 +455,7 @@ impl AbRunner {
                         move_played: None,
                         pv: [None; MAX_PLY as usize + 1],
                         pv_len: 0,
+                        dbs: None
                     };
                     MAX_PLY as usize + 1
                 ],
