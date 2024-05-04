@@ -38,6 +38,7 @@ impl Position {
         self.b_threats = b_threats;
         self.current = board;
         self.boards.clear();
+        self.threats.clear();
     }
 
     /// Forces recalculation of NNUE accumulators
