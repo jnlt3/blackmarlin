@@ -112,7 +112,6 @@ impl Dbs {
             return None;
         }
         let init_mv = self.mv;
-        let init_bounds = self.bounds;
         self.depth -= 1;
         self.bounds = match self.bounds {
             Bounds::LowerBound => Bounds::UpperBound,
@@ -124,14 +123,7 @@ impl Dbs {
         if Some(mv) == init_mv {
             return Some(self);
         }
-        match init_bounds {
-            Bounds::UpperBound => Some(self),
-            Bounds::Exact => {
-                self.bounds = Bounds::LowerBound;
-                Some(self)
-            }
-            Bounds::LowerBound => None,
-        }
+        None
     }
 }
 
