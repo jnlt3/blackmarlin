@@ -44,12 +44,14 @@ impl Position {
         self.boards.clear();
         self.threats.clear();
         self.moves.clear();
+        self.last_eval = 0;
     }
 
     /// Forces recalculation of NNUE accumulators
     pub fn reset(&mut self) {
         self.evaluator
             .full_reset(&self.current, self.w_threats, self.b_threats);
+        self.last_eval = self.boards.len();
     }
 
     /// Returns true for 50 move rule and three fold repetitions
@@ -122,8 +124,23 @@ impl Position {
 
     fn update_nnue(&mut self) {
         while self.last_eval + 1 < self.boards.len() {
+            let idx = self.last_eval;
             self.last_eval += 1;
-            todo!("implement multi step");
+            let Some(last_mv) = self.moves[idx] else {
+                self.evaluator.null_move();
+                return;
+            };
+            let (old_w_threats, old_b_threats) = self.threats[idx];
+            let (w_threats, b_threats) = self.threats[idx + 1];
+            self.evaluator.make_move(
+                &self.boards[idx],
+                &self.boards[idx + 1],
+                last_mv,
+                w_threats,
+                b_threats,
+                old_w_threats,
+                old_b_threats,
+            );
         }
         if self.last_eval == self.boards.len() {
             return;
