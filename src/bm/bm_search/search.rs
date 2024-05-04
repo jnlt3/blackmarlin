@@ -4,7 +4,7 @@ use cozy_chess::{Board, Move, Piece};
 use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
+use crate::bm::bm_util::history::{self, HistoryIndices};
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Bounds;
 
@@ -373,6 +373,11 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && multi_cut && s_score + 2 < s_beta {
                         extension += 1;
                         if !is_capture && s_score + 180 < s_beta {
+                            extension += 1;
+                        }
+                    }
+                    if !Search::PV && !multi_cut {
+                        if h_score > history::MAX_HIST * 3 / 4 || eval + 200 <= alpha {
                             extension += 1;
                         }
                     }
