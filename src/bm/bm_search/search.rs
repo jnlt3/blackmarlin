@@ -376,7 +376,7 @@ pub fn search<Search: SearchType>(
                             extension += 1;
                         }
                     }
-                    if !Search::PV && !multi_cut && h_score > history::MAX_HIST / 2 {
+                    if !Search::PV && !multi_cut && h_score > history::MAX_HIST / 4 {
                         extension += 1;
                     }
                     thread.history.update_history(
