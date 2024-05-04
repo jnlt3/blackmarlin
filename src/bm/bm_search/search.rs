@@ -219,9 +219,19 @@ pub fn search<Search: SearchType>(
         let razor_margin = razor_margin(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
             let zw = alpha - razor_qsearch();
-            let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
-            if q_search <= zw {
-                return q_search;
+            if dbs.map_or(false, |entry| {
+                entry.bounds != Bounds::LowerBound && entry.score <= zw
+            }) {
+                return dbs.unwrap().score;
+            }
+            let razor_fail = dbs.map_or(false, |entry| {
+                entry.bounds != Bounds::UpperBound && entry.score > zw
+            });
+            if !razor_fail {
+                let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
+                if q_search <= zw {
+                    return q_search;
+                }
             }
         }
 
@@ -233,7 +243,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let nmp_eval = dbs.map_or(eval, |entry| match entry.bounds {
+        let nmp_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
             Bounds::LowerBound => entry.score.max(eval),
             Bounds::Exact => entry.score,
             Bounds::UpperBound => entry.score.min(eval),
