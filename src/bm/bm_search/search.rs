@@ -497,6 +497,9 @@ pub fn search<Search: SearchType>(
             if cut_node {
                 reduction += 1;
             }
+            if move_gen.phase() >= Phase::BadCaptures {
+                reduction += 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
