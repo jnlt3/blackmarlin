@@ -218,13 +218,17 @@ impl History {
         quiets: &[Move],
         captures: &[Move],
         amt: i16,
+        bad_capture: bool,
     ) {
         let is_capture = pos
             .board()
             .colors(!pos.board().side_to_move())
             .has(cutoff_move.to);
         if !is_capture {
-            self.update_quiet(pos, indices, cutoff_move, quiets, amt);
+            self.bonus_quiet(pos, indices, cutoff_move, amt);
+        }
+        if bad_capture || !is_capture {
+            self.update_quiet(pos, indices, quiets, amt);
         } else {
             bonus(self.get_capture_mut(pos, cutoff_move), amt);
         }
@@ -233,44 +237,40 @@ impl History {
         }
     }
 
-    fn update_quiet(
-        &mut self,
-        pos: &Position,
-        indices: &HistoryIndices,
-        make_move: Move,
-        fails: &[Move],
-        amt: i16,
-    ) {
+    fn bonus_quiet(&mut self, pos: &Position, indices: &HistoryIndices, make_move: Move, amt: i16) {
         bonus(self.get_quiet_mut(pos, make_move), amt);
-        for &failed_move in fails {
-            malus(self.get_quiet_mut(pos, failed_move), amt);
-        }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
-            for &failed_move in fails {
-                let failed_hist = self
-                    .get_counter_move_mut(pos, indices, failed_move)
-                    .unwrap();
-                malus(failed_hist, amt);
-            }
         }
         if let Some(followup_move_hist) = self.get_followup_move_mut(pos, indices, make_move) {
             bonus(followup_move_hist, amt);
-            for &failed_move in fails {
-                let failed_hist = self
-                    .get_followup_move_mut(pos, indices, failed_move)
-                    .unwrap();
-                malus(failed_hist, amt);
-            }
         }
         if let Some(followup_move_hist_2) = self.get_followup_move_2_mut(pos, indices, make_move) {
             bonus(followup_move_hist_2, amt);
-            for &failed_move in fails {
-                let failed_hist = self
-                    .get_followup_move_2_mut(pos, indices, failed_move)
-                    .unwrap();
-                malus(failed_hist, amt);
-            }
+        }
+    }
+
+    fn update_quiet(&mut self, pos: &Position, indices: &HistoryIndices, fails: &[Move], amt: i16) {
+        for &failed_move in fails {
+            malus(self.get_quiet_mut(pos, failed_move), amt);
+        }
+        for &failed_move in fails {
+            let Some(failed_hist) = self.get_counter_move_mut(pos, indices, failed_move) else {
+                break;
+            };
+            malus(failed_hist, amt);
+        }
+        for &failed_move in fails {
+            let Some(failed_hist) = self.get_followup_move_mut(pos, indices, failed_move) else {
+                break;
+            };
+            malus(failed_hist, amt);
+        }
+        for &failed_move in fails {
+            let Some(failed_hist) = self.get_followup_move_2_mut(pos, indices, failed_move) else {
+                break;
+            };
+            malus(failed_hist, amt);
         }
     }
 }

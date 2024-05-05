@@ -383,6 +383,7 @@ pub fn search<Search: SearchType>(
                         &[],
                         &[],
                         depth as i16,
+                        false,
                     );
                 } else if multi_cut && s_beta >= beta {
                     /*
@@ -598,6 +599,7 @@ pub fn search<Search: SearchType>(
                             &quiets,
                             &captures,
                             amt as i16,
+                            move_gen.phase() >= Phase::BadCaptures,
                         );
                     }
                     break;
