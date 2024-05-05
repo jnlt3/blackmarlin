@@ -196,19 +196,19 @@ pub fn search<Search: SearchType>(
         2.. => Some(thread.ss[ply as usize - 2].eval),
         _ => None,
     };
+    let (_, nstm_threats) = pos.threats();
     let improving = match prev_move_eval {
-        Some(prev_move_eval) => !in_check && eval > prev_move_eval,
+        Some(prev_move_eval) => !in_check && eval > prev_move_eval && nstm_threats.is_empty(),
         None => false,
     };
 
-    let (_, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        if do_rev_fp(depth) && eval - rev_fp(depth, improving) >= beta {
             return (eval + beta) / 2;
         }
 
