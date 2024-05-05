@@ -87,7 +87,10 @@ const fn iir(depth: u32) -> u32 {
     }
 }
 
-const fn fp(depth: u32) -> i16 {
+const fn fp(mut depth: u32, history: i16) -> i16 {
+    if history < 0 {
+        depth = depth.saturating_sub(1);
+    }
     depth as i16 * 97
 }
 
@@ -412,7 +415,7 @@ pub fn search<Search: SearchType>(
         */
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
 
-        if do_fp && eval + fp(lmr_depth) <= alpha {
+        if do_fp && eval + fp(lmr_depth, h_score) <= alpha {
             move_gen.skip_quiets();
             continue;
         }
