@@ -11,6 +11,8 @@ pub struct Position {
     b_threats: BitBoard,
     boards: Vec<Board>,
     threats: Vec<(BitBoard, BitBoard)>,
+    moves: Vec<Option<Move>>,
+    last_eval: usize,
     evaluator: Nnue,
 }
 
@@ -25,6 +27,8 @@ impl Position {
             b_threats,
             threats: vec![],
             boards: vec![],
+            moves: vec![],
+            last_eval: 0,
             evaluator,
         }
     }
@@ -38,12 +42,16 @@ impl Position {
         self.b_threats = b_threats;
         self.current = board;
         self.boards.clear();
+        self.threats.clear();
+        self.moves.clear();
+        self.last_eval = 0;
     }
 
     /// Forces recalculation of NNUE accumulators
     pub fn reset(&mut self) {
         self.evaluator
             .full_reset(&self.current, self.w_threats, self.b_threats);
+        self.last_eval = self.boards.len();
     }
 
     /// Returns true for 50 move rule and three fold repetitions
@@ -91,43 +99,87 @@ impl Position {
         let Some(new_board) = self.board().null_move() else {
             return false;
         };
-        self.evaluator.null_move();
+        self.moves.push(None);
         self.boards.push(self.current.clone());
         self.threats.push((self.w_threats, self.b_threats));
         self.current = new_board;
         true
     }
 
-    /// Makes move, updates accumulators and calculates threats
-    /// - Expensive function, only use if the move is going to be searched
-    pub fn make_move(&mut self, make_move: Move) {
+    /// See [Position::make_move]
+    /// - Runs post_make after making the move, before updating the neural network
+    pub fn make_move_fetch<F: Fn(&Board)>(&mut self, make_move: Move, post_make: F) {
         let old_board = self.current.clone();
         let old_w_threats = self.w_threats;
         let old_b_threats = self.b_threats;
 
         self.current.play_unchecked(make_move);
+        post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
 
+        self.moves.push(Some(make_move));
+        self.boards.push(old_board);
+        self.threats.push((old_w_threats, old_b_threats));
+    }
+
+    fn update_nnue(&mut self) {
+        while self.last_eval + 1 < self.boards.len() {
+            let idx = self.last_eval;
+            self.last_eval += 1;
+            let Some(last_mv) = self.moves[idx] else {
+                self.evaluator.null_move();
+                return;
+            };
+            let (old_w_threats, old_b_threats) = self.threats[idx];
+            let (w_threats, b_threats) = self.threats[idx + 1];
+            self.evaluator.make_move(
+                &self.boards[idx],
+                &self.boards[idx + 1],
+                last_mv,
+                w_threats,
+                b_threats,
+                old_w_threats,
+                old_b_threats,
+            );
+        }
+        if self.last_eval == self.boards.len() {
+            return;
+        }
+        assert!(self.last_eval + 1 == self.boards.len());
+        let idx = self.last_eval;
+        self.last_eval = self.boards.len();
+        let Some(last_mv) = self.moves[idx] else {
+            self.evaluator.null_move();
+            return;
+        };
+        let (old_w_threats, old_b_threats) = self.threats[idx];
         self.evaluator.make_move(
-            &old_board,
+            &self.boards[idx],
             &self.current,
-            make_move,
+            last_mv,
             self.w_threats,
             self.b_threats,
             old_w_threats,
             old_b_threats,
         );
+    }
 
-        self.boards.push(old_board);
-        self.threats.push((old_w_threats, old_b_threats));
+    /// Makes move, updates accumulators and calculates threats
+    /// - Expensive function, only use if the move is going to be searched
+    pub fn make_move(&mut self, make_move: Move) {
+        self.make_move_fetch(make_move, |_| {});
     }
 
     /// Takes back one (move)[Self::make_move]
     pub fn unmake_move(&mut self) {
-        self.evaluator.unmake_move();
+        self.moves.pop().unwrap();
         let current = self.boards.pop().unwrap();
         (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
+        while self.last_eval > self.boards.len() {
+            self.evaluator.unmake_move();
+            self.last_eval -= 1;
+        }
     }
 
     pub fn hash(&self) -> u64 {
@@ -146,18 +198,20 @@ impl Position {
     /// - Value may vary depending on position and root evaluation
     /// - Avoid storing, instead recalculate for a given position
     pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
-        let piece_cnt = self.board().occupied().len() as i16;
+        let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
+        let scale = 2 * piece_cnt as i16;
 
-        let clamped_eval = root_eval.raw().clamp(-100, 100);
-        match self.board().side_to_move() == stm {
-            true => piece_cnt * clamped_eval / 50,
-            false => -piece_cnt * clamped_eval / 50,
-        }
+        let clamped_eval = root_eval.raw().clamp(-200, 200);
+        (match self.board().side_to_move() == stm {
+            true => scale * clamped_eval,
+            false => -scale * clamped_eval,
+        }) / 100
     }
 
     /// Calculates NN evaluation + FRC bonus
     /// - Add [aggression](Self::aggression) if using for search results & pruning
     pub fn get_eval(&mut self) -> Evaluation {
+        self.update_nnue();
         let frc_score = frc::frc_corner_bishop(self.board());
         let piece_cnt = self.board().occupied().len() as i16;
 
