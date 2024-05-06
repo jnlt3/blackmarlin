@@ -16,19 +16,20 @@ pub struct Align<T>(pub T);
 #[derive(Debug, Clone)]
 pub struct Incremental<const INPUT: usize, const OUTPUT: usize> {
     weights: Arc<Align<[[i16; OUTPUT]; INPUT]>>,
-    out: Align<[i16; OUTPUT]>,
 }
 
 impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
-    pub fn new(weights: Arc<Align<[[i16; OUTPUT]; INPUT]>>, bias: Align<[i16; OUTPUT]>) -> Self {
-        Self { weights, out: bias }
+    pub fn new(weights: Arc<Align<[[i16; OUTPUT]; INPUT]>>) -> Self {
+        Self { weights }
     }
 
-    pub fn reset(&mut self, bias: [i16; OUTPUT]) {
-        self.out.0 = bias;
-    }
-
-    pub fn update_features(&mut self, added_features: &[usize], removed_features: &[usize]) {
+    pub fn update_features(
+        &mut self,
+        src: &Align<[i16; OUTPUT]>,
+        out: &mut Align<[i16; OUTPUT]>,
+        added_features: &[usize],
+        removed_features: &[usize],
+    ) {
         cfg_if! {
             if #[cfg(target_feature = "avx2")] {
                 const CHUNKS: usize = 256;
@@ -39,10 +40,10 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         for start in 0..(OUTPUT + CHUNKS - 1) / CHUNKS {
             let range = start * CHUNKS..(start * CHUNKS + CHUNKS).min(OUTPUT);
             let mut out_reg = [0; CHUNKS];
-            out_reg[..range.len()].copy_from_slice(&self.out.0[range.clone()]);
+            out_reg[..range.len()].copy_from_slice(&src.0[range.clone()]);
             self.update_chunk::<1>(added_features, &mut out_reg, range.clone());
             self.update_chunk::<-1>(removed_features, &mut out_reg, range.clone());
-            self.out.0[range.clone()].copy_from_slice(&out_reg[..range.len()]);
+            out.0[range.clone()].copy_from_slice(&out_reg[..range.len()]);
         }
     }
 
@@ -57,10 +58,6 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
                 *out += weight * SIGN;
             }
         }
-    }
-
-    pub fn get(&self) -> &[i16; OUTPUT] {
-        &self.out.0
     }
 }
 
@@ -175,18 +172,18 @@ pub fn scale_network_output(x: i32) -> i16 {
     (x as i32 * UNITS as i32 / (FT_SCALE as i32 * SCALE as i32)) as i16
 }
 
-pub fn sq_clipped_relu<const N: usize>(array: [i16; N], out: &mut [u8]) {
+pub fn sq_clipped_relu<const N: usize>(array: &Align<[i16; N]>, out: &mut [u8]) {
     cfg_if! {
         if #[cfg(target_feature = "neon")]
         {
-            for (array, out) in array.chunks(256).zip(out.chunks_mut(256)) {
+            for (array, out) in array.0.chunks(256).zip(out.chunks_mut(256)) {
                 for (&x, clipped) in array.iter().zip(out.iter_mut()) {
                     let tmp = x.max(MIN).min(MAX) as u16;
                     *clipped = ((tmp * tmp) >> SHIFT) as u8;
                 }
             }
         } else {
-            for (&x, clipped) in array.iter().zip(out.iter_mut()) {
+            for (&x, clipped) in array.0.iter().zip(out.iter_mut()) {
                 let tmp = x.max(MIN).min(MAX) as u16;
                 *clipped = ((tmp * tmp) >> SHIFT) as u8;
             }
