@@ -482,7 +482,7 @@ pub fn search<Search: SearchType>(
         */
 
         if moves_seen > 0 {
-            if ply <= (depth + ply) / 3 && good_capture {
+            if ply <= (depth + ply) / 3 && move_gen.phase() < Phase::BadCaptures {
                 reduction -= 1;
             }
             if !Search::PV {
