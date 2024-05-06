@@ -208,7 +208,14 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        let skip_rfp = do_razor(depth)
+            && tt_entry.map_or(false, |entry| {
+                entry.bounds != Bounds::LowerBound && entry.score + razor_qsearch() <= alpha
+            });
+        if !skip_rfp
+            && do_rev_fp(depth)
+            && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta
+        {
             return (eval + beta) / 2;
         }
 
