@@ -106,6 +106,8 @@ pub struct Nnue {
     b_add: ArrayVec<usize, 48>,
     w_rm: ArrayVec<usize, 48>,
     b_rm: ArrayVec<usize, 48>,
+
+    null_moves: Vec<bool>,
 }
 
 impl Nnue {
@@ -143,6 +145,7 @@ impl Nnue {
             bias: Arc::new(Align(incremental_bias.0)),
             out_layer,
             head: 0,
+            null_moves: Vec::with_capacity(ab_runner::MAX_PLY as usize + 1),
         }
     }
 
@@ -254,12 +257,12 @@ impl Nnue {
     }
 
     fn push_accumulator(&mut self) {
+        self.null_moves.push(false);
         self.head += 1;
     }
 
     pub fn null_move(&mut self) {
-        self.push_accumulator();
-        self.accumulator[self.head] = self.accumulator[self.head - 1].clone();
+        self.null_moves.push(true);
     }
 
     pub fn make_move(
@@ -273,9 +276,6 @@ impl Nnue {
         old_b_threats: BitBoard,
     ) {
         self.push_accumulator();
-        //self.reset(Color::White, &new_board, w_threats, b_threats);
-        //self.reset(Color::Black, &new_board, w_threats, b_threats);
-        //return;
         let from_sq = make_move.from;
         let from_type = board.piece_on(from_sq).unwrap();
         let stm = board.side_to_move();
@@ -396,7 +396,7 @@ impl Nnue {
                     board.king(perspective),
                     to_sq,
                     make_move.promotion.unwrap_or(from_type),
-                    stm,    
+                    stm,
                 ));
             }
             self.perform_update(perspective);
@@ -405,7 +405,10 @@ impl Nnue {
     }
 
     pub fn unmake_move(&mut self) {
-        self.head -= 1;
+        let null_move = self.null_moves.pop().unwrap();
+        if !null_move {
+            self.head -= 1;
+        }
     }
 
     pub fn feed_forward(&mut self, stm: Color, piece_cnt: usize) -> i16 {
