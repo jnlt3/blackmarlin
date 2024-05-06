@@ -43,8 +43,8 @@ const fn do_rev_fp(depth: u32) -> bool {
     depth <= 8
 }
 
-const fn rev_fp(depth: u32, improving: bool) -> i16 {
-    depth as i16 * 68 - improving as i16 * 61
+const fn rev_fp(depth: u32, improving: bool, cut_node: bool) -> i16 {
+    depth as i16 * 68 - improving as i16 * 61 + (!cut_node) as i16 * 61
 }
 
 const fn do_razor(depth: u32) -> bool {
@@ -208,7 +208,9 @@ pub fn search<Search: SearchType>(
         If in a non PV node and evaluation is higher than beta + a depth dependent margin
         we assume we can at least achieve beta
         */
-        if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
+        if do_rev_fp(depth)
+            && eval - rev_fp(depth, improving && nstm_threats.is_empty(), cut_node) >= beta
+        {
             return (eval + beta) / 2;
         }
 
