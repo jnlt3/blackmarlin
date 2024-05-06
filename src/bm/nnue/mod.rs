@@ -16,8 +16,8 @@ const NN_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eval.bin"));
 
 #[derive(Debug, Clone)]
 pub struct Accumulator {
-    w_input_layer: Incremental<INPUT, MID>,
-    b_input_layer: Incremental<INPUT, MID>,
+    w_acc: Align<[i16; MID]>,
+    b_acc: Align<[i16; MID]>,
 }
 
 fn king_to_index(sq: Square) -> usize {
@@ -92,30 +92,22 @@ fn threat_indices(perspective: Color, king: Square, sq: Square, color: Color) ->
     Update::new(index, perspective)
 }
 
-impl Accumulator {
-    pub fn perform_update(
-        &mut self,
-        w_add: &mut [usize],
-        w_rm: &mut [usize],
-        b_add: &mut [usize],
-        b_rm: &mut [usize],
-    ) {
-        self.w_input_layer.update_features(w_add, w_rm);
-        self.b_input_layer.update_features(b_add, b_rm);
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Nnue {
     accumulator: Vec<Accumulator>,
-    bias: Arc<[i16; MID]>,
+    bias: Arc<Align<[i16; MID]>>,
     head: usize,
     out_layer: Dense<{ MID * 2 }, OUTPUT>,
+
+    w_input_layer: Incremental<INPUT, MID>,
+    b_input_layer: Incremental<INPUT, MID>,
 
     w_add: ArrayVec<usize, 48>,
     b_add: ArrayVec<usize, 48>,
     w_rm: ArrayVec<usize, 48>,
     b_rm: ArrayVec<usize, 48>,
+
+    null_moves: Vec<bool>,
 }
 
 impl Nnue {
@@ -133,24 +125,64 @@ impl Nnue {
         bytes = &bytes[OUTPUT * 2..];
         assert!(bytes.is_empty(), "{}", bytes.len());
 
-        let input_layer = Incremental::new(incremental, incremental_bias);
+        let input_layer = Incremental::new(incremental);
         let out_layer = Dense::new(out, out_bias);
 
         Self {
             accumulator: vec![
                 Accumulator {
-                    w_input_layer: input_layer.clone(),
-                    b_input_layer: input_layer,
+                    w_acc: incremental_bias,
+                    b_acc: incremental_bias
                 };
                 ab_runner::MAX_PLY as usize + 1
             ],
+            w_input_layer: input_layer.clone(),
+            b_input_layer: input_layer,
             w_add: ArrayVec::new(),
             w_rm: ArrayVec::new(),
             b_add: ArrayVec::new(),
             b_rm: ArrayVec::new(),
-            bias: Arc::new(incremental_bias.0),
+            bias: Arc::new(Align(incremental_bias.0)),
             out_layer,
             head: 0,
+            null_moves: Vec::with_capacity(ab_runner::MAX_PLY as usize + 1),
+        }
+    }
+
+    pub fn perform_reset_update(&mut self, color: Color) {
+        let curr = &mut self.accumulator[self.head];
+        match color {
+            Color::White => self.w_input_layer.update_features(
+                &self.bias,
+                &mut curr.w_acc,
+                &self.w_add,
+                &self.w_rm,
+            ),
+            Color::Black => self.b_input_layer.update_features(
+                &self.bias,
+                &mut curr.b_acc,
+                &self.b_add,
+                &self.b_rm,
+            ),
+        }
+    }
+
+    pub fn perform_update(&mut self, color: Color) {
+        let (prev, curr) = self.accumulator.split_at_mut(self.head);
+        let prev = prev.last().unwrap();
+        match color {
+            Color::White => self.w_input_layer.update_features(
+                &prev.w_acc,
+                &mut curr[0].w_acc,
+                &self.w_add,
+                &self.w_rm,
+            ),
+            Color::Black => self.b_input_layer.update_features(
+                &prev.b_acc,
+                &mut curr[0].b_acc,
+                &self.b_add,
+                &self.b_rm,
+            ),
         }
     }
 
@@ -211,15 +243,10 @@ impl Nnue {
 
         let acc = &mut self.accumulator[self.head];
         match perspective {
-            Color::White => acc.w_input_layer.reset(*self.bias),
-            Color::Black => acc.b_input_layer.reset(*self.bias),
+            Color::White => acc.w_acc = *self.bias,
+            Color::Black => acc.b_acc = *self.bias,
         }
-        acc.perform_update(
-            &mut self.w_add,
-            &mut self.w_rm,
-            &mut self.b_add,
-            &mut self.b_rm,
-        );
+        self.perform_reset_update(perspective);
         self.clear();
     }
 
@@ -230,15 +257,12 @@ impl Nnue {
     }
 
     fn push_accumulator(&mut self) {
-        let w_out = *self.accumulator[self.head].w_input_layer.get();
-        let b_out = *self.accumulator[self.head].b_input_layer.get();
-        self.accumulator[self.head + 1].w_input_layer.reset(w_out);
-        self.accumulator[self.head + 1].b_input_layer.reset(b_out);
+        self.null_moves.push(false);
         self.head += 1;
     }
 
     pub fn null_move(&mut self) {
-        self.push_accumulator();
+        self.null_moves.push(true);
     }
 
     pub fn make_move(
@@ -375,29 +399,27 @@ impl Nnue {
                     stm,
                 ));
             }
+            self.perform_update(perspective);
         }
-        self.accumulator[self.head].perform_update(
-            &mut self.w_add,
-            &mut self.w_rm,
-            &mut self.b_add,
-            &mut self.b_rm,
-        );
         self.clear();
     }
 
     pub fn unmake_move(&mut self) {
-        self.head -= 1;
+        let null_move = self.null_moves.pop().unwrap();
+        if !null_move {
+            self.head -= 1;
+        }
     }
 
     pub fn feed_forward(&mut self, stm: Color, piece_cnt: usize) -> i16 {
         let acc = &mut self.accumulator[self.head];
         let mut incr = Align([0; MID * 2]);
         let (stm, nstm) = match stm {
-            Color::White => (&acc.w_input_layer, &acc.b_input_layer),
-            Color::Black => (&acc.b_input_layer, &acc.w_input_layer),
+            Color::White => (&acc.w_acc, &acc.b_acc),
+            Color::Black => (&acc.b_acc, &acc.w_acc),
         };
-        layers::sq_clipped_relu(*stm.get(), &mut incr.0);
-        layers::sq_clipped_relu(*nstm.get(), &mut incr.0[MID..]);
+        layers::sq_clipped_relu(stm, &mut incr.0);
+        layers::sq_clipped_relu(nstm, &mut incr.0[MID..]);
 
         let bucket = (((63 - piece_cnt) * (32 - piece_cnt)) / 225).min(7);
         layers::scale_network_output(self.out_layer.feed_forward(&incr, bucket))
