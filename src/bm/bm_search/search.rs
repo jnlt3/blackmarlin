@@ -380,7 +380,7 @@ pub fn search<Search: SearchType>(
                             extension += 1;
                         }
                     }
-                    if !multi_cut && eval + 100 <= alpha {
+                    if !multi_cut && eval + 50 <= alpha {
                         extension += 1;
                     }
                     thread.history.update_history(
