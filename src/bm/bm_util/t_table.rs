@@ -47,10 +47,17 @@ fn compressed_moves() {
     });
 }
 
+const EVAL_BITS: u32 = 14;
+const MAX_EVAL: i16 = 2_u32.pow(EVAL_BITS - 1) as i16 - 1;
+const INVALID_EVAL: i16 = -(2_u32.pow(EVAL_BITS - 1) as i16);
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EntryType {
     Missing,
-    Entry { bounds: Bounds },
+    Entry {
+        bounds: Bounds,
+        eval: Option<Evaluation>,
+    },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -64,27 +71,38 @@ impl EntryType {
     fn to_u16(self) -> u16 {
         match self {
             EntryType::Missing => 0,
-            EntryType::Entry { bounds } => match bounds {
-                Bounds::LowerBound => 1,
-                Bounds::Exact => 2,
-                Bounds::UpperBound => 3,
-            },
+            EntryType::Entry { bounds, eval } => {
+                let flag = match bounds {
+                    Bounds::LowerBound => 1,
+                    Bounds::Exact => 2,
+                    Bounds::UpperBound => 3,
+                };
+                let eval_val = eval.map(|eval| eval.raw()).unwrap_or(INVALID_EVAL) - INVALID_EVAL;
+                let eval_u16 = (eval_val as u16) << (i16::BITS - EVAL_BITS);
+                flag | eval_u16
+            }
         }
     }
 
     fn from_u16(val: u16) -> EntryType {
-        match val {
-            1..=3 => {
-                let val = val - 1;
-                let bounds = match val {
+        let flag = val & 0b11;
+        match flag {
+            0 => return EntryType::Missing,
+            _ => {
+                let flag = flag - 1;
+                let bounds = match flag {
                     0 => Bounds::LowerBound,
                     1 => Bounds::Exact,
                     2 => Bounds::UpperBound,
                     _ => unreachable!(),
                 };
-                EntryType::Entry { bounds }
+                let eval = (val >> (i16::BITS - EVAL_BITS)) as i16;
+                let eval = match eval == 0 {
+                    true => None,
+                    false => Some(Evaluation::new(eval + INVALID_EVAL)),
+                };
+                EntryType::Entry { bounds, eval }
             }
-            _ => EntryType::Missing,
         }
     }
 }
@@ -98,6 +116,7 @@ pub struct Analysis {
     pub score: Evaluation,
     pub table_move: Move,
     pub age: u8,
+    pub eval: Option<Evaluation>,
 }
 
 impl Analysis {
@@ -108,12 +127,13 @@ impl Analysis {
 
         match entry {
             EntryType::Missing => None,
-            EntryType::Entry { bounds } => Some(Self {
+            EntryType::Entry { bounds, eval } => Some(Self {
                 depth: depth as u32,
                 bounds,
                 score: Evaluation::new(score),
                 table_move: TTMove(table_move).to_move(),
                 age,
+                eval,
             }),
         }
     }
@@ -122,6 +142,7 @@ impl Analysis {
         unsafe {
             let entry = EntryType::Entry {
                 bounds: self.bounds,
+                eval: self.eval,
             };
             std::mem::transmute::<Layout, u64>((
                 self.depth as u8,
@@ -133,13 +154,22 @@ impl Analysis {
         }
     }
 
-    fn new(depth: u32, bounds: Bounds, score: Evaluation, table_move: Move, age: u8) -> Self {
+    fn new(
+        depth: u32,
+        bounds: Bounds,
+        score: Evaluation,
+        table_move: Move,
+        age: u8,
+        eval: Evaluation,
+    ) -> Self {
+        let eval = (eval.raw().abs() <= MAX_EVAL).then_some(eval);
         Self {
             depth,
             bounds,
             score,
             table_move,
             age,
+            eval,
         }
     }
 }
@@ -234,6 +264,7 @@ impl TranspositionTable {
         entry_type: Bounds,
         score: Evaluation,
         table_move: Move,
+        eval: Evaluation,
     ) {
         let new = Analysis::new(
             depth,
@@ -241,6 +272,7 @@ impl TranspositionTable {
             score,
             table_move,
             self.age.load(Ordering::Relaxed),
+            eval,
         );
         let hash = board.hash();
         let tt_hash = self.tt_hash(hash);

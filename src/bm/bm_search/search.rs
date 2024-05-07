@@ -185,15 +185,19 @@ pub fn search<Search: SearchType>(
 
     let in_check = !pos.board().checkers().is_empty();
 
-    let eval = match skip_move {
+    let tt_eval = tt_entry.and_then(|entry| entry.eval);
+    let raw_eval = match skip_move {
         Some(_) => thread.ss[ply as usize].eval,
-        None => pos.get_eval() + pos.aggression(thread.stm, thread.eval),
+        None => tt_eval.unwrap_or_else(|| pos.get_eval()),
     };
+    let aggr = pos.aggression(thread.stm, thread.eval);
+    let eval = raw_eval + aggr;
 
-    thread.ss[ply as usize].eval = eval;
+    thread.ss[ply as usize].aggr = aggr;
+    thread.ss[ply as usize].eval = raw_eval;
 
     let prev_move_eval = match ply {
-        2.. => Some(thread.ss[ply as usize - 2].eval),
+        2.. => Some(thread.ss[ply as usize - 2].full_eval()),
         _ => None,
     };
     let improving = match prev_move_eval {
@@ -634,6 +638,7 @@ pub fn search<Search: SearchType>(
                 entry_type,
                 highest_score,
                 *final_move,
+                raw_eval,
             );
         }
     }
@@ -687,7 +692,9 @@ pub fn q_search(
     let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
-    let stand_pat = pos.get_eval() + pos.aggression(thread.stm, thread.eval);
+    let tt_eval = tt_entry.and_then(|entry| entry.eval);
+    let raw_eval = tt_eval.unwrap_or_else(|| pos.get_eval());
+    let stand_pat = raw_eval + pos.aggression(thread.stm, thread.eval);
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
@@ -756,9 +763,14 @@ pub fn q_search(
             _ => Bounds::Exact,
         };
 
-        shared_context
-            .get_t_table()
-            .set(pos.board(), 0, entry_type, highest_score, best_move);
+        shared_context.get_t_table().set(
+            pos.board(),
+            0,
+            entry_type,
+            highest_score,
+            best_move,
+            raw_eval,
+        );
     }
     highest_score.unwrap_or(alpha)
 }
