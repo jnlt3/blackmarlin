@@ -128,7 +128,7 @@ impl Position {
             self.last_eval += 1;
             let Some(last_mv) = self.moves[idx] else {
                 self.evaluator.null_move();
-                return;
+                continue;
             };
             let (old_w_threats, old_b_threats) = self.threats[idx];
             let (w_threats, b_threats) = self.threats[idx + 1];
