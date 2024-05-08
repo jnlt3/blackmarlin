@@ -352,7 +352,6 @@ pub fn search<Search: SearchType>(
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
                 && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
-                && (multi_cut || eval <= alpha)
             {
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
