@@ -68,7 +68,7 @@ fn do_nmp<Search: SearchType>(
 ) -> bool {
     Search::NM
         && depth > 4
-        && !(nstm_threat && depth <= 7)
+        && !nstm_threat
         && eval >= beta
         && (board.pieces(Piece::Pawn) | board.pieces(Piece::King)) != board.occupied()
 }
