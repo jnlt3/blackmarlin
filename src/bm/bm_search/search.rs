@@ -480,6 +480,9 @@ pub fn search<Search: SearchType>(
         let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
             extension = extension.max(1);
+            if new_stm_threat.len() > stm_threats.len() {
+                extension = extension.max(2);
+            }
         }
 
         /*
@@ -504,9 +507,6 @@ pub fn search<Search: SearchType>(
             }
             if cut_node {
                 reduction += 1;
-            }
-            if new_stm_threat.len() > stm_threats.len() {
-                reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
