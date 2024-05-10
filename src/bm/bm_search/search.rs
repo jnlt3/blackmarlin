@@ -96,7 +96,7 @@ const fn see_fp(depth: u32) -> i16 {
 }
 
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 129 / 10
+    -((depth * depth) as i32) * 72 / 10
 }
 
 const fn history_lmr(history: i16) -> i16 {
@@ -446,7 +446,7 @@ pub fn search<Search: SearchType>(
         let do_hp = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 6
+            && depth <= 8
             && (!good_capture || eval <= alpha);
 
         if do_hp && (h_score as i32) < hp(depth) {
