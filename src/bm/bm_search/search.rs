@@ -402,6 +402,8 @@ pub fn search<Search: SearchType>(
                     extension = -2;
                 } else if multi_cut && cut_node {
                     extension = -2;
+                } else if !multi_cut && entry.score >= beta && depth > 1 {
+                    extension = -1;
                 }
             }
         }
