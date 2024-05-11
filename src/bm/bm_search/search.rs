@@ -205,7 +205,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
-    let (_, nstm_threats) = pos.threats();
+    let (stm_threats, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
         Reverse Futility Pruning:
@@ -475,6 +475,7 @@ pub fn search<Search: SearchType>(
         pos.make_move_fetch(make_move, |board| {
             shared_context.get_t_table().prefetch(&board)
         });
+        let (_, new_stm_threat) = pos.threats();
 
         let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
@@ -503,6 +504,9 @@ pub fn search<Search: SearchType>(
             }
             if cut_node {
                 reduction += 1;
+            }
+            if new_stm_threat.len() > stm_threats.len() {
+                reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
