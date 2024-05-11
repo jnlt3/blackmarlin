@@ -194,6 +194,17 @@ impl Position {
         }
     }
 
+    pub fn last_threats(&self) -> Option<(BitBoard, BitBoard)> {
+        if self.threats.len() < 2 {
+            return None;
+        }
+        let (w_threats, b_threats) = self.threats[self.threats.len() - 2];
+        Some(match self.current.side_to_move() {
+            Color::White => (w_threats, b_threats),
+            Color::Black => (b_threats, w_threats),
+        })
+    }
+
     /// Returns aggression value
     /// - Value may vary depending on position and root evaluation
     /// - Avoid storing, instead recalculate for a given position
