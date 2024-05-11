@@ -39,13 +39,13 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
-pub static mut REV_FP_DEPTH: u32 = 7; // 4 12 3
+pub static mut REV_FP_DEPTH: u32 = 8; // 4 12 3
 pub static mut REV_FP: i16 = 68; // 30 100 20
 pub static mut REV_FP_IMPR: i16 = 61; // 30 100 20
 pub static mut RAZOR_DEPTH: u32 = 4; // 1 10 2
 pub static mut RAZOR: i16 = 287; // 50 400 100
 pub static mut NMP_MIN_DEPTH: u32 = 4; // 4 10 3
-pub static mut NMP_MAX_THREAT_DEPTH: u32 = 9; // 4 20 3
+pub static mut NMP_MAX_THREAT_DEPTH: u32 = 7; // 4 20 3
 pub static mut NMP_BASE: u32 = 4; // 0 10 3
 pub static mut NMP_MUL: u32 = 20; // 0 120 10
 pub static mut NMP_EVAL_DIV: i16 = 201; // 50 400 50
@@ -57,10 +57,11 @@ pub static mut HP: i32 = 129; // 30 210 30
 pub static mut HIST_LMR_DIV: i16 = 119; // 40 200 30
 
 pub static mut MC_DEPTH: u32 = 6; // 2 15 3
+pub static mut T_EXT_MARGIN: i16 = 180; // 1 100 15
 
 pub static mut FP_DEPTH: u32 = 8; // 2 12 3
-pub static mut HP_DEPTH: u32 = 5; // 2 12 3
-pub static mut SEEFP_DEPTH: u32 = 7; // 2 12 3
+pub static mut HP_DEPTH: u32 = 6; // 2 12 3
+pub static mut SEEFP_DEPTH: u32 = 6; // 2 12 3
 
 pub static mut LMR_BASE: u32 = 51; // 0 200 20
 pub static mut LMR_DIV: u32 = 207; // 100 400 40
@@ -135,7 +136,7 @@ fn fp(depth: u32) -> i16 {
     depth as i16 * unsafe { FP }
 }
 
-fn see_fp(depth: u32) -> i16 {  
+fn see_fp(depth: u32) -> i16 {
     depth as i16 * unsafe { SEE_FP }
 }
 
@@ -418,7 +419,7 @@ pub fn search<Search: SearchType>(
                     extension = 1;
                     if !Search::PV && multi_cut && s_score < s_beta {
                         extension += 1;
-                        if !is_capture && s_score + 180 < s_beta {
+                        if !is_capture && s_score + unsafe { T_EXT_MARGIN } < s_beta {
                             extension += 1;
                         }
                     }
@@ -494,7 +495,8 @@ pub fn search<Search: SearchType>(
         */
         let do_hp = !Search::PV
             && non_mate_line
-            && moves_seen > 0&& depth <= unsafe { HP_DEPTH }
+            && moves_seen > 0
+            && depth <= unsafe { HP_DEPTH }
             && (!good_capture || eval <= alpha);
 
         if do_hp && (h_score as i32) < hp(depth) {
@@ -507,7 +509,8 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune = !Search::PV
             && non_mate_line
-            && moves_seen > 0&& depth <= unsafe { SEEFP_DEPTH }
+            && moves_seen > 0
+            && depth <= unsafe { SEEFP_DEPTH }
             && !alpha.is_mate()
             && !good_capture;
 

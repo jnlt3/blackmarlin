@@ -110,6 +110,7 @@ impl UciAdapter {
         add_param!(HP: i32 = range(30, 210));
         add_param!(HIST_LMR_DIV: i16 = range(40, 200));
         add_param!(MC_DEPTH: u32 = range(2, 15));
+        add_param!(T_EXT_MARGIN: i16 = range(0, 400));
         add_param!(FP_DEPTH: u32 = range(2, 12));
         add_param!(HP_DEPTH: u32 = range(2, 12));
         add_param!(SEEFP_DEPTH: u32 = range(2, 12));
@@ -155,6 +156,12 @@ impl UciAdapter {
                 println!("option name UCI_Chess960 type check default false");
                 for print_param in &self.print_uci {
                     print_param();
+                }
+                for i in 0..10 {
+                    println!("option name DUMMY_{i} type spin default 1024 min 0 max 2048")
+                }
+                for i in 0..10 {
+                    println!("option name DUMMY_INT_{i} type spin default 4 min 0 max 8")
                 }
                 println!("uciok");
             }
