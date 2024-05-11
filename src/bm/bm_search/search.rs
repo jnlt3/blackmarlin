@@ -480,6 +480,9 @@ pub fn search<Search: SearchType>(
         let gives_check = !pos.board().checkers().is_empty();
         if gives_check {
             extension = extension.max(1);
+            if !new_stm_threat.is_empty() && stm_threats.is_empty() {
+                extension = extension.max(2);
+            }
         }
 
         /*
