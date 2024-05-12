@@ -506,7 +506,7 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if new_stm_threat.len() > stm_threats.len() {
-                reduction -= 1;
+                reduction -= 2;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
