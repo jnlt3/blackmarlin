@@ -432,7 +432,7 @@ pub fn search<Search: SearchType>(
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                    .get(depth as usize, (improving || eval <= alpha) as usize)
         {
             move_gen.skip_quiets();
             continue;
