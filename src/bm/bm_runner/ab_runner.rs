@@ -193,7 +193,7 @@ fn remove_aggression(eval: Evaluation, scale: i32) -> Evaluation {
         true => eval,
         false => {
             let eval = eval.raw() as i32;
-            let eval = eval - scale * eval.clamp(-MAX - scale, MAX + scale) / (100 + scale);
+            let eval = eval - scale * eval.clamp(-scale, MAX + scale) / (100 + scale);
             Evaluation::new(eval as i16)
         }
     }
