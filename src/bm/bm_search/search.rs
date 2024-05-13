@@ -114,6 +114,7 @@ pub fn search<Search: SearchType>(
     cut_node: bool,
 ) -> Evaluation {
     thread.ss[ply as usize].pv_len = 0;
+    thread.ss[ply as usize].move_played = None;
 
     if ply != 0 && (thread.abort || shared_context.abort_search(thread.nodes())) {
         thread.trigger_abort();
@@ -205,6 +206,7 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    let mut null_move_threat = None;
     let (stm_threats, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -280,6 +282,8 @@ pub fn search<Search: SearchType>(
                 if verified {
                     return score;
                 }
+            } else {
+                null_move_threat = thread.ss[ply as usize + 1].move_played;
             }
         }
     }
@@ -312,7 +316,7 @@ pub fn search<Search: SearchType>(
     let mut quiets = ArrayVec::<Move, 64>::new();
     let mut captures = ArrayVec::<Move, 64>::new();
 
-    let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4);
+    let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4, null_move_threat);
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {

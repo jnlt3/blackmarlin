@@ -31,6 +31,7 @@ pub struct HistoryIndices {
     cont_mv_1: Option<(Piece, Square)>,
     cont_mv_2: Option<(Piece, Square)>,
     cont_mv_4: Option<(Piece, Square)>,
+    opp_threat: Option<(Piece, Square)>,
 }
 
 impl HistoryIndices {
@@ -38,15 +39,18 @@ impl HistoryIndices {
         cont_mv_1: Option<MoveData>,
         cont_mv_2: Option<MoveData>,
         cont_mv_4: Option<MoveData>,
+        opp_threat: Option<MoveData>,
     ) -> Self {
         let convert = |mv: MoveData| (mv.piece, mv.to);
         let cont_mv_1 = cont_mv_1.map(convert);
         let cont_mv_2 = cont_mv_2.map(convert);
         let cont_mv_4 = cont_mv_4.map(convert);
+        let opp_threat = opp_threat.map(convert);
         Self {
             cont_mv_1,
             cont_mv_2,
             cont_mv_4,
+            opp_threat,
         }
     }
 }
@@ -57,6 +61,7 @@ pub struct History {
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+    opp_threat_hist: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
 
 impl History {
@@ -66,6 +71,7 @@ impl History {
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            opp_threat_hist: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
     }
 
@@ -130,6 +136,41 @@ impl History {
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
         Some(
             &mut self.counter_move[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    /// Returns None if a threat move isn't available
+    ///
+    /// Recommended to .unwrap_or_default()
+    ///
+    /// Do not use for captures
+    pub fn get_threat(
+        &self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<i16> {
+        let (prev_piece, prev_to) = indices.opp_threat?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            self.opp_threat_hist[stm as usize][prev_piece as usize][prev_to as usize]
+                [current_piece as usize][make_move.to as usize],
+        )
+    }
+
+    fn get_threat_mut(
+        &mut self,
+        pos: &Position,
+        indices: &HistoryIndices,
+        make_move: Move,
+    ) -> Option<&mut i16> {
+        let (prev_piece, prev_to) = indices.opp_threat?;
+        let stm = pos.board().side_to_move();
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        Some(
+            &mut self.opp_threat_hist[stm as usize][prev_piece as usize][prev_to as usize]
                 [current_piece as usize][make_move.to as usize],
         )
     }
@@ -269,6 +310,13 @@ impl History {
                 let failed_hist = self
                     .get_followup_move_2_mut(pos, indices, failed_move)
                     .unwrap();
+                malus(failed_hist, amt);
+            }
+        }
+        if let Some(threat_hist) = self.get_threat_mut(pos, indices, make_move) {
+            bonus(threat_hist, amt);
+            for &failed_move in fails {
+                let failed_hist = self.get_threat_mut(pos, indices, failed_move).unwrap();
                 malus(failed_hist, amt);
             }
         }
