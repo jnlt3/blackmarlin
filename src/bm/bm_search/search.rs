@@ -376,7 +376,7 @@ pub fn search<Search: SearchType>(
                     extension = 1;
                     if !Search::PV && multi_cut && s_score < s_beta {
                         extension += 1;
-                        if !is_capture && s_score + 120 < s_beta {
+                        if s_score + 120 < s_beta {
                             extension += 1;
                         }
                     }
