@@ -380,7 +380,7 @@ pub fn search<Search: SearchType>(
                             extension += 1;
                         }
                     }
-                    if !Search::PV && !multi_cut && eval + 100 <= alpha {
+                    if !Search::PV && depth >= 3 && !multi_cut && eval + 100 <= alpha {
                         extension += 1;
                     }
                     thread.history.update_history(
