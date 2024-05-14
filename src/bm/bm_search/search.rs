@@ -103,6 +103,10 @@ const fn history_lmr(history: i16) -> i16 {
     history / 119
 }
 
+const fn prob_cut_depth() -> u32 {
+    3
+}
+
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     thread: &mut ThreadContext,
@@ -284,7 +288,13 @@ pub fn search<Search: SearchType>(
         }
 
         let prob_beta = beta + 200;
-        if depth >= 6 && !beta.is_mate() && eval >= prob_beta {
+        /*
+        For lower bound and exact, we want to make sure a fail high is indicated
+        For upper bound, we want to make sure that a fail high is within possibility
+        */
+        let tt_skip_probcut = tt_entry
+            .is_some_and(|entry| entry.depth >= prob_cut_depth() && entry.score < prob_beta);
+        if depth >= 6 && !tt_skip_probcut && !beta.is_mate() && eval >= prob_beta {
             let zw = prob_beta >> Next;
             let mut prob_cut_movegen = QSearchMoveGen::new();
             while let Some(capture) = prob_cut_movegen.next(pos, &thread.history) {
@@ -300,7 +310,7 @@ pub fn search<Search: SearchType>(
                         thread,
                         shared_context,
                         ply + 1,
-                        depth - 4,
+                        depth - 1 - prob_cut_depth(),
                         zw,
                         zw + 1,
                         !cut_node,
