@@ -282,6 +282,36 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
+
+        let prob_beta = beta + 200;
+        if depth >= 4 && !beta.is_mate() && eval >= prob_beta {
+            let zw = prob_beta >> Next;
+            let mut prob_cut_movegen = QSearchMoveGen::new();
+            while let Some(capture) = prob_cut_movegen.next(pos, &thread.history) {
+                thread.ss[ply as usize].move_played =
+                    Some(MoveData::from_move(pos.board(), capture));
+                pos.make_move_fetch(capture, |board| {
+                    shared_context.get_t_table().prefetch(board)
+                });
+                let mut score = q_search(pos, thread, shared_context, ply + 1, zw, zw + 1) << Next;
+                if score >= prob_beta {
+                    score = search::<Search::Zw>(
+                        pos,
+                        thread,
+                        shared_context,
+                        ply + 1,
+                        depth - 4,
+                        zw,
+                        zw + 1,
+                        !cut_node,
+                    ) << Next;
+                }
+                pos.unmake_move();
+                if score >= prob_beta {
+                    return score;
+                }
+            }
+        }
     }
 
     if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
