@@ -386,14 +386,16 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && !multi_cut && eval + 100 <= alpha {
                         extension += 1;
                     }
-                    thread.history.update_history(
-                        pos,
-                        &hist_indices,
-                        make_move,
-                        &[],
-                        &[],
-                        depth as i16,
-                    );
+                    if !is_capture {
+                        thread.history.update_history(
+                            pos,
+                            &hist_indices,
+                            make_move,
+                            &[],
+                            &[],
+                            depth as i16,
+                        );
+                    }
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
