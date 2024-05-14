@@ -292,9 +292,12 @@ pub fn search<Search: SearchType>(
         For lower bound and exact, we want to make sure a fail high is indicated
         For upper bound, we want to make sure that a fail high is within possibility
         */
-        let tt_skip_probcut = tt_entry
-            .is_some_and(|entry| entry.depth >= prob_cut_depth() && entry.score < prob_beta);
-        if depth >= 6 && !tt_skip_probcut && !beta.is_mate() && eval >= prob_beta {
+        let tt_skip_probcut = tt_entry.is_some_and(|entry| {
+            entry.depth >= prob_cut_depth()
+                && entry.bounds != Bounds::LowerBound
+                && entry.score < prob_beta
+        });
+        if depth >= 6 && !beta.is_mate() && !tt_skip_probcut {
             let zw = prob_beta >> Next;
             let mut prob_cut_movegen = QSearchMoveGen::new();
             while let Some(capture) = prob_cut_movegen.next(pos, &thread.history) {
