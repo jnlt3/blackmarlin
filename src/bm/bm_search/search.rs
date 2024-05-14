@@ -284,7 +284,7 @@ pub fn search<Search: SearchType>(
         }
 
         let prob_beta = beta + 200;
-        if depth >= 4 && !beta.is_mate() && eval >= prob_beta {
+        if depth >= 4 && !beta.is_mate() {
             let zw = prob_beta >> Next;
             let mut prob_cut_movegen = QSearchMoveGen::new();
             while let Some(capture) = prob_cut_movegen.next(pos, &thread.history) {
