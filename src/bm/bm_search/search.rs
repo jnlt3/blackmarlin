@@ -294,7 +294,7 @@ pub fn search<Search: SearchType>(
         */
         let tt_skip_probcut = tt_entry
             .is_some_and(|entry| entry.depth >= prob_cut_depth() && entry.score < prob_beta);
-        if depth >= 6 && !tt_skip_probcut && !beta.is_mate() && eval >= prob_beta {
+        if depth >= 6 && !tt_skip_probcut && !beta.is_mate() {
             let zw = prob_beta >> Next;
             let mut prob_cut_movegen = QSearchMoveGen::new();
             while let Some(capture) = prob_cut_movegen.next(pos, &thread.history) {
