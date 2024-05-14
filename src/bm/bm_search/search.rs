@@ -368,7 +368,7 @@ pub fn search<Search: SearchType>(
                         s_beta,
                         cut_node,
                     ),
-                    false => eval,
+                    false => eval + h_score / 16,
                 };
 
                 thread.ss[ply as usize].skip_move = None;
