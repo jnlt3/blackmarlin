@@ -233,7 +233,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let nmp_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
+        let corrected_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
             Bounds::LowerBound => entry.score.max(eval),
             Bounds::Exact => entry.score,
             Bounds::UpperBound => entry.score.min(eval),
@@ -241,14 +241,14 @@ pub fn search<Search: SearchType>(
         if do_nmp::<Search>(
             pos.board(),
             depth,
-            nmp_eval.raw(),
+            corrected_eval.raw(),
             beta.raw(),
             !nstm_threats.is_empty(),
         ) && pos.null_move()
         {
             thread.ss[ply as usize].move_played = None;
 
-            let nmp_depth = nmp_depth(depth, nmp_eval.raw(), beta.raw());
+            let nmp_depth = nmp_depth(depth, corrected_eval.raw(), beta.raw());
             let zw = beta >> Next;
             let search_score = search::<NoNm>(
                 pos,
@@ -284,7 +284,7 @@ pub fn search<Search: SearchType>(
         }
 
         let prob_beta = beta + 200;
-        if depth >= 6 && !beta.is_mate() && eval >= prob_beta {
+        if depth >= 6 && !beta.is_mate() && corrected_eval >= prob_beta {
             let zw = prob_beta >> Next;
             let mut prob_cut_movegen = QSearchMoveGen::new();
             while let Some(capture) = prob_cut_movegen.next(pos, &thread.history) {
