@@ -746,9 +746,9 @@ pub fn q_search(
         let score = search_score << Next;
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
-            best_move = Some(make_move);
         }
         if score > alpha {
+            best_move = Some(make_move);
             alpha = score;
             if score >= beta {
                 pos.unmake_move();
@@ -761,7 +761,7 @@ pub fn q_search(
     if thread.abort {
         return Evaluation::min();
     }
-    if let Some((best_move, highest_score)) = best_move.zip(highest_score) {
+    if let Some(highest_score) = highest_score {
         let entry_type = match () {
             _ if highest_score <= initial_alpha => Bounds::UpperBound,
             _ if highest_score >= beta => Bounds::LowerBound,
@@ -773,7 +773,7 @@ pub fn q_search(
             0,
             entry_type,
             highest_score,
-            Some(best_move),
+            best_move,
             raw_eval,
         );
     }
