@@ -284,9 +284,10 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+    if tt_entry.is_none() {
         depth -= iir(depth)
     }
+    let late_iir = tt_entry.is_some_and(|entry| entry.depth + 4 < depth);
 
     if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
         entry.clear();
@@ -625,6 +626,9 @@ pub fn search<Search: SearchType>(
             }
         } else if !quiets.is_full() {
             quiets.push(make_move);
+        }
+        if moves_seen == 1 && late_iir {
+            depth -= 1;
         }
     }
     if !move_exists {
