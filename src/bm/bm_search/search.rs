@@ -423,7 +423,6 @@ pub fn search<Search: SearchType>(
         let do_fp = !Search::PV && non_mate_line && moves_seen > 0 && !is_capture && depth <= 8;
 
         if do_fp && eval + fp(lmr_depth) <= alpha {
-            move_gen.skip_quiets();
             continue;
         }
 
