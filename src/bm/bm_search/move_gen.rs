@@ -20,10 +20,12 @@ pub enum Phase {
     /// Generated move is a killer move
     Killers,
     GenQuiets,
-    /// Generated move is a non capture
-    Quiets,
+    /// Generated move is a non capture and has 0 SEE value
+    GoodQuiets,
     /// Generated move has a SEE value < 0
     BadCaptures,
+    /// Generated move is a quiet that has a SEE value < 0
+    BadQuiets,
 }
 
 struct ScoredMove {
@@ -49,6 +51,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<ScoredMove, MAX_MOVES>,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
     bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    bad_quiets: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 fn select_highest(array: &[ScoredMove]) -> Option<usize> {
@@ -80,6 +83,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            bad_quiets: ArrayVec::new(),
         }
     }
 
@@ -94,7 +98,7 @@ impl OrderedMoveGen {
     /// Skips all quiet generation only if the last generated move is a quiet move that is not from the TT  
     pub fn skip_quiets(&mut self) {
         self.phase = match self.phase {
-            Phase::Killers | Phase::GenQuiets | Phase::Quiets => Phase::BadCaptures,
+            Phase::Killers | Phase::GenQuiets | Phase::GoodQuiets => Phase::BadCaptures,
             _ => return,
         }
     }
@@ -170,7 +174,7 @@ impl OrderedMoveGen {
             self.phase = Phase::GenQuiets;
         }
         if self.phase == Phase::GenQuiets {
-            self.phase = Phase::Quiets;
+            self.phase = Phase::GoodQuiets;
             let stm = pos.board().side_to_move();
             for mut piece_moves in self.piece_moves.iter().copied() {
                 piece_moves.to &= !pos.board().colors(!stm);
@@ -206,15 +210,27 @@ impl OrderedMoveGen {
                 }
             }
         }
-        if self.phase == Phase::Quiets {
-            if let Some(index) = select_highest(&self.quiets) {
-                return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
+        if self.phase == Phase::GoodQuiets {
+            while let Some(index) = select_highest(&self.quiets) {
+                if let Some(quiet) = self.quiets.swap_pop(index) {
+                    if !compare_see(pos.board(), quiet.mv, 0) {
+                        self.bad_quiets.push(quiet);
+                        continue;
+                    }
+                    return Some(quiet.mv);
+                }
             }
             self.phase = Phase::BadCaptures;
         }
         if self.phase == Phase::BadCaptures {
             if let Some(index) = select_highest(&self.bad_captures) {
                 return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
+            }
+            self.phase = Phase::BadCaptures;
+        }
+        if self.phase == Phase::BadQuiets {
+            if let Some(index) = select_highest(&self.bad_captures) {
+                return self.bad_quiets.swap_pop(index).map(|quiet| quiet.mv);
             }
         }
         None
