@@ -153,12 +153,9 @@ pub fn search<Search: SearchType>(
     to help with move ordering
     */
     if let Some(entry) = tt_entry {
-        best_move = pos
-            .board()
-            .is_legal(entry.table_move)
-            .then_some(entry.table_move);
+        best_move = entry.table_move.filter(|&mv| pos.board().is_legal(mv));
         thread.tt_hits += 1;
-        if best_move.is_none() {
+        if entry.table_move.is_some() && best_move.is_none() {
             tt_entry = None;
         }
         if !Search::PV && entry.depth >= depth && best_move.is_some() {
@@ -347,7 +344,7 @@ pub fn search<Search: SearchType>(
         if let Some(entry) = tt_entry {
             let multi_cut = depth >= 6;
             if moves_seen == 0
-                && entry.table_move == make_move
+                && entry.table_move == Some(make_move)
                 && ply != 0
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
@@ -590,8 +587,8 @@ pub fn search<Search: SearchType>(
 
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
-            best_move = Some(make_move);
             if score > alpha {
+                best_move = Some(make_move);
                 if (Search::PV || (ply == 0 && moves_seen == 1)) && !thread.abort {
                     let (child_pv, len) = {
                         let child = &thread.ss[ply as usize + 1];
@@ -636,21 +633,19 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
-        if let Some(final_move) = &best_move {
-            let entry_type = match () {
-                _ if highest_score <= initial_alpha => Bounds::UpperBound,
-                _ if highest_score >= beta => Bounds::LowerBound,
-                _ => Bounds::Exact,
-            };
-            shared_context.get_t_table().set(
-                pos.board(),
-                depth,
-                entry_type,
-                highest_score,
-                *final_move,
-                raw_eval,
-            );
-        }
+        let entry_type = match () {
+            _ if highest_score <= initial_alpha => Bounds::UpperBound,
+            _ if highest_score >= beta => Bounds::LowerBound,
+            _ => Bounds::Exact,
+        };
+        shared_context.get_t_table().set(
+            pos.board(),
+            depth,
+            entry_type,
+            highest_score,
+            best_move,
+            raw_eval,
+        );
     }
     highest_score
 }
@@ -778,7 +773,7 @@ pub fn q_search(
             0,
             entry_type,
             highest_score,
-            best_move,
+            Some(best_move),
             raw_eval,
         );
     }
