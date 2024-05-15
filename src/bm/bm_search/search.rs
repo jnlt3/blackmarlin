@@ -158,7 +158,7 @@ pub fn search<Search: SearchType>(
         if entry.table_move.is_some() && best_move.is_none() {
             tt_entry = None;
         }
-        if !Search::PV && entry.depth >= depth && best_move.is_some() {
+        if !Search::PV && entry.depth >= depth {
             let score = entry.score;
             match entry.bounds {
                 Bounds::Exact => {
@@ -675,9 +675,11 @@ pub fn q_search(
         return pos.get_eval() + pos.aggression(thread.stm, thread.eval);
     }
 
+    let mut best_move = None;
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
     if let Some(entry) = tt_entry {
+        best_move = entry.table_move;
         match entry.bounds {
             Bounds::LowerBound => {
                 if entry.score >= beta {
@@ -694,7 +696,6 @@ pub fn q_search(
     }
 
     let mut highest_score = None;
-    let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
     let tt_eval = tt_entry.and_then(|entry| entry.eval);
