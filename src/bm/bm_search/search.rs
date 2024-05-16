@@ -354,13 +354,18 @@ pub fn search<Search: SearchType>(
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
 
+                let mut s_depth = depth / 2 - 1;
+                if multi_cut && is_capture {
+                    s_depth -= 1;
+                }
+
                 let s_score = match multi_cut {
                     true => search::<Search::Zw>(
                         pos,
                         thread,
                         shared_context,
                         ply,
-                        depth / 2 - 1,
+                        s_depth,
                         s_beta - 1,
                         s_beta,
                         cut_node,
