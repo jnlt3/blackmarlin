@@ -8,15 +8,21 @@ use crate::bm::bm_util::eval::Evaluation;
 struct TTMove(u16);
 
 impl TTMove {
-    fn new(make_move: Move) -> Self {
+    fn new(make_move: Option<Move>) -> Self {
         let mut bits = 0;
+        let Some(make_move) = make_move else {
+            return Self(0);
+        };
         bits |= make_move.from as u16;
         bits |= (make_move.to as u16) << 6;
         bits |= (make_move.promotion.map_or(0b1111, |piece| piece as u16)) << 12;
         Self(bits)
     }
 
-    fn to_move(self) -> Move {
+    fn to_move(self) -> Option<Move> {
+        if self.0 == 0 {
+            return None;
+        }
         const MASK_4: u16 = 0b1111;
         const MASK_6: u16 = 0b111111;
         let bits = self.0;
@@ -28,11 +34,11 @@ impl TTMove {
             Piece::try_index(promotion as usize)
         };
 
-        Move {
+        Some(Move {
             from: Square::index((bits & MASK_6) as usize),
             to: Square::index(((bits >> 6) & MASK_6) as usize),
             promotion,
-        }
+        })
     }
 }
 
@@ -41,7 +47,7 @@ fn compressed_moves() {
     let board = Board::default();
     board.generate_moves(|piece_moves| {
         for make_move in piece_moves {
-            assert_eq!(make_move, TTMove::new(make_move).to_move());
+            assert_eq!(Some(make_move), TTMove::new(Some(make_move)).to_move());
         }
         false
     });
@@ -114,7 +120,7 @@ pub struct Analysis {
     pub depth: u32,
     pub bounds: Bounds,
     pub score: Evaluation,
-    pub table_move: Move,
+    pub table_move: Option<Move>,
     pub age: u8,
     pub eval: Option<Evaluation>,
 }
@@ -158,7 +164,7 @@ impl Analysis {
         depth: u32,
         bounds: Bounds,
         score: Evaluation,
-        table_move: Move,
+        table_move: Option<Move>,
         age: u8,
         eval: Evaluation,
     ) -> Self {
@@ -263,7 +269,7 @@ impl TranspositionTable {
         depth: u32,
         entry_type: Bounds,
         score: Evaluation,
-        table_move: Move,
+        table_move: Option<Move>,
         eval: Evaluation,
     ) {
         let new = Analysis::new(

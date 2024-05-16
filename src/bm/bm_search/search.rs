@@ -153,15 +153,12 @@ pub fn search<Search: SearchType>(
     to help with move ordering
     */
     if let Some(entry) = tt_entry {
-        best_move = pos
-            .board()
-            .is_legal(entry.table_move)
-            .then_some(entry.table_move);
+        best_move = entry.table_move.filter(|&mv| pos.board().is_legal(mv));
         thread.tt_hits += 1;
-        if best_move.is_none() {
+        if entry.table_move.is_some() && best_move.is_none() {
             tt_entry = None;
         }
-        if !Search::PV && entry.depth >= depth && best_move.is_some() {
+        if !Search::PV && entry.depth >= depth {
             let score = entry.score;
             match entry.bounds {
                 Bounds::Exact => {
@@ -347,7 +344,7 @@ pub fn search<Search: SearchType>(
         if let Some(entry) = tt_entry {
             let multi_cut = depth >= 6;
             if moves_seen == 0
-                && entry.table_move == make_move
+                && entry.table_move == Some(make_move)
                 && ply != 0
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
@@ -590,8 +587,8 @@ pub fn search<Search: SearchType>(
 
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
-            best_move = Some(make_move);
             if score > alpha {
+                best_move = Some(make_move);
                 if (Search::PV || (ply == 0 && moves_seen == 1)) && !thread.abort {
                     let (child_pv, len) = {
                         let child = &thread.ss[ply as usize + 1];
@@ -636,21 +633,19 @@ pub fn search<Search: SearchType>(
     let highest_score = highest_score.unwrap();
 
     if skip_move.is_none() && !thread.abort {
-        if let Some(final_move) = &best_move {
-            let entry_type = match () {
-                _ if highest_score <= initial_alpha => Bounds::UpperBound,
-                _ if highest_score >= beta => Bounds::LowerBound,
-                _ => Bounds::Exact,
-            };
-            shared_context.get_t_table().set(
-                pos.board(),
-                depth,
-                entry_type,
-                highest_score,
-                *final_move,
-                raw_eval,
-            );
-        }
+        let entry_type = match () {
+            _ if highest_score <= initial_alpha => Bounds::UpperBound,
+            _ if highest_score >= beta => Bounds::LowerBound,
+            _ => Bounds::Exact,
+        };
+        shared_context.get_t_table().set(
+            pos.board(),
+            depth,
+            entry_type,
+            highest_score,
+            best_move,
+            raw_eval,
+        );
     }
     highest_score
 }
@@ -680,9 +675,11 @@ pub fn q_search(
         return pos.get_eval() + pos.aggression(thread.stm, thread.eval);
     }
 
+    let mut best_move = None;
     let initial_alpha = alpha;
     let tt_entry = shared_context.get_t_table().get(pos.board());
     if let Some(entry) = tt_entry {
+        best_move = entry.table_move;
         match entry.bounds {
             Bounds::LowerBound => {
                 if entry.score >= beta {
@@ -699,7 +696,6 @@ pub fn q_search(
     }
 
     let mut highest_score = None;
-    let mut best_move = None;
     let in_check = !pos.board().checkers().is_empty();
 
     let tt_eval = tt_entry.and_then(|entry| entry.eval);
@@ -751,9 +747,9 @@ pub fn q_search(
         let score = search_score << Next;
         if highest_score.is_none() || score > highest_score.unwrap() {
             highest_score = Some(score);
-            best_move = Some(make_move);
         }
         if score > alpha {
+            best_move = Some(make_move);
             alpha = score;
             if score >= beta {
                 pos.unmake_move();
@@ -766,7 +762,7 @@ pub fn q_search(
     if thread.abort {
         return Evaluation::min();
     }
-    if let Some((best_move, highest_score)) = best_move.zip(highest_score) {
+    if let Some(highest_score) = highest_score {
         let entry_type = match () {
             _ if highest_score <= initial_alpha => Bounds::UpperBound,
             _ if highest_score >= beta => Bounds::LowerBound,
