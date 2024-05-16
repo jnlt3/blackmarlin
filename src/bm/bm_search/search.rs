@@ -489,7 +489,7 @@ pub fn search<Search: SearchType>(
         full depth search
         */
 
-        if moves_seen > 0 {
+        if moves_seen > 0 || skip_move.is_some() {
             if ply <= (depth + ply) / 3 {
                 reduction -= 1;
             }
@@ -511,7 +511,7 @@ pub fn search<Search: SearchType>(
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
-        if moves_seen == 0 {
+        if moves_seen == 0 && skip_move.is_none() {
             let depth = (depth as i32 + extension) as u32;
             let search_score = search::<Search>(
                 pos,
