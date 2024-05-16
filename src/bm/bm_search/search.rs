@@ -360,7 +360,7 @@ pub fn search<Search: SearchType>(
                         thread,
                         shared_context,
                         ply,
-                        depth / 2 - 1,
+                        depth / 2 - 2,
                         s_beta - 1,
                         s_beta,
                         cut_node,
