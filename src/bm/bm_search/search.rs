@@ -281,7 +281,11 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+    let iir_margin = |bounds: Bounds| match bounds {
+        Bounds::UpperBound => 3,
+        _ => 4,
+    };
+    if tt_entry.map_or(true, |entry| entry.depth + iir_margin(entry.bounds) < depth) {
         depth -= iir(depth)
     }
 
