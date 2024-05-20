@@ -96,11 +96,11 @@ const fn see_fp(depth: u32) -> i16 {
 }
 
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 138 / 10
+    -((depth * depth) as i32) * 69 / 80
 }
 
 const fn history_lmr(history: i16) -> i16 {
-    history / 112
+    history / 1792
 }
 
 pub fn search<Search: SearchType>(

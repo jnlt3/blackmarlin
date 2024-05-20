@@ -5,10 +5,10 @@ use crate::bm::bm_runner::ab_runner::MoveData;
 use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
-pub const MAX_HIST: i16 = 512;
+pub const MAX_HIST: i16 = 8192;
 
 fn hist_stat(amt: i16) -> i16 {
-    (amt * 13).min(MAX_HIST)
+    (amt * 208).min(MAX_HIST)
 }
 
 fn bonus(hist: &mut i16, amt: i16) {
