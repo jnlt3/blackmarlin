@@ -90,7 +90,7 @@ const fn iir(depth: u32) -> u32 {
 const fn iir_margin(entry: &Analysis) -> u32 {
     match entry.table_move {
         Some(_) => 4,
-        None => 2,
+        None => 3,
     }
 }
 
