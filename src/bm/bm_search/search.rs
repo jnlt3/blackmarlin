@@ -318,6 +318,7 @@ pub fn search<Search: SearchType>(
 
         move_exists = true;
         let is_capture = pos.is_capture(make_move);
+        let is_quiet = pos.is_quiet(make_move);
 
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
@@ -599,7 +600,7 @@ pub fn search<Search: SearchType>(
                 if score >= beta {
                     if !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
-                        if !is_capture {
+                        if is_quiet {
                             thread.killer_moves[ply as usize].push(make_move);
                         }
                         thread.history.update_history(

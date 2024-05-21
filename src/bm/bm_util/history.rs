@@ -219,11 +219,7 @@ impl History {
         captures: &[Move],
         amt: i16,
     ) {
-        let is_capture = pos
-            .board()
-            .colors(!pos.board().side_to_move())
-            .has(cutoff_move.to);
-        if !is_capture {
+        if pos.is_quiet(cutoff_move) {
             self.update_quiet(pos, indices, cutoff_move, quiets, amt);
         } else {
             bonus(self.get_capture_mut(pos, cutoff_move), amt);

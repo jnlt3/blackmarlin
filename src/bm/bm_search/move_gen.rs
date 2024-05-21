@@ -184,8 +184,7 @@ impl OrderedMoveGen {
 
                     let score = match mv.promotion {
                         Some(Piece::Queen) => i16::MAX,
-                        Some(_) => i16::MIN,
-                        None => {
+                        _ => {
                             let quiet_hist = hist.get_quiet(pos, mv);
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
