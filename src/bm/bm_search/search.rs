@@ -322,12 +322,21 @@ pub fn search<Search: SearchType>(
         let h_score = match is_capture {
             true => thread.history.get_capture(pos, make_move),
             false => {
-                (thread.history.get_quiet(pos, make_move)
-                    + thread
-                        .history
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
+                let quiet = thread.history.get_quiet(pos, make_move);
+                let counter = thread
+                    .history
+                    .get_counter_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+                let fu_1 = thread
+                    .history
+                    .get_followup_move(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+                let fu_2 = thread
+                    .history
+                    .get_followup_move_2(pos, &hist_indices, make_move)
+                    .unwrap_or_default();
+
+                (quiet + counter + fu_1 + fu_2) / 4 - 17
             }
         };
         thread.ss[ply as usize + 1].pv_len = 0;
