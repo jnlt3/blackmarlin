@@ -95,8 +95,9 @@ const fn see_fp(depth: u32) -> i16 {
     depth as i16 * 123
 }
 
-const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 138 / 10
+const fn hp(depth: u32, good_cap: bool) -> i32 {
+    let div = [10, 5][good_cap as usize];
+    -((depth * depth) as i32) * 138 / div
 }
 
 const fn history_lmr(history: i16) -> i16 {
@@ -449,7 +450,7 @@ pub fn search<Search: SearchType>(
             && depth <= 6
             && (!good_capture || eval <= alpha);
 
-        if do_hp && (h_score as i32) < hp(depth) {
+        if do_hp && (h_score as i32) < hp(depth, good_capture) {
             continue;
         }
 
