@@ -284,6 +284,13 @@ pub fn search<Search: SearchType>(
     if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
         depth -= iir(depth)
     }
+    if depth >= 4
+        && tt_entry.map_or(false, |entry| {
+            entry.table_move.is_some() && entry.depth > depth + 4
+        })
+    {
+        depth += 1;
+    }
 
     if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
         entry.clear();
