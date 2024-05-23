@@ -500,7 +500,7 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if killers.contains(make_move) {
-                reduction -= 1;
+                reduction -= 2;
             }
             if cut_node {
                 reduction += 1;
