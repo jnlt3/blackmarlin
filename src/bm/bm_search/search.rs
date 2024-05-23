@@ -497,7 +497,7 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             };
             if !improving {
-                reduction += 1;
+                reduction += 2;
             }
             if killers.contains(make_move) {
                 reduction -= 1;
