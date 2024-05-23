@@ -62,10 +62,10 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
-            followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            quiet: Box::new([[new_butterfly_table(-45); Color::NUM]; 2]),
+            capture: Box::new([[new_butterfly_table(330); Color::NUM]; 2]),
+            counter_move: Box::new([new_piece_to_table(new_piece_to_table(32)); Color::NUM]),
+            followup_move: Box::new([new_piece_to_table(new_piece_to_table(20)); Color::NUM]),
         }
     }
 
