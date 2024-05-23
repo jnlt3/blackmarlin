@@ -503,7 +503,7 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             if cut_node {
-                reduction += 1;
+                reduction += 2;
             }
             if new_stm_threat.len() > stm_threats.len() {
                 reduction -= 1;
