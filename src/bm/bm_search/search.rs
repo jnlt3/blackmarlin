@@ -330,6 +330,14 @@ pub fn search<Search: SearchType>(
                     / 2
             }
         };
+        let fu_hist_1 = thread
+            .history
+            .get_followup_move(pos, &hist_indices, make_move)
+            .unwrap_or_default();
+        let fu_hist_2 = thread
+            .history
+            .get_followup_move_2(pos, &hist_indices, make_move)
+            .unwrap_or_default();
         thread.ss[ply as usize + 1].pv_len = 0;
 
         let mut extension: i32 = 0;
@@ -446,10 +454,15 @@ pub fn search<Search: SearchType>(
         let do_hp = !Search::PV
             && non_mate_line
             && moves_seen > 0
-            && depth <= 6
+            && depth <= 6   
             && (!good_capture || eval <= alpha);
 
         if do_hp && (h_score as i32) < hp(depth) {
+            continue;
+        }
+
+        let do_fhp = !Search::PV && non_mate_line && moves_seen > 0 && depth <= 4 && !is_capture;
+        if do_fhp && fu_hist_1 + fu_hist_2 < 0 {
             continue;
         }
 
