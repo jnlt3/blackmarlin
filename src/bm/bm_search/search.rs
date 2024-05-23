@@ -494,7 +494,7 @@ pub fn search<Search: SearchType>(
                 reduction -= 1;
             }
             if !Search::PV {
-                reduction += 1;
+                reduction += 2;
             };
             if !improving {
                 reduction += 1;
