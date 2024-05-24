@@ -490,7 +490,10 @@ pub fn search<Search: SearchType>(
         */
 
         if moves_seen > 0 {
-            if ply <= 5 {
+            if ply * 3 <= depth * 2 {
+                reduction -= 1;
+            }
+            if ply * 9 <= depth * 2 {
                 reduction -= 1;
             }
             if !Search::PV {
