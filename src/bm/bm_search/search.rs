@@ -510,7 +510,7 @@ pub fn search<Search: SearchType>(
             if new_stm_threat.len() > stm_threats.len() {
                 reduction -= 1;
             }
-            reduction = reduction.min(depth as i16 - 2).max(0);
+            reduction = reduction.max(1).min(depth.saturating_sub(2) as i16);
         }
 
         if moves_seen == 0 {
