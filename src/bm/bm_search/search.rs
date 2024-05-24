@@ -370,7 +370,7 @@ pub fn search<Search: SearchType>(
 
                 thread.ss[ply as usize].skip_move = None;
 
-                if Search::PV && nstm_threats.has(make_move.from) && is_capture {
+                if nstm_threats.has(make_move.from) && is_capture {
                     extension = 1;
                 }
                 if s_score < s_beta {
