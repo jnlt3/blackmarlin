@@ -124,6 +124,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                 }
             }
         }
+        /*
         #[cfg(target_feature = "neon")]
         {
             use std::arch::aarch64::*;
@@ -158,7 +159,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                     return out + vaddlvq_s32(sum) as i32;
                 }
             }
-        }
+        } */
 
         let weights = &self.weights.0[bucket];
         for (&input, &weight) in inputs.0.iter().zip(weights) {
