@@ -5,7 +5,7 @@ use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MA
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
-use crate::bm::bm_util::position::Position;
+use crate::bm::bm_util::position::{Draw, Position};
 use crate::bm::bm_util::t_table::Bounds;
 
 use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
@@ -121,9 +121,17 @@ pub fn search<Search: SearchType>(
     }
 
     thread.update_sel_depth(ply);
-    if ply != 0 && pos.forced_draw(ply) {
-        thread.increment_nodes();
-        return Evaluation::new(0);
+    if ply != 0 {
+        match pos.forced_draw(ply) {
+            Draw::SearchRepeat | Draw::GameDraw => {
+                thread.increment_nodes();
+                return Evaluation::new(0);
+            }
+            Draw::GameRepeat => {
+                depth = depth.saturating_sub(1);
+            }
+            Draw::None => {}
+        }
     }
 
     /*

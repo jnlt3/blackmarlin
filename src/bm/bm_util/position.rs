@@ -4,6 +4,13 @@ use crate::bm::nnue::Nnue;
 
 use super::{eval::Evaluation, frc, threats::threats};
 
+pub enum Draw {
+    None,
+    SearchRepeat,
+    GameRepeat,
+    GameDraw,
+}
+
 #[derive(Debug, Clone)]
 pub struct Position {
     current: Board,
@@ -60,12 +67,12 @@ impl Position {
     /// after search root, it's considered a three fold repetition
     ///
     /// Returns true if [insufficient material](Self::insufficient_material)
-    pub fn forced_draw(&self, ply: u32) -> bool {
+    pub fn forced_draw(&self, ply: u32) -> Draw {
         if self.insufficient_material()
             || (self.current.halfmove_clock() >= 100
                 && (self.current.checkers().is_empty() || self.current.status() != GameStatus::Won))
         {
-            return true;
+            return Draw::GameDraw;
         }
         let hash = self.hash();
         let two_fold = self
@@ -74,15 +81,21 @@ impl Position {
             .rev()
             .take(ply as usize - 1)
             .any(|board| board.hash() == hash);
+        if two_fold {
+            return Draw::SearchRepeat;
+        }
         let three_fold = self
             .boards
             .iter()
             .rev()
             .skip(ply as usize - 1)
             .filter(|board| board.hash() == hash)
-            .count()
-            >= 2;
-        two_fold || three_fold
+            .count();
+        match three_fold {
+            2.. => Draw::GameDraw,
+            1 => Draw::GameRepeat,
+            0 => Draw::None,
+        }
     }
 
     /// Current board
