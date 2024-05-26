@@ -92,9 +92,9 @@ impl Position {
             .filter(|board| board.hash() == hash)
             .count();
         match three_fold {
-            2.. => Draw::GameDraw,
             1 => Draw::GameRepeat,
             0 => Draw::None,
+            _ => Draw::GameDraw,
         }
     }
 
