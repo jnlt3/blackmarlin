@@ -310,6 +310,8 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4);
+    let tt_quiet =
+        tt_entry.is_some_and(|entry| entry.table_move.is_some_and(|mv| pos.is_quiet(mv)));
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
@@ -506,6 +508,9 @@ pub fn search<Search: SearchType>(
                 reduction += 1;
             }
             if new_stm_threat.len() > stm_threats.len() {
+                reduction -= 1;
+            }
+            if tt_quiet {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
