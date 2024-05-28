@@ -393,20 +393,20 @@ impl AbRunner {
                     if depth == 0 || mv == 0 {
                         0
                     } else {
-                        (0.50 + (depth as f32).ln() * (mv as f32).ln() / 2.05) as u32
+                        (0.58 + (depth as f32).ln() * (mv as f32).ln() / 2.11) as u32
                     }
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
-                    let mut x = 2.97 + depth as f32 * depth as f32;
+                    let mut x = 2.67 + depth as f32 * depth as f32;
                     if improving == 0 {
-                        x /= 1.94;
+                        x /= 1.92;
                     }
                     x as usize
                 })),
                 start: Instant::now(),
             },
             main_thread_context: Arc::new(Mutex::new(ThreadContext {
-                window: Window::new(15, 45, 100, 9),
+                window: Window::new(13, 51, 100, 7),
                 tt_hits: 0,
                 tt_misses: 0,
                 eval: position.get_eval(),
