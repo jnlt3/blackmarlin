@@ -4,6 +4,15 @@ use crate::bm::nnue::Nnue;
 
 use super::{eval::Evaluation, frc, threats::threats};
 
+const BASE: i32 = 414;
+const PAWN: i32 = -64;
+const KNIGHT: i32 = 190;
+const BISHOP: i32 = 219;
+const ROOK: i32 = 256;
+const QUEEN: i32 = 300;
+const SCALE: i32 = 128;
+const CLAMP: i16 = 136;
+
 #[derive(Debug, Clone)]
 pub struct Position {
     current: Board,
@@ -198,14 +207,20 @@ impl Position {
     /// - Value may vary depending on position and root evaluation
     /// - Avoid storing, instead recalculate for a given position
     pub fn aggression(&self, stm: Color, root_eval: Evaluation) -> i16 {
-        let piece_cnt = self.board().occupied().len() - self.board().pieces(Piece::Pawn).len();
-        let scale = 2 * piece_cnt as i16;
+        let pawns = self.board().pieces(Piece::Pawn).len() as i32 * PAWN;
+        let knight = self.board().pieces(Piece::Knight).len() as i32 * KNIGHT;
+        let bishop = self.board().pieces(Piece::Bishop).len() as i32 * BISHOP;
+        let rook = self.board().pieces(Piece::Rook).len() as i32 * ROOK;
+        let queen = self.board().pieces(Piece::Queen).len() as i32 * QUEEN;
 
-        let clamped_eval = root_eval.raw().clamp(-200, 200);
-        (match self.board().side_to_move() == stm {
+        let scale = BASE + pawns + knight + bishop + rook + queen;
+
+        let clamped_eval = root_eval.raw().clamp(-CLAMP, CLAMP) as i32;
+        let aggression = (match self.board().side_to_move() == stm {
             true => scale * clamped_eval,
             false => -scale * clamped_eval,
-        }) / 100
+        }) / (100 * SCALE);
+        aggression as i16
     }
 
     /// Calculates NN evaluation + FRC bonus
