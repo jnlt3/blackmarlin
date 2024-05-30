@@ -34,6 +34,9 @@ pub struct UciAdapter {
     forced: bool,
     chess960: bool,
     show_wdl: bool,
+
+    params: Vec<Box<dyn Fn(&str, &str) -> ()>>,
+    print_uci: Vec<Box<dyn Fn() -> ()>>,
 }
 
 impl UciAdapter {
@@ -60,6 +63,45 @@ impl UciAdapter {
                 }
             }
         });
+        let mut params: Vec<Box<dyn Fn(&str, &str) -> ()>> = vec![];
+        let mut print_uci: Vec<Box<dyn Fn() -> ()>> = vec![];
+
+        macro_rules! add_param {
+            ($name: ident: $value_type: ty = range($min: expr, $max: expr)) => {
+                use crate::bm::bm_util::position::$name;
+                params.push(Box::new(|name: &str, value: &str| {
+                    if name != stringify!($name) {
+                        return;
+                    }
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    let value = value.parse::<$value_type>().unwrap();
+                    assert!(value >= min && value <= max);
+                    unsafe { $name = value };
+                }));
+                print_uci.push(Box::new(|| {
+                    let value = unsafe { $name };
+                    let min: $value_type = $min;
+                    let max: $value_type = $max;
+                    println!(
+                        "option name {} type spin default {} min {} max {}",
+                        stringify!($name),
+                        value,
+                        min,
+                        max,
+                    )
+                }))
+            };
+        }
+
+        add_param!(BASE: i32 = range(-16384, 16384));
+        add_param!(PAWN: i32 = range(-2048, 2048));
+        add_param!(KNIGHT: i32 = range(-2048, 2048));
+        add_param!(BISHOP: i32 = range(-2048, 2048));
+        add_param!(ROOK: i32 = range(-2048, 2048));
+        add_param!(QUEEN: i32 = range(-2048, 2048));
+        add_param!(CLAMP: i16 = range(0, 400));
+
         Self {
             bm_runner,
             forced: false,
@@ -67,6 +109,8 @@ impl UciAdapter {
             time_manager,
             chess960: false,
             show_wdl: false,
+            params,
+            print_uci,
         }
     }
 
@@ -81,6 +125,9 @@ impl UciAdapter {
                 println!("option name Threads type spin default 1 min 1 max 255");
                 println!("option name UCI_ShowWDL type check default false");
                 println!("option name UCI_Chess960 type check default false");
+                for print_param in &self.print_uci {
+                    print_param();
+                }
                 println!("uciok");
             }
             UciCommand::IsReady => println!("readyok"),
@@ -139,6 +186,9 @@ impl UciAdapter {
                             .set_uci_show_wdl(self.show_wdl);
                     }
                     _ => {}
+                }
+                for params in self.params.iter() {
+                    params(&name, &value);
                 }
             }
             UciCommand::Bench(depth) => {
