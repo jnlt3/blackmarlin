@@ -399,6 +399,7 @@ pub fn search<Search: SearchType>(
                         */
                         return s_beta;
                     }
+                    thread.ss[ply as usize].skip_move = Some(make_move);
                     let m_score = search::<Search::Zw>(
                         pos,
                         thread,
@@ -409,6 +410,7 @@ pub fn search<Search: SearchType>(
                         beta,
                         cut_node,
                     );
+                    thread.ss[ply as usize].skip_move = None;
                     if m_score >= beta {
                         return m_score;
                     }
