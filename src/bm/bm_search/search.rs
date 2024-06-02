@@ -508,7 +508,7 @@ pub fn search<Search: SearchType>(
             if new_stm_threat.len() > stm_threats.len() {
                 reduction -= 1;
             }
-            if eval + 200 <= alpha {
+            if eval + 400 <= alpha {
                 reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
