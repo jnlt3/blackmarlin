@@ -349,7 +349,6 @@ pub fn search<Search: SearchType>(
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
                 && matches!(entry.bounds, Bounds::LowerBound | Bounds::Exact)
-                && (multi_cut || eval <= alpha)
             {
                 let s_beta = entry.score - depth as i16;
                 thread.ss[ply as usize].skip_move = Some(make_move);
@@ -391,13 +390,28 @@ pub fn search<Search: SearchType>(
                         &[],
                         depth as i16,
                     );
-                } else if multi_cut && s_beta >= beta {
-                    /*
-                    Multi-cut:
-                    If a move isn't singular and the move that disproves the singularity
-                    our singular beta is above beta, we assume the move is good enough to beat beta
-                    */
-                    return s_beta;
+                } else if s_beta >= beta {
+                    if multi_cut {
+                        /*
+                        Multi-cut:
+                        If a move isn't singular and the move that disproves the singularity
+                        our singular beta is above beta, we assume the move is good enough to beat beta
+                        */
+                        return s_beta;
+                    }
+                    let m_score = search::<Search::Zw>(
+                        pos,
+                        thread,
+                        shared_context,
+                        ply,
+                        depth / 2,
+                        beta - 1,
+                        beta,
+                        cut_node,
+                    );
+                    if m_score >= beta {
+                        return m_score;
+                    }
                 } else if multi_cut && entry.score >= beta {
                     extension = -2;
                 } else if multi_cut && cut_node {
