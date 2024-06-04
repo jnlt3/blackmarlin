@@ -579,6 +579,7 @@ pub fn search<Search: SearchType>(
         }
 
         pos.unmake_move();
+        thread.ss[ply as usize].move_played = None;
         moves_seen += 1;
 
         if ply == 0 {
