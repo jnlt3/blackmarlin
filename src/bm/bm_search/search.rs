@@ -511,6 +511,8 @@ pub fn search<Search: SearchType>(
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
+        let mut lmr_fail_high = false;
+
         if moves_seen == 0 {
             let depth = (depth as i32 + extension) as u32;
             let search_score = search::<Search>(
@@ -541,6 +543,7 @@ pub fn search<Search: SearchType>(
                 true,
             );
             score = lmr_score << Next;
+            lmr_fail_high = score >= beta && lmr_depth < depth;
 
             /*
             If no reductions occured in LMR we don't waste time re-searching
@@ -583,6 +586,12 @@ pub fn search<Search: SearchType>(
         if ply == 0 {
             let searched_nodes = thread.nodes() - move_nodes;
             thread.root_nodes[make_move.from as usize][make_move.to as usize] += searched_nodes;
+        }
+
+        if lmr_fail_high {
+            thread
+                .history
+                .update_history(pos, &hist_indices, make_move, &[], &[], lmr_depth as i16)
         }
 
         if highest_score.is_none() || score > highest_score.unwrap() {
