@@ -310,6 +310,7 @@ pub fn search<Search: SearchType>(
     let mut captures = ArrayVec::<Move, 64>::new();
 
     let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4);
+    let mut singular_fail_low = false;
     while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
@@ -341,6 +342,7 @@ pub fn search<Search: SearchType>(
         is singular (only solution) and extend in order to get a more accurate
         estimation of best move/eval
         */
+        let mut singular = false;
         if let Some(entry) = tt_entry {
             let multi_cut = depth >= 7;
             if moves_seen == 0
@@ -370,6 +372,7 @@ pub fn search<Search: SearchType>(
 
                 thread.ss[ply as usize].skip_move = None;
                 if s_score < s_beta {
+                    singular = multi_cut;
                     extension = 1;
                     if !Search::PV && multi_cut && s_score < s_beta {
                         extension += 1;
@@ -508,6 +511,9 @@ pub fn search<Search: SearchType>(
             if new_stm_threat.len() > stm_threats.len() {
                 reduction -= 1;
             }
+            if singular_fail_low {
+                reduction += 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
@@ -524,6 +530,9 @@ pub fn search<Search: SearchType>(
                 false,
             );
             score = search_score << Next;
+            if moves_seen == 0 && score <= alpha {
+                singular_fail_low = singular;
+            }
         } else {
             let depth = (depth as i32 + extension) as u32;
             let lmr_depth = (depth as i16 - reduction) as u32;
