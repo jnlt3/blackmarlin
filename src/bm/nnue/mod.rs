@@ -286,38 +286,37 @@ impl Nnue {
             self.reset(stm, &new_board, w_threats, b_threats);
         }
         for &perspective in perspectives {
-            for w_threat_sq in w_threats ^ old_w_threats {
-                match w_threats.has(w_threat_sq) {
-                    true => self.update::<true>(threat_indices(
-                        perspective,
-                        board.king(perspective),
-                        w_threat_sq,
-                        Color::Black,
-                    )),
-                    false => self.update::<false>(threat_indices(
-                        perspective,
-                        board.king(perspective),
-                        w_threat_sq,
-                        Color::Black,
-                    )),
-                };
+            for w_threat_sq in w_threats & !old_w_threats {
+                self.update::<true>(threat_indices(
+                    perspective,
+                    board.king(perspective),
+                    w_threat_sq,
+                    Color::Black,
+                ));
             }
-
-            for b_threat_sq in b_threats ^ old_b_threats {
-                match b_threats.has(b_threat_sq) {
-                    true => self.update::<true>(threat_indices(
-                        perspective,
-                        board.king(perspective),
-                        b_threat_sq,
-                        Color::White,
-                    )),
-                    false => self.update::<false>(threat_indices(
-                        perspective,
-                        board.king(perspective),
-                        b_threat_sq,
-                        Color::White,
-                    )),
-                }
+            for w_threat_sq in !w_threats & old_w_threats {
+                self.update::<false>(threat_indices(
+                    perspective,
+                    board.king(perspective),
+                    w_threat_sq,
+                    Color::Black,
+                ));
+            }
+            for b_threat_sq in b_threats & !old_b_threats {
+                self.update::<true>(threat_indices(
+                    perspective,
+                    board.king(perspective),
+                    b_threat_sq,
+                    Color::White,
+                ));
+            }
+            for b_threat_sq in !b_threats & old_b_threats {
+                self.update::<false>(threat_indices(
+                    perspective,
+                    board.king(perspective),
+                    b_threat_sq,
+                    Color::White,
+                ));
             }
 
             self.update::<false>(piece_indices(
