@@ -447,7 +447,7 @@ pub fn search<Search: SearchType>(
             && non_mate_line
             && moves_seen > 0
             && depth <= 6
-            && (!good_capture || eval <= alpha);
+            && (!good_capture || eval + 200 <= alpha);
 
         if do_hp && (h_score as i32) < hp(depth) {
             continue;
