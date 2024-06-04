@@ -130,7 +130,7 @@ pub fn search<Search: SearchType>(
     At depth 0, we run Quiescence Search
     */
     if depth == 0 || ply >= MAX_PLY {
-        return q_search(pos, thread, shared_context, ply, alpha, beta);
+        return q_search::<Search::Zw>(pos, thread, shared_context, ply, alpha, beta, cut_node);
     }
 
     let skip_move = thread.ss[ply as usize].skip_move;
@@ -216,7 +216,8 @@ pub fn search<Search: SearchType>(
         let razor_margin = razor_margin(depth);
         if do_razor(depth) && eval + razor_margin <= alpha {
             let zw = alpha - razor_qsearch();
-            let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
+            let q_search =
+                q_search::<Search::Zw>(pos, thread, shared_context, ply, zw, zw + 1, cut_node);
             if q_search <= zw {
                 return q_search;
             }
@@ -655,14 +656,19 @@ Quiescence Search is a form of search that only searches tactical moves to achie
 This is done as the static evaluation function isn't suited to detecting tactical aspects of the position.
 */
 
-pub fn q_search(
+pub fn q_search<Search: SearchType>(
     pos: &mut Position,
     thread: &mut ThreadContext,
     shared_context: &SharedContext,
     ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
+    cut_node: bool,
 ) -> Evaluation {
+    if !pos.board().checkers().is_empty() {
+        return search::<Search::Zw>(pos, thread, shared_context, ply, 1, alpha, beta, cut_node);
+    }
+
     if thread.abort || shared_context.abort_search(thread.nodes()) {
         thread.trigger_abort();
         return Evaluation::min();
@@ -736,13 +742,14 @@ pub fn q_search(
         pos.make_move_fetch(make_move, |board| {
             shared_context.get_t_table().prefetch(board)
         });
-        let search_score = q_search(
+        let search_score = q_search::<Search>(
             pos,
             thread,
             shared_context,
             ply + 1,
             beta >> Next,
             alpha >> Next,
+            !cut_node,
         );
         let score = search_score << Next;
         if highest_score.is_none() || score > highest_score.unwrap() {
