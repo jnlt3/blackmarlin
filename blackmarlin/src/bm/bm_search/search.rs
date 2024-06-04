@@ -8,7 +8,7 @@ use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Bounds;
 
-use super::move_gen::{OrderedMoveGen, Phase, QSearchMoveGen};
+use super::move_gen::{OrderedMoveGen, Phase};
 use super::see::compare_see;
 
 pub trait SearchType {
@@ -45,18 +45,6 @@ const fn do_rev_fp(depth: u32) -> bool {
 
 const fn rev_fp(depth: u32, improving: bool) -> i16 {
     depth as i16 * 48 - improving as i16 * 38
-}
-
-const fn do_razor(depth: u32) -> bool {
-    depth <= 4
-}
-
-const fn razor_margin(depth: u32) -> i16 {
-    depth as i16 * 378
-}
-
-const fn razor_qsearch() -> i16 {
-    281
 }
 
 fn do_nmp<Search: SearchType>(
@@ -126,13 +114,6 @@ pub fn search<Search: SearchType>(
         return Evaluation::new(0);
     }
 
-    /*
-    At depth 0, we run Quiescence Search
-    */
-    if depth == 0 || ply >= MAX_PLY {
-        return q_search(pos, thread, shared_context, ply, alpha, beta);
-    }
-
     let skip_move = thread.ss[ply as usize].skip_move;
     let mut tt_entry = match skip_move {
         Some(_) => None,
@@ -190,6 +171,13 @@ pub fn search<Search: SearchType>(
     let aggr = pos.aggression(thread.stm, thread.eval);
     let eval = raw_eval + aggr;
 
+    /*
+    At depth 0, we run Quiescence Search
+    */
+    if depth == 0 || ply >= MAX_PLY {
+        return eval;
+    }
+
     thread.ss[ply as usize].aggr = aggr;
     thread.ss[ply as usize].eval = raw_eval;
 
@@ -212,16 +200,6 @@ pub fn search<Search: SearchType>(
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
             return (eval + beta) / 2;
         }
-
-        let razor_margin = razor_margin(depth);
-        if do_razor(depth) && eval + razor_margin <= alpha {
-            let zw = alpha - razor_qsearch();
-            let q_search = q_search(pos, thread, shared_context, ply, zw, zw + 1);
-            if q_search <= zw {
-                return q_search;
-            }
-        }
-
         /*
         Null Move Pruning:
         If in a non PV node and we can still achieve beta at a reduced depth after
@@ -648,135 +626,4 @@ pub fn search<Search: SearchType>(
         );
     }
     highest_score
-}
-
-/*
-Quiescence Search is a form of search that only searches tactical moves to achieve a quiet position.
-This is done as the static evaluation function isn't suited to detecting tactical aspects of the position.
-*/
-
-pub fn q_search(
-    pos: &mut Position,
-    thread: &mut ThreadContext,
-    shared_context: &SharedContext,
-    ply: u32,
-    mut alpha: Evaluation,
-    beta: Evaluation,
-) -> Evaluation {
-    if thread.abort || shared_context.abort_search(thread.nodes()) {
-        thread.trigger_abort();
-        return Evaluation::min();
-    }
-
-    thread.increment_nodes();
-
-    thread.update_sel_depth(ply);
-    if ply >= MAX_PLY {
-        return pos.get_eval() + pos.aggression(thread.stm, thread.eval);
-    }
-
-    let mut best_move = None;
-    let initial_alpha = alpha;
-    let tt_entry = shared_context.get_t_table().get(pos.board());
-    if let Some(entry) = tt_entry {
-        best_move = entry.table_move;
-        match entry.bounds {
-            Bounds::LowerBound => {
-                if entry.score >= beta {
-                    return entry.score;
-                }
-            }
-            Bounds::Exact => return entry.score,
-            Bounds::UpperBound => {
-                if entry.score <= alpha {
-                    return entry.score;
-                }
-            }
-        }
-    }
-
-    let mut highest_score = None;
-    let in_check = !pos.board().checkers().is_empty();
-
-    let tt_eval = tt_entry.and_then(|entry| entry.eval);
-    let raw_eval = tt_eval.unwrap_or_else(|| pos.get_eval());
-    let stand_pat = raw_eval + pos.aggression(thread.stm, thread.eval);
-    /*
-    If not in check, we have a stand pat score which is the static eval of the current position.
-    This is done as captures aren't necessarily the best moves.
-    */
-    if !in_check && stand_pat > alpha {
-        alpha = stand_pat;
-        highest_score = Some(stand_pat);
-        if stand_pat >= beta {
-            return stand_pat;
-        }
-    }
-
-    let mut move_gen = QSearchMoveGen::new();
-    while let Some(make_move) = move_gen.next(pos, &thread.history) {
-        /*
-        Prune all losing captures
-        */
-        if !compare_see(pos.board(), make_move, 0) {
-            continue;
-        }
-        /*
-        Fail high if SEE puts us above beta
-        */
-        if stand_pat + 1000 >= beta
-            && compare_see(pos.board(), make_move, (beta - stand_pat + 210).raw())
-        {
-            return beta;
-        }
-        // Also prune neutral captures when static eval is low
-        if stand_pat + 135 <= alpha && !compare_see(pos.board(), make_move, 1) {
-            continue;
-        }
-        pos.make_move_fetch(make_move, |board| {
-            shared_context.get_t_table().prefetch(board)
-        });
-        let search_score = q_search(
-            pos,
-            thread,
-            shared_context,
-            ply + 1,
-            beta >> Next,
-            alpha >> Next,
-        );
-        let score = search_score << Next;
-        if highest_score.is_none() || score > highest_score.unwrap() {
-            highest_score = Some(score);
-        }
-        if score > alpha {
-            best_move = Some(make_move);
-            alpha = score;
-            if score >= beta {
-                pos.unmake_move();
-                break;
-            }
-        }
-        pos.unmake_move();
-    }
-
-    if thread.abort {
-        return Evaluation::min();
-    }
-    if let Some(highest_score) = highest_score {
-        let entry_type = match () {
-            _ if highest_score <= initial_alpha => Bounds::UpperBound,
-            _ if highest_score >= beta => Bounds::LowerBound,
-            _ => Bounds::Exact,
-        };
-
-        shared_context.get_t_table().set(
-            pos.board(),
-            0,
-            entry_type,
-            highest_score,
-            best_move,
-            raw_eval,
-        );
-    }
-    highest_score.unwrap_or(alpha)
 }
