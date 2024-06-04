@@ -225,11 +225,13 @@ impl OrderedMoveGen {
 enum QPhase {
     GenCaptures,
     GoodCaptures,
+    Evasions,
 }
 
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    quiets: ArrayVec<Move, MAX_MOVES>,
 }
 
 impl QSearchMoveGen {
@@ -237,6 +239,7 @@ impl QSearchMoveGen {
         Self {
             phase: QPhase::GenCaptures,
             captures: ArrayVec::new(),
+            quiets: ArrayVec::new(),
         }
     }
 
@@ -247,11 +250,23 @@ impl QSearchMoveGen {
         if self.phase == QPhase::GenCaptures {
             self.phase = QPhase::GoodCaptures;
             let stm = pos.board().side_to_move();
+            let opp_pieces = pos.board().colors(!stm);
             pos.board().generate_moves(|mut piece_moves| {
+                if !pos.board().checkers().is_empty() {
+                    piece_moves.to &= !opp_pieces
+                }
                 piece_moves.to &= pos.board().colors(!stm);
                 for mv in piece_moves {
-                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
-                    self.captures.push(ScoredMove::new(mv, score));
+                    match opp_pieces.has(mv.to) {
+                        true => {
+                            let score =
+                                hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
+                            self.captures.push(ScoredMove::new(mv, score));
+                        }
+                        false => {
+                            self.quiets.push(mv);
+                        }
+                    };
                 }
                 false
             });
@@ -261,7 +276,8 @@ impl QSearchMoveGen {
                 let capture = self.captures.swap_remove(index).mv;
                 return Some(capture);
             }
+            self.phase = QPhase::Evasions;
         }
-        None
+        self.quiets.pop()
     }
 }
