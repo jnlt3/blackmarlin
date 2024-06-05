@@ -22,11 +22,10 @@ pub struct Zobrist {
     stack: Vec<u16>,
     current: u16,
     hashes: [[u16; Square::NUM]; Color::NUM],
-    stm: u16,
 }
 
 impl Zobrist {
-    pub fn new() -> Self {
+    pub fn new(w: BitBoard, b: BitBoard) -> Self {
         let mut xor_shift = XorShift16::new();
         let mut hashes = [[0; Square::NUM]; Color::NUM];
         for color in &mut hashes {
@@ -34,40 +33,45 @@ impl Zobrist {
                 *square = xor_shift.next();
             }
         }
-        Self {
+        let mut zobrist = Self {
             stack: vec![],
             current: 0,
             hashes,
-            stm: xor_shift.next(),
-        }
+        };
+        zobrist.clear(w, b);
+        zobrist
     }
 
-	pub fn hash(&self) -> u16 {
-		self.current
-	}
+    pub fn hash(&self) -> u16 {
+        self.current
+    }
 
     pub fn null_move(&mut self) {
-        self.current ^= self.stm;
         self.stack.push(self.current)
     }
 
     pub fn make_move(&mut self, w_diff: BitBoard, b_diff: BitBoard) {
+        self.stack.push(self.current);
         for w in w_diff {
             self.current ^= self.hashes[0][w as usize];
         }
         for b in b_diff {
             self.current ^= self.hashes[1][b as usize];
         }
-        self.current ^= self.stm;
-        self.stack.push(self.current);
     }
 
     pub fn unmake_move(&mut self) {
         self.current = self.stack.pop().unwrap();
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self, w: BitBoard, b: BitBoard) {
         self.stack.clear();
         self.current = 0;
+        for w in w {
+            self.current ^= self.hashes[0][w as usize];
+        }
+        for b in b {
+            self.current ^= self.hashes[1][b as usize];
+        }
     }
 }

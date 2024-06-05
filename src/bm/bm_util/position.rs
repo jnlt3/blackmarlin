@@ -14,7 +14,7 @@ pub struct Position {
     moves: Vec<Option<Move>>,
     last_eval: usize,
     evaluator: Nnue,
-    threat_hash: Zobrist,
+    threat_zobrist: Zobrist,
 }
 
 impl Position {
@@ -31,7 +31,7 @@ impl Position {
             moves: vec![],
             last_eval: 0,
             evaluator,
-            threat_hash: Zobrist::new(),
+            threat_zobrist: Zobrist::new(w_threats, b_threats),
         }
     }
 
@@ -46,7 +46,7 @@ impl Position {
         self.boards.clear();
         self.threats.clear();
         self.moves.clear();
-        self.threat_hash.clear();
+        self.threat_zobrist.clear(w_threats, b_threats);
         self.last_eval = 0;
     }
 
@@ -102,7 +102,7 @@ impl Position {
         let Some(new_board) = self.board().null_move() else {
             return false;
         };
-        self.threat_hash.null_move();
+        self.threat_zobrist.null_move();
         self.moves.push(None);
         self.boards.push(self.current.clone());
         self.threats.push((self.w_threats, self.b_threats));
@@ -120,7 +120,7 @@ impl Position {
         self.current.play_unchecked(make_move);
         post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
-        self.threat_hash.make_move(
+        self.threat_zobrist.make_move(
             self.w_threats ^ old_w_threats,
             self.b_threats ^ old_b_threats,
         );
@@ -180,7 +180,7 @@ impl Position {
     /// Takes back one (move)[Self::make_move]
     pub fn unmake_move(&mut self) {
         self.moves.pop().unwrap();
-        self.threat_hash.unmake_move();
+        self.threat_zobrist.unmake_move();
         let current = self.boards.pop().unwrap();
         (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
@@ -192,6 +192,10 @@ impl Position {
 
     pub fn hash(&self) -> u64 {
         self.board().hash()
+    }
+
+    pub fn threat_hash(&self) -> u16 {
+        self.threat_zobrist.hash()
     }
 
     /// Returns side to move relative threats
