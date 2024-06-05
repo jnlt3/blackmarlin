@@ -196,10 +196,12 @@ impl OrderedMoveGen {
                             let followup_move_hist_2 = hist
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
+                            let threat_hist = hist.get_threat(pos, mv);
                             quiet_hist
                                 + counter_move_hist
                                 + followup_move_hist
                                 + followup_move_hist_2
+                                + threat_hist
                         }
                     };
                     self.quiets.push(ScoredMove::new(mv, score));
