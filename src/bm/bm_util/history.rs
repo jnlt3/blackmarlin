@@ -3,7 +3,7 @@ use cozy_chess::{Color, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{new_piece_to_table, PieceTo};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -54,7 +54,7 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[[PieceTo<i16>; u16::MAX as usize + 1]; Color::NUM]>,
-    capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
+    capture: Box<[[PieceTo<i16>; u16::MAX as usize + 1]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 }
@@ -63,7 +63,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([[new_piece_to_table(0); u16::MAX as usize + 1]; Color::NUM]),
-            capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
+            capture: Box::new([[new_piece_to_table(0); u16::MAX as usize + 1]; Color::NUM]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
         }
@@ -87,16 +87,16 @@ impl History {
     /// Returns capture history value for the given move
     pub fn get_capture(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        self.capture[stm as usize][pos.threat_hash() as usize][current_piece as usize]
+            [make_move.to as usize]
     }
 
     fn get_capture_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        let (_, nstm_threats) = pos.threats();
-        &mut self.capture[stm as usize][nstm_threats.has(make_move.from) as usize]
-            [make_move.from as usize][make_move.to as usize]
+        let current_piece = pos.board().piece_on(make_move.from).unwrap();
+        &mut self.capture[stm as usize][pos.threat_hash() as usize][current_piece as usize]
+            [make_move.to as usize]
     }
 
     /// Returns None if a previous move isn't available
