@@ -7,3 +7,4 @@ pub mod t_table;
 mod table_types;
 mod threats;
 pub mod window;
+pub mod zobrist;
