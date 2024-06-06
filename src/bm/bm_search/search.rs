@@ -345,6 +345,7 @@ pub fn search<Search: SearchType>(
             let multi_cut = depth >= 7;
             if moves_seen == 0
                 && entry.table_move == Some(make_move)
+                && eval + depth as i16 * 100 >= beta
                 && ply != 0
                 && !entry.score.is_mate()
                 && entry.depth + 2 >= depth
