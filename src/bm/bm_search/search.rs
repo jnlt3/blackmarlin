@@ -332,6 +332,9 @@ pub fn search<Search: SearchType>(
         };
         thread.ss[ply as usize + 1].pv_len = 0;
 
+        let multi_ext = thread.ss[ply as usize].multi_ext;
+        thread.ss[ply as usize + 1].multi_ext = multi_ext;
+
         let mut extension: i32 = 0;
         let mut score;
 
@@ -382,6 +385,12 @@ pub fn search<Search: SearchType>(
                     }
                     if !Search::PV && !multi_cut && eval + 100 <= alpha {
                         extension += 1;
+                    }
+                    if multi_ext > 6 && extension > 1 {
+                        extension = 1;
+                    }
+                    if extension > 1 {
+                        thread.ss[ply as usize + 1].multi_ext += 1;
                     }
                     thread.history.update_history(
                         pos,
