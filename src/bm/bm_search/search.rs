@@ -99,8 +99,11 @@ const fn hp(depth: u32) -> i32 {
     -((depth * depth) as i32) * 138 / 10
 }
 
-const fn history_lmr(history: i16) -> i16 {
-    history / 112
+const fn history_lmr(history: i16, is_capture: bool) -> i16 {
+    match is_capture {
+        true => history / 150,
+        false => history / 112,
+    }
 }
 
 pub fn search<Search: SearchType>(
@@ -408,7 +411,7 @@ pub fn search<Search: SearchType>(
         let mut reduction = shared_context
             .get_lmr_lookup()
             .get(depth as usize, moves_seen) as i16;
-        reduction -= history_lmr(h_score);
+        reduction -= history_lmr(h_score, is_capture);
 
         let lmr_depth = (depth as i16 - reduction).max(1) as u32;
 
