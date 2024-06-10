@@ -379,7 +379,7 @@ pub fn search<Search: SearchType>(
                     }
                     if Search::PV && multi_cut && s_score + 120 < s_beta {
                         extension += 1;
-                        if eval + 300 <= alpha {
+                        if s_score + 300 <= s_beta {
                             extension += 1;
                         }
                     }
