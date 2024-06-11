@@ -230,7 +230,7 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let nmp_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
+        let nmp_eval = tt_entry.map_or(eval - 100, |entry| match entry.bounds {
             Bounds::LowerBound => entry.score.max(eval),
             Bounds::Exact => entry.score,
             Bounds::UpperBound => entry.score.min(eval),
