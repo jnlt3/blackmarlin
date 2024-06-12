@@ -96,7 +96,7 @@ const fn see_fp(depth: u32) -> i16 {
 }
 
 const fn hp(depth: u32) -> i32 {
-    -((depth * depth) as i32) * 138 / 10
+    -(depth as i32) * 96 + 128
 }
 
 const fn history_lmr(history: i16) -> i16 {
