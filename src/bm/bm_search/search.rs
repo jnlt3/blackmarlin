@@ -100,7 +100,8 @@ const fn hp(depth: u32) -> i32 {
 }
 
 const fn history_lmr(history: i16) -> i16 {
-    history / 112
+    let history = history as i32;
+    (history * history.abs() / 57344) as i16
 }
 
 pub fn search<Search: SearchType>(
