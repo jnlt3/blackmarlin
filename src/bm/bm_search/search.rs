@@ -92,7 +92,7 @@ const fn fp(depth: u32) -> i16 {
 }
 
 const fn see_fp(depth: u32) -> i16 {
-    depth as i16 * 123
+    (depth * depth) as i16 * 24
 }
 
 const fn hp(depth: u32) -> i32 {
