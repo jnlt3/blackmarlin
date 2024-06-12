@@ -303,6 +303,8 @@ pub fn search<Search: SearchType>(
     let killers = thread.killer_moves[ply as usize];
     let mut move_gen = OrderedMoveGen::new(best_move, killers);
 
+    let tt_is_noisy = best_move.map_or(false, |mv| !pos.is_quiet(mv));
+
     let mut moves_seen = 0;
     let mut move_exists = false;
 
@@ -507,6 +509,9 @@ pub fn search<Search: SearchType>(
             }
             if new_stm_threat.len() > stm_threats.len() {
                 reduction -= 1;
+            }
+            if tt_is_noisy {
+                reduction += 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
