@@ -14,7 +14,7 @@ pub struct Position {
     moves: Vec<Option<Move>>,
     last_eval: usize,
     evaluator: Nnue,
-    threat_zobrist: Zobrist,
+    pawn_zobrist: Zobrist,
 }
 
 impl Position {
@@ -31,7 +31,7 @@ impl Position {
             moves: vec![],
             last_eval: 0,
             evaluator,
-            threat_zobrist: Zobrist::new(w_threats, b_threats),
+            pawn_zobrist: Zobrist::new(w_threats, b_threats),
         }
     }
 
@@ -46,7 +46,7 @@ impl Position {
         self.boards.clear();
         self.threats.clear();
         self.moves.clear();
-        self.threat_zobrist.clear(w_threats, b_threats);
+        self.pawn_zobrist.clear(w_threats, b_threats);
         self.last_eval = 0;
     }
 
@@ -102,7 +102,7 @@ impl Position {
         let Some(new_board) = self.board().null_move() else {
             return false;
         };
-        self.threat_zobrist.null_move();
+        self.pawn_zobrist.null_move();
         self.moves.push(None);
         self.boards.push(self.current.clone());
         self.threats.push((self.w_threats, self.b_threats));
@@ -117,13 +117,16 @@ impl Position {
         let old_w_threats = self.w_threats;
         let old_b_threats = self.b_threats;
 
+        let old_w_pawns = old_board.colored_pieces(Color::White, Piece::Pawn);
+        let old_b_pawns = old_board.colored_pieces(Color::Black, Piece::Pawn);
+
         self.current.play_unchecked(make_move);
         post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
-        self.threat_zobrist.make_move(
-            self.w_threats ^ old_w_threats,
-            self.b_threats ^ old_b_threats,
-        );
+        let w_pawns = old_board.colored_pieces(Color::White, Piece::Pawn);
+        let b_pawns = old_board.colored_pieces(Color::Black, Piece::Pawn);
+        self.pawn_zobrist
+            .make_move(old_w_pawns ^ w_pawns, old_b_pawns ^ b_pawns);
         self.moves.push(Some(make_move));
         self.boards.push(old_board);
         self.threats.push((old_w_threats, old_b_threats));
@@ -180,7 +183,7 @@ impl Position {
     /// Takes back one (move)[Self::make_move]
     pub fn unmake_move(&mut self) {
         self.moves.pop().unwrap();
-        self.threat_zobrist.unmake_move();
+        self.pawn_zobrist.unmake_move();
         let current = self.boards.pop().unwrap();
         (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
@@ -195,7 +198,7 @@ impl Position {
     }
 
     pub fn threat_hash(&self) -> u16 {
-        self.threat_zobrist.hash()
+        self.pawn_zobrist.hash()
     }
 
     /// Returns side to move relative threats

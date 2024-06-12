@@ -54,7 +54,7 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
-    threat: Box<[[PieceTo<i16>; u16::MAX as usize + 1]; Color::NUM]>,
+    pawn_hist: Box<[[PieceTo<i16>; u16::MAX as usize + 1]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -64,7 +64,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            threat: Box::new([[new_piece_to_table(0); u16::MAX as usize + 1]; Color::NUM]),
+            pawn_hist: Box::new([[new_piece_to_table(0); u16::MAX as usize + 1]; Color::NUM]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
@@ -87,17 +87,17 @@ impl History {
     }
 
     /// Returns threat indexed quiet history value for the given move
-    pub fn get_threat(&self, pos: &Position, make_move: Move) -> i16 {
+    pub fn get_pawn(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
-        self.threat[stm as usize][pos.threat_hash() as usize][current_piece as usize]
+        self.pawn_hist[stm as usize][pos.threat_hash() as usize][current_piece as usize]
             [make_move.to as usize]
     }
 
-    fn get_threat_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+    fn get_pawn_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
         let current_piece = pos.board().piece_on(make_move.from).unwrap();
-        &mut self.threat[stm as usize][pos.threat_hash() as usize][current_piece as usize]
+        &mut self.pawn_hist[stm as usize][pos.threat_hash() as usize][current_piece as usize]
             [make_move.to as usize]
     }
 
@@ -262,9 +262,9 @@ impl History {
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
         }
-        bonus(self.get_threat_mut(pos, make_move), amt);
+        bonus(self.get_pawn_mut(pos, make_move), amt);
         for &failed_move in fails {
-            malus(self.get_threat_mut(pos, failed_move), amt);
+            malus(self.get_pawn_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
