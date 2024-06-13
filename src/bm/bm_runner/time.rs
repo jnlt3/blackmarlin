@@ -39,6 +39,7 @@ pub struct TimeManager {
     target_duration: AtomicU32,
 
     move_stability: AtomicU32,
+    move_changes: AtomicU32,
     prev_eval: AtomicI16,
 
     prev_move: Mutex<Option<Move>>,
@@ -60,6 +61,7 @@ impl TimeManager {
             base_duration: AtomicU32::new(0),
             target_duration: AtomicU32::new(0),
             move_stability: AtomicU32::new(0),
+            move_changes: AtomicU32::new(0),
             prev_eval: AtomicI16::new(0),
             prev_move: Mutex::new(None),
             board: Mutex::new(Board::default()),
@@ -91,18 +93,29 @@ impl TimeManager {
 
         let mut prev_move = self.prev_move.lock().unwrap();
         let mut move_stability = self.move_stability.load(Ordering::Relaxed);
+        let mut move_changes = self.move_changes.load(Ordering::Relaxed);
         move_stability = match Some(mv) == *prev_move {
             true => (move_stability + 1).min(14),
             false => 0,
         };
+        move_changes = match Some(mv) == *prev_move {
+            true => move_changes / 2,
+            false => move_changes + 1,
+        };
+
         *prev_move = Some(mv);
         self.move_stability.store(move_stability, Ordering::Relaxed);
+        self.move_changes.store(move_changes, Ordering::Relaxed);
         let move_stability_factor = (41 - move_stability) as f32 * 0.024;
+        let move_change_factor = (8 + move_changes) as f32 * 0.1;
         let node_factor = (1.0 - move_nodes as f32 / nodes as f32) * 3.42 + 0.52;
         let eval_factor = (prev_eval - eval).clamp(18, 20) as f32 * 0.088;
         let base_duration = self.base_duration.load(Ordering::Relaxed);
-        let target_duration =
-            base_duration as f32 * move_stability_factor * node_factor * eval_factor;
+        let target_duration = base_duration as f32
+            * move_stability_factor
+            * node_factor
+            * eval_factor
+            * move_change_factor;
         self.target_duration
             .store(target_duration as u32, Ordering::Relaxed);
     }
@@ -227,5 +240,6 @@ impl TimeManager {
         self.expected_moves
             .store(expected_moves.saturating_sub(1), Ordering::SeqCst);
         self.move_stability.store(0, Ordering::Relaxed);
+        self.move_changes.store(0, Ordering::Relaxed);
     }
 }
