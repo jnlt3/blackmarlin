@@ -237,6 +237,7 @@ impl AbRunner {
         thread: usize,
         chess960: bool,
         show_wdl: bool,
+        start_time: Instant,
     ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) {
         let main_thread = thread == 0;
         let shared_context = self.shared_context.clone();
@@ -259,7 +260,6 @@ impl AbRunner {
             let mut nodes = 0;
             local_context.reset();
             local_context.stm = position.board().side_to_move();
-            let start_time = Instant::now();
             let mut best_move = None;
             let mut eval: Option<Evaluation> = None;
             let mut depth = 1_u32;
@@ -439,6 +439,7 @@ impl AbRunner {
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
     ) -> (Move, Evaluation, u32, u64) {
+        let start_time = Instant::now();
         let thread_count = self.thread_contexts.len() as u8 + 1;
         let mut join_handlers = vec![];
         self.shared_context.start = Instant::now();
@@ -451,6 +452,7 @@ impl AbRunner {
                 i + 1,
                 self.chess960,
                 self.show_wdl,
+                start_time,
             )));
         }
 
@@ -459,6 +461,7 @@ impl AbRunner {
             0,
             self.chess960,
             self.show_wdl,
+            start_time,
         )();
         for join_handler in join_handlers {
             let (_, _, _, nodes) = join_handler.join().unwrap();
