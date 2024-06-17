@@ -713,6 +713,7 @@ pub fn q_search(
         }
     }
 
+    let mut move_cnt = 0;
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
         /*
@@ -757,6 +758,10 @@ pub fn q_search(
             }
         }
         pos.unmake_move();
+        move_cnt += 1;
+        if move_cnt >= 2 {
+            break;
+        }
     }
 
     if thread.abort {
