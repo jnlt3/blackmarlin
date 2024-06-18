@@ -249,15 +249,16 @@ impl QSearchMoveGen {
     pub fn next(&mut self, pos: &Position, hist: &History) -> Option<Move> {
         if self.phase == QPhase::GenCaptures {
             self.phase = QPhase::GoodCaptures;
-            let in_check = !pos.board().checkers().is_empty();
             let stm = pos.board().side_to_move();
+            let king = pos.board().king(stm);
+            let in_check = !pos.board().checkers().is_empty();
             let opp_pieces = pos.board().colors(!stm);
             pos.board().generate_moves(|piece_moves| {
                 for mv in piece_moves {
                     if opp_pieces.has(mv.to) {
                         let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                         self.captures.push(ScoredMove::new(mv, score));
-                    } else if in_check {
+                    } else if in_check && king == mv.from {
                         self.quiets.push(mv);
                     }
                 }
