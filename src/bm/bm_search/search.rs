@@ -725,7 +725,8 @@ pub fn q_search(
         /*
         Fail high if SEE puts us above beta
         */
-        if stand_pat + 1000 >= beta
+        if !in_check
+            && stand_pat + 1000 >= beta
             && compare_see(pos.board(), make_move, (beta - stand_pat + 192).raw())
         {
             return beta;
