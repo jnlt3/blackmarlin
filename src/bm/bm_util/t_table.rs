@@ -308,7 +308,7 @@ impl TranspositionTable {
         let new_depth = new.depth + extra_depth(new);
         let prev_depth = prev.depth + extra_depth(prev);
 
-        new_depth * 3 / 2 + self.age_of(prev) as u32 + 1 >= prev_depth
+        new_depth * 5 / 2 + self.age_of(prev) as u32 + 1 >= prev_depth
     }
 
     pub fn clean(&self) {
