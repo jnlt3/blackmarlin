@@ -215,11 +215,14 @@ impl Position {
         let frc_score = frc::frc_corner_bishop(self.board());
         let piece_cnt = self.board().occupied().len() as i16;
 
-        Evaluation::new(
-            self.evaluator
-                .feed_forward(self.board().side_to_move(), piece_cnt as usize)
-                + frc_score,
-        )
+        let mut eval = self
+            .evaluator
+            .feed_forward(self.board().side_to_move(), piece_cnt as usize)
+            + frc_score;
+        if eval.abs() <= 5 {
+            eval = 0;
+        }
+        Evaluation::new(eval)
     }
 
     /// Handles insufficient material for the following cases:
