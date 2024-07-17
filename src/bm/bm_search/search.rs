@@ -730,8 +730,10 @@ pub fn q_search(
         {
             return beta;
         }
+
+        let neutral_cap = stand_pat + 192;
         // Also prune neutral captures when static eval is low
-        if stand_pat + 192 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if neutral_cap <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
         pos.make_move_fetch(make_move, |board| {
@@ -759,7 +761,7 @@ pub fn q_search(
         }
         pos.unmake_move();
         move_cnt += 1;
-        if move_cnt >= 2 || stand_pat <= initial_alpha {
+        if move_cnt >= 2 || neutral_cap <= initial_alpha {
             break;
         }
     }
