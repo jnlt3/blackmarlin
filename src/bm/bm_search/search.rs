@@ -759,7 +759,7 @@ pub fn q_search(
         }
         pos.unmake_move();
         move_cnt += 1;
-        if move_cnt >= 2 || stand_pat <= alpha {
+        if move_cnt >= 2 || stand_pat <= initial_alpha {
             break;
         }
     }
