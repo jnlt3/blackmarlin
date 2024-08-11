@@ -210,7 +210,7 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
-            return (eval + beta) / 2;
+            return (eval * 2 + beta) / 3;
         }
 
         let razor_margin = razor_margin(depth);
@@ -261,7 +261,7 @@ pub fn search<Search: SearchType>(
             let score = search_score << Next;
             if score >= beta {
                 let mut verified = depth < 10;
-                if !verified {
+                if !verified {  
                     let verification = search::<NoNm>(
                         pos,
                         thread,
