@@ -210,7 +210,7 @@ pub fn search<Search: SearchType>(
         we assume we can at least achieve beta
         */
         if do_rev_fp(depth) && eval - rev_fp(depth, improving && nstm_threats.is_empty()) >= beta {
-            return (eval + beta) / 2;
+            return (eval * 2 + beta * 3) / 5;
         }
 
         let razor_margin = razor_margin(depth);
