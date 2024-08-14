@@ -187,7 +187,6 @@ impl OrderedMoveGen {
                         Some(_) => i16::MIN,
                         None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
-                            let from_hist = hist.get_from(pos, mv);
                             let to_hist = hist.get_to(pos, mv);
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
@@ -199,11 +198,10 @@ impl OrderedMoveGen {
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
                             quiet_hist * 2
-                                + from_hist
                                 + to_hist
-                                + counter_move_hist * 4
-                                + followup_move_hist * 4
-                                + followup_move_hist_2 * 4
+                                + counter_move_hist * 3
+                                + followup_move_hist * 3
+                                + followup_move_hist_2 * 3
                         }
                     };
                     self.quiets.push(ScoredMove::new(mv, score));
