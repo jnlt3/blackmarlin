@@ -187,7 +187,7 @@ impl OrderedMoveGen {
                         Some(_) => i16::MIN,
                         None => {
                             let quiet_hist = hist.get_quiet(pos, mv);
-                            let to_hist = hist.get_to(pos, mv);
+                            let to_hist = hist.get_from(pos, mv);
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();

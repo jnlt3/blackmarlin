@@ -55,7 +55,7 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
-    to: Box<[Sq<i16>; Color::NUM]>,
+    from: Box<[Sq<i16>; Color::NUM]>,
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -65,7 +65,7 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            to: Box::new([new_sq_table(0); Color::NUM]),
+            from: Box::new([new_sq_table(0); Color::NUM]),
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
@@ -73,14 +73,14 @@ impl History {
         }
     }
 
-    pub fn get_to(&self, pos: &Position, make_move: Move) -> i16 {
+    pub fn get_from(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        self.to[stm as usize][make_move.to as usize]
+        self.from[stm as usize][make_move.from as usize]
     }
 
-    fn get_to_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+    fn get_from_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        &mut self.to[stm as usize][make_move.to as usize]
+        &mut self.from[stm as usize][make_move.from as usize]
     }
 
     /// Returns quiet history value for the given move
@@ -256,10 +256,10 @@ impl History {
         amt: i16,
     ) {
         bonus(self.get_quiet_mut(pos, make_move), amt);
-        bonus(self.get_to_mut(pos, make_move), amt);
+        bonus(self.get_from_mut(pos, make_move), amt);
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
-            malus(&mut self.get_to_mut(pos, failed_move), amt);
+            malus(&mut self.get_from_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
