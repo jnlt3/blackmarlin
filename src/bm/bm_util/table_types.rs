@@ -1,12 +1,17 @@
 use cozy_chess::{Piece, Square};
 
-pub type Butterfly<T> = [[T; Square::NUM]; Square::NUM];
+pub type Sq<T> = [T; Square::NUM];
+pub type Butterfly<T> = Sq<Sq<T>>;
 pub type PieceTo<T> = [[T; Square::NUM]; Piece::NUM];
 
+pub fn new_sq_table<T: Copy>(default: T) -> Sq<T> {
+    [default; Square::NUM]
+}
+
 pub fn new_butterfly_table<T: Copy>(default: T) -> Butterfly<T> {
-    [[default; Square::NUM]; Square::NUM]
+    new_sq_table(new_sq_table(default))
 }
 
 pub fn new_piece_to_table<T: Copy>(default: T) -> PieceTo<T> {
-    [[default; Square::NUM]; Piece::NUM]
+    [new_sq_table(default); Piece::NUM]
 }

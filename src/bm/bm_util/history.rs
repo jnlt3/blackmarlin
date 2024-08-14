@@ -3,7 +3,7 @@ use cozy_chess::{Color, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
+use super::table_types::{new_butterfly_table, new_piece_to_table, new_sq_table, Butterfly, PieceTo, Sq};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -53,6 +53,8 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
+    from: Box<[Sq<i16>; Color::NUM]>,
+    to: Box<[Sq<i16>; Color::NUM]>,
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -62,6 +64,8 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
+            from: Box::new([new_sq_table(0); Color::NUM]),
+            to: Box::new([new_sq_table(0); Color::NUM]),
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
@@ -69,6 +73,27 @@ impl History {
         }
     }
 
+    pub fn get_from(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        self.from[stm as usize][make_move.from as usize]
+    }
+
+    fn get_from_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        &mut self.from[stm as usize][make_move.from as usize]
+    }
+
+    pub fn get_to(&self, pos: &Position, make_move: Move) -> i16 {
+        let stm = pos.board().side_to_move();
+        self.to[stm as usize][make_move.to as usize]
+    }
+
+    fn get_to_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
+        let stm = pos.board().side_to_move();
+        &mut self.to[stm as usize][make_move.to as usize]
+    }
+    
+    
     /// Returns quiet history value for the given move
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
@@ -242,8 +267,12 @@ impl History {
         amt: i16,
     ) {
         bonus(self.get_quiet_mut(pos, make_move), amt);
+        bonus(self.get_from_mut(pos, make_move), amt);
+        bonus(self.get_to_mut(pos, make_move), amt);
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
+            malus(&mut self.get_from_mut(pos, failed_move), amt);
+            malus(&mut self.get_to_mut(pos, failed_move), amt);
         }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
