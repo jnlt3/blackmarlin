@@ -198,7 +198,7 @@ impl OrderedMoveGen {
                             let followup_move_hist_2 = hist
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist * 2
+                            quiet_hist * 4
                                 + from_hist
                                 + to_hist
                                 + counter_move_hist * 4
