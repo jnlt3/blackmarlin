@@ -301,7 +301,7 @@ pub fn search<Search: SearchType>(
     let cont_4 = prev_move(4);
 
     let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(best_move, killers, depth);
 
     let mut moves_seen = 0;
     let mut move_exists = false;

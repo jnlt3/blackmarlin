@@ -49,6 +49,8 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<ScoredMove, MAX_MOVES>,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
     bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
+
+    depth: u32,
 }
 
 fn select_highest(array: &[ScoredMove]) -> Option<usize> {
@@ -70,7 +72,7 @@ fn select_highest(array: &[ScoredMove]) -> Option<usize> {
 impl OrderedMoveGen {
     /// Expects legal PV move
     /// Killers are verified for legality in [next](OrderedMoveGen::next)
-    pub fn new(pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(pv_move: Option<Move>, killers: MoveEntry, depth: u32) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move,
@@ -80,6 +82,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            depth,
         }
     }
 
@@ -198,9 +201,13 @@ impl OrderedMoveGen {
                             let followup_move_hist_2 = hist
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
+
+                            let ld_hist = match self.depth {
+                                0..7 => from_hist + to_hist,
+                                _ => 0,
+                            };
                             quiet_hist * 4
-                                + from_hist
-                                + to_hist
+                                + ld_hist
                                 + counter_move_hist * 4
                                 + followup_move_hist * 4
                                 + followup_move_hist_2 * 4
