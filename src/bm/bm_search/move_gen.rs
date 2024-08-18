@@ -202,8 +202,8 @@ impl OrderedMoveGen {
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
 
-                            let ld_hist = match self.depth {
-                                0..7 => from_hist + to_hist,
+                            let ld_hist = match self.depth < 7 {
+                                true => from_hist + to_hist,
                                 _ => 0,
                             };
                             quiet_hist * 4
