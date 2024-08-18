@@ -202,6 +202,10 @@ pub fn search<Search: SearchType>(
         None => false,
     };
 
+    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+        depth -= iir(depth)
+    }
+    
     let (stm_threats, nstm_threats) = pos.threats();
     if !Search::PV && !in_check && skip_move.is_none() {
         /*
@@ -279,10 +283,6 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
-    }
-
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
-        depth -= iir(depth)
     }
 
     if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
