@@ -3,7 +3,9 @@ use cozy_chess::{Color, Move, Piece, Square};
 use crate::bm::bm_runner::ab_runner::MoveData;
 
 use super::position::Position;
-use super::table_types::{new_butterfly_table, new_piece_to_table, new_sq_table, Butterfly, PieceTo, Sq};
+use super::table_types::{
+    new_butterfly_table, new_piece_to_table, new_sq_table, Butterfly, PieceTo, Sq,
+};
 
 pub const MAX_HIST: i16 = 512;
 
@@ -53,8 +55,8 @@ impl HistoryIndices {
 
 #[derive(Debug, Clone)]
 pub struct History {
-    from: Box<[Sq<i16>; Color::NUM]>,
-    to: Box<[Sq<i16>; Color::NUM]>,
+    from: Box<[[Sq<i16>; 2]; Color::NUM]>,
+    to: Box<[[Sq<i16>; 2]; Color::NUM]>,
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -64,8 +66,8 @@ pub struct History {
 impl History {
     pub fn new() -> Self {
         Self {
-            from: Box::new([new_sq_table(0); Color::NUM]),
-            to: Box::new([new_sq_table(0); Color::NUM]),
+            from: Box::new([[new_sq_table(0); 2]; Color::NUM]),
+            to: Box::new([[new_sq_table(0); 2]; Color::NUM]),
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
@@ -75,25 +77,29 @@ impl History {
 
     pub fn get_from(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        self.from[stm as usize][make_move.from as usize]
+        let (_, nstm_threats) = pos.threats();
+        self.from[stm as usize][nstm_threats.has(make_move.from) as usize][make_move.from as usize]
     }
 
     fn get_from_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        &mut self.from[stm as usize][make_move.from as usize]
+        let (_, nstm_threats) = pos.threats();
+        &mut self.from[stm as usize][nstm_threats.has(make_move.from) as usize]
+            [make_move.from as usize]
     }
 
     pub fn get_to(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
-        self.to[stm as usize][make_move.to as usize]
+        let (_, nstm_threats) = pos.threats();
+        self.to[stm as usize][nstm_threats.has(make_move.from) as usize][make_move.to as usize]
     }
 
     fn get_to_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
         let stm = pos.board().side_to_move();
-        &mut self.to[stm as usize][make_move.to as usize]
+        let (_, nstm_threats) = pos.threats();
+        &mut self.to[stm as usize][nstm_threats.has(make_move.from) as usize][make_move.to as usize]
     }
-    
-    
+
     /// Returns quiet history value for the given move
     pub fn get_quiet(&self, pos: &Position, make_move: Move) -> i16 {
         let stm = pos.board().side_to_move();
