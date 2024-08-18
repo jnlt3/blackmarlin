@@ -716,10 +716,11 @@ pub fn q_search(
     let mut move_cnt = 0;
     let mut move_gen = QSearchMoveGen::new();
     while let Some(make_move) = move_gen.next(pos, &thread.history) {
+        let cap_hist = thread.history.get_capture(pos, make_move);
         /*
         Prune all losing captures
         */
-        if !compare_see(pos.board(), make_move, 0) {
+        if !compare_see(pos.board(), make_move, -cap_hist / 8) {
             continue;
         }
         /*
