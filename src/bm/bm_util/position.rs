@@ -22,6 +22,8 @@ impl Position {
         let mut evaluator = Nnue::new();
         let (w_threats, b_threats) = threats(&board);
         evaluator.full_reset(&board, w_threats, b_threats);
+        let w_pawns = board.colored_pieces(Color::White, Piece::Pawn);
+        let b_pawns = board.colored_pieces(Color::Black, Piece::Pawn);
         Self {
             current: board,
             w_threats,
@@ -31,7 +33,7 @@ impl Position {
             moves: vec![],
             last_eval: 0,
             evaluator,
-            pawn_zobrist: Zobrist::new(w_threats, b_threats),
+            pawn_zobrist: Zobrist::new(w_pawns, b_pawns),
         }
     }
 
@@ -46,7 +48,10 @@ impl Position {
         self.boards.clear();
         self.threats.clear();
         self.moves.clear();
-        self.pawn_zobrist.clear(w_threats, b_threats);
+        self.pawn_zobrist.clear(
+            self.current.colored_pieces(Color::White, Piece::Pawn),
+            self.current.colored_pieces(Color::Black, Piece::Pawn),
+        );
         self.last_eval = 0;
     }
 
@@ -123,8 +128,8 @@ impl Position {
         self.current.play_unchecked(make_move);
         post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
-        let w_pawns = old_board.colored_pieces(Color::White, Piece::Pawn);
-        let b_pawns = old_board.colored_pieces(Color::Black, Piece::Pawn);
+        let w_pawns = self.current.colored_pieces(Color::White, Piece::Pawn);
+        let b_pawns = self.current.colored_pieces(Color::Black, Piece::Pawn);
         self.pawn_zobrist
             .make_move(old_w_pawns ^ w_pawns, old_b_pawns ^ b_pawns);
         self.moves.push(Some(make_move));
@@ -197,7 +202,7 @@ impl Position {
         self.board().hash()
     }
 
-    pub fn threat_hash(&self) -> u16 {
+    pub fn pawn_hash(&self) -> u16 {
         self.pawn_zobrist.hash()
     }
 

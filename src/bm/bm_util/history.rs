@@ -54,20 +54,21 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
-    pawn_hist: Box<[[PieceTo<i16>; u16::MAX as usize + 1]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+
+    pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
 }
 
 impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            pawn_hist: Box::new([[new_piece_to_table(0); u16::MAX as usize + 1]; Color::NUM]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
         }
     }
 
@@ -84,21 +85,6 @@ impl History {
         let (_, nstm_threats) = pos.threats();
         &mut self.quiet[stm as usize][nstm_threats.has(make_move.from) as usize]
             [make_move.from as usize][make_move.to as usize]
-    }
-
-    /// Returns threat indexed quiet history value for the given move
-    pub fn get_pawn(&self, pos: &Position, make_move: Move) -> i16 {
-        let stm = pos.board().side_to_move();
-        let current_piece = pos.board().piece_on(make_move.from).unwrap();
-        self.pawn_hist[stm as usize][pos.threat_hash() as usize][current_piece as usize]
-            [make_move.to as usize]
-    }
-
-    fn get_pawn_mut(&mut self, pos: &Position, make_move: Move) -> &mut i16 {
-        let stm = pos.board().side_to_move();
-        let current_piece = pos.board().piece_on(make_move.from).unwrap();
-        &mut self.pawn_hist[stm as usize][pos.threat_hash() as usize][current_piece as usize]
-            [make_move.to as usize]
     }
 
     /// Returns capture history value for the given move
@@ -262,10 +248,6 @@ impl History {
         for &failed_move in fails {
             malus(self.get_quiet_mut(pos, failed_move), amt);
         }
-        bonus(self.get_pawn_mut(pos, make_move), amt);
-        for &failed_move in fails {
-            malus(self.get_pawn_mut(pos, failed_move), amt);
-        }
         if let Some(counter_move_hist) = self.get_counter_move_mut(pos, indices, make_move) {
             bonus(counter_move_hist, amt);
             for &failed_move in fails {
@@ -293,5 +275,19 @@ impl History {
                 malus(failed_hist, amt);
             }
         }
+    }
+
+    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16) {
+        let stm = pos.board().side_to_move();
+        let hash = pos.pawn_hash();
+        let prev_value = self.pawn_corr[stm as usize][hash as usize] as i32;
+        let new_value = prev_value * 255 / 256 + eval_diff as i32;
+        self.pawn_corr[stm as usize][hash as usize] = new_value;
+    }
+
+    pub fn get_correction(&self, pos: &Position) -> i16 {
+        let stm = pos.board().side_to_move();
+        let hash = pos.pawn_hash();
+        (self.pawn_corr[stm as usize][hash as usize] / 256) as i16
     }
 }
