@@ -7,6 +7,9 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 
 pub const MAX_HIST: i16 = 512;
 
+pub const CORR_HIST_SCALE: i32 = 1024;
+pub const CORR_HIST_GRAIN: i32 = 256;
+
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
 }
@@ -277,11 +280,13 @@ impl History {
         }
     }
 
-    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16) {
+    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        let prev_value = self.pawn_corr[stm as usize][hash as usize] as i32;
-        let new_value = prev_value * 255 / 256 + eval_diff as i32;
+        let prev_value = self.pawn_corr[stm as usize][hash as usize];
+        let weight = (depth * 16).min(128) as i32;
+        let new_value =
+            (prev_value * (CORR_HIST_SCALE - weight) + eval_diff as i32 * weight) / CORR_HIST_SCALE;
         self.pawn_corr[stm as usize][hash as usize] = new_value;
     }
 
