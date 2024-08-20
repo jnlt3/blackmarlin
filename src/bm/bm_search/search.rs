@@ -444,6 +444,7 @@ pub fn search<Search: SearchType>(
         if it has very low history
         */
         let do_hp = !Search::PV
+            && !in_check
             && non_mate_line
             && moves_seen > 0
             && depth <= 6
