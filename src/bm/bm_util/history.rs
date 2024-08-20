@@ -286,13 +286,13 @@ impl History {
         let prev_value = self.pawn_corr[stm as usize][hash as usize];
         let weight = (depth * 16).min(128) as i32;
         let new_value =
-            (prev_value * (CORR_HIST_SCALE - weight) + eval_diff as i32 * weight) / CORR_HIST_SCALE;
+            (prev_value * (CORR_HIST_SCALE - weight) + eval_diff as i32 * weight * CORR_HIST_GRAIN) / CORR_HIST_SCALE;
         self.pawn_corr[stm as usize][hash as usize] = new_value;
     }
 
     pub fn get_correction(&self, pos: &Position) -> i16 {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        (self.pawn_corr[stm as usize][hash as usize] / 256) as i16
+        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
     }
 }
