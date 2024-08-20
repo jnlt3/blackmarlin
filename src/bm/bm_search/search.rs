@@ -459,6 +459,7 @@ pub fn search<Search: SearchType>(
         */
         let do_see_prune = !Search::PV
             && non_mate_line
+            && !in_check
             && moves_seen > 0
             && depth <= 6
             && !alpha.is_mate()
