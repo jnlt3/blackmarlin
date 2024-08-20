@@ -495,7 +495,9 @@ pub fn search<Search: SearchType>(
             }
             if !Search::PV {
                 reduction += 1;
-            };
+            } else if depth <= 3 {
+                reduction -= 1;
+            }
             if !improving {
                 reduction += 1;
             }
