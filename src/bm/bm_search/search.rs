@@ -189,8 +189,7 @@ pub fn search<Search: SearchType>(
     };
     let aggr = pos.aggression(thread.stm, thread.eval);
     let corr = thread.history.get_correction(pos);
-    let no_corr_eval = raw_eval + aggr;
-    let eval = no_corr_eval + corr;
+    let eval = raw_eval + aggr + corr;
 
     thread.ss[ply as usize].aggr = aggr;
     thread.ss[ply as usize].eval = raw_eval;
@@ -648,7 +647,7 @@ pub fn search<Search: SearchType>(
         if !highest_score.is_mate() && !in_check && score_in_bounds {
             thread
                 .history
-                .update_corr_hist(pos, (highest_score - no_corr_eval).raw(), depth);
+                .update_corr_hist(pos, (highest_score - eval).raw(), depth);
         }
 
         shared_context.get_t_table().set(
