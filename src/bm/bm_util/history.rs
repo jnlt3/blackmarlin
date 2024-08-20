@@ -9,6 +9,7 @@ pub const MAX_HIST: i16 = 512;
 
 pub const CORR_HIST_SCALE: i32 = 1024;
 pub const CORR_HIST_GRAIN: i32 = 256;
+pub const MAX_CORRECT: i32 = 64;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
@@ -285,9 +286,13 @@ impl History {
         let hash = pos.pawn_hash();
         let prev_value = self.pawn_corr[stm as usize][hash as usize];
         let weight = (depth * 16).min(128) as i32;
-        let new_value =
-            (prev_value * (CORR_HIST_SCALE - weight) + eval_diff as i32 * weight * CORR_HIST_GRAIN) / CORR_HIST_SCALE;
-        self.pawn_corr[stm as usize][hash as usize] = new_value;
+        let new_value = (prev_value * (CORR_HIST_SCALE - weight)
+            + eval_diff as i32 * weight * CORR_HIST_GRAIN)
+            / CORR_HIST_SCALE;
+        self.pawn_corr[stm as usize][hash as usize] = new_value.clamp(
+            -MAX_CORRECT * CORR_HIST_GRAIN,
+            MAX_CORRECT * CORR_HIST_GRAIN,
+        );
     }
 
     pub fn get_correction(&self, pos: &Position) -> i16 {
