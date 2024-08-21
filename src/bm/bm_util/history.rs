@@ -61,7 +61,7 @@ pub struct History {
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 
-    pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
+    pawn_corr: Box<[[(i32, i32); u16::MAX as usize + 1]; Color::NUM]>,
 }
 
 impl History {
@@ -71,7 +71,7 @@ impl History {
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
-            pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
+            pawn_corr: Box::new([[(0, 0); u16::MAX as usize + 1]; Color::NUM]),
         }
     }
 
@@ -283,18 +283,24 @@ impl History {
     pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        let prev_value = self.pawn_corr[stm as usize][hash as usize];
+        let (prev_value, prev_mean) = self.pawn_corr[stm as usize][hash as usize];
+
         let weight = (depth * 8).min(128) as i32;
-        let new_value = prev_value + eval_diff as i32 * weight;
-        self.pawn_corr[stm as usize][hash as usize] = new_value.clamp(
+        let delta = eval_diff as i32 * weight;
+
+        let new_value = prev_value + delta * CORR_HIST_GRAIN / (prev_mean + 1);
+        let new_value = new_value.clamp(
             -MAX_CORRECT * CORR_HIST_GRAIN,
             MAX_CORRECT * CORR_HIST_GRAIN,
         );
+        let new_mean = (prev_mean * 7 + delta.abs()) / 8;
+
+        self.pawn_corr[stm as usize][hash as usize] = (new_value, new_mean);
     }
 
     pub fn get_correction(&self, pos: &Position) -> i16 {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
+        (self.pawn_corr[stm as usize][hash as usize].0 / CORR_HIST_GRAIN) as i16
     }
 }
