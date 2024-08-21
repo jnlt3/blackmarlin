@@ -280,7 +280,7 @@ impl History {
         }
     }
 
-    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
+    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16) {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
         let prev_value = self.pawn_corr[stm as usize][hash as usize];
