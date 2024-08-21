@@ -7,6 +7,9 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 
 pub const MAX_HIST: i16 = 512;
 
+pub const CORR_HIST_GRAIN: i32 = 256;
+pub const MAX_CORRECT: i32 = 32;
+
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
 }
@@ -57,6 +60,8 @@ pub struct History {
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
+
+    pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
 }
 
 impl History {
@@ -66,6 +71,7 @@ impl History {
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
+            pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
         }
     }
 
@@ -272,5 +278,23 @@ impl History {
                 malus(failed_hist, amt);
             }
         }
+    }
+
+    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
+        let stm = pos.board().side_to_move();
+        let hash = pos.pawn_hash();
+        let prev_value = self.pawn_corr[stm as usize][hash as usize];
+        let weight = (depth * 8).min(128) as i32;
+        let new_value = prev_value + eval_diff as i32 * weight;
+        self.pawn_corr[stm as usize][hash as usize] = new_value.clamp(
+            -MAX_CORRECT * CORR_HIST_GRAIN,
+            MAX_CORRECT * CORR_HIST_GRAIN,
+        );
+    }
+
+    pub fn get_correction(&self, pos: &Position) -> i16 {
+        let stm = pos.board().side_to_move();
+        let hash = pos.pawn_hash();
+        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
     }
 }

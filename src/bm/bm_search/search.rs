@@ -188,7 +188,8 @@ pub fn search<Search: SearchType>(
         None => tt_eval.unwrap_or_else(|| pos.get_eval()),
     };
     let aggr = pos.aggression(thread.stm, thread.eval);
-    let eval = raw_eval + aggr;
+    let corr = thread.history.get_correction(pos);
+    let eval = raw_eval + aggr + corr;
 
     thread.ss[ply as usize].aggr = aggr;
     thread.ss[ply as usize].eval = raw_eval;
@@ -638,6 +639,21 @@ pub fn search<Search: SearchType>(
             _ if highest_score >= beta => Bounds::LowerBound,
             _ => Bounds::Exact,
         };
+        let score_in_bounds = match entry_type {
+            Bounds::LowerBound => highest_score > eval,
+            Bounds::Exact => true,
+            Bounds::UpperBound => highest_score < eval,
+        };
+        if !highest_score.is_mate()
+            && !in_check
+            && score_in_bounds
+            && best_move.map_or(true, |mv| !pos.is_capture(mv))
+        {
+            thread
+                .history
+                .update_corr_hist(pos, (highest_score - eval).raw(), depth);
+        }
+
         shared_context.get_t_table().set(
             pos.board(),
             depth,

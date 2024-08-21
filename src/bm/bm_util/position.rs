@@ -2,7 +2,7 @@ use cozy_chess::{BitBoard, Board, Color, GameStatus, Move, Piece};
 
 use crate::bm::nnue::Nnue;
 
-use super::{eval::Evaluation, frc, threats::threats};
+use super::{eval::Evaluation, frc, threats::threats, zobrist::Zobrist};
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -14,6 +14,7 @@ pub struct Position {
     moves: Vec<Option<Move>>,
     last_eval: usize,
     evaluator: Nnue,
+    pawn_zobrist: Zobrist,
 }
 
 impl Position {
@@ -21,6 +22,8 @@ impl Position {
         let mut evaluator = Nnue::new();
         let (w_threats, b_threats) = threats(&board);
         evaluator.full_reset(&board, w_threats, b_threats);
+        let w_pawns = board.colored_pieces(Color::White, Piece::Pawn);
+        let b_pawns = board.colored_pieces(Color::Black, Piece::Pawn);
         Self {
             current: board,
             w_threats,
@@ -30,6 +33,7 @@ impl Position {
             moves: vec![],
             last_eval: 0,
             evaluator,
+            pawn_zobrist: Zobrist::new(w_pawns, b_pawns),
         }
     }
 
@@ -44,6 +48,10 @@ impl Position {
         self.boards.clear();
         self.threats.clear();
         self.moves.clear();
+        self.pawn_zobrist.clear(
+            self.current.colored_pieces(Color::White, Piece::Pawn),
+            self.current.colored_pieces(Color::Black, Piece::Pawn),
+        );
         self.last_eval = 0;
     }
 
@@ -99,6 +107,7 @@ impl Position {
         let Some(new_board) = self.board().null_move() else {
             return false;
         };
+        self.pawn_zobrist.null_move();
         self.moves.push(None);
         self.boards.push(self.current.clone());
         self.threats.push((self.w_threats, self.b_threats));
@@ -113,10 +122,16 @@ impl Position {
         let old_w_threats = self.w_threats;
         let old_b_threats = self.b_threats;
 
+        let old_w_pawns = old_board.colored_pieces(Color::White, Piece::Pawn);
+        let old_b_pawns = old_board.colored_pieces(Color::Black, Piece::Pawn);
+
         self.current.play_unchecked(make_move);
         post_make(&self.current);
         (self.w_threats, self.b_threats) = threats(&self.current);
-
+        let w_pawns = self.current.colored_pieces(Color::White, Piece::Pawn);
+        let b_pawns = self.current.colored_pieces(Color::Black, Piece::Pawn);
+        self.pawn_zobrist
+            .make_move(old_w_pawns ^ w_pawns, old_b_pawns ^ b_pawns);
         self.moves.push(Some(make_move));
         self.boards.push(old_board);
         self.threats.push((old_w_threats, old_b_threats));
@@ -173,6 +188,7 @@ impl Position {
     /// Takes back one (move)[Self::make_move]
     pub fn unmake_move(&mut self) {
         self.moves.pop().unwrap();
+        self.pawn_zobrist.unmake_move();
         let current = self.boards.pop().unwrap();
         (self.w_threats, self.b_threats) = self.threats.pop().unwrap();
         self.current = current;
@@ -184,6 +200,10 @@ impl Position {
 
     pub fn hash(&self) -> u64 {
         self.board().hash()
+    }
+
+    pub fn pawn_hash(&self) -> u16 {
+        self.pawn_zobrist.hash()
     }
 
     /// Returns side to move relative threats
