@@ -281,12 +281,11 @@ impl History {
         }
     }
 
-    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
+    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16) {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
         let prev_value = self.pawn_corr[stm as usize][hash as usize];
-        let weight = (depth * 4).min(64) as i32;
-        let new_value = prev_value + eval_diff as i32 * weight;
+        let new_value = prev_value + eval_diff as i32 * 4;
         self.pawn_corr[stm as usize][hash as usize] = new_value.clamp(
             -MAX_CORRECT * CORR_HIST_GRAIN,
             MAX_CORRECT * CORR_HIST_GRAIN,
