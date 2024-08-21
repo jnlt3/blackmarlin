@@ -285,7 +285,7 @@ impl History {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
         let prev_value = self.pawn_corr[stm as usize][hash as usize];
-        let weight = (depth * 16).min(128) as i32;
+        let weight = (depth * depth + depth * 2).min(128) as i32;
         let new_value = (prev_value * (CORR_HIST_SCALE - weight)
             + eval_diff as i32 * weight * CORR_HIST_GRAIN)
             / CORR_HIST_SCALE;
