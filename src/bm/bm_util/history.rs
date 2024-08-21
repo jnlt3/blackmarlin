@@ -284,7 +284,7 @@ impl History {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
         let prev_value = self.pawn_corr[stm as usize][hash as usize];
-        let new_value = prev_value + eval_diff as i32 * 32;
+        let new_value = prev_value + eval_diff as i32 * 64;
         self.pawn_corr[stm as usize][hash as usize] = new_value.clamp(
             -MAX_CORRECT * CORR_HIST_GRAIN,
             MAX_CORRECT * CORR_HIST_GRAIN,
