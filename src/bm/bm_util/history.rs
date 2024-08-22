@@ -62,6 +62,7 @@ pub struct History {
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 
     pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
+    king_corr: Box<[[i32; 64 * 64]; Color::NUM]>,
 }
 
 impl History {
@@ -72,6 +73,7 @@ impl History {
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
+            king_corr: Box::new([[0; 64 * 64]; Color::NUM]),
         }
     }
 
@@ -297,11 +299,22 @@ impl History {
             eval_diff,
             depth,
         );
+        let king_index =
+            pos.board().king(Color::White) as usize * 64 + pos.board().king(Color::Black) as usize;
+        Self::update_corr(
+            &mut self.king_corr[stm as usize][king_index],
+            eval_diff,
+            depth,
+        );
     }
 
     pub fn get_correction(&self, pos: &Position) -> i16 {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
+        let king_index =
+            pos.board().king(Color::White) as usize * 64 + pos.board().king(Color::Black) as usize;
+        let correction =
+            self.pawn_corr[stm as usize][hash as usize] + self.king_corr[stm as usize][king_index];
+        (correction / CORR_HIST_GRAIN) as i16
     }
 }
