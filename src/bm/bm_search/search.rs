@@ -646,6 +646,7 @@ pub fn search<Search: SearchType>(
         };
         if !highest_score.is_mate()
             && !in_check
+            && depth >= 3
             && score_in_bounds
             && best_move.map_or(true, |mv| !pos.is_capture(mv))
         {
