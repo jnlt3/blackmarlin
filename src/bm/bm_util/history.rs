@@ -9,6 +9,7 @@ pub const MAX_HIST: i16 = 512;
 
 pub const CORR_HIST_GRAIN: i32 = 256;
 pub const MAX_CORRECT: i32 = 32;
+pub const MAX_DIFF: i32 = 128;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
@@ -282,7 +283,7 @@ impl History {
 
     fn update_corr(val: &mut i32, eval_diff: i16, depth: u32) {
         let weight = (depth * 8).min(128) as i32;
-        let new_value = *val + eval_diff as i32 * weight;
+        let new_value = *val + (eval_diff as i32).clamp(-MAX_DIFF, MAX_DIFF) * weight;
         *val = new_value.clamp(
             -MAX_CORRECT * CORR_HIST_GRAIN,
             MAX_CORRECT * CORR_HIST_GRAIN,
