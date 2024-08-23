@@ -70,7 +70,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            pawn: Box::new([[new_piece_to_table(0); PAWN_HIST_SIZE]; Color::NUM]),
+            pawn: Box::new([[new_piece_to_table(20); PAWN_HIST_SIZE]; Color::NUM]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
