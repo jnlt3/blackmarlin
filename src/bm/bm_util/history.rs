@@ -9,7 +9,7 @@ pub const MAX_HIST: i16 = 512;
 
 pub const CORR_HIST_GRAIN: i32 = 256;
 pub const MAX_CORRECT: i32 = 32;
-const PAWN_HIST_SIZE: usize = 8192;
+const PAWN_HIST_SIZE: usize = 1024;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
@@ -58,7 +58,7 @@ impl HistoryIndices {
 #[derive(Debug, Clone)]
 pub struct History {
     quiet: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
-    pawn: Box<[[PieceTo<i16>; PAWN_HIST_SIZE]; Color::NUM]>,
+    pawn: Box<[[Butterfly<i16>; PAWN_HIST_SIZE]; Color::NUM]>,
     capture: Box<[[Butterfly<i16>; 2]; Color::NUM]>,
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
@@ -70,7 +70,7 @@ impl History {
     pub fn new() -> Self {
         Self {
             quiet: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
-            pawn: Box::new([[new_piece_to_table(0); PAWN_HIST_SIZE]; Color::NUM]),
+            pawn: Box::new([[new_butterfly_table(0); PAWN_HIST_SIZE]; Color::NUM]),
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
