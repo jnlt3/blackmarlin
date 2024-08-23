@@ -645,7 +645,6 @@ pub fn search<Search: SearchType>(
             Bounds::UpperBound => highest_score < eval,
         };
         if !highest_score.is_mate()
-            && !in_check
             && score_in_bounds
             && best_move.map_or(true, |mv| !pos.is_capture(mv))
         {
