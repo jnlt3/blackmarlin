@@ -381,6 +381,9 @@ pub fn search<Search: SearchType>(
                     if Search::PV && multi_cut && s_score + 120 < s_beta {
                         extension += 1;
                     }
+                    if Search::PV && !multi_cut && s_score + 240 < s_beta {
+                        extension += 1;
+                    }
                     if !Search::PV && !multi_cut && eval + 100 <= alpha {
                         extension += 1;
                     }
