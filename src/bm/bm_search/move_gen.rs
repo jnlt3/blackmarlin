@@ -231,7 +231,7 @@ enum QPhase {
 pub struct QSearchMoveGen {
     phase: QPhase,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
-    quiets: ArrayVec<Move, MAX_MOVES>,
+    quiets: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 impl QSearchMoveGen {
@@ -258,7 +258,8 @@ impl QSearchMoveGen {
                         let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                         self.captures.push(ScoredMove::new(mv, score));
                     } else if in_check {
-                        self.quiets.push(mv);
+                        let score = hist.get_quiet(pos, mv);
+                        self.quiets.push(ScoredMove::new(mv, score));
                     }
                 }
                 false
@@ -271,6 +272,9 @@ impl QSearchMoveGen {
             }
             self.phase = QPhase::Evasions;
         }
-        self.quiets.pop()
+        if let Some(index) = select_highest(&self.quiets) {
+            return self.quiets.swap_pop(index).map(|quiet| quiet.mv);
+        }
+        None
     }
 }
