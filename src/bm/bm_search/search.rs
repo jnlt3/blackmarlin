@@ -735,19 +735,19 @@ pub fn q_search(
         /*
         Prune all losing captures
         */
-        if !compare_see(pos.board(), make_move, 0) {
+        if !in_check && !compare_see(pos.board(), make_move, 0) {
             continue;
         }
         /*
         Fail high if SEE puts us above beta
         */
-        if stand_pat + 1000 >= beta
+        if !in_check && stand_pat + 1000 >= beta
             && compare_see(pos.board(), make_move, (beta - stand_pat + 192).raw())
         {
             return beta;
         }
         // Also prune neutral captures when static eval is low
-        if stand_pat + 192 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if !in_check && stand_pat + 192 <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
         pos.make_move_fetch(make_move, |board| {
