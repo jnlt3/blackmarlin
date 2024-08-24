@@ -716,7 +716,8 @@ pub fn q_search(
 
     let tt_eval = tt_entry.and_then(|entry| entry.eval);
     let raw_eval = tt_eval.unwrap_or_else(|| pos.get_eval());
-    let stand_pat = raw_eval + pos.aggression(thread.stm, thread.eval);
+    let corr = thread.history.get_correction(pos);
+    let stand_pat = raw_eval + pos.aggression(thread.stm, thread.eval) + corr;
     /*
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
