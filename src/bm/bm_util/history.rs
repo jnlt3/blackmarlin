@@ -61,7 +61,8 @@ pub struct History {
     counter_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 
-    pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
+    w_pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
+    b_pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
 }
 
 impl History {
@@ -71,7 +72,8 @@ impl History {
             capture: Box::new([[new_butterfly_table(0); Color::NUM]; 2]),
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
-            pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
+            w_pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
+            b_pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
         }
     }
 
@@ -291,9 +293,14 @@ impl History {
 
     pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
         let stm = pos.board().side_to_move();
-        let hash = pos.pawn_hash();
+        let (w_hash, b_hash) = pos.pawn_hash();
         Self::update_corr(
-            &mut self.pawn_corr[stm as usize][hash as usize],
+            &mut self.w_pawn_corr[stm as usize][w_hash as usize],
+            eval_diff,
+            depth,
+        );
+        Self::update_corr(
+            &mut self.b_pawn_corr[stm as usize][b_hash as usize],
             eval_diff,
             depth,
         );
@@ -301,7 +308,9 @@ impl History {
 
     pub fn get_correction(&self, pos: &Position) -> i16 {
         let stm = pos.board().side_to_move();
-        let hash = pos.pawn_hash();
-        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
+        let (w_hash, b_hash) = pos.pawn_hash();
+        let w_corr = self.w_pawn_corr[stm as usize][w_hash as usize];
+        let b_corr = self.b_pawn_corr[stm as usize][b_hash as usize];
+        ((w_corr + b_corr) / CORR_HIST_GRAIN) as i16
     }
 }

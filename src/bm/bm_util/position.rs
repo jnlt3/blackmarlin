@@ -202,7 +202,7 @@ impl Position {
         self.board().hash()
     }
 
-    pub fn pawn_hash(&self) -> u16 {
+    pub fn pawn_hash(&self) -> (u16, u16) {
         self.pawn_zobrist.hash()
     }
 

@@ -1,4 +1,4 @@
-use cozy_chess::{BitBoard, Color, Square};
+use cozy_chess::{BitBoard, Square};
 
 struct XorShift16 {
     state: u16,
@@ -19,30 +19,28 @@ impl XorShift16 {
 
 #[derive(Debug, Clone)]
 pub struct Zobrist {
-    stack: Vec<u16>,
-    current: u16,
-    hashes: [[u16; Square::NUM]; Color::NUM],
+    stack: Vec<(u16, u16)>,
+    current: (u16, u16),
+    hashes: [u16; Square::NUM],
 }
 
 impl Zobrist {
     pub fn new(w: BitBoard, b: BitBoard) -> Self {
         let mut xor_shift = XorShift16::new();
-        let mut hashes = [[0; Square::NUM]; Color::NUM];
-        for color in &mut hashes {
-            for square in color {
-                *square = xor_shift.next();
-            }
+        let mut hashes = [0; Square::NUM];
+        for square in &mut hashes {
+            *square = xor_shift.next();
         }
         let mut zobrist = Self {
             stack: vec![],
-            current: 0,
+            current: (0, 0),
             hashes,
         };
         zobrist.clear(w, b);
         zobrist
     }
 
-    pub fn hash(&self) -> u16 {
+    pub fn hash(&self) -> (u16, u16) {
         self.current
     }
 
@@ -53,10 +51,10 @@ impl Zobrist {
     pub fn make_move(&mut self, w_diff: BitBoard, b_diff: BitBoard) {
         self.stack.push(self.current);
         for w in w_diff {
-            self.current ^= self.hashes[0][w as usize];
+            self.current.0 ^= self.hashes[w as usize];
         }
         for b in b_diff {
-            self.current ^= self.hashes[1][b as usize];
+            self.current.1 ^= self.hashes[b as usize];
         }
     }
 
@@ -66,12 +64,12 @@ impl Zobrist {
 
     pub fn clear(&mut self, w: BitBoard, b: BitBoard) {
         self.stack.clear();
-        self.current = 0;
+        self.current = (0, 0);
         for w in w {
-            self.current ^= self.hashes[0][w as usize];
+            self.current.0 ^= self.hashes[w as usize];
         }
         for b in b {
-            self.current ^= self.hashes[1][b as usize];
+            self.current.1 ^= self.hashes[b as usize];
         }
     }
 }
