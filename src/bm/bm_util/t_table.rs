@@ -302,7 +302,7 @@ impl TranspositionTable {
     fn replace(&self, new: &Analysis, prev: &Analysis) -> bool {
         fn extra_depth(analysis: &Analysis) -> u32 {
             // +1 depth for Exact scores and lower bounds
-            matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32
+            matches!(analysis.bounds, Bounds::Exact | Bounds::LowerBound) as u32 * 2
         }
 
         let new_depth = new.depth + extra_depth(new);
