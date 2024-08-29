@@ -9,7 +9,7 @@ pub const MAX_HIST: i16 = 512;
 
 pub const CORR_HIST_GRAIN: i32 = 256;
 pub const MAX_CORRECT: i32 = 32;
-pub const MAX_DIFF: i32 = 128;
+pub const MAX_DIFF: i32 = 512;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
