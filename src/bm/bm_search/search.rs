@@ -747,7 +747,7 @@ pub fn q_search(
             return beta;
         }
         // Also prune neutral captures when static eval is low
-        if stand_pat + 192 <= alpha && !compare_see(pos.board(), make_move, 1) {
+        if stand_pat + 50 <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
         pos.make_move_fetch(make_move, |board| {
