@@ -311,6 +311,6 @@ impl History {
         let (w_hash, b_hash) = pos.pawn_hash();
         let w_corr = self.w_pawn_corr[stm as usize][w_hash as usize];
         let b_corr = self.b_pawn_corr[stm as usize][b_hash as usize];
-        ((w_corr + b_corr) / CORR_HIST_GRAIN) as i16
+        ((w_corr + b_corr) / (CORR_HIST_GRAIN * 2)) as i16
     }
 }
