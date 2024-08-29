@@ -282,7 +282,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+    if (Search::PV || cut_node) && tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
         depth -= iir(depth)
     }
 
