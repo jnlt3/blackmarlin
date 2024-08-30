@@ -429,6 +429,7 @@ pub fn search<Search: SearchType>(
         If a move is placed late in move ordering, we can safely prune it based on a depth related margin
         */
         if non_mate_line
+            && ply != 0
             && !is_capture
             && quiets.len()
                 >= shared_context
@@ -725,7 +726,7 @@ pub fn q_search(
         alpha = stand_pat;
         highest_score = Some(stand_pat);
         if stand_pat >= beta {
-            return stand_pat;
+            return (stand_pat + beta) / 2;
         }
     }
 
