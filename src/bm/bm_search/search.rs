@@ -651,7 +651,7 @@ pub fn search<Search: SearchType>(
         {
             thread
                 .history
-                .update_corr_hist(pos, raw_eval + aggr, eval, depth);
+                .update_corr_hist(pos, raw_eval + aggr, highest_score, depth);
         }
 
         shared_context.get_t_table().set(
