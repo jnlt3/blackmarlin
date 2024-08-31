@@ -2,6 +2,7 @@ use cozy_chess::{Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::MoveData;
 
+use super::eval::Evaluation;
 use super::position::Position;
 use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, PieceTo};
 
@@ -289,9 +290,17 @@ impl History {
         );
     }
 
-    pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
+    pub fn update_corr_hist(
+        &mut self,
+        pos: &Position,
+        raw_eval: Evaluation,
+        target: Evaluation,
+        depth: u32,
+    ) {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
+        let eval = raw_eval + self.get_correction(pos);
+        let eval_diff = (target - eval).raw();
         Self::update_corr(
             &mut self.pawn_corr[stm as usize][hash as usize],
             eval_diff,
