@@ -8,7 +8,7 @@ use super::table_types::{new_butterfly_table, new_piece_to_table, Butterfly, Pie
 pub const MAX_HIST: i16 = 512;
 
 pub const CORR_HIST_GRAIN: i32 = 256;
-pub const MAX_CORRECT: i32 = 32;
+pub const MAX_CORRECT: i32 = 48;
 
 fn hist_stat(amt: i16) -> i16 {
     (amt * 13).min(MAX_HIST)
