@@ -282,7 +282,7 @@ impl History {
     }
 
     fn update_corr(val: &mut i32, eval_diff: i16, depth: u32) {
-        let weight = (depth * 8).min(128) as i32;
+        let weight = (depth * 6).min(96) as i32;
         let new_value = *val + eval_diff as i32 * weight;
         *val = new_value.clamp(
             -MAX_CORRECT * CORR_HIST_GRAIN,
