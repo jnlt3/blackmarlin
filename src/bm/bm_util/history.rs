@@ -1,4 +1,4 @@
-use cozy_chess::{Color, Move, Piece, Square};
+use cozy_chess::{BitBoard, Color, Move, Piece, Square};
 
 use crate::bm::bm_runner::ab_runner::MoveData;
 
@@ -62,6 +62,7 @@ pub struct History {
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 
     pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
+    nstm_threat_corr: Box<[[i32; 65 * 64]; Color::NUM]>,
 }
 
 impl History {
@@ -72,6 +73,7 @@ impl History {
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
+            nstm_threat_corr: Box::new([[0; 65 * 64]; Color::NUM]),
         }
     }
 
@@ -289,6 +291,14 @@ impl History {
         );
     }
 
+    fn threat_hash(threats: BitBoard) -> usize {
+        let mut hash = 0;
+        for (id, threat) in threats.iter().take(2).enumerate() {
+            hash += (threat as usize + 1) * (id * 63 + 1);
+        }
+        hash
+    }
+
     pub fn update_corr_hist(&mut self, pos: &Position, eval_diff: i16, depth: u32) {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
@@ -297,11 +307,22 @@ impl History {
             eval_diff,
             depth,
         );
+        let (_, nstm_threats) = pos.threats();
+        let threat_hash = Self::threat_hash(nstm_threats);
+        Self::update_corr(
+            &mut self.nstm_threat_corr[stm as usize][threat_hash],
+            eval_diff,
+            depth,
+        )
     }
 
     pub fn get_correction(&self, pos: &Position) -> i16 {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
+        let (_, nstm_threats) = pos.threats();
+        let threat_hash = Self::threat_hash(nstm_threats);
+        let pawn_corr = self.pawn_corr[stm as usize][hash as usize];
+        let threat_corr = self.nstm_threat_corr[stm as usize][threat_hash];
+        ((pawn_corr + threat_corr) / CORR_HIST_GRAIN) as i16
     }
 }
