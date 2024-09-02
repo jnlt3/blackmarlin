@@ -323,6 +323,6 @@ impl History {
         let threat_hash = Self::threat_hash(nstm_threats);
         let pawn_corr = self.pawn_corr[stm as usize][hash as usize];
         let threat_corr = self.nstm_threat_corr[stm as usize][threat_hash];
-        ((pawn_corr + threat_corr) / CORR_HIST_GRAIN) as i16
+        ((pawn_corr * 2 + threat_corr) / (CORR_HIST_GRAIN * 3)) as i16
     }
 }
