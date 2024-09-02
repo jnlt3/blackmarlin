@@ -232,10 +232,10 @@ pub fn search<Search: SearchType>(
         This is seen as the major threat in the current position and can be used in
         move ordering for the next ply
         */
-        let nmp_eval = tt_entry.map_or(eval, |entry| match entry.bounds {
-            Bounds::LowerBound => entry.score.max(eval),
+        let nmp_eval = tt_entry.map_or(aggr_eval, |entry| match entry.bounds {
+            Bounds::LowerBound => entry.score.max(aggr_eval),
             Bounds::Exact => entry.score,
-            Bounds::UpperBound => entry.score.min(eval),
+            Bounds::UpperBound => entry.score.min(aggr_eval),
         });
         if do_nmp::<Search>(
             pos.board(),
