@@ -304,6 +304,8 @@ pub fn search<Search: SearchType>(
     let killers = thread.killer_moves[ply as usize];
     let mut move_gen = OrderedMoveGen::new(best_move, killers);
 
+    let tt_move = best_move.is_some();
+
     let mut moves_seen = 0;
     let mut move_exists = false;
 
@@ -433,7 +435,7 @@ pub fn search<Search: SearchType>(
             && quiets.len()
                 >= shared_context
                     .get_lmp_lookup()
-                    .get(depth as usize, improving as usize)
+                    .get(depth as usize, (improving || tt_move) as usize)
         {
             move_gen.skip_quiets();
             continue;
