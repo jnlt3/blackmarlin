@@ -467,7 +467,7 @@ pub fn search<Search: SearchType>(
             && !good_capture;
 
         if do_see_prune {
-            let see_margin = (alpha - eval - see_fp(depth) + 1).raw();
+            let see_margin = (alpha - aggr_eval - see_fp(depth) + 1).raw();
             if see_margin > 0 || !compare_see(pos.board(), make_move, see_margin) {
                 continue;
             }
