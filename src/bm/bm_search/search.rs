@@ -687,8 +687,9 @@ pub fn q_search(
     thread.increment_nodes();
 
     thread.update_sel_depth(ply);
+    let correction = thread.history.get_correction(pos);
     if ply >= MAX_PLY {
-        return pos.get_eval() + pos.aggression(thread.stm, thread.eval);
+        return pos.get_eval() + pos.aggression(thread.stm, thread.eval) + correction;
     }
 
     let mut best_move = None;
@@ -721,11 +722,12 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    if !in_check && stand_pat > alpha {
-        alpha = stand_pat;
-        highest_score = Some(stand_pat);
-        if stand_pat >= beta {
-            return stand_pat;
+    let corr_stand_pat = stand_pat + correction;
+    if !in_check && corr_stand_pat > alpha {
+        alpha = corr_stand_pat;
+        highest_score = Some(corr_stand_pat);
+        if corr_stand_pat >= beta {
+            return corr_stand_pat;
         }
     }
 
