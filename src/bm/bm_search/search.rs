@@ -189,7 +189,8 @@ pub fn search<Search: SearchType>(
     };
     let aggr = pos.aggression(thread.stm, thread.eval);
     let corr = thread.history.get_correction(pos);
-    let eval = raw_eval + aggr + corr;
+    let aggr_eval = raw_eval + aggr;
+    let eval = aggr_eval + corr;
 
     thread.ss[ply as usize].aggr = aggr;
     thread.ss[ply as usize].eval = raw_eval;
