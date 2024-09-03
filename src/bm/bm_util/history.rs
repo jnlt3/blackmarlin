@@ -62,6 +62,7 @@ pub struct History {
     followup_move: Box<[PieceTo<PieceTo<i16>>; Color::NUM]>,
 
     pawn_corr: Box<[[i32; u16::MAX as usize + 1]; Color::NUM]>,
+    p_pst_corr: Box<[[i32; Square::NUM]; Color::NUM]>,
 }
 
 impl History {
@@ -72,6 +73,7 @@ impl History {
             counter_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             followup_move: Box::new([new_piece_to_table(new_piece_to_table(0)); Color::NUM]),
             pawn_corr: Box::new([[0; u16::MAX as usize + 1]; Color::NUM]),
+            p_pst_corr: Box::new([[0; Square::NUM]; Color::NUM]),
         }
     }
 
@@ -280,9 +282,9 @@ impl History {
         }
     }
 
-    fn update_corr(val: &mut i32, eval_diff: i16, depth: u32) {
+    fn update_corr(val: &mut i32, eval_diff: i16, depth: u32, scale: i32) {
         let weight = (depth * 8).min(128) as i32;
-        let new_value = *val + eval_diff as i32 * weight;
+        let new_value = *val + eval_diff as i32 * weight / scale;
         *val = new_value.clamp(
             -MAX_CORRECT * CORR_HIST_GRAIN,
             MAX_CORRECT * CORR_HIST_GRAIN,
@@ -296,12 +298,53 @@ impl History {
             &mut self.pawn_corr[stm as usize][hash as usize],
             eval_diff,
             depth,
+            1,
         );
+
+        let rel_eval_diff = match stm {
+            Color::White => eval_diff,
+            Color::Black => -eval_diff,
+        };
+        let pawns = pos.board().pieces(Piece::Pawn);
+        let white = pos.board().colors(Color::White);
+        let black = pos.board().colors(Color::Black);
+
+        for pawn in white & pawns {
+            Self::update_corr(
+                &mut self.p_pst_corr[0][pawn as usize],
+                rel_eval_diff,
+                depth,
+                16,
+            );
+        }
+        for pawn in black & pawns {
+            Self::update_corr(
+                &mut self.p_pst_corr[1][pawn as usize],
+                rel_eval_diff,
+                depth,
+                16,
+            );
+        }
     }
 
-    pub fn get_correction(&self, pos: &Position) -> i16 {
+    pub fn get_correction(&self, pos: &Position, qs: bool) -> i16 {
         let stm = pos.board().side_to_move();
         let hash = pos.pawn_hash();
-        (self.pawn_corr[stm as usize][hash as usize] / CORR_HIST_GRAIN) as i16
+        let mut corr = 0;
+
+        if !qs {
+            let pawns = pos.board().pieces(Piece::Pawn);
+            let white = pos.board().colors(Color::White);
+            let black = pos.board().colors(Color::Black);
+
+            for pawn in white & pawns {
+                corr += self.p_pst_corr[0][pawn as usize];
+            }
+            for pawn in black & pawns {
+                corr += self.p_pst_corr[1][pawn as usize];
+            }
+            corr = [corr, -corr][stm as usize];
+        }
+        ((self.pawn_corr[stm as usize][hash as usize] + corr) / (CORR_HIST_GRAIN * 2)) as i16
     }
 }

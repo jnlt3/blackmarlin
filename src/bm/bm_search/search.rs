@@ -188,7 +188,7 @@ pub fn search<Search: SearchType>(
         None => tt_eval.unwrap_or_else(|| pos.get_eval()),
     };
     let aggr = pos.aggression(thread.stm, thread.eval);
-    let corr = thread.history.get_correction(pos);
+    let corr = thread.history.get_correction(pos, false);
     let eval = raw_eval + aggr + corr;
 
     thread.ss[ply as usize].aggr = aggr;
@@ -687,7 +687,7 @@ pub fn q_search(
     thread.increment_nodes();
 
     thread.update_sel_depth(ply);
-    let correction = thread.history.get_correction(pos);
+    let correction = thread.history.get_correction(pos, true);
     if ply >= MAX_PLY {
         return pos.get_eval() + pos.aggression(thread.stm, thread.eval) + correction;
     }
