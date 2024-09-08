@@ -1,6 +1,5 @@
 use cozy_chess::Move;
 
-use super::move_entry::MoveEntry;
 use super::see::{compare_see, move_value};
 use crate::bm::bm_util::history::History;
 use crate::bm::bm_util::history::HistoryIndices;
@@ -17,8 +16,6 @@ pub enum Phase {
     GenCaptures,
     /// Generated move has a SEE value >= 0
     GoodCaptures,
-    /// Generated move is a killer move
-    Killers,
     GenQuiets,
     /// Generated move is a non capture
     Quiets,
@@ -40,9 +37,6 @@ pub struct OrderedMoveGen {
     phase: Phase,
 
     pv_move: Option<Move>,
-
-    killers: MoveEntry,
-    killer_index: usize,
 
     piece_moves: ArrayVec<PieceMoves, 18>,
 
@@ -70,12 +64,10 @@ fn select_highest(array: &[ScoredMove]) -> Option<usize> {
 impl OrderedMoveGen {
     /// Expects legal PV move
     /// Killers are verified for legality in [next](OrderedMoveGen::next)
-    pub fn new(pv_move: Option<Move>, killers: MoveEntry) -> Self {
+    pub fn new(pv_move: Option<Move>) -> Self {
         Self {
             phase: Phase::PvMove,
             pv_move,
-            killers,
-            killer_index: 0,
             piece_moves: ArrayVec::new(),
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
@@ -94,7 +86,7 @@ impl OrderedMoveGen {
     /// Skips all quiet generation only if the last generated move is a quiet move that is not from the TT  
     pub fn skip_quiets(&mut self) {
         self.phase = match self.phase {
-            Phase::Killers | Phase::GenQuiets | Phase::Quiets => Phase::BadCaptures,
+            Phase::GenQuiets | Phase::Quiets => Phase::BadCaptures,
             _ => return,
         }
     }
@@ -134,9 +126,6 @@ impl OrderedMoveGen {
                     if Some(mv) == self.pv_move {
                         continue;
                     }
-                    if let Some(index) = self.killers.index_of(mv) {
-                        self.killers.remove(index);
-                    }
                     let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(ScoredMove::new(mv, score))
                 }
@@ -151,22 +140,6 @@ impl OrderedMoveGen {
                 }
                 return Some(capture.mv);
             }
-            self.phase = Phase::Killers;
-        }
-        if self.phase == Phase::Killers {
-            while self.killer_index < 2 {
-                let killer = self.killers.get(self.killer_index);
-                self.killer_index += 1;
-                if let Some(killer) = killer {
-                    if Some(killer) == self.pv_move {
-                        continue;
-                    }
-                    if !pos.board().is_legal(killer) {
-                        continue;
-                    }
-                    return Some(killer);
-                }
-            }
             self.phase = Phase::GenQuiets;
         }
         if self.phase == Phase::GenQuiets {
@@ -176,9 +149,6 @@ impl OrderedMoveGen {
                 piece_moves.to &= !pos.board().colors(!stm);
                 for mv in piece_moves {
                     if Some(mv) == self.pv_move {
-                        continue;
-                    }
-                    if self.killers.contains(mv) {
                         continue;
                     }
 

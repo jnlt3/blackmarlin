@@ -286,10 +286,6 @@ pub fn search<Search: SearchType>(
         depth -= iir(depth)
     }
 
-    if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
-        entry.clear();
-    }
-
     let mut highest_score = None;
 
     let prev_move = |prev: u32| match ply >= prev {
@@ -301,8 +297,7 @@ pub fn search<Search: SearchType>(
     let cont_2 = prev_move(2);
     let cont_4 = prev_move(4);
 
-    let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(best_move, killers);
+    let mut move_gen = OrderedMoveGen::new(best_move);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
@@ -500,9 +495,6 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if killers.contains(make_move) {
-                reduction -= 1;
-            }
             if cut_node {
                 reduction += 1;
             }
@@ -600,9 +592,6 @@ pub fn search<Search: SearchType>(
                 if score >= beta {
                     if !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
-                        if !is_capture {
-                            thread.killer_moves[ply as usize].push(make_move);
-                        }
                         thread.history.update_history(
                             pos,
                             &hist_indices,
