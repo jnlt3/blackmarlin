@@ -509,6 +509,9 @@ pub fn search<Search: SearchType>(
             if new_stm_threat.len() > stm_threats.len() {
                 reduction -= 1;
             }
+            if corr.abs() > 28 {
+                reduction -= 1;
+            }
             reduction = reduction.min(depth as i16 - 2).max(0);
         }
 
