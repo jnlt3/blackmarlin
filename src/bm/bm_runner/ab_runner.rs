@@ -390,11 +390,11 @@ impl AbRunner {
                 time_manager,
                 t_table: Arc::new(TranspositionTable::new(16 * 1024 * 1024 / 12)),
                 lmr_lookup: Arc::new(LookUp2d::new(|depth, mv| {
-                    if depth == 0 || mv == 0 {
-                        0
+                    (if depth == 0 || mv == 0 {
+                        0.0
                     } else {
-                        (0.50 + (depth as f32).ln() * (mv as f32).ln() / 2.05) as u32
-                    }
+                        (0.50 + (depth as f32).ln() * (mv as f32).ln() / 2.05) * 128.0
+                    }) as u32
                 })),
                 lmp_lookup: Arc::new(LookUp2d::new(|depth, improving| {
                     let mut x = 2.97 + depth as f32 * depth as f32;

@@ -100,7 +100,7 @@ const fn hp(depth: u32) -> i32 {
 }
 
 const fn history_lmr(history: i16) -> i16 {
-    history / 112
+    (history as i32 * 128 / 112) as i16
 }
 
 pub fn search<Search: SearchType>(
@@ -411,7 +411,7 @@ pub fn search<Search: SearchType>(
             .get(depth as usize, moves_seen) as i16;
         reduction -= history_lmr(h_score);
 
-        let lmr_depth = (depth as i16 - reduction).max(1) as u32;
+        let lmr_depth = (depth as i16 - reduction / 128).max(1) as u32;
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
@@ -492,24 +492,24 @@ pub fn search<Search: SearchType>(
 
         if moves_seen > 0 {
             if ply <= (depth + ply) * 2 / 5 {
-                reduction -= 1;
+                reduction -= 128;
             }
             if !Search::PV {
-                reduction += 1;
+                reduction += 128;
             };
             if !improving {
-                reduction += 1;
+                reduction += 128;
             }
             if killers.contains(make_move) {
-                reduction -= 1;
+                reduction -= 128;
             }
             if cut_node {
-                reduction += 1;
+                reduction += 128;
             }
             if new_stm_threat.len() > stm_threats.len() {
-                reduction -= 1;
+                reduction -= 128;
             }
-            reduction = reduction.min(depth as i16 - 2).max(0);
+            reduction = (reduction / 128).min(depth as i16 - 2).max(0);
         }
 
         if moves_seen == 0 {
