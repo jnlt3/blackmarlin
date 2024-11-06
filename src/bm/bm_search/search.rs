@@ -598,7 +598,7 @@ pub fn search<Search: SearchType>(
                     thread.ss[ply as usize].update_pv(make_move, &child_pv[..len]);
                 }
                 if score >= beta {
-                    if !thread.abort {
+                    if (moves_seen > 1 || tt_entry.is_none()) && !thread.abort {
                         let amt = depth + (eval <= alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
                             thread.killer_moves[ply as usize].push(make_move);
