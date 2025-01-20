@@ -494,6 +494,9 @@ pub fn search<Search: SearchType>(
             if ply <= (depth + ply) * 2 / 5 {
                 reduction -= 1;
             }
+            if !Search::PV && ply <= (depth + ply) / 5 {
+                reduction -= 1;
+            }
             if !Search::PV {
                 reduction += 1;
             };
@@ -599,7 +602,8 @@ pub fn search<Search: SearchType>(
                 }
                 if score >= beta {
                     if !thread.abort {
-                        let amt = depth + (eval <= initial_alpha) as u32 + (score - 50 > beta) as u32;
+                        let amt =
+                            depth + (eval <= initial_alpha) as u32 + (score - 50 > beta) as u32;
                         if !is_capture {
                             thread.killer_moves[ply as usize].push(make_move);
                         }
