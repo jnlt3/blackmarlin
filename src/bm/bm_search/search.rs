@@ -506,7 +506,7 @@ pub fn search<Search: SearchType>(
             if cut_node {
                 reduction += 1;
             }
-            if new_stm_threat.len() > stm_threats.len() {
+            if new_stm_threat.len() > stm_threats.len() && depth <= 7 {
                 reduction -= 1;
             }
             reduction = reduction.min(depth as i16 - 2).max(0);
