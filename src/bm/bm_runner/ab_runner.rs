@@ -476,7 +476,7 @@ impl AbRunner {
         self.shared_context.t_table = Arc::new(TranspositionTable::new(entry_count as usize));
     }
 
-    pub fn set_threads(&mut self, threads: u8) {
+    pub fn set_threads(&mut self, threads: u16) {
         let local_context = self.main_thread_context.lock().unwrap().clone();
         self.thread_contexts = (0..threads - 1)
             .map(|_| Arc::new(Mutex::new(local_context.clone())))
