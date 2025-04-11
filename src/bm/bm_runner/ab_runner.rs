@@ -439,11 +439,10 @@ impl AbRunner {
     pub fn search<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
     ) -> (Move, Evaluation, u32, u64) {
-        let thread_count = self.thread_contexts.len() as u8 + 1;
+        let thread_count = self.thread_contexts.len() + 1;
         let mut join_handlers = vec![];
         self.shared_context.start = Instant::now();
-        self.node_counter
-            .initialize_node_counters(thread_count as usize);
+        self.node_counter.initialize_node_counters(thread_count);
         self.position.reset();
         for (i, context) in self.thread_contexts.clone().iter().enumerate() {
             join_handlers.push(std::thread::spawn(self.launch_searcher::<SM, NoInfo>(
