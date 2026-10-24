@@ -236,13 +236,18 @@ pub fn search<Search: SearchType>(
             Bounds::Exact => entry.score,
             Bounds::UpperBound => entry.score.min(eval),
         });
-        if do_nmp::<Search>(
-            pos.board(),
-            depth,
-            nmp_eval.raw(),
-            beta.raw(),
-            !nstm_threats.is_empty(),
-        ) && pos.null_move()
+        let tt_skip_nmp = tt_entry.is_some_and(|entry| {
+            entry.depth + 2 >= depth && entry.score <= alpha && entry.bounds == Bounds::UpperBound
+        });
+        if !tt_skip_nmp
+            && do_nmp::<Search>(
+                pos.board(),
+                depth,
+                nmp_eval.raw(),
+                beta.raw(),
+                !nstm_threats.is_empty(),
+            )
+            && pos.null_move()
         {
             thread.ss[ply as usize].move_played = None;
 
