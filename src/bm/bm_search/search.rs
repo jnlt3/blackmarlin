@@ -39,6 +39,10 @@ impl SearchType for NoNm {
     type Zw = NoNm;
 }
 
+const fn reduction_scale() -> i16 {
+    8
+}
+
 const fn do_rev_fp(depth: u32) -> bool {
     depth <= 9
 }
@@ -408,10 +412,11 @@ pub fn search<Search: SearchType>(
         }
         let mut reduction = shared_context
             .get_lmr_lookup()
-            .get(depth as usize, moves_seen) as i16;
-        reduction -= history_lmr(h_score);
+            .get(depth as usize, moves_seen) as i16
+            * reduction_scale();
+        reduction -= history_lmr(h_score) * reduction_scale();
 
-        let lmr_depth = (depth as i16 - reduction).max(1) as u32;
+        let lmr_depth = (depth as i16 - reduction / reduction_scale()).max(1) as u32;
 
         let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
         /*
@@ -492,24 +497,24 @@ pub fn search<Search: SearchType>(
 
         if moves_seen > 0 {
             if ply <= (depth + ply) * 2 / 5 {
-                reduction -= 1;
+                reduction -= reduction_scale();
             }
             if !Search::PV {
-                reduction += 1;
+                reduction += reduction_scale() + 3;
             };
             if !improving {
-                reduction += 1;
+                reduction += reduction_scale() + 3;
             }
             if killers.contains(make_move) {
-                reduction -= 1;
+                reduction -= reduction_scale();
             }
             if cut_node {
-                reduction += 1;
+                reduction += reduction_scale() + 2;
             }
             if new_stm_threat.len() > stm_threats.len() {
-                reduction -= 1;
+                reduction -= reduction_scale();
             }
-            reduction = reduction.min(depth as i16 - 2).max(0);
+            reduction = reduction.min((depth as i16 - 2) * reduction_scale()).max(0);
         }
 
         if moves_seen == 0 {
@@ -527,7 +532,7 @@ pub fn search<Search: SearchType>(
             score = search_score << Next;
         } else {
             let depth = (depth as i32 + extension) as u32;
-            let lmr_depth = (depth as i16 - reduction) as u32;
+            let lmr_depth = (depth as i16 - reduction / reduction_scale()) as u32;
             //Reduced Search/Zero Window if no reduction
             let zw = alpha >> Next;
 
