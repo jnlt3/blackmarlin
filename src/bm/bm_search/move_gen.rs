@@ -49,6 +49,7 @@ pub struct OrderedMoveGen {
     quiets: ArrayVec<ScoredMove, MAX_MOVES>,
     captures: ArrayVec<ScoredMove, MAX_MOVES>,
     bad_captures: ArrayVec<ScoredMove, MAX_MOVES>,
+    bad_capture_idx: usize,
 }
 
 fn select_highest(array: &[ScoredMove]) -> Option<usize> {
@@ -80,6 +81,7 @@ impl OrderedMoveGen {
             quiets: ArrayVec::new(),
             captures: ArrayVec::new(),
             bad_captures: ArrayVec::new(),
+            bad_capture_idx: 0,
         }
     }
 
@@ -212,12 +214,13 @@ impl OrderedMoveGen {
             }
             self.phase = Phase::BadCaptures;
         }
-        if self.phase == Phase::BadCaptures {
-            if let Some(index) = select_highest(&self.bad_captures) {
-                return self.bad_captures.swap_pop(index).map(|capture| capture.mv);
-            }
-        }
-        None
+        // Bad captures are already implicitly sorted from best to worst
+        let out = self
+            .bad_captures
+            .get(self.bad_capture_idx)
+            .map(|capture| capture.mv);
+        self.bad_capture_idx += 1;
+        out
     }
 }
 
