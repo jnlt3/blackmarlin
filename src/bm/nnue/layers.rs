@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::sync::Arc;
 
 use cfg_if::cfg_if;
 
@@ -30,33 +30,28 @@ impl<const INPUT: usize, const OUTPUT: usize> Incremental<INPUT, OUTPUT> {
         added_features: &[usize],
         removed_features: &[usize],
     ) {
-        cfg_if! {
-            if #[cfg(target_feature = "avx2")] {
-                const CHUNKS: usize = 256;
-            } else {
-                const CHUNKS: usize = 128;
-            }
+        let len_head = added_features.len().min(removed_features.len());
+        let (add_head, add_tail) = added_features.split_at(len_head);
+        let (rem_head, rem_tail) = removed_features.split_at(len_head);
+
+        let mut reg = *src;
+
+        for (&a, &r) in add_head.iter().zip(rem_head) {
+            self.accumulate::<1>(&mut reg, a);
+            self.accumulate::<-1>(&mut reg, r);
         }
-        for start in 0..(OUTPUT + CHUNKS - 1) / CHUNKS {
-            let range = start * CHUNKS..(start * CHUNKS + CHUNKS).min(OUTPUT);
-            let mut out_reg = [0; CHUNKS];
-            out_reg[..range.len()].copy_from_slice(&src.0[range.clone()]);
-            self.update_chunk::<1>(added_features, &mut out_reg, range.clone());
-            self.update_chunk::<-1>(removed_features, &mut out_reg, range.clone());
-            out.0[range.clone()].copy_from_slice(&out_reg[..range.len()]);
+        for &a in add_tail.iter() {
+            self.accumulate::<1>(&mut reg, a);
         }
+        for &r in rem_tail.iter() {
+            self.accumulate::<-1>(&mut reg, r);
+        }
+        *out = reg;
     }
 
-    fn update_chunk<const SIGN: i16>(
-        &self,
-        feature_indices: &[usize],
-        reg: &mut [i16],
-        chunk: Range<usize>,
-    ) {
-        for &index in feature_indices {
-            for (out, &weight) in reg.iter_mut().zip(&self.weights.0[index][chunk.clone()]) {
-                *out += weight * SIGN;
-            }
+    fn accumulate<const SIGN: i16>(&mut self, reg: &mut Align<[i16; OUTPUT]>, index: usize) {
+        for (out, &weight) in reg.0.iter_mut().zip(&self.weights.0[index]) {
+            *out += weight * SIGN;
         }
     }
 }
