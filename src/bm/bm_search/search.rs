@@ -500,7 +500,7 @@ pub fn search<Search: SearchType>(
             if !improving {
                 reduction += 1;
             }
-            if move_gen.phase() > Phase::GoodCaptures {
+            if move_gen.phase() > Phase::Killers {
                 reduction += 1;
             }
             if cut_node {
