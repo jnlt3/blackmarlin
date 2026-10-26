@@ -478,11 +478,6 @@ pub fn search<Search: SearchType>(
         });
         let (_, new_stm_threat) = pos.threats();
 
-        let gives_check = !pos.board().checkers().is_empty();
-        if gives_check {
-            extension = extension.max(1);
-        }
-
         /*
         LMR
         We try to prove a move is worse than alpha at a reduced depth
