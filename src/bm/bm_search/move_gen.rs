@@ -142,10 +142,7 @@ impl OrderedMoveGen {
                     if let Some(index) = self.killers.index_of(mv) {
                         self.killers.remove(index);
                     }
-                    let mut score = hist.get_capture(pos, mv);
-                    if self.depth <= 6 {
-                        score += move_value(pos.board(), mv) * 32;
-                    }
+                    let score = hist.get_capture(pos, mv) + move_value(pos.board(), mv) * 32;
                     self.captures.push(ScoredMove::new(mv, score))
                 }
             }
@@ -194,7 +191,6 @@ impl OrderedMoveGen {
                         Some(Piece::Queen) => i16::MAX,
                         Some(_) => i16::MIN,
                         None => {
-                            let quiet_hist = hist.get_quiet(pos, mv);
                             let counter_move_hist = hist
                                 .get_counter_move(pos, hist_indices, mv)
                                 .unwrap_or_default();
@@ -204,10 +200,13 @@ impl OrderedMoveGen {
                             let followup_move_hist_2 = hist
                                 .get_followup_move_2(pos, hist_indices, mv)
                                 .unwrap_or_default();
-                            quiet_hist
-                                + counter_move_hist
-                                + followup_move_hist
-                                + followup_move_hist_2
+                            let mut score =
+                                counter_move_hist + followup_move_hist + followup_move_hist_2;
+                            if self.depth <= 6 {
+                                let quiet_hist = hist.get_quiet(pos, mv);
+                                score += quiet_hist;
+                            }
+                            score
                         }
                     };
                     self.quiets.push(ScoredMove::new(mv, score));
