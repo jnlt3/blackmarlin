@@ -2,13 +2,13 @@ use std::{
     fs::OpenOptions,
     io::{BufWriter, Write},
     path::PathBuf,
-    sync::{mpsc::channel, Arc},
+    sync::{Arc, mpsc::channel},
     time::{Duration, Instant},
 };
 
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move};
-use rand::Rng;
+use rand::RngExt;
 
 use blackmarlin::bm::{
     bm_runner::{
@@ -33,10 +33,10 @@ fn play_single(
 
     let start_board = match variant {
         0 => Board::default(),
-        1 => Board::chess960_startpos(rand::thread_rng().gen_range(0..960)),
+        1 => Board::chess960_startpos(rand::rng().random_range(0..960)),
         2 => Board::double_chess960_startpos(
-            rand::thread_rng().gen_range(0..960),
-            rand::thread_rng().gen_range(0..960),
+            rand::rng().random_range(0..960),
+            rand::rng().random_range(0..960),
         ),
         _ => panic!("Invalid variant"),
     };
@@ -61,7 +61,7 @@ fn play_single(
                 }
                 false
             });
-            moves[rand::thread_rng().gen_range(0..moves.len())]
+            moves[rand::rng().random_range(0..moves.len())]
         } else {
             // Random moves and no eval are simply not useful data
             time_manager.initiate(engine.get_board(), time_management_info);

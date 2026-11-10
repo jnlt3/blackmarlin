@@ -1,6 +1,6 @@
 use clap::Parser;
 use cozy_chess::{Board, Move};
-use rand::{thread_rng, Rng};
+use rand::RngExt as _;
 use std::{
     fs::OpenOptions,
     io::{BufRead, BufReader, BufWriter, Write},
@@ -78,6 +78,7 @@ fn main() {
             .unwrap(),
     );
 
+    let mut rng = rand::rng();
     let mut added = 0;
     for (index, line) in in_file.lines().enumerate() {
         let Ok(line) = line else {
@@ -115,12 +116,12 @@ fn main() {
             continue;
         }
         if let Some(chance) = args.filter_random {
-            if thread_rng().gen::<f32>() < chance {
+            if rng.random::<f32>() < chance {
                 continue;
             }
         }
         if let Some(chance) = args.draw_filter_chance {
-            if wdl == "0.5" && thread_rng().gen::<f32>() < chance {
+            if wdl == "0.5" && rng.random::<f32>() < chance {
                 continue;
             }
         }

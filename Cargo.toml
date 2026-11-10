@@ -1,10 +1,7 @@
-workspace = { members = [
-	"blackmarlin",
-	"datagen",
-	"filter",
-	"uci",
-], resolver = "2" }
+[workspace]
+members = ["blackmarlin", "datagen", "filter", "uci"]
+resolver = "3"
 
 [profile.release]
-lto = "thin"
+lto = "fat"
 codegen-units = 1

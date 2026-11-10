@@ -263,7 +263,7 @@ impl AbRunner {
         thread: usize,
         chess960: bool,
         show_wdl: bool,
-    ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) {
+    ) -> impl FnMut() -> (Option<Move>, Evaluation, u32, u64) + use<SM, Info> {
         let main_thread = thread == 0;
         let shared_context = self.shared_context.clone();
 
