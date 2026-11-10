@@ -191,6 +191,14 @@ pub fn search<Search: SearchType>(
     let corr = thread.history.get_correction(pos);
     let eval = raw_eval + aggr + corr;
 
+    let parent = (ply >= 1).then(|| &thread.ss[ply as usize - 1]);
+
+    if let Some(parent) = parent {
+        if !Search::NM && parent.move_played.is_none() && (parent.eval + raw_eval).raw() < 16 {
+            return beta;
+        }
+    }
+
     thread.ss[ply as usize].aggr = aggr;
     thread.ss[ply as usize].eval = raw_eval;
 
