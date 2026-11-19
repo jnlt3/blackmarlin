@@ -262,6 +262,7 @@ impl UciAdapter {
                     let mv = convert_move(self.chess960, mv, self.root.board());
                     self.root.make_move(mv);
                 }
+                self.root.reset();
             }
             UciCommand::Bench(depth) => {
                 let mut bench_data = vec![];
