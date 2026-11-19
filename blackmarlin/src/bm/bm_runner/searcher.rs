@@ -1,9 +1,8 @@
 use std::{
-    fmt::Write as _,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
-        mpsc::{Sender, SyncSender, channel, sync_channel},
+        mpsc::{SyncSender, sync_channel},
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -18,7 +17,7 @@ use crate::bm::{
         search::{self, Pv},
     },
     bm_util::{
-        eval::Evaluation, history::Hist2, lookup::LookUp2d, position::Position,
+        eval::Evaluation, history::History, lookup::LookUp2d, position::Position,
         t_table::TranspositionTable, window::Window,
     },
 };
@@ -92,7 +91,7 @@ pub struct ThreadData {
     pub thread_id: usize,
     /// Search Stack
     pub ss: Vec<SearchStack>,
-    pub history: Hist2,
+    pub history: History,
     pub killer_moves: Vec<MoveEntry>,
 }
 
@@ -100,7 +99,7 @@ pub struct ThreadCtx<'a> {
     pub thread_id: usize,
     pub tm: &'a TimeManager,
     pub ss: &'a mut [SearchStack],
-    pub history: &'a Hist2,
+    pub history: &'a History,
     pub killers: &'a mut [MoveEntry],
     pub nodes: Nodes,
     pub root_nodes: [[u64; Square::NUM]; Square::NUM],
@@ -145,7 +144,7 @@ impl<'a> ThreadCtx<'a> {
 
 impl ThreadData {
     pub fn clear(&mut self) {
-        self.history = Hist2::new_zeroed();
+        self.history = History::new_zeroed();
         self.killer_moves
             .iter_mut()
             .for_each(|value| *value = MoveEntry::new());
@@ -282,7 +281,7 @@ impl Searcher {
                 };
                 MAX_PLY as usize + 1
             ],
-            history: Hist2::new_zeroed(),
+            history: History::new_zeroed(),
             killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
         };
         let handle = thread::spawn(move || {

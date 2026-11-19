@@ -53,11 +53,11 @@ struct SideHistory {
 }
 
 #[derive(Debug, Clone)]
-pub struct Hist2 {
+pub struct History {
     sides: Box<[SideHistory; 2]>,
 }
 
-impl Hist2 {
+impl History {
     pub fn new_zeroed() -> Self {
         let sides: *mut [SideHistory; 2] =
             unsafe { std::alloc::alloc_zeroed(Layout::new::<[SideHistory; 2]>()) as *mut _ };

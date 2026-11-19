@@ -259,7 +259,7 @@ impl UciAdapter {
             UciCommand::Position(position, moves) => {
                 self.root.set_board(position);
                 for mv in moves {
-                    convert_move(self.chess960, mv, self.root.board());
+                    let mv = convert_move(self.chess960, mv, self.root.board());
                     self.root.make_move(mv);
                 }
             }
@@ -317,7 +317,6 @@ impl UciAdapter {
             UciCommand::Eval => {
                 println!("eval: {}", self.root.get_eval().raw())
             }
-            _ => todo!(),
         }
         true
     }

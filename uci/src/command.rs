@@ -17,7 +17,6 @@ pub enum UciCommand {
     Stop,
     Quit,
     Eval,
-    Static,
 }
 
 impl UciCommand {
@@ -118,7 +117,6 @@ impl UciCommand {
             "eval" => UciCommand::Eval,
             "isready" => UciCommand::IsReady,
             "bench" => UciCommand::Bench(split.next().map_or(12, |depth| depth.parse().unwrap())),
-            "static" => UciCommand::Static,
             "setoption" => {
                 split.next();
                 let name = split.next().unwrap().to_string();
