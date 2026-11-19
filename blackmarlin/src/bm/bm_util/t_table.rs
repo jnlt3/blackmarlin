@@ -311,7 +311,7 @@ impl TranspositionTable {
         new_depth * 2 + self.age_of(prev) as u32 + 1 >= prev_depth
     }
 
-    pub fn clean(&self) {
+    pub fn clear(&self) {
         self.age.store(0, Ordering::Relaxed);
         self.table.iter().for_each(|entry| entry.zero());
     }

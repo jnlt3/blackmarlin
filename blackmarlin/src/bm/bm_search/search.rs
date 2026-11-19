@@ -1,7 +1,7 @@
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Piece};
 
-use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadContext, MAX_PLY};
+use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadCtx, MAX_PLY};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
 use crate::bm::bm_util::history::HistoryIndices;
@@ -105,7 +105,7 @@ const fn history_lmr(history: i16) -> i16 {
 
 pub fn search<Search: SearchType>(
     pos: &mut Position,
-    thread: &mut ThreadContext,
+    thread: &mut ThreadCtx,
     shared_context: &SharedContext,
     ply: u32,
     mut depth: u32,
@@ -673,7 +673,7 @@ This is done as the static evaluation function isn't suited to detecting tactica
 
 pub fn q_search(
     pos: &mut Position,
-    thread: &mut ThreadContext,
+    thread: &mut ThreadCtx,
     shared_context: &SharedContext,
     ply: u32,
     mut alpha: Evaluation,

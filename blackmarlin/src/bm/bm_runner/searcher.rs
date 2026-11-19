@@ -1,0 +1,383 @@
+use std::{
+    fmt::Write as _,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+        mpsc::{Sender, SyncSender, channel, sync_channel},
+    },
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
+};
+
+use cozy_chess::{Board, Color, Move, Square};
+
+use crate::bm::{
+    bm_runner::{
+        ab_runner::{LmpLookup, LmrLookup, MAX_PLY, Nodes, SearchStack},
+        time::TimeManager,
+    },
+    bm_search::{
+        move_entry::MoveEntry,
+        search2::{self, Pv},
+    },
+    bm_util::{
+        eval::Evaluation, history::History, lookup::LookUp2d, position::Position,
+        t_table::TranspositionTable, window::Window,
+    },
+};
+
+pub struct Searcher {
+    pub context: Arc<SharedCtx>,
+
+    workers: Vec<(SyncSender<Message>, JoinHandle<()>)>,
+}
+
+pub struct SharedCtx {
+    pub time_manager: TimeManager,
+    pub t_table: TranspositionTable,
+    pub lmr_lookup: LmrLookup,
+    pub lmp_lookup: LmpLookup,
+}
+
+pub struct ThreadData {
+    pub thread_id: usize,
+    /// Search Stack
+    pub ss: Vec<SearchStack>,
+    pub history: History,
+    pub killer_moves: Vec<MoveEntry>,
+}
+
+pub struct ThreadCtx<'a> {
+    pub thread_id: usize,
+    pub tm: &'a TimeManager,
+    pub ss: &'a mut [SearchStack],
+    pub history: &'a mut History,
+    pub killers: &'a mut [MoveEntry],
+    pub nodes: Nodes,
+    pub root_nodes: [[u64; Square::NUM]; Square::NUM],
+
+    pub window: Window,
+    pub eval: Evaluation,
+    pub stm: Color,
+
+    pub abort: bool,
+
+    pub tt_hits: u32,
+    pub tt_misses: u32,
+    pub sel_depth: u32,
+
+    start: Instant,
+}
+
+impl<'a> ThreadCtx<'a> {
+    pub fn nodes(&self) -> u64 {
+        self.nodes.0.load(Ordering::Relaxed)
+    }
+
+    pub fn trigger_abort(&mut self) {
+        self.abort = true;
+    }
+
+    pub fn update_sel_depth(&mut self, ply: u32) {
+        self.sel_depth = u32::max(self.sel_depth, ply);
+    }
+
+    pub fn increment_nodes(&self) {
+        self.nodes.0.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn abort_search(&self, nodes: u64) -> bool {
+        if nodes % 1024 != 0 {
+            return false;
+        }
+        self.tm.abort_search(self.start)
+    }
+}
+
+impl ThreadData {
+    pub fn clear(&mut self) {
+        self.history = History::new();
+        self.killer_moves
+            .iter_mut()
+            .for_each(|value| *value = MoveEntry::new());
+        self.ss = vec![
+            SearchStack {
+                eval: Evaluation::new(0),
+                skip_move: None,
+                move_played: None,
+                pv: [None; MAX_PLY as usize + 1],
+                pv_len: 0,
+                aggr: 0
+            };
+            MAX_PLY as usize + 1
+        ];
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchCtx {
+    pub root: Position,
+    pub start: Instant,
+}
+
+enum Message {
+    Search(Arc<SharedCtx>, SearchCtx, Arc<dyn SearchObserver>),
+    Quit,
+    Wait,
+    Clear,
+}
+
+impl Searcher {
+    pub fn new(hash_size: usize, threads: usize) -> Self {
+        let time_manager = TimeManager::new();
+        let ctx = SharedCtx {
+            time_manager,
+            t_table: TranspositionTable::new(hash_size * 1024 * 1024 / 12),
+            lmr_lookup: LookUp2d::new(|depth, mv| {
+                if depth == 0 || mv == 0 {
+                    0
+                } else {
+                    (0.50 + (depth as f32).ln() * (mv as f32).ln() / 2.05) as u32
+                }
+            }),
+            lmp_lookup: LookUp2d::new(|depth, improving| {
+                let mut x = 2.97 + depth as f32 * depth as f32;
+                if improving == 0 {
+                    x /= 1.94;
+                }
+                x as usize
+            }),
+        };
+        Self {
+            context: Arc::new(ctx),
+            workers: (0..threads).map(|id| Self::spawn_worker(id)).collect(),
+        }
+    }
+
+    pub fn set_hash(&mut self, hash_size: usize) {
+        let context = Arc::get_mut(&mut self.context).unwrap();
+        context.t_table = TranspositionTable::new(hash_size * 1024 * 1024 / 12);
+    }
+
+    pub fn set_threads(&mut self, threads: usize) {
+        self.stop();
+        if threads >= self.workers.len() {
+            self.workers
+                .extend((self.workers.len()..threads).map(|id| Self::spawn_worker(id)));
+        } else {
+            for (sender, handle) in self.workers.drain(threads..) {
+                sender.send(Message::Quit).unwrap();
+                handle.join().unwrap();
+            }
+        }
+    }
+
+    pub fn threads(&self) -> usize {
+        self.workers.len()
+    }
+
+    pub fn search(&self, root: Position, observer: Arc<dyn SearchObserver>) {
+        let search_ctx = SearchCtx {
+            root,
+            start: Instant::now(),
+        };
+        for (worker, _) in &self.workers {
+            worker
+                .send(Message::Search(
+                    self.context.clone(),
+                    search_ctx.clone(),
+                    observer.clone(),
+                ))
+                .unwrap();
+        }
+    }
+
+    pub fn wait(&self) {
+        for (worker, _) in &self.workers {
+            worker.send(Message::Wait).unwrap();
+        }
+    }
+
+    pub fn stop(&self) {
+        self.context.time_manager.abort_now();
+        self.wait();
+    }
+
+    pub fn quit(&mut self) {
+        self.context.time_manager.abort_now();
+        for (worker, handle) in self.workers.drain(..) {
+            worker.send(Message::Quit).unwrap();
+            handle.join().unwrap();
+        }
+    }
+
+    pub fn clear(&self) {
+        self.context.t_table.clear();
+        for (worker, _) in &self.workers {
+            worker.send(Message::Clear).unwrap();
+        }
+    }
+
+    fn spawn_worker(thread_id: usize) -> (SyncSender<Message>, JoinHandle<()>) {
+        let (tx, rx) = sync_channel(0);
+        let mut thread_ctx = ThreadData {
+            thread_id,
+            ss: vec![
+                SearchStack {
+                    eval: Evaluation::new(0),
+                    skip_move: None,
+                    move_played: None,
+                    pv: [None; MAX_PLY as usize + 1],
+                    pv_len: 0,
+                    aggr: 0
+                };
+                MAX_PLY as usize + 1
+            ],
+            history: History::new(),
+            killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
+        };
+        let handle = thread::spawn(move || {
+            while let Ok(msg) = rx.recv() {
+                match msg {
+                    Message::Search(shared_ctx, info, observer) => {
+                        root(&shared_ctx, &mut thread_ctx, info, observer.clone());
+                    }
+                    Message::Wait => continue,
+                    Message::Quit => break,
+                    Message::Clear => {
+                        thread_ctx.clear();
+                    }
+                }
+            }
+        });
+        (tx, handle)
+    }
+}
+
+pub trait SearchObserver: Send + Sync + 'static {
+    fn search_result(
+        &self,
+        _thread_id: usize,
+        _root: &Board,
+        _eval: Evaluation,
+        _elapsed: Duration,
+        _depth: u32,
+        _sel_depth: u32,
+        _nodes: u64,
+        _pv: &[Option<Move>],
+    ) {
+    }
+
+    fn result(&self, _best_move: Move, _eval: Evaluation) {}
+}
+
+fn root(
+    shared_ctx: &SharedCtx,
+    thread_data: &mut ThreadData,
+    mut info: SearchCtx,
+    observer: Arc<dyn SearchObserver>,
+) -> Option<(Move, Evaluation)> {
+    let mut thread_ctx = ThreadCtx {
+        thread_id: thread_data.thread_id,
+        ss: &mut thread_data.ss,
+        history: &mut thread_data.history,
+        killers: &mut thread_data.killer_moves,
+        nodes: Nodes(Arc::new(AtomicU64::new(0))),
+        root_nodes: [[0; Square::NUM]; Square::NUM],
+        window: Window::new(15, 45, 100, 9),
+        eval: info.root.get_eval(),
+        stm: info.root.board().side_to_move(),
+        abort: false,
+        tt_hits: 0,
+        tt_misses: 0,
+        sel_depth: 0,
+        tm: &shared_ctx.time_manager,
+        start: info.start,
+    };
+
+    let mut depth = 1;
+    let mut abort = false;
+
+    let mut result = None;
+    'outer: loop {
+        let mut fail_cnt = 0;
+        thread_ctx.window.reset();
+        loop {
+            if abort {
+                break 'outer;
+            }
+            let (alpha, beta) = if thread_ctx.eval.raw().abs() < 1000 && depth > 4 && fail_cnt < 10
+            {
+                thread_ctx.window.get()
+            } else {
+                (Evaluation::min(), Evaluation::max())
+            };
+            thread_ctx.sel_depth = 0;
+            let score = search2::search::<Pv>(
+                &mut info.root,
+                &mut thread_ctx,
+                &shared_ctx,
+                0,
+                depth,
+                alpha,
+                beta,
+                false,
+            );
+            let nodes = thread_ctx.nodes();
+            if depth > 1 && thread_ctx.abort {
+                break 'outer;
+            }
+            thread_ctx.window.set(score);
+            thread_ctx.eval = score;
+            let root_move = thread_ctx.ss[0].pv[0].unwrap();
+            let move_nodes = thread_ctx.root_nodes[root_move.from as usize][root_move.to as usize];
+            shared_ctx.time_manager.deepen(
+                thread_ctx.thread_id as usize,
+                depth,
+                move_nodes,
+                nodes,
+                score,
+                root_move,
+            );
+            if (score > alpha && score < beta) || score.is_mate() {
+                abort = shared_ctx
+                    .time_manager
+                    .abort_deepening(info.start, depth, nodes);
+                result = Some((root_move, score));
+                break;
+            } else {
+                fail_cnt += 1;
+                if score <= alpha {
+                    thread_ctx.window.fail_low();
+                } else {
+                    thread_ctx.window.fail_high();
+                }
+            }
+        }
+        let root = &thread_ctx.ss[0];
+        observer.search_result(
+            thread_ctx.thread_id,
+            info.root.board(),
+            thread_ctx.eval,
+            thread_ctx.start.elapsed(),
+            depth,
+            thread_ctx.sel_depth,
+            thread_ctx.nodes(),
+            &root.pv[..root.pv_len],
+        );
+        depth += 1;
+        if depth > 1
+            && shared_ctx
+                .time_manager
+                .abort_deepening(info.start, depth, thread_ctx.nodes())
+        {
+            break 'outer;
+        }
+    }
+    if let Some((mv, eval)) = result
+        && thread_data.thread_id == 0
+    {
+        observer.result(mv, eval);
+    }
+    result
+}

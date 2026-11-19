@@ -45,7 +45,7 @@ impl NodeCounter {
 }
 
 #[derive(Debug)]
-pub struct Nodes(Arc<AtomicU64>);
+pub struct Nodes(pub Arc<AtomicU64>);
 
 impl Clone for Nodes {
     fn clone(&self) -> Self {
@@ -53,8 +53,8 @@ impl Clone for Nodes {
     }
 }
 
-type LmrLookup = LookUp2d<u32, 32, 64>;
-type LmpLookup = LookUp2d<usize, 16, 2>;
+pub type LmrLookup = LookUp2d<u32, 32, 64>;
+pub type LmpLookup = LookUp2d<usize, 16, 2>;
 
 #[derive(Debug, Clone)]
 pub struct SharedContext {
@@ -113,7 +113,7 @@ impl SearchStack {
 }
 
 #[derive(Debug, Clone)]
-pub struct ThreadContext {
+pub struct ThreadCtx {
     window: Window,
     pub tt_hits: u32,
     pub tt_misses: u32,
@@ -161,7 +161,7 @@ impl SharedContext {
     }
 }
 
-impl ThreadContext {
+impl ThreadCtx {
     pub fn increment_nodes(&self) {
         self.nodes.0.fetch_add(1, Ordering::Relaxed);
     }
@@ -248,18 +248,18 @@ fn to_wld(eval: Evaluation) -> (i16, i16, i16) {
 
 pub struct AbRunner {
     shared_context: SharedContext,
-    main_thread_context: Arc<Mutex<ThreadContext>>,
+    main_thread_context: Arc<Mutex<ThreadCtx>>,
     node_counter: NodeCounter,
     position: Position,
     chess960: bool,
     show_wdl: bool,
-    thread_contexts: Vec<Arc<Mutex<ThreadContext>>>,
+    thread_contexts: Vec<Arc<Mutex<ThreadCtx>>>,
 }
 
 impl AbRunner {
     fn launch_searcher<SM: 'static + SearchMode + Send, Info: 'static + GuiInfo + Send>(
         &mut self,
-        local_context: Arc<Mutex<ThreadContext>>,
+        local_context: Arc<Mutex<ThreadCtx>>,
         thread: usize,
         chess960: bool,
         show_wdl: bool,
@@ -431,7 +431,7 @@ impl AbRunner {
                 })),
                 start: Instant::now(),
             },
-            main_thread_context: Arc::new(Mutex::new(ThreadContext {
+            main_thread_context: Arc::new(Mutex::new(ThreadCtx {
                 window: Window::new(15, 45, 100, 9),
                 tt_hits: 0,
                 tt_misses: 0,
@@ -513,7 +513,7 @@ impl AbRunner {
     }
 
     pub fn new_game(&self) {
-        self.shared_context.t_table.clean();
+        self.shared_context.t_table.clear();
     }
 
     pub fn set_board(&mut self, board: Board) {

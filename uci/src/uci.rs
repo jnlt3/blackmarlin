@@ -142,18 +142,22 @@ impl UciAdapter {
             UciCommand::Bench(depth) => {
                 let mut bench_data = vec![];
 
-                let bm_runner = &mut *self.bm_runner.lock().unwrap();
                 let mut sum_node_cnt = 0;
                 let mut sum_time = Duration::from_nanos(0);
                 for board in bench::bench_positions() {
+                    let time_manager = Arc::new(TimeManager::new());
+                    let mut bm_runner = AbRunner::new(
+                        Board::default(),
+                        time_manager.clone(),
+                    );
                     bm_runner.new_game();
                     bm_runner.set_board(board.clone());
                     let options = [TimeManagementInfo::MaxDepth(depth)];
                     let start = Instant::now();
 
-                    self.time_manager.initiate(&board, &options);
+                    time_manager.initiate(&board, &options);
                     let (make_move, eval, _, node_cnt) = bm_runner.search::<Run, NoInfo>();
-                    self.time_manager.clear();
+                    time_manager.clear();
                     let elapsed = start.elapsed();
                     bench_data.push((
                         eval.raw(),
