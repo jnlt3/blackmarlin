@@ -117,6 +117,29 @@ pub struct ThreadCtx<'a> {
     start: Instant,
 }
 
+impl SharedCtx {
+    pub fn new_with_hash(hash_size: usize) -> Self {
+        SharedCtx {
+            time_manager: TimeManager::new(),
+            t_table: TranspositionTable::new(hash_size * 1024 * 1024 / 12),
+            lmr_lookup: LookUp2d::new(|depth, mv| {
+                if depth == 0 || mv == 0 {
+                    0
+                } else {
+                    (0.50 + (depth as f32).ln() * (mv as f32).ln() / 2.05) as u32
+                }
+            }),
+            lmp_lookup: LookUp2d::new(|depth, improving| {
+                let mut x = 2.97 + depth as f32 * depth as f32;
+                if improving == 0 {
+                    x /= 1.94;
+                }
+                x as usize
+            }),
+        }
+    }
+}
+
 impl<'a> ThreadCtx<'a> {
     pub fn nodes(&self) -> u64 {
         self.nodes.0.load(Ordering::Relaxed)
@@ -143,6 +166,25 @@ impl<'a> ThreadCtx<'a> {
 }
 
 impl ThreadData {
+    pub fn new_with_id(thread_id: usize) -> Self {
+        Self {
+            thread_id,
+            ss: vec![
+                SearchStack {
+                    eval: Evaluation::new(0),
+                    skip_move: None,
+                    move_played: None,
+                    pv: [None; MAX_PLY as usize + 1],
+                    pv_len: 0,
+                    aggr: 0
+                };
+                MAX_PLY as usize + 1
+            ],
+            history: History::new_zeroed(),
+            killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
+        }
+    }
+
     pub fn clear(&mut self) {
         self.history = History::new_zeroed();
         self.killer_moves
@@ -177,25 +219,7 @@ enum Message {
 
 impl Searcher {
     pub fn new(hash_size: usize, threads: usize) -> Self {
-        let time_manager = TimeManager::new();
-        let ctx = SharedCtx {
-            time_manager,
-            t_table: TranspositionTable::new(hash_size * 1024 * 1024 / 12),
-            lmr_lookup: LookUp2d::new(|depth, mv| {
-                if depth == 0 || mv == 0 {
-                    0
-                } else {
-                    (0.50 + (depth as f32).ln() * (mv as f32).ln() / 2.05) as u32
-                }
-            }),
-            lmp_lookup: LookUp2d::new(|depth, improving| {
-                let mut x = 2.97 + depth as f32 * depth as f32;
-                if improving == 0 {
-                    x /= 1.94;
-                }
-                x as usize
-            }),
-        };
+        let ctx = SharedCtx::new_with_hash(hash_size);
         Self {
             context: Arc::new(ctx),
             workers: (0..threads).map(|id| Self::spawn_worker(id)).collect(),
@@ -268,27 +292,12 @@ impl Searcher {
 
     fn spawn_worker(thread_id: usize) -> (SyncSender<Message>, JoinHandle<()>) {
         let (tx, rx) = sync_channel(0);
-        let mut thread_ctx = ThreadData {
-            thread_id,
-            ss: vec![
-                SearchStack {
-                    eval: Evaluation::new(0),
-                    skip_move: None,
-                    move_played: None,
-                    pv: [None; MAX_PLY as usize + 1],
-                    pv_len: 0,
-                    aggr: 0
-                };
-                MAX_PLY as usize + 1
-            ],
-            history: History::new_zeroed(),
-            killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
-        };
+        let mut thread_ctx = ThreadData::new_with_id(thread_id);
         let handle = thread::spawn(move || {
             while let Ok(msg) = rx.recv() {
                 match msg {
-                    Message::Search(shared_ctx, info, observer) => {
-                        root(&shared_ctx, &mut thread_ctx, info, observer.clone());
+                    Message::Search(shared_ctx, mut info, observer) => {
+                        root(&shared_ctx, &mut thread_ctx, &mut info, &*observer);
                     }
                     Message::Wait => continue,
                     Message::Quit => break,
@@ -319,11 +328,11 @@ pub trait SearchObserver: Send + Sync + 'static {
     fn result(&self, _best_move: Move, _eval: Evaluation) {}
 }
 
-fn root(
+pub fn root(
     shared_ctx: &SharedCtx,
     thread_data: &mut ThreadData,
-    mut info: SearchCtx,
-    observer: Arc<dyn SearchObserver>,
+    info: &mut SearchCtx,
+    observer: &dyn SearchObserver,
 ) -> Option<(Move, Evaluation)> {
     let mut thread_ctx = ThreadCtx {
         thread_id: thread_data.thread_id,
