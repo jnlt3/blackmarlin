@@ -1,10 +1,10 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Move, Piece};
+use cozy_chess::{Board, Piece};
 
-use crate::bm::bm_runner::ab_runner::{MoveData, SharedContext, ThreadCtx, MAX_PLY};
+use crate::bm::bm_runner::searcher::{MAX_PLY, MoveData};
+use crate::bm::bm_runner::searcher::{SharedCtx, ThreadCtx};
 use crate::bm::bm_util::eval::Depth::Next;
 use crate::bm::bm_util::eval::Evaluation;
-use crate::bm::bm_util::history::HistoryIndices;
 use crate::bm::bm_util::position::Position;
 use crate::bm::bm_util::t_table::Bounds;
 
@@ -80,11 +80,7 @@ fn nmp_depth(depth: u32, eval: i16, beta: i16) -> u32 {
 }
 
 const fn iir(depth: u32) -> u32 {
-    if depth >= 4 {
-        1
-    } else {
-        0
-    }
+    if depth >= 4 { 1 } else { 0 }
 }
 
 const fn fp(depth: u32) -> i16 {
@@ -106,7 +102,7 @@ const fn history_lmr(history: i16) -> i16 {
 pub fn search<Search: SearchType>(
     pos: &mut Position,
     thread: &mut ThreadCtx,
-    shared_context: &SharedContext,
+    shared_context: &SharedCtx,
     ply: u32,
     mut depth: u32,
     mut alpha: Evaluation,
@@ -115,7 +111,7 @@ pub fn search<Search: SearchType>(
 ) -> Evaluation {
     thread.ss[ply as usize].pv_len = 0;
 
-    if ply != 0 && (thread.abort || shared_context.abort_search(thread.nodes())) {
+    if ply != 0 && (thread.abort || thread.abort_search(thread.nodes())) {
         thread.trigger_abort();
         return Evaluation::min();
     }
@@ -136,7 +132,7 @@ pub fn search<Search: SearchType>(
     let skip_move = thread.ss[ply as usize].skip_move;
     let mut tt_entry = match skip_move {
         Some(_) => None,
-        None => shared_context.get_t_table().get(pos.board()),
+        None => shared_context.t_table.get(pos.board()),
     };
 
     thread.increment_nodes();
@@ -187,8 +183,19 @@ pub fn search<Search: SearchType>(
         Some(_) => thread.ss[ply as usize].eval,
         None => tt_eval.unwrap_or_else(|| pos.get_eval()),
     };
+
+    let prev_move = |prev: u32| match ply >= prev {
+        true => thread.ss[(ply - prev) as usize].move_played,
+        false => None,
+    };
+
+    let cont_1 = prev_move(1);
+    let cont_2 = prev_move(2);
+    let cont_4 = prev_move(4);
+    let history = thread.history.full(pos, cont_1, cont_2, cont_4);
+
     let aggr = pos.aggression(thread.stm, thread.eval);
-    let corr = thread.history.get_correction(pos);
+    let corr = history.correction();
     let eval = raw_eval + aggr + corr;
 
     thread.ss[ply as usize].aggr = aggr;
@@ -286,51 +293,32 @@ pub fn search<Search: SearchType>(
         depth -= iir(depth)
     }
 
-    if let Some(entry) = thread.killer_moves.get_mut(ply as usize + 1) {
+    if let Some(entry) = thread.killers.get_mut(ply as usize + 1) {
         entry.clear();
     }
 
     let mut highest_score = None;
 
-    let prev_move = |prev: u32| match ply >= prev {
-        true => thread.ss[(ply - prev) as usize].move_played,
-        false => None,
-    };
-
-    let cont_1 = prev_move(1);
-    let cont_2 = prev_move(2);
-    let cont_4 = prev_move(4);
-
-    let killers = thread.killer_moves[ply as usize];
-    let mut move_gen = OrderedMoveGen::new(best_move, killers);
+    let killers = thread.killers[ply as usize];
+    let mut move_gen = OrderedMoveGen::new(best_move, killers, history);
 
     let mut moves_seen = 0;
     let mut move_exists = false;
 
-    let mut quiets = ArrayVec::<Move, 64>::new();
-    let mut captures = ArrayVec::<Move, 64>::new();
+    let mut quiets = ArrayVec::<MoveData, 64>::new();
+    let mut captures = ArrayVec::<MoveData, 64>::new();
 
-    let hist_indices = HistoryIndices::new(cont_1, cont_2, cont_4);
-    while let Some(make_move) = move_gen.next(pos, &thread.history, &hist_indices) {
+    while let Some(make_move) = move_gen.next(pos) {
         let move_nodes = thread.nodes();
         if Some(make_move) == skip_move {
             continue;
         }
 
         move_exists = true;
-        let is_capture = pos.is_capture(make_move);
+        let move_data = MoveData::from_move(pos.board(), make_move);
+        let is_capture = move_data.capture;
 
-        let h_score = match is_capture {
-            true => thread.history.get_capture(pos, make_move),
-            false => {
-                (thread.history.get_quiet(pos, make_move)
-                    + thread
-                        .history
-                        .get_counter_move(pos, &hist_indices, make_move)
-                        .unwrap_or_default())
-                    / 2
-            }
-        };
+        let h_score = history.search_score(move_data);
         thread.ss[ply as usize + 1].pv_len = 0;
 
         let mut extension: i32 = 0;
@@ -384,14 +372,7 @@ pub fn search<Search: SearchType>(
                     if !Search::PV && !multi_cut && eval + 100 <= alpha {
                         extension += 1;
                     }
-                    thread.history.update_history(
-                        pos,
-                        &hist_indices,
-                        make_move,
-                        &[],
-                        &[],
-                        depth as i16,
-                    );
+                    history.update(move_data, &[], &[], depth as i16);
                 } else if multi_cut && s_beta >= beta {
                     /*
                     Multi-cut:
@@ -406,9 +387,7 @@ pub fn search<Search: SearchType>(
                 }
             }
         }
-        let mut reduction = shared_context
-            .get_lmr_lookup()
-            .get(depth as usize, moves_seen) as i16;
+        let mut reduction = shared_context.lmr_lookup.get(depth as usize, moves_seen) as i16;
         reduction -= history_lmr(h_score);
 
         let lmr_depth = (depth as i16 - reduction).max(1) as u32;
@@ -432,7 +411,7 @@ pub fn search<Search: SearchType>(
             && !is_capture
             && quiets.len()
                 >= shared_context
-                    .get_lmp_lookup()
+                    .lmp_lookup
                     .get(depth as usize, improving as usize)
         {
             move_gen.skip_quiets();
@@ -472,10 +451,8 @@ pub fn search<Search: SearchType>(
             }
         }
 
-        thread.ss[ply as usize].move_played = Some(MoveData::from_move(pos.board(), make_move));
-        pos.make_move_fetch(make_move, |board| {
-            shared_context.get_t_table().prefetch(&board)
-        });
+        thread.ss[ply as usize].move_played = Some(move_data);
+        pos.make_move_fetch(make_move, |board| shared_context.t_table.prefetch(&board));
         let (_, new_stm_threat) = pos.threats();
 
         let gives_check = !pos.board().checkers().is_empty();
@@ -601,16 +578,9 @@ pub fn search<Search: SearchType>(
                     if !thread.abort {
                         let amt = depth + (eval <= initial_alpha) as u32;
                         if !is_capture {
-                            thread.killer_moves[ply as usize].push(make_move);
+                            thread.killers[ply as usize].push(make_move);
                         }
-                        thread.history.update_history(
-                            pos,
-                            &hist_indices,
-                            make_move,
-                            &quiets,
-                            &captures,
-                            amt as i16,
-                        );
+                        history.update(move_data, &quiets, &captures, amt as i16);
                     }
                     break;
                 }
@@ -619,10 +589,10 @@ pub fn search<Search: SearchType>(
         }
         if is_capture {
             if !captures.is_full() {
-                captures.push(make_move);
+                captures.push(move_data);
             }
         } else if !quiets.is_full() {
-            quiets.push(make_move);
+            quiets.push(move_data);
         }
     }
     if !move_exists {
@@ -649,12 +619,10 @@ pub fn search<Search: SearchType>(
             && score_in_bounds
             && best_move.map_or(true, |mv| !pos.is_capture(mv))
         {
-            thread
-                .history
-                .update_corr_hist(pos, (highest_score - eval).raw(), depth);
+            history.update_correction((highest_score - eval).raw(), depth);
         }
 
-        shared_context.get_t_table().set(
+        shared_context.t_table.set(
             pos.board(),
             depth,
             entry_type,
@@ -674,12 +642,12 @@ This is done as the static evaluation function isn't suited to detecting tactica
 pub fn q_search(
     pos: &mut Position,
     thread: &mut ThreadCtx,
-    shared_context: &SharedContext,
+    shared_context: &SharedCtx,
     ply: u32,
     mut alpha: Evaluation,
     beta: Evaluation,
 ) -> Evaluation {
-    if thread.abort || shared_context.abort_search(thread.nodes()) {
+    if thread.abort || thread.abort_search(thread.nodes()) {
         thread.trigger_abort();
         return Evaluation::min();
     }
@@ -687,14 +655,15 @@ pub fn q_search(
     thread.increment_nodes();
 
     thread.update_sel_depth(ply);
-    let correction = thread.history.get_correction(pos);
     if ply >= MAX_PLY {
-        return pos.get_eval() + pos.aggression(thread.stm, thread.eval) + correction;
+        return pos.get_eval()
+            + pos.aggression(thread.stm, thread.eval)
+            + thread.history.noisy(pos).correction();
     }
 
     let mut best_move = None;
     let initial_alpha = alpha;
-    let tt_entry = shared_context.get_t_table().get(pos.board());
+    let tt_entry = shared_context.t_table.get(pos.board());
     if let Some(entry) = tt_entry {
         best_move = entry.table_move;
         match entry.bounds {
@@ -722,7 +691,8 @@ pub fn q_search(
     If not in check, we have a stand pat score which is the static eval of the current position.
     This is done as captures aren't necessarily the best moves.
     */
-    let corr_stand_pat = stand_pat + correction;
+    let history = thread.history.noisy(pos);
+    let corr_stand_pat = stand_pat + history.correction();
     if !in_check && corr_stand_pat > alpha {
         alpha = corr_stand_pat;
         highest_score = Some(corr_stand_pat);
@@ -732,8 +702,8 @@ pub fn q_search(
     }
 
     let mut move_cnt = 0;
-    let mut move_gen = QSearchMoveGen::new();
-    while let Some(make_move) = move_gen.next(pos, &thread.history) {
+    let mut move_gen = QSearchMoveGen::new(history);
+    while let Some(make_move) = move_gen.next(pos) {
         /*
         Prune all losing captures
         */
@@ -752,9 +722,7 @@ pub fn q_search(
         if stand_pat + 192 <= alpha && !compare_see(pos.board(), make_move, 1) {
             continue;
         }
-        pos.make_move_fetch(make_move, |board| {
-            shared_context.get_t_table().prefetch(board)
-        });
+        pos.make_move_fetch(make_move, |board| shared_context.t_table.prefetch(board));
         let search_score = q_search(
             pos,
             thread,
@@ -792,7 +760,7 @@ pub fn q_search(
             _ => Bounds::Exact,
         };
 
-        shared_context.get_t_table().set(
+        shared_context.t_table.set(
             pos.board(),
             0,
             entry_type,

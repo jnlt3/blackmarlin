@@ -1,9 +1,8 @@
 pub mod bench;
 pub mod command;
-mod uci;
-pub mod uci2;
+pub mod uci;
 
-use uci2::UciAdapter;
+use uci::UciAdapter;
 
 fn main() {
     let mut uci = UciAdapter::new();

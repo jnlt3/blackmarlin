@@ -9,22 +9,71 @@ use std::{
     time::{Duration, Instant},
 };
 
-use cozy_chess::{Board, Color, Move, Square};
+use cozy_chess::{Board, Color, Move, Piece, Square};
 
 use crate::bm::{
-    bm_runner::{
-        ab_runner::{LmpLookup, LmrLookup, MAX_PLY, Nodes, SearchStack},
-        time::TimeManager,
-    },
+    bm_runner::time::TimeManager,
     bm_search::{
         move_entry::MoveEntry,
-        search2::{self, Pv},
+        search::{self, Pv},
     },
     bm_util::{
-        eval::Evaluation, history::History, lookup::LookUp2d, position::Position,
+        eval::Evaluation, history::Hist2, lookup::LookUp2d, position::Position,
         t_table::TranspositionTable, window::Window,
     },
 };
+
+pub const MAX_PLY: u32 = 128;
+pub type LmrLookup = LookUp2d<u32, 32, 64>;
+pub type LmpLookup = LookUp2d<usize, 16, 2>;
+
+#[derive(Debug)]
+pub struct Nodes(pub Arc<AtomicU64>);
+
+#[derive(Debug, Copy, Clone)]
+pub struct MoveData {
+    pub from: Square,
+    pub to: Square,
+    pub promotion: Option<Piece>,
+    pub piece: Piece,
+    pub capture: bool,
+}
+
+impl MoveData {
+    pub fn from_move(board: &Board, make_move: Move) -> Self {
+        Self {
+            from: make_move.from,
+            to: make_move.to,
+            promotion: make_move.promotion,
+            piece: board.piece_on(make_move.from).unwrap(),
+            capture: board.colors(!board.side_to_move()).has(make_move.to),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchStack {
+    pub eval: Evaluation,
+    pub aggr: i16,
+    pub skip_move: Option<Move>,
+    pub move_played: Option<MoveData>,
+    pub pv: [Option<Move>; MAX_PLY as usize + 1],
+    pub pv_len: usize,
+}
+
+impl SearchStack {
+    pub fn full_eval(&self) -> Evaluation {
+        self.eval + self.aggr
+    }
+
+    pub fn update_pv(&mut self, best_move: Move, child_pv: &[Option<Move>]) {
+        self.pv[0] = Some(best_move);
+        for (pv, &child) in self.pv[1..].iter_mut().zip(child_pv) {
+            *pv = child;
+        }
+        self.pv_len = child_pv.len() + 1;
+    }
+}
 
 pub struct Searcher {
     pub context: Arc<SharedCtx>,
@@ -43,7 +92,7 @@ pub struct ThreadData {
     pub thread_id: usize,
     /// Search Stack
     pub ss: Vec<SearchStack>,
-    pub history: History,
+    pub history: Hist2,
     pub killer_moves: Vec<MoveEntry>,
 }
 
@@ -51,7 +100,7 @@ pub struct ThreadCtx<'a> {
     pub thread_id: usize,
     pub tm: &'a TimeManager,
     pub ss: &'a mut [SearchStack],
-    pub history: &'a mut History,
+    pub history: &'a Hist2,
     pub killers: &'a mut [MoveEntry],
     pub nodes: Nodes,
     pub root_nodes: [[u64; Square::NUM]; Square::NUM],
@@ -96,7 +145,7 @@ impl<'a> ThreadCtx<'a> {
 
 impl ThreadData {
     pub fn clear(&mut self) {
-        self.history = History::new();
+        self.history = Hist2::new_zeroed();
         self.killer_moves
             .iter_mut()
             .for_each(|value| *value = MoveEntry::new());
@@ -233,7 +282,7 @@ impl Searcher {
                 };
                 MAX_PLY as usize + 1
             ],
-            history: History::new(),
+            history: Hist2::new_zeroed(),
             killer_moves: vec![MoveEntry::new(); MAX_PLY as usize + 1],
         };
         let handle = thread::spawn(move || {
@@ -280,7 +329,7 @@ fn root(
     let mut thread_ctx = ThreadCtx {
         thread_id: thread_data.thread_id,
         ss: &mut thread_data.ss,
-        history: &mut thread_data.history,
+        history: &thread_data.history,
         killers: &mut thread_data.killer_moves,
         nodes: Nodes(Arc::new(AtomicU64::new(0))),
         root_nodes: [[0; Square::NUM]; Square::NUM],
@@ -313,7 +362,7 @@ fn root(
                 (Evaluation::min(), Evaluation::max())
             };
             thread_ctx.sel_depth = 0;
-            let score = search2::search::<Pv>(
+            let score = search::search::<Pv>(
                 &mut info.root,
                 &mut thread_ctx,
                 &shared_ctx,

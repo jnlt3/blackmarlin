@@ -3,9 +3,9 @@ use std::sync::Arc;
 use arrayvec::ArrayVec;
 use cozy_chess::{BitBoard, Board, Color, File, Move, Piece, Rank, Square};
 
-use self::layers::{Align, Dense, Incremental};
+use crate::bm::bm_runner::searcher::MAX_PLY;
 
-use super::bm_runner::ab_runner;
+use self::layers::{Align, Dense, Incremental};
 
 mod include;
 mod layers;
@@ -134,7 +134,7 @@ impl Nnue {
                     w_acc: incremental_bias,
                     b_acc: incremental_bias
                 };
-                ab_runner::MAX_PLY as usize + 1
+                MAX_PLY as usize + 1
             ],
             w_input_layer: input_layer.clone(),
             b_input_layer: input_layer,
@@ -145,7 +145,7 @@ impl Nnue {
             bias: Arc::new(Align(incremental_bias.0)),
             out_layer,
             head: 0,
-            null_moves: Vec::with_capacity(ab_runner::MAX_PLY as usize + 1),
+            null_moves: Vec::with_capacity(MAX_PLY as usize + 1),
         }
     }
 
