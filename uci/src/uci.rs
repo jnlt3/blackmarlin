@@ -213,7 +213,7 @@ impl UciAdapter {
 
     pub fn input(&mut self, input: &str) -> bool {
         let name = "Black Marlin".to_string();
-        let command = UciCommand::parse(&input, self.chess960);
+        let command = UciCommand::parse(input, self.chess960);
         match command {
             UciCommand::Uci => {
                 println!("id name {} {}", name, VERSION);
@@ -275,7 +275,7 @@ impl UciAdapter {
                     self.searcher
                         .context
                         .time_manager
-                        .initiate(&self.root.board(), &[TimeManagementInfo::MaxDepth(depth)]);
+                        .initiate(self.root.board(), &[TimeManagementInfo::MaxDepth(depth)]);
 
                     let bench_observer = Arc::new(BmBench::default());
 

@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU32, Ordering};
 
 use cozy_chess::{Board, Move, Piece, Square};
 
@@ -93,7 +93,7 @@ impl EntryType {
     fn from_u16(val: u16) -> EntryType {
         let flag = val & 0b11;
         match flag {
-            0 => return EntryType::Missing,
+            0 => EntryType::Missing,
             _ => {
                 let flag = flag - 1;
                 let bounds = match flag {
@@ -128,7 +128,7 @@ pub struct Analysis {
 impl Analysis {
     fn from_raw(bits: u64) -> Option<Self> {
         let (depth, entry_type, score, table_move, age) =
-            unsafe { std::mem::transmute::<_, Layout>(bits) };
+            unsafe { std::mem::transmute::<u64, Layout>(bits) };
         let entry = EntryType::from_u16(entry_type);
 
         match entry {
@@ -238,7 +238,7 @@ impl TranspositionTable {
 
     #[cfg(target_feature = "sse")]
     pub fn prefetch(&self, board: &Board) {
-        use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+        use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
         let hash = board.hash();
         let index = self.tt_index(hash);
         unsafe {
@@ -288,7 +288,7 @@ impl TranspositionTable {
         let entry_b = fetched_entry.analysis[1].load(Ordering::Relaxed);
         let entry_u64 = entry_a as u64 | ((entry_b as u64) << 32);
         let previous = Analysis::from_raw(entry_u64);
-        if previous.map_or(true, |previous| self.replace(&new, &previous)) {
+        if previous.is_none_or(|previous| self.replace(&new, &previous)) {
             let analysis_u64 = new.to_raw();
             fetched_entry.set_new(tt_hash, analysis_u64);
         }

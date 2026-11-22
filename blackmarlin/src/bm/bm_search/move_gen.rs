@@ -247,12 +247,8 @@ impl<'a> QSearchMoveGen<'a> {
                 false
             });
         }
-        if self.phase == QPhase::GoodCaptures {
-            while let Some(index) = select_highest(&self.captures) {
-                let capture = self.captures.swap_remove(index).mv;
-                return Some(capture);
-            }
-        }
-        None
+        let index = select_highest(&self.captures)?;
+        let capture = self.captures.swap_remove(index).mv;
+        Some(capture)
     }
 }

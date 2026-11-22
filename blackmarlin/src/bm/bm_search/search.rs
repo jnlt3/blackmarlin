@@ -289,7 +289,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.map_or(true, |entry| entry.depth + 4 < depth) {
+    if tt_entry.is_none_or(|entry| entry.depth + 4 < depth) {
         depth -= iir(depth)
     }
 
@@ -297,7 +297,7 @@ pub fn search<Search: SearchType>(
         entry.clear();
     }
 
-    let mut highest_score = None;
+    let mut highest_score: Option<Evaluation> = None;
 
     let killers = thread.killers[ply as usize];
     let mut move_gen = OrderedMoveGen::new(best_move, killers, history);
@@ -392,7 +392,7 @@ pub fn search<Search: SearchType>(
 
         let lmr_depth = (depth as i16 - reduction).max(1) as u32;
 
-        let non_mate_line = highest_score.map_or(false, |s: Evaluation| !s.is_mate());
+        let non_mate_line = highest_score.is_some_and(Evaluation::is_eval);
         /*
         In non-PV nodes If a move isn't good enough to beat alpha - a static margin
         we assume it's safe to prune this move
@@ -452,7 +452,7 @@ pub fn search<Search: SearchType>(
         }
 
         thread.ss[ply as usize].move_played = Some(move_data);
-        pos.make_move_fetch(make_move, |board| shared_context.t_table.prefetch(&board));
+        pos.make_move_fetch(make_move, |board| shared_context.t_table.prefetch(board));
         let (_, new_stm_threat) = pos.threats();
 
         let gives_check = !pos.board().checkers().is_empty();
@@ -617,7 +617,7 @@ pub fn search<Search: SearchType>(
         if !highest_score.is_mate()
             && !in_check
             && score_in_bounds
-            && best_move.map_or(true, |mv| !pos.is_capture(mv))
+            && best_move.is_none_or(|mv| !pos.is_capture(mv))
         {
             history.update_correction((highest_score - eval).raw(), depth);
         }

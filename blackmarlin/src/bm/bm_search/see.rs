@@ -52,9 +52,7 @@ fn test_see() {
 ///
 /// If there is no piece to capture, returns 0
 pub fn move_value(board: &Board, make_move: Move) -> i16 {
-    board
-        .piece_on(make_move.to)
-        .map_or(0, |piece| piece_pts(piece))
+    board.piece_on(make_move.to).map_or(0, piece_pts)
 }
 
 /// Returns true if SEE value is at least cmp

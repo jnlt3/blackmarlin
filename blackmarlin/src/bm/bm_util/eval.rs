@@ -26,8 +26,12 @@ impl Evaluation {
         }
     }
 
-    pub const fn is_mate(&self) -> bool {
+    pub const fn is_mate(self) -> bool {
         self.score.saturating_abs() > MAX_EVAL
+    }
+
+    pub const fn is_eval(self) -> bool {
+        !self.is_mate()
     }
 
     pub const fn mate_in(&self) -> Option<i16> {

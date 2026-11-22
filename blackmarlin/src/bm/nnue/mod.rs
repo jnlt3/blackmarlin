@@ -283,7 +283,7 @@ impl Nnue {
         let single = &[!stm];
         if from_type == Piece::King {
             perspectives = single;
-            self.reset(stm, &new_board, w_threats, b_threats);
+            self.reset(stm, new_board, w_threats, b_threats);
         }
         for &perspective in perspectives {
             for w_threat_sq in w_threats ^ old_w_threats {

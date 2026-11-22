@@ -76,15 +76,17 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
             const VEC_SIZE: usize = std::mem::size_of::<__m256i>() / std::mem::size_of::<u8>();
 
             // SAFETY: Only enabled on AVX2
-            if INPUT % VEC_SIZE == 0 {
+            if const { INPUT.is_multiple_of(VEC_SIZE) } {
                 unsafe {
                     let weights = &self.weights.0[bucket];
                     let ones = _mm256_set1_epi16(1);
                     let mut sum = _mm256_setzero_si256();
                     for (inputs, weights) in inputs
                         .0
-                        .chunks_exact(VEC_SIZE)
-                        .zip(weights.chunks_exact(VEC_SIZE))
+                        .as_chunks::<VEC_SIZE>()
+                        .0
+                        .iter()
+                        .zip(weights.as_chunks::<VEC_SIZE>().0)
                     {
                         // SAFETY: input and weights are exactly 256 bits due to chunks_exact.
                         // input and weights are from Align<T> types, which are guaranteed to be aligned.
@@ -119,42 +121,6 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
                 }
             }
         }
-        /*
-        #[cfg(target_feature = "neon")]
-        {
-            use std::arch::aarch64::*;
-            const VEC_SIZE: usize = std::mem::size_of::<int8x16_t>() / std::mem::size_of::<u8>();
-            // SAFETY: Only enabled on NEON
-            if INPUT % VEC_SIZE == 0 {
-                unsafe {
-                    let weights = &self.weights.0[bucket];
-                    let mut sum = vld1q_dup_s32(&0);
-                    for (inputs, weights) in inputs
-                        .0
-                        .chunks_exact(VEC_SIZE)
-                        .zip(weights.chunks_exact(VEC_SIZE))
-                    {
-                        let inputs = vld1q_u8(inputs.as_ptr());
-                        let weights = vld1q_s8(weights.as_ptr());
-
-                        let inputs_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(inputs)));
-                        let inputs_high = vreinterpretq_s16_u16(vmovl_high_u8(inputs));
-
-                        let weights_low = vmovl_s8(vget_low_s8(weights));
-                        let weights_high = vmovl_high_s8(weights);
-
-                        let low_mul = vmulq_s16(inputs_low, weights_low);
-                        let high_mul = vmulq_s16(inputs_high, weights_high);
-                        let mul_sum = vqaddq_s16(low_mul, high_mul);
-                        let low_sum = vmovl_s16(vget_low_s16(mul_sum));
-                        let high_sum = vmovl_high_s16(mul_sum);
-
-                        sum = vaddq_s32(sum, vaddq_s32(low_sum, high_sum));
-                    }
-                    return out + vaddlvq_s32(sum) as i32;
-                }
-            }
-        } */
 
         let weights = &self.weights.0[bucket];
         for (&input, &weight) in inputs.0.iter().zip(weights) {
@@ -165,7 +131,7 @@ impl<const INPUT: usize, const OUTPUT: usize> Dense<INPUT, OUTPUT> {
 }
 
 pub fn scale_network_output(x: i32) -> i16 {
-    (x as i32 * UNITS as i32 / (FT_SCALE as i32 * SCALE as i32)) as i16
+    (x * UNITS as i32 / (FT_SCALE as i32 * SCALE as i32)) as i16
 }
 
 pub fn sq_clipped_relu<const N: usize>(array: &Align<[i16; N]>, out: &mut [u8]) {
@@ -180,7 +146,7 @@ pub fn sq_clipped_relu<const N: usize>(array: &Align<[i16; N]>, out: &mut [u8]) 
             }
         } else {
             for (&x, clipped) in array.0.iter().zip(out.iter_mut()) {
-                let tmp = x.max(MIN).min(MAX) as u16;
+                let tmp = x.clamp(MIN, MAX) as u16;
                 *clipped = ((tmp * tmp) >> SHIFT) as u8;
             }
         }
