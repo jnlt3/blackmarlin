@@ -297,7 +297,7 @@ pub fn search<Search: SearchType>(
         }
     }
 
-    if tt_entry.is_none_or(|entry| entry.depth + 4 < depth) {
+    if tt_entry.is_none_or(|entry| entry.table_move.is_none() || entry.depth + 4 < depth) {
         depth -= iir(depth)
     }
 
