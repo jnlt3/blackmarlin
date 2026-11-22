@@ -3,5 +3,5 @@ members = ["blackmarlin", "datagen", "filter", "uci"]
 resolver = "3"
 
 [profile.release]
-lto = "fat"
+lto = "thin"
 codegen-units = 1
