@@ -161,8 +161,9 @@ impl SearchObserver for BmUciStandard {
         println!("{}", output);
     }
 
-    fn result(&self, best_move: Move, _eval: Evaluation) {
-        println!("bestmove {best_move}")
+    fn result(&self, board: &Board, best_move: Move, _eval: Evaluation) {
+        let uci_move = self.convert_move_to_uci(best_move, &board);
+        println!("bestmove {uci_move}")
     }
 }
 
@@ -187,7 +188,7 @@ impl SearchObserver for BmBench {
         self.nodes.store(nodes, Ordering::Relaxed);
     }
 
-    fn result(&self, best_move: Move, eval: Evaluation) {
+    fn result(&self, _board: &Board, best_move: Move, eval: Evaluation) {
         *self.result.lock().unwrap() = Some((best_move, eval));
     }
 }

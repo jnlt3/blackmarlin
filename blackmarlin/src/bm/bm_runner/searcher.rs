@@ -325,7 +325,7 @@ pub trait SearchObserver: Send + Sync + 'static {
     ) {
     }
 
-    fn result(&self, _best_move: Move, _eval: Evaluation) {}
+    fn result(&self, _board: &Board, _best_move: Move, _eval: Evaluation) {}
 }
 
 pub fn root(
@@ -434,7 +434,7 @@ pub fn root(
     if let Some((mv, eval)) = result
         && thread_data.thread_id == 0
     {
-        observer.result(mv, eval);
+        observer.result(info.root.board(), mv, eval);
     }
     result
 }
