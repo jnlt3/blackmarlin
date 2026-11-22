@@ -194,6 +194,14 @@ pub fn search<Search: SearchType>(
     let cont_4 = prev_move(4);
     let history = thread.history.full(pos, cont_1, cont_2, cont_4);
 
+    let parent = (ply >= 1).then(|| &thread.ss[ply as usize - 1]);
+
+    if let Some(parent) = parent {
+        if !Search::NM && parent.move_played.is_none() && (parent.eval + raw_eval).raw() < -16 {
+            return beta;
+        }
+    }
+
     let aggr = pos.aggression(thread.stm, thread.eval);
     let corr = history.correction();
     let eval = raw_eval + aggr + corr;
