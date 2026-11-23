@@ -180,7 +180,7 @@ pub fn search<Search: SearchType>(
 
     let tt_eval = tt_entry.and_then(|entry| entry.eval);
     let raw_eval = match skip_move {
-        Some(_) => thread.ss[ply as usize].eval,
+        Some(_) => thread.ss[ply as usize].raw_eval,
         None => tt_eval.unwrap_or_else(|| pos.get_eval()),
     };
 
@@ -197,7 +197,7 @@ pub fn search<Search: SearchType>(
     let parent = (ply >= 1).then(|| &thread.ss[ply as usize - 1]);
 
     if let Some(parent) = parent {
-        if !Search::NM && parent.move_played.is_none() && (parent.eval + raw_eval).raw() < -16 {
+        if !Search::NM && parent.move_played.is_none() && (parent.raw_eval + raw_eval).raw() < -16 {
             return beta;
         }
     }
@@ -206,8 +206,9 @@ pub fn search<Search: SearchType>(
     let corr = history.correction();
     let eval = raw_eval + aggr + corr;
 
+    thread.ss[ply as usize].raw_eval = raw_eval;
     thread.ss[ply as usize].aggr = aggr;
-    thread.ss[ply as usize].eval = raw_eval;
+    thread.ss[ply as usize].corr = corr;
 
     let prev_move_eval = match ply {
         2.. => Some(thread.ss[ply as usize - 2].full_eval()),

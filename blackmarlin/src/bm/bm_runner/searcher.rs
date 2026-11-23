@@ -51,18 +51,19 @@ impl MoveData {
 }
 
 #[derive(Debug, Clone)]
-pub struct SearchStack {
-    pub eval: Evaluation,
+pub struct StackEntry {
+    pub raw_eval: Evaluation,
     pub aggr: i16,
+    pub corr: i16,
     pub skip_move: Option<Move>,
     pub move_played: Option<MoveData>,
     pub pv: [Option<Move>; MAX_PLY as usize + 1],
     pub pv_len: usize,
 }
 
-impl SearchStack {
+impl StackEntry {
     pub fn full_eval(&self) -> Evaluation {
-        self.eval + self.aggr
+        self.raw_eval + self.aggr + self.corr
     }
 
     pub fn update_pv(&mut self, best_move: Move, child_pv: &[Option<Move>]) {
@@ -90,7 +91,7 @@ pub struct SharedCtx {
 pub struct ThreadData {
     pub thread_id: usize,
     /// Search Stack
-    pub ss: Vec<SearchStack>,
+    pub ss: Vec<StackEntry>,
     pub history: History,
     pub killer_moves: Vec<MoveEntry>,
 }
@@ -98,7 +99,7 @@ pub struct ThreadData {
 pub struct ThreadCtx<'a> {
     pub thread_id: usize,
     pub tm: &'a TimeManager,
-    pub ss: &'a mut [SearchStack],
+    pub ss: &'a mut [StackEntry],
     pub history: &'a History,
     pub killers: &'a mut [MoveEntry],
     pub nodes: Nodes,
@@ -170,13 +171,14 @@ impl ThreadData {
         Self {
             thread_id,
             ss: vec![
-                SearchStack {
-                    eval: Evaluation::new(0),
+                StackEntry {
+                    raw_eval: Evaluation::new(0),
                     skip_move: None,
                     move_played: None,
                     pv: [None; MAX_PLY as usize + 1],
                     pv_len: 0,
-                    aggr: 0
+                    aggr: 0,
+                    corr: 0,
                 };
                 MAX_PLY as usize + 1
             ],
@@ -191,13 +193,14 @@ impl ThreadData {
             .iter_mut()
             .for_each(|value| *value = MoveEntry::new());
         self.ss = vec![
-            SearchStack {
-                eval: Evaluation::new(0),
+            StackEntry {
+                raw_eval: Evaluation::new(0),
                 skip_move: None,
                 move_played: None,
                 pv: [None; MAX_PLY as usize + 1],
                 pv_len: 0,
-                aggr: 0
+                aggr: 0,
+                corr: 0,
             };
             MAX_PLY as usize + 1
         ];
