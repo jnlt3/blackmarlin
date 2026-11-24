@@ -197,15 +197,18 @@ pub fn search<Search: SearchType>(
 
     let parent = (ply >= 1).then(|| &thread.ss[ply as usize - 1]);
 
-    if let Some(parent) = parent {
-        if !Search::NM && parent.move_played.is_none() && (parent.raw_eval + raw_eval).raw() < -16 {
-            return beta;
-        }
-    }
-
     let aggr = pos.aggression(thread.stm, thread.eval);
     let corr = history.correction();
     let eval = raw_eval + aggr + corr;
+
+    if let Some(parent) = parent {
+        if !Search::NM
+            && parent.move_played.is_none()
+            && (parent.raw_eval + parent.corr + raw_eval + corr).raw() < -16
+        {
+            return beta;
+        }
+    }
 
     thread.ss[ply as usize].raw_eval = raw_eval;
     thread.ss[ply as usize].aggr = aggr;
