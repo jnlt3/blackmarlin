@@ -73,6 +73,7 @@ impl History {
         cont_1: Option<MoveData>,
         cont_2: Option<MoveData>,
         cont_4: Option<MoveData>,
+        cont_6: Option<MoveData>,
     ) -> FullHist<'_> {
         let stm = pos.board().side_to_move();
         let side = &self.sides[stm as usize];
@@ -81,6 +82,8 @@ impl History {
         let cont_1 = cont_1.map(|mv| &side.counter_move[mv.piece as usize][mv.to as usize]);
         let cont_2 = cont_2.map(|mv| &side.followup_move[mv.piece as usize][mv.to as usize]);
         let cont_4 = cont_4.map(|mv| &side.followup_move[mv.piece as usize][mv.to as usize]);
+        let cont_6 = cont_6.map(|mv| &side.followup_move[mv.piece as usize][mv.to as usize]);
+
         FullHist {
             nstm_threats,
             quiet: &side.quiet,
@@ -88,6 +91,7 @@ impl History {
             cont_1,
             cont_2,
             cont_4,
+            cont_6,
             pawn_corr: &side.pawn_corr[pos.pawn_hash() as usize],
         }
     }
@@ -112,6 +116,7 @@ pub struct FullHist<'a> {
     cont_1: Option<&'a PieceTo<Entry>>,
     cont_2: Option<&'a PieceTo<Entry>>,
     cont_4: Option<&'a PieceTo<Entry>>,
+    cont_6: Option<&'a PieceTo<Entry>>,
     pawn_corr: &'a Entry<i32>,
 }
 
@@ -166,6 +171,9 @@ impl<'a> FullHist<'a> {
         if let Some(cont_4) = self.cont_4 {
             score += cont_4[mv.piece as usize][mv.to as usize].get();
         }
+        if let Some(cont_6) = self.cont_6 {
+            score += cont_6[mv.piece as usize][mv.to as usize].get();
+        }
         score
     }
 
@@ -215,6 +223,12 @@ impl<'a> FullHist<'a> {
             cont_4[best_move.piece as usize][best_move.to as usize].update(score);
             for mv in quiets {
                 cont_4[mv.piece as usize][mv.to as usize].update(-score);
+            }
+        }
+        if let Some(cont_6) = self.cont_6 {
+            cont_6[best_move.piece as usize][best_move.to as usize].update(score);
+            for mv in quiets {
+                cont_6[mv.piece as usize][mv.to as usize].update(-score);
             }
         }
     }

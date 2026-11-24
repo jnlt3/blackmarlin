@@ -192,7 +192,8 @@ pub fn search<Search: SearchType>(
     let cont_1 = prev_move(1);
     let cont_2 = prev_move(2);
     let cont_4 = prev_move(4);
-    let history = thread.history.full(pos, cont_1, cont_2, cont_4);
+    let cont_6 = prev_move(6);
+    let history = thread.history.full(pos, cont_1, cont_2, cont_4, cont_6);
 
     let parent = (ply >= 1).then(|| &thread.ss[ply as usize - 1]);
 
