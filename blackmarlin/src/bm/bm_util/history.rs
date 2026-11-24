@@ -72,6 +72,7 @@ impl History {
         pos: &Position,
         cont_1: Option<MoveData>,
         cont_2: Option<MoveData>,
+        cont_3: Option<MoveData>,
         cont_4: Option<MoveData>,
         cont_6: Option<MoveData>,
     ) -> FullHist<'_> {
@@ -81,6 +82,8 @@ impl History {
 
         let cont_1 = cont_1.map(|mv| &side.counter_move[mv.piece as usize][mv.to as usize]);
         let cont_2 = cont_2.map(|mv| &side.followup_move[mv.piece as usize][mv.to as usize]);
+        let cont_3 = cont_3.map(|mv| &side.counter_move[mv.piece as usize][mv.to as usize]);
+
         let cont_4 = cont_4.map(|mv| &side.followup_move[mv.piece as usize][mv.to as usize]);
         let cont_6 = cont_6.map(|mv| &side.followup_move[mv.piece as usize][mv.to as usize]);
 
@@ -90,6 +93,7 @@ impl History {
             noisy: &side.noisy,
             cont_1,
             cont_2,
+            cont_3,
             cont_4,
             cont_6,
             pawn_corr: &side.pawn_corr[pos.pawn_hash() as usize],
@@ -115,6 +119,7 @@ pub struct FullHist<'a> {
     noisy: &'a [Butterfly<Entry>; 2],
     cont_1: Option<&'a PieceTo<Entry>>,
     cont_2: Option<&'a PieceTo<Entry>>,
+    cont_3: Option<&'a PieceTo<Entry>>,
     cont_4: Option<&'a PieceTo<Entry>>,
     cont_6: Option<&'a PieceTo<Entry>>,
     pawn_corr: &'a Entry<i32>,
@@ -168,6 +173,9 @@ impl<'a> FullHist<'a> {
         if let Some(cont_2) = self.cont_2 {
             score += cont_2[mv.piece as usize][mv.to as usize].get();
         }
+        if let Some(cont_3) = self.cont_3 {
+            score += cont_3[mv.piece as usize][mv.to as usize].get();
+        }
         if let Some(cont_4) = self.cont_4 {
             score += cont_4[mv.piece as usize][mv.to as usize].get();
         }
@@ -217,6 +225,12 @@ impl<'a> FullHist<'a> {
             cont_2[best_move.piece as usize][best_move.to as usize].update(score);
             for mv in quiets {
                 cont_2[mv.piece as usize][mv.to as usize].update(-score);
+            }
+        }
+        if let Some(cont_3) = self.cont_3 {
+            cont_3[best_move.piece as usize][best_move.to as usize].update(score);
+            for mv in quiets {
+                cont_3[mv.piece as usize][mv.to as usize].update(-score);
             }
         }
         if let Some(cont_4) = self.cont_4 {
