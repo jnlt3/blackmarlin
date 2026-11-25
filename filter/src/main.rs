@@ -89,7 +89,7 @@ fn main() {
         let fen = split.next().unwrap();
         let eval = split.next().unwrap().parse::<i16>().unwrap();
         let wdl = split.next().unwrap(); // "0" "0.5" or "1"
-        let board = Board::from_fen(&fen, false).unwrap();
+        let board = Board::from_fen(fen, false).unwrap();
         let mv = split.next().unwrap().parse::<Move>().unwrap();
         let ply = split.next().unwrap().parse::<usize>().unwrap();
 
@@ -115,15 +115,16 @@ fn main() {
         if args.filter_cap && board.colors(!board.side_to_move()).has(mv.to) {
             continue;
         }
-        if let Some(chance) = args.filter_random {
-            if rng.random::<f32>() < chance {
-                continue;
-            }
+        if let Some(chance) = args.filter_random
+            && rng.random::<f32>() < chance
+        {
+            continue;
         }
-        if let Some(chance) = args.draw_filter_chance {
-            if wdl == "0.5" && rng.random::<f32>() < chance {
-                continue;
-            }
+        if let Some(chance) = args.draw_filter_chance
+            && wdl == "0.5"
+            && rng.random::<f32>() < chance
+        {
+            continue;
         }
         added += 1;
         if (index + 1) % args.info_interval == 0 {
@@ -134,7 +135,7 @@ fn main() {
             );
         }
         out_file
-            .write(format!("{fen} | {eval} | {wdl}\n").as_bytes())
+            .write_all(format!("{fen} | {eval} | {wdl}\n").as_bytes())
             .unwrap();
     }
 }

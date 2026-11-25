@@ -1,6 +1,5 @@
 use cozy_chess::{BitBoard, Board, Color, File, Piece};
 
-
 /// Return pieces that can be directly captured by weaker pieces
 /// - Do not modify as the NN evaluation depends on this function
 pub fn threats(board: &Board) -> (BitBoard, BitBoard) {

@@ -26,7 +26,6 @@ pub const MAX_PLY: u32 = 128;
 pub type LmrLookup = LookUp2d<u32, 32, 64>;
 pub type LmpLookup = LookUp2d<usize, 16, 2>;
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct MoveData {
     pub from: Square,
@@ -157,7 +156,7 @@ impl<'a> ThreadCtx<'a> {
     }
 
     pub fn abort_search(&self, nodes: u64) -> bool {
-        if nodes % 1024 != 0 {
+        if !nodes.is_multiple_of(1024) {
             return false;
         }
         self.tm.abort_search(self.start)
@@ -212,7 +211,7 @@ pub struct SearchCtx {
 }
 
 enum Message {
-    Search(Arc<SharedCtx>, SearchCtx, Arc<dyn SearchObserver>),
+    Search(Arc<SharedCtx>, Box<SearchCtx>, Arc<dyn SearchObserver>),
     Quit,
     Wait,
     Clear,
@@ -223,7 +222,7 @@ impl Searcher {
         let ctx = SharedCtx::new_with_hash(hash_size);
         Self {
             context: Arc::new(ctx),
-            workers: (0..threads).map(|id| Self::spawn_worker(id)).collect(),
+            workers: (0..threads).map(Self::spawn_worker).collect(),
         }
     }
 
@@ -236,7 +235,7 @@ impl Searcher {
         self.stop();
         if threads >= self.workers.len() {
             self.workers
-                .extend((self.workers.len()..threads).map(|id| Self::spawn_worker(id)));
+                .extend((self.workers.len()..threads).map(Self::spawn_worker));
         } else {
             for (sender, handle) in self.workers.drain(threads..) {
                 sender.send(Message::Quit).unwrap();
@@ -258,7 +257,7 @@ impl Searcher {
             worker
                 .send(Message::Search(
                     self.context.clone(),
-                    search_ctx.clone(),
+                    Box::new(search_ctx.clone()),
                     observer.clone(),
                 ))
                 .unwrap();
@@ -378,7 +377,7 @@ pub fn root(
             let score = search::search::<Pv>(
                 &mut info.root,
                 &mut thread_ctx,
-                &shared_ctx,
+                shared_ctx,
                 0,
                 depth,
                 alpha,
@@ -394,7 +393,7 @@ pub fn root(
             let root_move = thread_ctx.ss[0].pv[0].unwrap();
             let move_nodes = thread_ctx.root_nodes[root_move.from as usize][root_move.to as usize];
             shared_ctx.time_manager.deepen(
-                thread_ctx.thread_id as usize,
+                thread_ctx.thread_id,
                 depth,
                 move_nodes,
                 nodes,

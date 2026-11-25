@@ -200,9 +200,7 @@ impl SearchObserver for BmBench {
 
 impl BmBench {
     fn result(&self) -> Option<(u64, Move, Evaluation)> {
-        let Some((mv, eval)) = *self.result.lock().unwrap() else {
-            return None;
-        };
+        let (mv, eval) = (*self.result.lock().unwrap())?;
         Some((self.nodes.load(Ordering::Relaxed), mv, eval))
     }
 }

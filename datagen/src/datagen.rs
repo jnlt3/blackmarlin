@@ -176,14 +176,7 @@ pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions)
         }
         let mut output = String::new();
         for (board, eval, wdl, mv, ply) in rx.iter().take(options.threads).flatten() {
-            output += &format!(
-                "{} | {} | {} | {} | {}\n",
-                &board.to_string(),
-                eval.raw(),
-                wdl,
-                mv,
-                ply
-            );
+            output += &format!("{} | {} | {} | {} | {}\n", board, eval.raw(), wdl, mv, ply);
             fen_count += 1;
         }
         let file = OpenOptions::new()
@@ -193,7 +186,7 @@ pub fn gen_eval(tm_options: &Arc<[TimeManagementInfo]>, options: DataGenOptions)
             .open(&options.out)
             .unwrap();
         let mut write = BufWriter::new(file);
-        write.write(output.as_bytes()).unwrap();
+        write.write_all(output.as_bytes()).unwrap();
         let positions_per_second = (fen_count - start_fen_count) as u64 / options.interval;
         eprintln!("{:.2} pos/s", positions_per_second);
         if fen_count >= options.pos_count {

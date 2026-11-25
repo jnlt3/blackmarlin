@@ -5,11 +5,11 @@ struct XorShift16 {
 }
 
 impl XorShift16 {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self { state: 1 }
     }
 
-    fn next(&mut self) -> u16 {
+    const fn next(&mut self) -> u16 {
         self.state ^= self.state << 7;
         self.state ^= self.state >> 9;
         self.state ^= self.state << 8;
@@ -21,22 +21,28 @@ impl XorShift16 {
 pub struct Zobrist {
     stack: Vec<u16>,
     current: u16,
-    hashes: [[u16; Square::NUM]; Color::NUM],
 }
+
+static HASHES: [[u16; Square::NUM]; Color::NUM] = const {
+    let mut xor_shift = XorShift16::new();
+    let mut hashes = [[0; Square::NUM]; Color::NUM];
+    let mut color_idx = 0;
+    while color_idx < Color::ALL.len() {
+        let mut square_idx = 0;
+        while square_idx < Square::ALL.len() {
+            hashes[color_idx][square_idx] = xor_shift.next();
+            square_idx += 1;
+        }
+        color_idx += 1;
+    }
+    hashes
+};
 
 impl Zobrist {
     pub fn new(w: BitBoard, b: BitBoard) -> Self {
-        let mut xor_shift = XorShift16::new();
-        let mut hashes = [[0; Square::NUM]; Color::NUM];
-        for color in &mut hashes {
-            for square in color {
-                *square = xor_shift.next();
-            }
-        }
         let mut zobrist = Self {
             stack: vec![],
             current: 0,
-            hashes,
         };
         zobrist.clear(w, b);
         zobrist
@@ -53,10 +59,10 @@ impl Zobrist {
     pub fn make_move(&mut self, w_diff: BitBoard, b_diff: BitBoard) {
         self.stack.push(self.current);
         for w in w_diff {
-            self.current ^= self.hashes[0][w as usize];
+            self.current ^= HASHES[0][w as usize];
         }
         for b in b_diff {
-            self.current ^= self.hashes[1][b as usize];
+            self.current ^= HASHES[1][b as usize];
         }
     }
 
@@ -68,10 +74,10 @@ impl Zobrist {
         self.stack.clear();
         self.current = 0;
         for w in w {
-            self.current ^= self.hashes[0][w as usize];
+            self.current ^= HASHES[0][w as usize];
         }
         for b in b {
-            self.current ^= self.hashes[1][b as usize];
+            self.current ^= HASHES[1][b as usize];
         }
     }
 }
