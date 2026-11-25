@@ -30,7 +30,7 @@ pub struct UciAdapter {
 struct BmUciStandard {
     frc: bool,
     wdl: bool,
-    thread_nodes: Box<[AtomicU64]>,
+    thread_nodes: Box<[Arc<AtomicU64>]>,
 }
 
 impl BmUciStandard {
@@ -96,7 +96,12 @@ fn convert_move(frc: bool, mut mv: Move, board: &Board) -> Move {
     }
     mv
 }
+
 impl SearchObserver for BmUciStandard {
+    fn node_counter(&self, thread_id: usize) -> Arc<AtomicU64> {
+        self.thread_nodes[thread_id].clone()
+    }
+
     fn search_result(
         &self,
         thread_id: usize,
@@ -334,7 +339,7 @@ impl UciAdapter {
                 frc: self.chess960,
                 wdl: self.show_wdl,
                 thread_nodes: (0..self.searcher.threads())
-                    .map(|_| AtomicU64::new(0))
+                    .map(|_| Arc::new(AtomicU64::new(0)))
                     .collect(),
             }),
         );

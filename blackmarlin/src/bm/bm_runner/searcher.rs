@@ -26,8 +26,6 @@ pub const MAX_PLY: u32 = 128;
 pub type LmrLookup = LookUp2d<u32, 32, 64>;
 pub type LmpLookup = LookUp2d<usize, 16, 2>;
 
-#[derive(Debug)]
-pub struct Nodes(pub Arc<AtomicU64>);
 
 #[derive(Debug, Copy, Clone)]
 pub struct MoveData {
@@ -102,7 +100,7 @@ pub struct ThreadCtx<'a> {
     pub ss: &'a mut [StackEntry],
     pub history: &'a History,
     pub killers: &'a mut [MoveEntry],
-    pub nodes: Nodes,
+    pub nodes: Arc<AtomicU64>,
     pub root_nodes: [[u64; Square::NUM]; Square::NUM],
 
     pub window: Window,
@@ -143,7 +141,7 @@ impl SharedCtx {
 
 impl<'a> ThreadCtx<'a> {
     pub fn nodes(&self) -> u64 {
-        self.nodes.0.load(Ordering::Relaxed)
+        self.nodes.load(Ordering::Relaxed)
     }
 
     pub fn trigger_abort(&mut self) {
@@ -155,7 +153,7 @@ impl<'a> ThreadCtx<'a> {
     }
 
     pub fn increment_nodes(&self) {
-        self.nodes.0.fetch_add(1, Ordering::Relaxed);
+        self.nodes.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn abort_search(&self, nodes: u64) -> bool {
@@ -315,6 +313,10 @@ impl Searcher {
 }
 
 pub trait SearchObserver: Send + Sync + 'static {
+    fn node_counter(&self, _thread_id: usize) -> Arc<AtomicU64> {
+        Arc::new(AtomicU64::new(0))
+    }
+
     fn search_result(
         &self,
         _thread_id: usize,
@@ -342,7 +344,7 @@ pub fn root(
         ss: &mut thread_data.ss,
         history: &thread_data.history,
         killers: &mut thread_data.killer_moves,
-        nodes: Nodes(Arc::new(AtomicU64::new(0))),
+        nodes: observer.node_counter(thread_data.thread_id),
         root_nodes: [[0; Square::NUM]; Square::NUM],
         window: Window::new(15, 45, 100, 9),
         eval: info.root.get_eval(),
