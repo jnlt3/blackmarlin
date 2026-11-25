@@ -284,7 +284,7 @@ pub fn search<Search: SearchType>(
                         pos,
                         thread,
                         shared_context,
-                        ply + 1,
+                        ply,
                         nmp_depth,
                         alpha,
                         beta,
