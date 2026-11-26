@@ -278,23 +278,7 @@ pub fn search<Search: SearchType>(
             pos.unmake_move();
             let score = search_score << Next;
             if score >= beta {
-                let mut verified = depth < 10;
-                if !verified {
-                    let verification = search::<NoNm>(
-                        pos,
-                        thread,
-                        shared_context,
-                        ply + 1,
-                        nmp_depth,
-                        alpha,
-                        beta,
-                        false,
-                    );
-                    verified = verification >= beta;
-                }
-                if verified {
-                    return score;
-                }
+                return score;
             }
         }
     }
