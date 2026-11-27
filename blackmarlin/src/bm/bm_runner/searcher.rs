@@ -112,6 +112,8 @@ pub struct ThreadCtx<'a> {
     pub tt_misses: u32,
     pub sel_depth: u32,
 
+    pub in_verif: bool,
+
     start: Instant,
 }
 
@@ -352,6 +354,7 @@ pub fn root(
         tt_hits: 0,
         tt_misses: 0,
         sel_depth: 0,
+        in_verif: false,
         tm: &shared_ctx.time_manager,
         start: info.start,
     };

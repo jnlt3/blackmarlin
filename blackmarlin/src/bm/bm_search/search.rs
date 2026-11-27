@@ -280,16 +280,18 @@ pub fn search<Search: SearchType>(
             if score >= beta {
                 let mut verified = depth < 10;
                 if !verified {
+                    thread.in_verif = true;
                     let verification = search::<NoNm>(
                         pos,
                         thread,
                         shared_context,
-                        ply + 1,
+                        ply,
                         nmp_depth,
                         alpha,
                         beta,
                         false,
                     );
+                    thread.in_verif = false;
                     verified = verification >= beta;
                 }
                 if verified {
@@ -478,7 +480,8 @@ pub fn search<Search: SearchType>(
         */
 
         if moves_seen > 0 {
-            if ply <= (depth + ply) * 2 / 5 {
+            let lmr_ply = ply + u32::from(thread.in_verif);
+            if lmr_ply <= (depth + lmr_ply) * 2 / 5 {
                 reduction -= 1;
             }
             if !Search::PV {
